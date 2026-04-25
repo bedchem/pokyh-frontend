@@ -164,11 +164,11 @@ export default function MessageDetailPage({
   return (
     <AuthGuard>
       <div
-        className="h-dvh flex flex-col overflow-hidden"
+        className="h-full flex flex-col overflow-hidden"
         style={{ background: 'var(--app-bg)' }}
       >
         {/* Nav */}
-        <div className="px-5 pt-14 pb-4 flex items-center gap-3 fade-in">
+        <div className="px-5 pt-4 pb-4 flex items-center gap-3 fade-in">
           <button
             onClick={() => router.back()}
             className="p-2 rounded-full press-scale"
@@ -256,7 +256,7 @@ export default function MessageDetailPage({
                   {msg.attachments.map((att, i) => (
                     <a
                       key={att.id}
-                      href={getAttachmentUrl(msg.id, att.storageId, att.name)}
+                      href={getAttachmentUrl(msg.id, att.storageId, att.name, att.id)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="px-4 py-3 flex items-center gap-3 press-scale"

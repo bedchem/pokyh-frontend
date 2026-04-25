@@ -67,6 +67,14 @@ export default function RemindersPage() {
   const [body, setBody] = useState('');
   const [due, setDue] = useState('');
   const [saving, setSaving] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!ready || !user) return;
+    getDoc(doc(db, 'users', user.username)).then((snap) => {
+      if (snap.exists()) setIsAdmin((snap.data()?.isAdmin as boolean) === true);
+    });
+  }, [ready, user]);
 
   useEffect(() => {
     if (!ready) return;
@@ -137,9 +145,9 @@ export default function RemindersPage() {
 
   return (
     <AuthGuard>
-      <div className="h-dvh flex flex-col overflow-hidden" style={{ background: 'var(--app-bg)' }}>
+      <div className="h-full flex flex-col overflow-hidden" style={{ background: 'var(--app-bg)' }}>
         {/* Header */}
-        <div className="px-5 pt-14 pb-3 fade-in flex-shrink-0">
+        <div className="px-5 pt-4 pb-3 fade-in flex-shrink-0">
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.back()}
@@ -224,7 +232,7 @@ export default function RemindersPage() {
                 </p>
               )}
               {overdue.map((r) => (
-                <ReminderCard key={r.id} r={r} stableUid={stableUid} onDelete={deleteReminder} overdue />
+                <ReminderCard key={r.id} r={r} stableUid={stableUid} isAdmin={isAdmin} onDelete={deleteReminder} overdue />
               ))}
               {upcoming.filter(r => r.remindAt >= new Date()).length > 0 && (
                 <p className="text-xs font-semibold uppercase tracking-wider px-1 mt-2"
@@ -233,7 +241,7 @@ export default function RemindersPage() {
                 </p>
               )}
               {upcoming.filter(r => r.remindAt >= new Date()).map((r) => (
-                <ReminderCard key={r.id} r={r} stableUid={stableUid} onDelete={deleteReminder} overdue={false} />
+                <ReminderCard key={r.id} r={r} stableUid={stableUid} isAdmin={isAdmin} onDelete={deleteReminder} overdue={false} />
               ))}
             </div>
           )}
@@ -358,15 +366,18 @@ export default function RemindersPage() {
 function ReminderCard({
   r,
   stableUid,
+  isAdmin,
   onDelete,
   overdue,
 }: {
   r: Reminder;
   stableUid: string | null;
+  isAdmin: boolean;
   onDelete: (r: Reminder) => void;
   overdue: boolean;
 }) {
   const isMine = stableUid != null && r.createdByUid === stableUid;
+  const canDelete = isMine || isAdmin;
   return (
     <div
       className="rounded-2xl p-4"
@@ -403,12 +414,13 @@ function ReminderCard({
             von {r.createdByUsername || r.createdByName}
           </p>
         </div>
-        {isMine && (
+        {canDelete && (
           <button
             onClick={() => onDelete(r)}
             className="p-1.5 press-scale flex-shrink-0"
+            title={isAdmin && !isMine ? 'Als Admin löschen' : undefined}
           >
-            <Trash2 size={16} color="var(--danger)" />
+            <Trash2 size={16} color={isAdmin && !isMine ? 'var(--orange)' : 'var(--danger)'} />
           </button>
         )}
       </div>

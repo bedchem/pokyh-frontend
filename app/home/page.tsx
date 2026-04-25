@@ -2,15 +2,14 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Clock, TrendingUp, BookOpen, MessageCircle, FileText } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/providers/SessionProvider';
 import AuthGuard from '@/components/AuthGuard';
-import BottomNav from '@/components/BottomNav';
 import Spinner from '@/components/ui/Spinner';
 import { fetchTimetable, fetchGrades, fetchMensa, fetchMessages } from '@/lib/api';
 import { subjectColor, gradeColor, averageColor } from '@/lib/colors';
-import { format } from 'date-fns';
+import { format, addDays } from 'date-fns';
 import { de } from 'date-fns/locale';
 import type { TimetableEntry, MessagePreview, Dish } from '@/lib/types';
 
@@ -21,8 +20,6 @@ interface RecentGrade {
   date: number;
   examType: string;
 }
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function parseTime(t: number): string {
   const s = t.toString().padStart(4, '0');
@@ -60,8 +57,6 @@ function formatMessageDate(dateStr: string): string {
     return '';
   }
 }
-
-// ─── Parsers ─────────────────────────────────────────────────────────────────
 
 function parseTimetableResult(json: unknown): TimetableEntry[] {
   try {
@@ -204,117 +199,80 @@ function parseMessagesResult(json: unknown): MessagePreview[] {
   }
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+function formatExamDate(d: number): string {
+  const s = d.toString();
+  const date = new Date(parseInt(s.slice(0, 4)), parseInt(s.slice(4, 6)) - 1, parseInt(s.slice(6, 8)));
+  return date.toLocaleDateString('de', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+function daysUntilLabel(d: number): string {
+  const s = d.toString();
+  const date = new Date(parseInt(s.slice(0, 4)), parseInt(s.slice(4, 6)) - 1, parseInt(s.slice(6, 8)));
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const diff = Math.round((date.getTime() - today.getTime()) / 86400000);
+  if (diff === 0) return 'Heute';
+  if (diff === 1) return 'Morgen';
+  return `in ${diff} Tagen`;
+}
 
 function SectionHeader({ title, href }: { title: string; href?: string }) {
   return (
-    <div className="flex items-center justify-between mb-2 px-1">
-      <h2
-        className="text-[17px] font-semibold"
-        style={{ color: 'var(--app-text-primary)' }}
-      >
+    <div className="flex items-center justify-between mb-3">
+      <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--app-text-tertiary)' }}>
         {title}
       </h2>
       {href && (
-        <Link href={href} className="flex items-center gap-0.5 press-scale">
-          <span className="text-sm" style={{ color: 'var(--accent)' }}>
-            Alle
-          </span>
-          <ChevronRight size={16} color="var(--accent)" />
+        <Link href={href} className="flex items-center gap-1 text-xs font-medium transition-opacity hover:opacity-70" style={{ color: 'var(--accent)' }}>
+          Alle <ChevronRight size={13} />
         </Link>
       )}
     </div>
   );
 }
 
-function TodayLessonRow({
-  entry,
-  style,
+function StatCard({
+  label,
+  value,
+  sub,
+  color,
+  icon: Icon,
+  href,
 }: {
-  entry: TimetableEntry;
-  style?: React.CSSProperties;
+  label: string;
+  value: string;
+  sub?: string;
+  color: string;
+  icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
+  href?: string;
 }) {
-  const accentColor = entry.isCancelled
-    ? 'var(--danger)'
-    : entry.isExam
-    ? 'var(--warning)'
-    : entry.isSubstitution
-    ? 'var(--orange)'
-    : subjectColor(entry.subjectName);
-
-  return (
+  const inner = (
     <div
-      className="flex items-center gap-3 px-4 py-3 fade-in"
-      style={style}
+      className="rounded-2xl p-4 fade-in card-hover h-full"
+      style={{ background: 'var(--app-surface)', border: '1px solid var(--app-border)' }}
     >
-      <div
-        className="w-[3px] self-stretch rounded-full flex-shrink-0"
-        style={{ background: accentColor, minHeight: 36 }}
-      />
-      <div className="flex-1 min-w-0">
-        <p
-          className="font-medium text-[15px] truncate"
-          style={{
-            color: 'var(--app-text-primary)',
-            textDecoration: entry.isCancelled ? 'line-through' : 'none',
-            opacity: entry.isCancelled ? 0.5 : 1,
-          }}
+      <div className="flex items-start justify-between mb-3">
+        <div
+          className="w-9 h-9 rounded-xl flex items-center justify-center"
+          style={{ background: `color-mix(in srgb, ${color} 14%, transparent)` }}
         >
-          {entry.subjectLong || entry.subjectName}
-        </p>
-        <p
-          className="text-xs mt-0.5 truncate"
-          style={{ color: 'var(--app-text-secondary)' }}
-        >
-          {parseTime(entry.startTime)} – {parseTime(entry.endTime)}
-          {entry.roomName ? ` · ${entry.roomName}` : ''}
-        </p>
+          <Icon size={17} strokeWidth={2} />
+        </div>
       </div>
-      <div className="flex gap-1.5 flex-shrink-0">
-        {entry.isExam && !entry.isCancelled && (
-          <span
-            className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-            style={{
-              background: 'color-mix(in srgb, var(--warning) 20%, transparent)',
-              color: 'var(--warning)',
-            }}
-          >
-            Prüfung
-          </span>
-        )}
-        {entry.isCancelled && (
-          <span
-            className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-            style={{
-              background: 'color-mix(in srgb, var(--danger) 15%, transparent)',
-              color: 'var(--danger)',
-            }}
-          >
-            Entfall
-          </span>
-        )}
-        {entry.isSubstitution && !entry.isCancelled && (
-          <span
-            className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-            style={{
-              background: 'color-mix(in srgb, var(--orange) 20%, transparent)',
-              color: 'var(--orange)',
-            }}
-          >
-            Vertretung
-          </span>
-        )}
-      </div>
+      <p className="text-2xl font-bold leading-none mb-1" style={{ color }}>{value}</p>
+      <p className="text-xs font-medium" style={{ color: 'var(--app-text-secondary)' }}>{label}</p>
+      {sub && <p className="text-xs mt-0.5" style={{ color: 'var(--app-text-tertiary)' }}>{sub}</p>}
     </div>
   );
-}
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+  if (href) return <Link href={href} className="block press-scale">{inner}</Link>;
+  return inner;
+}
 
 export default function HomePage() {
   const { user } = useSession();
   const router = useRouter();
   const [allEntries, setAllEntries] = useState<TimetableEntry[]>([]);
+  const [nextExam, setNextExam] = useState<TimetableEntry | null>(null);
   const [overallAvg, setOverallAvg] = useState<number | null>(null);
   const [subjectCount, setSubjectCount] = useState(0);
   const [recentGrades, setRecentGrades] = useState<RecentGrade[]>([]);
@@ -325,14 +283,15 @@ export default function HomePage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [ttRes, grRes, msRes, menRes] = await Promise.allSettled([
+      const [ttRes, grRes, msRes, menRes, tt1Res, tt2Res] = await Promise.allSettled([
         fetchTimetable(),
         fetchGrades(),
         fetchMessages(),
         fetchMensa(),
+        fetchTimetable(format(addDays(new Date(), 7), 'yyyy-MM-dd')),
+        fetchTimetable(format(addDays(new Date(), 14), 'yyyy-MM-dd')),
       ]);
 
-      // If ANY WebUntis API fails with session_expired → redirect to login
       const anyExpired = [ttRes, grRes, msRes].some(
         (r) => r.status === 'rejected' && r.reason?.message === 'session_expired'
       );
@@ -344,10 +303,17 @@ export default function HomePage() {
       if (ttRes.status === 'fulfilled')
         setAllEntries(parseTimetableResult(ttRes.value));
 
+      // Find next exam across current + next 2 weeks
+      const todayNum = parseInt(format(new Date(), 'yyyyMMdd'));
+      const examEntries = [ttRes, tt1Res, tt2Res]
+        .filter((r): r is PromiseFulfilledResult<unknown> => r.status === 'fulfilled')
+        .flatMap((r) => parseTimetableResult(r.value))
+        .filter((e) => e.isExam && !e.isCancelled && e.date >= todayNum)
+        .sort((a, b) => a.date - b.date || a.startTime - b.startTime);
+      setNextExam(examEntries[0] ?? null);
+
       if (grRes.status === 'fulfilled') {
-        const { avg, subjectCount: sc, recentGrades: rg } = parseGradesResult(
-          grRes.value
-        );
+        const { avg, subjectCount: sc, recentGrades: rg } = parseGradesResult(grRes.value);
         setOverallAvg(avg);
         setSubjectCount(sc);
         setRecentGrades(rg);
@@ -370,9 +336,7 @@ export default function HomePage() {
     }
   }, [router]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   const todayDateNum = parseInt(format(new Date(), 'yyyyMMdd'));
   const todayEntries = allEntries
@@ -382,289 +346,248 @@ export default function HomePage() {
   const activeTodayEntries = todayEntries.filter((e) => !e.isCancelled);
   const firstActive = activeTodayEntries[0] ?? null;
   const lastActive = activeTodayEntries[activeTodayEntries.length - 1] ?? null;
+  const unreadCount = messages.filter((m) => !m.isRead).length;
 
   const hour = new Date().getHours();
-  const greeting =
-    hour < 12 ? 'Guten Morgen' : hour < 17 ? 'Guten Tag' : 'Guten Abend';
+  const greeting = hour < 12 ? 'Guten Morgen' : hour < 17 ? 'Guten Tag' : 'Guten Abend';
 
   return (
     <AuthGuard>
-      <div
-        className="h-dvh flex flex-col overflow-hidden"
-        style={{ background: 'var(--app-bg)', paddingBottom: 'var(--nav-h)' }}
-      >
-        {/* Header */}
-        <div className="px-5 pt-14 pb-5 fade-in">
-          <p className="text-sm" style={{ color: 'var(--app-text-secondary)' }}>
-            {format(new Date(), 'EEEE, d. MMMM', { locale: de })}
-          </p>
-          <h1
-            className="text-[28px] font-bold tracking-tight mt-0.5"
-            style={{ color: 'var(--app-text-primary)' }}
-          >
-            {greeting}, {user?.username ?? '…'}
-          </h1>
-        </div>
+      <div className="h-full flex flex-col overflow-hidden" style={{ background: 'var(--app-bg)' }}>
+        <div className="flex-1 overflow-auto">
+          <div className="max-w-6xl mx-auto px-4 md:px-6 py-6">
 
-        <div className="flex-1 px-4 flex flex-col gap-5 pb-4 overflow-auto">
-          {loading ? (
-            <div className="flex-1 flex items-center justify-center">
-              <Spinner size={28} />
+            {/* Welcome header */}
+            <div className="mb-6 fade-in">
+              <p className="text-sm mb-1" style={{ color: 'var(--app-text-secondary)' }}>
+                {format(new Date(), 'EEEE, d. MMMM yyyy', { locale: de })}
+              </p>
+              <h2 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--app-text-primary)' }}>
+                {greeting}, <span style={{ color: 'var(--accent)' }}>{user?.username ?? '…'}</span>
+              </h2>
             </div>
-          ) : (
-            <>
-              {/* Today's schedule */}
-              <section className="fade-in delay-1">
-                <SectionHeader
-                  title={`Heute · ${format(new Date(), 'd. MMMM', { locale: de })}`}
-                  href="/timetable"
-                />
-                <div
-                  className="rounded-2xl overflow-hidden"
-                  style={{ background: 'var(--app-surface)' }}
-                >
-                  {todayEntries.length === 0 ? (
-                    <div className="px-4 py-5 text-center">
-                      <p className="text-sm" style={{ color: 'var(--app-text-secondary)' }}>
-                        Kein Unterricht heute
-                      </p>
-                    </div>
-                  ) : (
-                    todayEntries.map((e, i) => (
-                      <TodayLessonRow
-                        key={e.id}
-                        entry={e}
-                        style={{
-                          borderTop: i > 0 ? '1px solid var(--app-separator)' : 'none',
-                          animationDelay: `${80 + i * 40}ms`,
-                        }}
-                      />
-                    ))
-                  )}
-                </div>
-              </section>
 
-              {/* Stat cards */}
-              <div className="flex gap-3 fade-in delay-2">
-                <div
-                  className="flex-1 rounded-2xl p-4"
-                  style={{ background: 'var(--app-surface)' }}
-                >
-                  <p
-                    className="text-xs font-medium mb-1"
-                    style={{ color: 'var(--app-text-secondary)' }}
-                  >
-                    Unterrichtsende
-                  </p>
-                  <p
-                    className="text-2xl font-bold"
-                    style={{ color: 'var(--accent)' }}
-                  >
-                    {lastActive ? parseTime(lastActive.endTime) : '–'}
-                  </p>
-                  <p
-                    className="text-xs mt-0.5"
-                    style={{ color: 'var(--app-text-tertiary)' }}
-                  >
-                    {firstActive
-                      ? `Start: ${parseTime(firstActive.startTime)}`
-                      : 'Kein Unterricht'}
-                  </p>
-                </div>
-                <Link href="/grades" className="press-scale flex-1">
-                  <div
-                    className="rounded-2xl p-4 h-full"
-                    style={{ background: 'var(--app-surface)' }}
-                  >
-                    <p
-                      className="text-xs font-medium mb-1"
-                      style={{ color: 'var(--app-text-secondary)' }}
-                    >
-                      Notenschnitt
-                    </p>
-                    <p
-                      className="text-2xl font-bold"
-                      style={{
-                        color:
-                          overallAvg != null
-                            ? averageColor(overallAvg)
-                            : 'var(--app-text-secondary)',
-                      }}
-                    >
-                      {overallAvg != null ? overallAvg.toFixed(1) : '–'}
-                    </p>
-                    <p
-                      className="text-xs mt-0.5"
-                      style={{ color: 'var(--app-text-tertiary)' }}
-                    >
-                      {subjectCount} {subjectCount === 1 ? 'Fach' : 'Fächer'}
-                    </p>
-                  </div>
-                </Link>
+            {loading ? (
+              <div className="flex justify-center py-20">
+                <Spinner size={28} />
               </div>
+            ) : (
+              <div className="flex flex-col gap-6">
 
-              {/* Recent grades */}
-              {recentGrades.length > 0 && (
-                <section className="fade-in delay-3">
-                  <SectionHeader title="Letzte Noten" href="/grades" />
-                  <div
-                    className="rounded-2xl overflow-hidden"
-                    style={{ background: 'var(--app-surface)' }}
-                  >
-                    {recentGrades.map((g, i) => (
-                      <div
-                        key={g.id}
-                        className="px-4 py-3 flex items-center gap-3"
-                        style={{
-                          borderTop:
-                            i > 0 ? '1px solid var(--app-separator)' : 'none',
-                        }}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p
-                            className="text-sm font-medium truncate"
-                            style={{ color: 'var(--app-text-primary)' }}
-                          >
-                            {g.subjectName || '–'}
-                          </p>
-                          <p
-                            className="text-xs"
-                            style={{ color: 'var(--app-text-tertiary)' }}
-                          >
-                            {g.examType || 'Note'} · {formatGradeDate(g.date)}
-                          </p>
-                        </div>
-                        <div
-                          className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
-                          style={{ background: gradeColor(g.markDisplayValue) }}
-                        >
-                          {g.markDisplayValue}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
+                {/* Stat cards */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 fade-in delay-1">
+                  <StatCard
+                    label="Unterrichtsende"
+                    value={lastActive ? parseTime(lastActive.endTime) : '–'}
+                    sub={firstActive ? `Start: ${parseTime(firstActive.startTime)}` : 'Kein Unterricht'}
+                    color="var(--accent)"
+                    icon={Clock}
+                  />
+                  <StatCard
+                    label="Notenschnitt"
+                    value={overallAvg != null ? overallAvg.toFixed(1) : '–'}
+                    sub={`${subjectCount} ${subjectCount === 1 ? 'Fach' : 'Fächer'}`}
+                    color={overallAvg != null ? averageColor(overallAvg) : 'var(--app-text-secondary)'}
+                    icon={TrendingUp}
+                    href="/grades"
+                  />
+                  <StatCard
+                    label="Stunden heute"
+                    value={String(todayEntries.length)}
+                    sub={activeTodayEntries.length !== todayEntries.length ? `${activeTodayEntries.length} aktiv` : undefined}
+                    color="var(--tint)"
+                    icon={BookOpen}
+                    href="/timetable"
+                  />
+                  <StatCard
+                    label="Nachrichten"
+                    value={String(messages.length)}
+                    sub={unreadCount > 0 ? `${unreadCount} ungelesen` : 'Alle gelesen'}
+                    color={unreadCount > 0 ? 'var(--danger)' : 'var(--app-text-secondary)'}
+                    icon={MessageCircle}
+                    href="/messages"
+                  />
+                </div>
 
-              {/* Messages preview */}
-              {messages.length > 0 && (
-                <section className="fade-in delay-4">
-                  <SectionHeader title="Nachrichten" href="/messages" />
-                  <div
-                    className="rounded-2xl overflow-hidden"
-                    style={{ background: 'var(--app-surface)' }}
-                  >
-                    {messages.slice(0, 3).map((msg, i) => (
-                      <Link
-                        key={msg.id}
-                        href={`/messages/${msg.id}`}
-                        className="px-4 py-3 flex items-center gap-3 press-scale"
-                        style={{
-                          borderTop:
-                            i > 0 ? '1px solid var(--app-separator)' : 'none',
-                          display: 'flex',
-                        }}
-                      >
-                        <div
-                          className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                          style={{ background: senderColor(msg.senderName) }}
-                        >
-                          {senderInitial(msg.senderName)}
+                {/* Two-column layout on desktop */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                  {/* Today's schedule */}
+                  <section className="fade-in delay-2">
+                    <SectionHeader
+                      title={`Heute · ${format(new Date(), 'd. MMMM', { locale: de })}`}
+                      href="/timetable"
+                    />
+                    <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--app-surface)', border: '1px solid var(--app-border)' }}>
+                      {todayEntries.length === 0 ? (
+                        <div className="px-4 py-6 text-center">
+                          <p className="text-sm" style={{ color: 'var(--app-text-secondary)' }}>Kein Unterricht heute</p>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p
-                            className="text-sm truncate"
-                            style={{
-                              color: 'var(--app-text-primary)',
-                              fontWeight: msg.isRead ? 400 : 600,
-                            }}
-                          >
-                            {msg.subject}
-                          </p>
-                          <p
-                            className="text-xs truncate"
-                            style={{ color: 'var(--app-text-secondary)' }}
-                          >
-                            {msg.senderName}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <p
-                            className="text-xs"
-                            style={{ color: 'var(--app-text-tertiary)' }}
-                          >
-                            {formatMessageDate(msg.sentDate)}
-                          </p>
-                          {!msg.isRead && (
+                      ) : (
+                        todayEntries.map((e, i) => {
+                          const accentColor = e.isCancelled ? 'var(--danger)' : e.isExam ? 'var(--warning)' : e.isSubstitution ? 'var(--orange)' : subjectColor(e.subjectName);
+                          return (
                             <div
-                              className="w-2 h-2 rounded-full"
-                              style={{ background: 'var(--accent)' }}
-                            />
-                          )}
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* Mensa heute */}
-              {dishes.length > 0 && (
-                <section className="fade-in delay-5">
-                  <SectionHeader title="Mensa heute" href="/mensa" />
-                  <div
-                    className="rounded-2xl overflow-hidden"
-                    style={{ background: 'var(--app-surface)' }}
-                  >
-                    {dishes.map((dish, i) => (
-                      <div
-                        key={dish.id}
-                        className="px-4 py-3 flex items-center gap-3"
-                        style={{
-                          borderTop:
-                            i > 0 ? '1px solid var(--app-separator)' : 'none',
-                        }}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p
-                            className="text-sm truncate"
-                            style={{ color: 'var(--app-text-primary)' }}
-                          >
-                            {typeof dish.name === 'object'
-                              ? ((dish.name as Record<string, string>).de ??
-                                String(dish.name))
-                              : dish.name}
-                          </p>
-                          {dish.price != null && (
-                            <p
-                              className="text-xs mt-0.5"
-                              style={{ color: 'var(--app-text-secondary)' }}
+                              key={e.id}
+                              className="flex items-center gap-3 px-4 py-3"
+                              style={{ borderTop: i > 0 ? '1px solid var(--app-separator)' : 'none' }}
                             >
-                              €{dish.price.toFixed(2)}
+                              <div className="w-1 self-stretch rounded-full flex-shrink-0" style={{ background: accentColor, minHeight: 32 }} />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate" style={{ color: 'var(--app-text-primary)', textDecoration: e.isCancelled ? 'line-through' : 'none', opacity: e.isCancelled ? 0.5 : 1 }}>
+                                  {e.subjectLong || e.subjectName}
+                                </p>
+                                <p className="text-xs mt-0.5" style={{ color: 'var(--app-text-secondary)' }}>
+                                  {parseTime(e.startTime)} – {parseTime(e.endTime)}{e.roomName ? ` · ${e.roomName}` : ''}
+                                </p>
+                              </div>
+                              <div className="flex gap-1.5 flex-shrink-0">
+                                {e.isExam && !e.isCancelled && (
+                                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'color-mix(in srgb, var(--warning) 20%, transparent)', color: 'var(--warning)' }}>Prüfung</span>
+                                )}
+                                {e.isCancelled && (
+                                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'color-mix(in srgb, var(--danger) 15%, transparent)', color: 'var(--danger)' }}>Entfall</span>
+                                )}
+                                {e.isSubstitution && !e.isCancelled && (
+                                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'color-mix(in srgb, var(--orange) 20%, transparent)', color: 'var(--orange)' }}>Vertretung</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </section>
+
+                  {/* Right column: exam + grades + messages */}
+                  <div className="flex flex-col gap-6">
+
+                    {/* Next exam */}
+                    {nextExam && (
+                      <section className="fade-in delay-2">
+                        <SectionHeader title="Nächste Prüfung" href="/timetable" />
+                        <div
+                          className="rounded-2xl p-4"
+                          style={{
+                            background: 'var(--app-surface)',
+                            border: '1px solid color-mix(in srgb, var(--warning) 35%, var(--app-border))',
+                          }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                              style={{ background: 'color-mix(in srgb, var(--warning) 18%, transparent)' }}
+                            >
+                              <FileText size={20} color="var(--warning)" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold" style={{ color: 'var(--app-text-primary)' }}>
+                                {nextExam.subjectLong || nextExam.subjectName}
+                              </p>
+                              <p className="text-xs mt-0.5" style={{ color: 'var(--app-text-secondary)' }}>
+                                {formatExamDate(nextExam.date)} · {parseTime(nextExam.startTime)}
+                                {nextExam.roomName ? ` · ${nextExam.roomName}` : ''}
+                              </p>
+                            </div>
+                            <span
+                              className="text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0"
+                              style={{ background: 'color-mix(in srgb, var(--warning) 18%, transparent)', color: 'var(--warning)' }}
+                            >
+                              {daysUntilLabel(nextExam.date)}
+                            </span>
+                          </div>
+                        </div>
+                      </section>
+                    )}
+
+                    {/* Recent grades */}
+                    {recentGrades.length > 0 && (
+                      <section className="fade-in delay-3">
+                        <SectionHeader title="Letzte Noten" href="/grades" />
+                        <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--app-surface)', border: '1px solid var(--app-border)' }}>
+                          {recentGrades.map((g, i) => (
+                            <div
+                              key={g.id}
+                              className="px-4 py-3 flex items-center gap-3"
+                              style={{ borderTop: i > 0 ? '1px solid var(--app-separator)' : 'none' }}
+                            >
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate" style={{ color: 'var(--app-text-primary)' }}>{g.subjectName || '–'}</p>
+                                <p className="text-xs" style={{ color: 'var(--app-text-tertiary)' }}>{g.examType || 'Note'} · {formatGradeDate(g.date)}</p>
+                              </div>
+                              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style={{ background: gradeColor(g.markDisplayValue) }}>
+                                {g.markDisplayValue}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                    )}
+
+                    {/* Messages preview */}
+                    {messages.length > 0 && (
+                      <section className="fade-in delay-4">
+                        <SectionHeader title="Nachrichten" href="/messages" />
+                        <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--app-surface)', border: '1px solid var(--app-border)' }}>
+                          {messages.slice(0, 3).map((msg, i) => (
+                            <Link
+                              key={msg.id}
+                              href={`/messages/${msg.id}`}
+                              className="px-4 py-3 flex items-center gap-3 press-scale"
+                              style={{ borderTop: i > 0 ? '1px solid var(--app-separator)' : 'none', display: 'flex' }}
+                            >
+                              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style={{ background: senderColor(msg.senderName) }}>
+                                {senderInitial(msg.senderName)}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm truncate" style={{ color: 'var(--app-text-primary)', fontWeight: msg.isRead ? 400 : 600 }}>{msg.subject}</p>
+                                <p className="text-xs truncate" style={{ color: 'var(--app-text-secondary)' }}>{msg.senderName}</p>
+                              </div>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <p className="text-xs" style={{ color: 'var(--app-text-tertiary)' }}>{formatMessageDate(msg.sentDate)}</p>
+                                {!msg.isRead && <div className="w-2 h-2 rounded-full" style={{ background: 'var(--accent)' }} />}
+                              </div>
+                            </Link>
+                          ))}
+                        </div>
+                      </section>
+                    )}
+                  </div>
+                </div>
+
+                {/* Mensa heute */}
+                {dishes.length > 0 && (
+                  <section className="fade-in delay-5">
+                    <SectionHeader title="Mensa heute" href="/mensa" />
+                    <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--app-surface)', border: '1px solid var(--app-border)' }}>
+                      {dishes.map((dish, i) => (
+                        <div
+                          key={dish.id}
+                          className="px-4 py-3 flex items-center gap-3"
+                          style={{ borderTop: i > 0 ? '1px solid var(--app-separator)' : 'none' }}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm truncate" style={{ color: 'var(--app-text-primary)' }}>
+                              {typeof dish.name === 'object' ? ((dish.name as Record<string, string>).de ?? String(dish.name)) : dish.name}
                             </p>
+                            {dish.price != null && (
+                              <p className="text-xs mt-0.5" style={{ color: 'var(--app-text-secondary)' }}>€{dish.price.toFixed(2)}</p>
+                            )}
+                          </div>
+                          {dish.tags && dish.tags.length > 0 && (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: 'color-mix(in srgb, var(--tint) 15%, transparent)', color: 'var(--tint)' }}>
+                              {dish.tags[0]}
+                            </span>
                           )}
                         </div>
-                        {dish.tags && dish.tags.length > 0 && (
-                          <span
-                            className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
-                            style={{
-                              background:
-                                'color-mix(in srgb, var(--tint) 15%, transparent)',
-                              color: 'var(--tint)',
-                            }}
-                          >
-                            {dish.tags[0]}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
-            </>
-          )}
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </div>
+            )}
+          </div>
         </div>
-        <BottomNav />
       </div>
     </AuthGuard>
   );

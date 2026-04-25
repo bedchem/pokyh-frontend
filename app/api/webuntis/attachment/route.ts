@@ -10,12 +10,19 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const messageId = searchParams.get('messageId');
   const storageId = searchParams.get('storageId');
-  const attachmentId = searchParams.get('attachmentId') ?? '0';
+  const attachmentIdRaw = searchParams.get('attachmentId') ?? '0';
   const name = searchParams.get('name') ?? 'Anhang';
 
   if (!messageId || !storageId) {
     return NextResponse.json({ error: 'Parameter fehlen.' }, { status: 400 });
   }
+  if (!/^\d{1,12}$/.test(messageId)) {
+    return NextResponse.json({ error: 'Ungültige Nachrichten-ID.' }, { status: 400 });
+  }
+  if (!/^[\w\-.:@]{1,128}$/.test(storageId)) {
+    return NextResponse.json({ error: 'Ungültige Storage-ID.' }, { status: 400 });
+  }
+  const attachmentId = /^\d{1,12}$/.test(attachmentIdRaw) ? attachmentIdRaw : '0';
 
   const headers = webUntisHeaders(session);
 

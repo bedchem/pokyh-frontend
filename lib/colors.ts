@@ -25,22 +25,42 @@ export function subjectColor(name: string): string {
   return `hsl(${hue}, 50%, 52%)`;
 }
 
-export const GRADE_COLORS: Record<number, string> = {
-  10: '#30D158',
-  9: '#4ED87A',
-  8: '#A3E650',
-  7: '#FFD60A',
-  6: '#FF9F0A',
-  5: '#FF6B35',
-  4: '#FF3B30',
-};
+type RGB = [number, number, number];
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * Math.max(0, Math.min(1, t));
+}
+
+function lerpColor(c1: RGB, c2: RGB, t: number): string {
+  const r = Math.round(lerp(c1[0], c2[0], t));
+  const g = Math.round(lerp(c1[1], c2[1], t));
+  const b = Math.round(lerp(c1[2], c2[2], t));
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
+// 6.4+ → light green (#86EFAC) to dark green (#15803D)
+// 6.0–6.39 → orange (#F97316)
+// <6.0 → light red (#FCA5A5) near 6.0, dark red (#991B1B) at 1
+const GREEN_LIGHT: RGB = [134, 239, 172];
+const GREEN_DARK: RGB = [21, 128, 61];
+const RED_LIGHT: RGB = [252, 165, 165];
+const RED_DARK: RGB = [153, 27, 27];
 
 export function gradeColor(value: number): string {
-  return GRADE_COLORS[value] ?? '#8E8E93';
+  if (value >= 6.4) {
+    return lerpColor(GREEN_LIGHT, GREEN_DARK, (value - 6.4) / (10 - 6.4));
+  }
+  if (value >= 6.0) {
+    return '#F97316';
+  }
+  return lerpColor(RED_LIGHT, RED_DARK, (6.0 - value) / (6.0 - 1));
 }
 
 export function averageColor(avg: number): string {
-  if (avg >= 8.5) return '#30D158';
-  if (avg >= 6.5) return '#FFD60A';
-  return '#FF3B30';
+  return gradeColor(avg);
 }
+
+// Integer grade → color map for the DonutChart (grades 1–10)
+export const GRADE_COLORS: Record<number, string> = Object.fromEntries(
+  [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((g) => [g, gradeColor(g)])
+);

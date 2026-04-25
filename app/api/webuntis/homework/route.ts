@@ -11,6 +11,13 @@ export async function GET(req: NextRequest) {
   const startDate = searchParams.get('startDate') ?? '';
   const endDate = searchParams.get('endDate') ?? '';
 
+  if (startDate && !/^\d{8}$/.test(startDate)) {
+    return NextResponse.json({ error: 'Ungültiges Startdatum.' }, { status: 400 });
+  }
+  if (endDate && !/^\d{8}$/.test(endDate)) {
+    return NextResponse.json({ error: 'Ungültiges Enddatum.' }, { status: 400 });
+  }
+
   try {
     const url = `${BASE}/api/homeworks/lessons?startDate=${startDate}&endDate=${endDate}`;
     const res = await fetch(url, { headers: webUntisHeaders(session), signal: AbortSignal.timeout(15000) });

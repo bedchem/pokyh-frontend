@@ -3,7 +3,8 @@ import './globals.css';
 import { ThemeProvider } from '@/providers/ThemeProvider';
 import { SessionProvider } from '@/providers/SessionProvider';
 import { FirebaseProvider } from '@/providers/FirebaseProvider';
-import GlobalTopActions from '@/components/GlobalTopActions';
+import { SidebarProvider } from '@/providers/SidebarProvider';
+import LayoutShell from '@/components/LayoutShell';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.app';
 
@@ -59,8 +60,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: dark)', color: '#000000' },
-    { media: '(prefers-color-scheme: light)', color: '#F2F2F7' },
+    { media: '(prefers-color-scheme: dark)', color: '#09090C' },
+    { media: '(prefers-color-scheme: light)', color: '#F0F0F5' },
   ],
   width: 'device-width',
   initialScale: 1,
@@ -97,29 +98,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="de" suppressHydrationWarning>
       <head>
-        {/* Prevent FOUC (Flash Of Unstyled Content) for theme */}
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){var t=localStorage.getItem('pockyh_theme');var d=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches);if(d)document.documentElement.classList.add('dark')})()`,
           }}
         />
-        {/* JSON-LD structured data */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
-        {/* Preconnect to external domains */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://lbs-brixen.webuntis.com" />
         <link rel="preconnect" href="https://mensa.plattnericus.dev" />
         <link rel="dns-prefetch" href="https://firestore.googleapis.com" />
         <link rel="dns-prefetch" href="https://identitytoolkit.googleapis.com" />
       </head>
-      <body className="min-h-dvh flex flex-col">
+      <body>
         <ThemeProvider>
           <SessionProvider>
             <FirebaseProvider>
-              {children}
-              <GlobalTopActions />
+              <SidebarProvider>
+                <LayoutShell>{children}</LayoutShell>
+              </SidebarProvider>
             </FirebaseProvider>
           </SessionProvider>
         </ThemeProvider>

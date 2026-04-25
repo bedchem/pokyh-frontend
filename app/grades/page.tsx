@@ -59,7 +59,7 @@ function formatGradeDate(d: number): string {
   return `${s.slice(6, 8)}.${s.slice(4, 6)}.${s.slice(0, 4)}`;
 }
 
-// ─── Donut Chart ────────────────────────────────────────────────────────────
+// ─── Pie Chart ──────────────────────────────────────────────────────────────
 
 function DonutChart({ subjects }: { subjects: SubjectGrades[] }) {
   const allGrades = subjects.flatMap((s) => s.grades);
@@ -70,44 +70,47 @@ function DonutChart({ subjects }: { subjects: SubjectGrades[] }) {
   const total = allGrades.length;
   if (total === 0) return null;
 
-  const R = 58;
-  const SW = 16;
-  const CX = 80;
-  const CY = 80;
-  const circumference = 2 * Math.PI * R;
+  const CX = 80, CY = 80, R = 72;
 
-  let offset = 0;
+  let cumulative = 0;
   const slices = Object.entries(GRADE_COLORS)
     .map(([grade, color]) => {
       const count = counts[parseInt(grade)] ?? 0;
       const frac = count / total;
-      const slice = { grade, color, frac, offset, count };
-      offset += frac;
+      const slice = { grade, color, frac, start: cumulative, count };
+      cumulative += frac;
       return slice;
     })
     .filter((s) => s.count > 0);
 
+  function slicePath(start: number, frac: number) {
+    const a0 = start * 2 * Math.PI - Math.PI / 2;
+    const a1 = (start + frac) * 2 * Math.PI - Math.PI / 2;
+    const x0 = CX + R * Math.cos(a0);
+    const y0 = CY + R * Math.sin(a0);
+    const x1 = CX + R * Math.cos(a1);
+    const y1 = CY + R * Math.sin(a1);
+    const large = frac > 0.5 ? 1 : 0;
+    return `M ${CX} ${CY} L ${x0} ${y0} A ${R} ${R} 0 ${large} 1 ${x1} ${y1} Z`;
+  }
+
   return (
     <svg width={160} height={160} viewBox="0 0 160 160">
       {slices.map((s) => (
-        <circle
+        <path
           key={s.grade}
-          cx={CX}
-          cy={CY}
-          r={R}
-          fill="none"
-          stroke={s.color}
-          strokeWidth={SW}
-          strokeDasharray={`${s.frac * circumference} ${circumference}`}
-          strokeDashoffset={-s.offset * circumference + circumference / 4}
-          transform="rotate(-90, 80, 80)"
-          style={{ transition: 'stroke-dasharray 0.5s ease' }}
+          d={slicePath(s.start, s.frac)}
+          fill={s.color}
+          stroke="var(--app-surface)"
+          strokeWidth={slices.length > 1 ? 1.5 : 0}
         />
       ))}
-      <text x={CX} y={CY - 6} textAnchor="middle" fontSize="22" fontWeight="700" fill="var(--app-text-primary)">
+      {/* Center label */}
+      <circle cx={CX} cy={CY} r={28} fill="var(--app-surface)" />
+      <text x={CX} y={CY - 5} textAnchor="middle" fontSize="20" fontWeight="700" fill="var(--app-text-primary)">
         {total}
       </text>
-      <text x={CX} y={CY + 12} textAnchor="middle" fontSize="11" fill="var(--app-text-secondary)">
+      <text x={CX} y={CY + 11} textAnchor="middle" fontSize="10" fill="var(--app-text-secondary)">
         Noten
       </text>
     </svg>
@@ -238,7 +241,7 @@ function SubjectRow({
   return (
     <div
       className="rounded-2xl overflow-hidden fade-in"
-      style={{ background: 'var(--app-surface)' }}
+      style={{ background: 'var(--app-surface)', border: '1px solid var(--app-border)' }}
     >
       {/* Header */}
       <button
@@ -366,11 +369,11 @@ export default function GradesPage() {
   return (
     <AuthGuard>
       <div
-        className="h-dvh flex flex-col overflow-hidden"
+        className="h-full flex flex-col overflow-hidden"
         style={{ background: 'var(--app-bg)' }}
       >
         {/* Nav */}
-        <div className="px-5 pt-14 pb-4 flex items-center gap-3 fade-in flex-shrink-0">
+        <div className="px-5 pt-4 pb-4 flex items-center gap-3 fade-in flex-shrink-0">
           <button
             onClick={() => router.back()}
             className="p-2 rounded-full press-scale"
@@ -386,7 +389,8 @@ export default function GradesPage() {
           </h1>
         </div>
 
-        <div className="flex-1 px-4 pb-10 overflow-auto">
+        <div className="flex-1 overflow-auto">
+        <div className="max-w-2xl mx-auto px-4 pb-10">
           {loading ? (
             <div className="flex justify-center py-16">
               <Spinner size={28} />
@@ -404,7 +408,7 @@ export default function GradesPage() {
               {/* Overview card */}
               <div
                 className="rounded-2xl overflow-hidden mb-4 fade-in delay-1"
-                style={{ background: 'var(--app-surface)' }}
+                style={{ background: 'var(--app-surface)', border: '1px solid var(--app-border)' }}
               >
                 <div
                   className="px-5 pt-5 pb-4 flex items-center justify-between gap-4"
@@ -460,6 +464,7 @@ export default function GradesPage() {
               </div>
             </>
           )}
+        </div>
         </div>
 
         {simulator && (

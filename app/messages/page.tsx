@@ -107,11 +107,11 @@ export default function MessagesPage() {
   return (
     <AuthGuard>
       <div
-        className="h-dvh flex flex-col overflow-hidden"
+        className="h-full flex flex-col overflow-hidden"
         style={{ background: 'var(--app-bg)' }}
       >
         {/* Nav */}
-        <div className="px-5 pt-14 pb-4 flex items-center gap-3 fade-in flex-shrink-0">
+        <div className="px-5 pt-4 pb-4 flex items-center gap-3 fade-in flex-shrink-0">
           <button
             onClick={() => router.back()}
             className="p-2 rounded-full press-scale"

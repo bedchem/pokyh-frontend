@@ -1,67 +1,108 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { ChevronLeft, Plus, Check, Trash2, CheckSquare } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Plus, Check, Trash2, CheckSquare, Clock, AlignLeft, X } from 'lucide-react';
+import {
+  collection,
+  onSnapshot,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  serverTimestamp,
+  query,
+  orderBy,
+  Timestamp,
+} from 'firebase/firestore';
+import { AnimatePresence, motion } from 'framer-motion';
+import { db } from '@/lib/firebase';
 import AuthGuard from '@/components/AuthGuard';
+import Spinner from '@/components/ui/Spinner';
 import EmptyView from '@/components/ui/EmptyView';
+import { useFirebase } from '@/providers/FirebaseProvider';
+import { useSession } from '@/providers/SessionProvider';
 
 interface Todo {
   id: string;
-  text: string;
+  title: string;
+  details: string;
+  dueAt: Date | null;
   done: boolean;
-  createdAt: number;
+  doneAt: Date | null;
+  createdAt: Date;
 }
 
-const STORAGE_KEY = 'pockyh_todos';
-
-function loadTodos(): Todo[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
-  } catch {
-    return [];
-  }
-}
-
-function saveTodos(todos: Todo[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
-}
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 export default function TodosPage() {
-  const router = useRouter();
+  const { user } = useSession();
+  const { ready } = useFirebase();
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [title, setTitle] = useState('');
+  const [details, setDetails] = useState('');
+  const [dueAt, setDueAt] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setTodos(loadTodos());
-  }, []);
+    if (!ready || !user) return;
+    const q = query(
+      collection(db, 'users', user.username, 'todos'),
+      orderBy('createdAt', 'asc')
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      const now = Date.now();
+      setTodos(
+        snap.docs
+          .map((d) => ({
+            id: d.id,
+            title: d.data().title ?? '',
+            details: d.data().details ?? '',
+            dueAt: (d.data().dueAt as Timestamp)?.toDate() ?? null,
+            done: d.data().done ?? false,
+            doneAt: (d.data().doneAt as Timestamp)?.toDate() ?? null,
+            createdAt: (d.data().createdAt as Timestamp)?.toDate() ?? new Date(),
+          }))
+          .filter((t) => !t.done || !t.doneAt || now - t.doneAt.getTime() < DAY_MS)
+      );
+      setLoading(false);
+    }, () => setLoading(false));
+    return () => unsub();
+  }, [ready, user]);
 
-  const update = useCallback((next: Todo[]) => {
-    setTodos(next);
-    saveTodos(next);
-  }, []);
-
-  function add() {
-    if (!input.trim()) return;
-    update([
-      ...todos,
-      {
-        id: Date.now().toString(),
-        text: input.trim(),
+  async function addTodo() {
+    if (!title.trim() || !user) return;
+    setSaving(true);
+    try {
+      await addDoc(collection(db, 'users', user.username, 'todos'), {
+        title: title.trim(),
+        details: details.trim(),
+        dueAt: dueAt ? Timestamp.fromDate(new Date(dueAt)) : null,
         done: false,
-        createdAt: Date.now(),
-      },
-    ]);
-    setInput('');
+        doneAt: null,
+        createdAt: serverTimestamp(),
+      });
+      setTitle(''); setDetails(''); setDueAt(''); setShowAdd(false);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function toggle(id: string) {
-    update(todos.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
+  async function toggle(todo: Todo) {
+    if (!user) return;
+    const nowDone = !todo.done;
+    await updateDoc(doc(db, 'users', user.username, 'todos', todo.id), {
+      done: nowDone,
+      doneAt: nowDone ? serverTimestamp() : null,
+    });
   }
 
-  function remove(id: string) {
-    update(todos.filter((t) => t.id !== id));
+  async function remove(id: string) {
+    if (!user) return;
+    await deleteDoc(doc(db, 'users', user.username, 'todos', id));
   }
 
   const active = todos.filter((t) => !t.done);
@@ -69,99 +110,57 @@ export default function TodosPage() {
 
   return (
     <AuthGuard>
-      <div
-        className="min-h-dvh flex flex-col"
-        style={{ background: 'var(--app-bg)' }}
-      >
-        <div className="px-5 pt-14 pb-4 flex items-center gap-3 fade-in flex-shrink-0">
-          <button
-            onClick={() => router.back()}
-            className="p-2 rounded-full press-scale"
-            style={{ background: 'var(--app-surface)' }}
-          >
-            <ChevronLeft size={20} color="var(--accent)" />
-          </button>
-          <h1
-            className="flex-1 text-[28px] font-bold tracking-tight"
-            style={{ color: 'var(--app-text-primary)' }}
-          >
+      <div className="h-full flex flex-col overflow-hidden" style={{ background: 'var(--app-bg)' }}>
+        {/* Header */}
+        <div className="px-5 pt-4 pb-3 flex items-center gap-3 fade-in flex-shrink-0">
+          <h1 className="flex-1 text-[28px] font-bold tracking-tight" style={{ color: 'var(--app-text-primary)' }}>
             Todos
           </h1>
-        </div>
-
-        {/* Input */}
-        <div className="px-4 mb-4 fade-in delay-1">
-          <div className="flex gap-2">
-            <input
-              placeholder="Neue Aufgabe…"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') add();
-              }}
-              className="flex-1 rounded-xl px-4 py-3 text-[15px] outline-none border"
-              style={{
-                background: 'var(--app-surface)',
-                borderColor: 'var(--app-border)',
-                color: 'var(--app-text-primary)',
-              }}
-            />
+          {ready && (
             <button
-              onClick={add}
-              disabled={!input.trim()}
-              className="w-12 h-12 rounded-xl flex items-center justify-center press-scale disabled:opacity-40"
-              style={{ background: 'var(--accent)' }}
+              onClick={() => setShowAdd(true)}
+              className="p-2 rounded-full press-scale"
+              style={{ background: 'color-mix(in srgb, var(--accent) 15%, var(--app-surface))' }}
             >
-              <Plus size={20} color="#fff" />
+              <Plus size={20} color="var(--accent)" />
             </button>
-          </div>
+          )}
         </div>
 
+        {/* List */}
         <div className="flex-1 px-4 pb-10 overflow-auto">
-          {todos.length === 0 ? (
+          {!ready || loading ? (
+            <div className="flex justify-center py-16"><Spinner size={28} /></div>
+          ) : todos.length === 0 ? (
             <EmptyView
               icon={<CheckSquare size={56} color="var(--app-text-primary)" />}
               title="Keine Todos"
               subtitle="Füge deine ersten Aufgaben hinzu."
             />
           ) : (
-            <div className="flex flex-col gap-4 fade-in delay-2">
+            <div className="flex flex-col gap-4 fade-in">
               {active.length > 0 && (
                 <section>
-                  <p
-                    className="text-xs font-semibold uppercase tracking-wider mb-2 px-1"
-                    style={{ color: 'var(--app-text-secondary)' }}
-                  >
+                  <p className="text-xs font-semibold uppercase tracking-wider mb-2 px-1"
+                    style={{ color: 'var(--app-text-secondary)' }}>
                     Offen ({active.length})
                   </p>
                   <div className="flex flex-col gap-2">
                     {active.map((t) => (
-                      <TodoRow
-                        key={t.id}
-                        todo={t}
-                        onToggle={toggle}
-                        onDelete={remove}
-                      />
+                      <TodoCard key={t.id} todo={t} onToggle={toggle} onDelete={remove} />
                     ))}
                   </div>
                 </section>
               )}
               {done.length > 0 && (
                 <section>
-                  <p
-                    className="text-xs font-semibold uppercase tracking-wider mb-2 px-1"
-                    style={{ color: 'var(--app-text-secondary)' }}
-                  >
+                  <p className="text-xs font-semibold uppercase tracking-wider mb-2 px-1"
+                    style={{ color: 'var(--app-text-secondary)' }}>
                     Erledigt ({done.length})
                   </p>
                   <div className="flex flex-col gap-2">
                     {done.map((t) => (
-                      <TodoRow
-                        key={t.id}
-                        todo={t}
-                        onToggle={toggle}
-                        onDelete={remove}
-                      />
+                      <TodoCard key={t.id} todo={t} onToggle={toggle} onDelete={remove} />
                     ))}
                   </div>
                 </section>
@@ -169,48 +168,158 @@ export default function TodosPage() {
             </div>
           )}
         </div>
+
+        {/* Add sheet */}
+        <AnimatePresence>
+          {showAdd && (
+            <motion.div
+              className="fixed inset-0 z-50 flex items-end"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              style={{ background: 'rgba(0,0,0,0.5)' }}
+              onClick={() => setShowAdd(false)}
+            >
+              <motion.div
+                className="w-full rounded-t-2xl p-6 pb-12"
+                style={{ background: 'var(--app-surface)' }}
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ duration: 0.28, ease: [0.25, 0.46, 0.45, 0.94] }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: 'var(--app-border)' }} />
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="text-[18px] font-bold" style={{ color: 'var(--app-text-primary)' }}>
+                    Todo hinzufügen
+                  </h3>
+                  <button
+                    onClick={() => setShowAdd(false)}
+                    className="p-1.5 rounded-lg"
+                    style={{ background: 'var(--app-card)', color: 'var(--app-text-secondary)' }}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="flex flex-col gap-3">
+                  <input
+                    placeholder="Titel *"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && title.trim()) addTodo(); }}
+                    className="w-full rounded-xl px-4 py-3 text-[15px] outline-none"
+                    style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)' }}
+                    autoFocus
+                  />
+                  <div className="relative">
+                    <AlignLeft size={15} className="absolute left-3.5 top-3.5 pointer-events-none" color="var(--app-text-tertiary)" />
+                    <input
+                      placeholder="Details (optional)"
+                      value={details}
+                      onChange={(e) => setDetails(e.target.value)}
+                      className="w-full rounded-xl pl-10 pr-4 py-3 text-[15px] outline-none"
+                      style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)' }}
+                    />
+                  </div>
+                  <div className="relative">
+                    <Clock size={15} className="absolute left-3.5 top-3.5 pointer-events-none" color="var(--app-text-tertiary)" />
+                    <input
+                      type="datetime-local"
+                      value={dueAt}
+                      onChange={(e) => setDueAt(e.target.value)}
+                      className="w-full rounded-xl pl-10 pr-4 py-3 text-[15px] outline-none"
+                      style={{ background: 'var(--app-card)', color: dueAt ? 'var(--app-text-primary)' : 'var(--app-text-tertiary)' }}
+                    />
+                  </div>
+                  <button
+                    onClick={addTodo}
+                    disabled={!title.trim() || saving}
+                    className="h-12 rounded-xl font-semibold text-white press-scale disabled:opacity-50 flex items-center justify-center gap-2 mt-1"
+                    style={{ background: 'var(--accent)' }}
+                  >
+                    {saving ? <Spinner size={18} /> : 'Hinzufügen'}
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </AuthGuard>
   );
 }
 
-function TodoRow({
+function TodoCard({
   todo,
   onToggle,
   onDelete,
 }: {
   todo: Todo;
-  onToggle: (id: string) => void;
+  onToggle: (t: Todo) => void;
   onDelete: (id: string) => void;
 }) {
+  function formatDue(d: Date) {
+    const today = new Date();
+    const isToday = d.toDateString() === today.toDateString();
+    const time = d.toLocaleTimeString('de', { hour: '2-digit', minute: '2-digit' });
+    if (isToday) return `Heute ${time}`;
+    return d.toLocaleDateString('de', { day: 'numeric', month: 'short' }) + ' ' + time;
+  }
+
+  const isPast = !!todo.dueAt && todo.dueAt < new Date() && !todo.done;
+
   return (
     <div
-      className="rounded-2xl px-4 py-3 flex items-center gap-3"
-      style={{ background: 'var(--app-surface)' }}
+      className="rounded-2xl px-4 py-3.5"
+      style={{
+        background: 'var(--app-surface)',
+        border: isPast
+          ? '1px solid color-mix(in srgb, var(--danger) 30%, transparent)'
+          : '1px solid var(--app-border)',
+      }}
     >
-      <button
-        onClick={() => onToggle(todo.id)}
-        className="w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 press-scale"
-        style={{
-          borderColor: todo.done ? 'var(--tint)' : 'var(--app-border)',
-          background: todo.done ? 'var(--tint)' : 'transparent',
-        }}
-      >
-        {todo.done && <Check size={13} color="#fff" />}
-      </button>
-      <p
-        className="flex-1 text-[15px]"
-        style={{
-          color: 'var(--app-text-primary)',
-          textDecoration: todo.done ? 'line-through' : 'none',
-          opacity: todo.done ? 0.5 : 1,
-        }}
-      >
-        {todo.text}
-      </p>
-      <button onClick={() => onDelete(todo.id)} className="p-1 press-scale">
-        <Trash2 size={16} color="var(--app-text-tertiary)" />
-      </button>
+      <div className="flex items-start gap-3">
+        <button
+          onClick={() => onToggle(todo)}
+          className="w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 press-scale mt-0.5"
+          style={{
+            borderColor: todo.done ? 'var(--tint)' : 'var(--app-border)',
+            background: todo.done ? 'var(--tint)' : 'transparent',
+          }}
+        >
+          {todo.done && <Check size={13} color="#fff" />}
+        </button>
+        <div className="flex-1 min-w-0">
+          <p
+            className="text-[15px] font-medium leading-snug"
+            style={{
+              color: 'var(--app-text-primary)',
+              textDecoration: todo.done ? 'line-through' : 'none',
+              opacity: todo.done ? 0.45 : 1,
+            }}
+          >
+            {todo.title}
+          </p>
+          {todo.details && !todo.done && (
+            <p className="text-sm mt-0.5 line-clamp-2" style={{ color: 'var(--app-text-secondary)' }}>
+              {todo.details}
+            </p>
+          )}
+          {todo.dueAt && !todo.done && (
+            <div className="flex items-center gap-1 mt-1.5">
+              <Clock size={11} color={isPast ? 'var(--danger)' : 'var(--app-text-tertiary)'} />
+              <span className="text-xs" style={{ color: isPast ? 'var(--danger)' : 'var(--app-text-tertiary)' }}>
+                {formatDue(todo.dueAt)}
+              </span>
+            </div>
+          )}
+        </div>
+        <button onClick={() => onDelete(todo.id)} className="p-1 press-scale flex-shrink-0 mt-0.5">
+          <Trash2 size={15} color="var(--app-text-tertiary)" />
+        </button>
+      </div>
     </div>
   );
 }

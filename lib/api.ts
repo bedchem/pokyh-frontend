@@ -121,8 +121,10 @@ export function fetchMensa() {
   return apiFetch('/api/mensa');
 }
 
-export function getAttachmentUrl(messageId: number, storageId: string, name: string): string {
-  return `/api/webuntis/attachment?messageId=${messageId}&storageId=${encodeURIComponent(storageId)}&name=${encodeURIComponent(name)}`;
+export function getAttachmentUrl(messageId: number, storageId: string, name: string, attachmentId?: number): string {
+  const p = new URLSearchParams({ messageId: String(messageId), storageId, name });
+  if (attachmentId != null) p.set('attachmentId', String(attachmentId));
+  return `/api/webuntis/attachment?${p.toString()}`;
 }
 
 export async function logout() {

@@ -8,7 +8,17 @@ const SCHOOL_COOKIE = '_bGJzLWJyaXhlbg==';
 // Simple in-memory rate limiter (IP-based, max 30 attempts per 5 min)
 const attempts = new Map<string, { count: number; reset: number }>();
 
+function pruneAttempts() {
+  const now = Date.now();
+  for (const [ip, entry] of attempts) {
+    if (now > entry.reset) attempts.delete(ip);
+  }
+}
+
 function isRateLimited(ip: string): boolean {
+  // Prune stale entries occasionally to prevent unbounded growth
+  if (Math.random() < 0.05) pruneAttempts();
+
   const now = Date.now();
   const entry = attempts.get(ip);
   if (!entry || now > entry.reset) {
@@ -53,6 +63,9 @@ export async function POST(req: NextRequest) {
 
   if (!username?.trim() || !password?.trim()) {
     return NextResponse.json({ error: 'Benutzername und Passwort erforderlich.' }, { status: 400 });
+  }
+  if (username.length > 100 || password.length > 200) {
+    return NextResponse.json({ error: 'Eingabe zu lang.' }, { status: 400 });
   }
 
   try {

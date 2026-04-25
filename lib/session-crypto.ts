@@ -1,6 +1,9 @@
 // AES-GCM session encryption – works in both Node.js and Edge runtimes
 
 const SECRET = process.env.SESSION_SECRET ?? 'pockyh-default-secret-change-me!';
+if (!process.env.SESSION_SECRET && process.env.NODE_ENV === 'production') {
+  console.warn('[security] SESSION_SECRET is not set – using insecure default. Set SESSION_SECRET in your environment.');
+}
 
 let _cachedKey: CryptoKey | null = null;
 

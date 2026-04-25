@@ -9,6 +9,7 @@ const PUBLIC_PREFIXES = [
   '/robots.txt',
   '/sitemap.xml',
   '/manifest.json',
+  '/manifest.webmanifest',
   '/icons',
   '/icon',
   '/apple-icon',
@@ -58,7 +59,10 @@ export async function proxy(request: NextRequest) {
   // All other routes require a valid session
   if (!authenticated) {
     const url = new URL('/login', request.url);
-    url.searchParams.set('next', pathname);
+    // Only propagate safe relative paths (no protocol-relative or absolute URLs)
+    if (pathname.startsWith('/') && !pathname.startsWith('//')) {
+      url.searchParams.set('next', pathname);
+    }
     const res = NextResponse.redirect(url);
     // Clear any stale cookies
     res.cookies.delete('pockyh_session');
@@ -71,6 +75,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon\\.ico|icons|apple-icon|manifest\\.json|robots\\.txt|sitemap\\.xml).*)',
+    '/((?!_next/static|_next/image|favicon\\.ico|icons|apple-icon|manifest\\.json|manifest\\.webmanifest|robots\\.txt|sitemap\\.xml).*)',
   ],
 };

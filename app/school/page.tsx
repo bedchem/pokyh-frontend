@@ -3,7 +3,6 @@
 import { useRouter } from 'next/navigation';
 import { BarChart2, Bell, CheckSquare, UserX, ChevronRight } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
-import BottomNav from '@/components/BottomNav';
 
 interface HubCard {
   title: string;
@@ -50,11 +49,11 @@ export default function SchoolPage() {
   return (
     <AuthGuard>
       <div
-        className="h-dvh flex flex-col overflow-hidden"
-        style={{ background: 'var(--app-bg)', paddingBottom: 'var(--nav-h)' }}
+        className="h-full flex flex-col overflow-hidden"
+        style={{ background: 'var(--app-bg)' }}
       >
         {/* Header */}
-        <div className="px-5 pt-14 pb-5 fade-in flex-shrink-0">
+        <div className="px-5 pt-5 pb-5 fade-in flex-shrink-0">
           <h1
             className="text-[28px] font-bold tracking-tight"
             style={{ color: 'var(--app-text-primary)' }}
@@ -66,38 +65,37 @@ export default function SchoolPage() {
           </p>
         </div>
 
-        <div className="flex-1 px-4 flex flex-col gap-3.5 pb-4 overflow-auto">
-          {HUB_CARDS.map((card) => (
-            <button
-              key={card.href}
-              onClick={() => router.push(card.href)}
-              className="w-full p-5 rounded-[18px] flex items-center gap-4 press-scale text-left fade-in"
-              style={{
-                background: 'var(--app-surface)',
-                border: `1px solid color-mix(in srgb, ${card.accent} 15%, transparent)`,
-              }}
-            >
-              <div
-                className="w-[52px] h-[52px] rounded-[14px] flex items-center justify-center flex-shrink-0"
-                style={{ background: `color-mix(in srgb, ${card.accent} 12%, transparent)` }}
+        <div className="flex-1 px-4 pb-6 overflow-auto">
+          <div className="max-w-2xl grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {HUB_CARDS.map((card) => (
+              <button
+                key={card.href}
+                onClick={() => router.push(card.href)}
+                className="p-5 rounded-2xl flex items-center gap-4 press-scale text-left fade-in card-hover"
+                style={{
+                  background: 'var(--app-surface)',
+                  border: `1px solid color-mix(in srgb, ${card.accent} 15%, var(--app-border))`,
+                }}
               >
-                {card.icon}
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <p className="text-[18px] font-bold" style={{ color: 'var(--app-text-primary)' }}>
-                  {card.title}
-                </p>
-                <p className="text-[13px] mt-0.5" style={{ color: 'var(--app-text-secondary)' }}>
-                  {card.subtitle}
-                </p>
-              </div>
-
-              <ChevronRight size={18} color="var(--app-text-tertiary)" />
-            </button>
-          ))}
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: `color-mix(in srgb, ${card.accent} 12%, transparent)` }}
+                >
+                  {card.icon}
+                </div>
+                <div className="flex-1 min-w-0 text-left">
+                  <p className="text-base font-semibold" style={{ color: 'var(--app-text-primary)' }}>
+                    {card.title}
+                  </p>
+                  <p className="text-xs mt-0.5 leading-tight" style={{ color: 'var(--app-text-secondary)' }}>
+                    {card.subtitle}
+                  </p>
+                </div>
+                <ChevronRight size={16} style={{ color: 'var(--app-text-tertiary)', flexShrink: 0 }} />
+              </button>
+            ))}
+          </div>
         </div>
-        <BottomNav />
       </div>
     </AuthGuard>
   );

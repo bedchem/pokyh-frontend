@@ -5,7 +5,6 @@ import { format, isToday, isTomorrow, parseISO, startOfDay } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Star, Utensils, X } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
-import BottomNav from '@/components/BottomNav';
 import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
 import EmptyView from '@/components/ui/EmptyView';
@@ -313,10 +312,10 @@ export default function MensaPage() {
   return (
     <AuthGuard>
       <div
-        className="h-dvh flex flex-col overflow-hidden"
-        style={{ background: 'var(--app-bg)', paddingBottom: 'var(--nav-h)' }}
+        className="h-full flex flex-col overflow-hidden"
+        style={{ background: 'var(--app-bg)' }}
       >
-        <div className="px-5 pt-14 pb-4 fade-in flex-shrink-0">
+        <div className="px-5 pt-5 pb-4 fade-in flex-shrink-0">
           <h1
             className="text-[28px] font-bold tracking-tight"
             style={{ color: 'var(--app-text-primary)' }}
@@ -387,7 +386,6 @@ export default function MensaPage() {
         {selected && (
           <DishDetail dish={selected} onClose={() => setSelected(null)} />
         )}
-        <BottomNav />
       </div>
     </AuthGuard>
   );

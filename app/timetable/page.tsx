@@ -1,12 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, X, FileText, ArrowLeftRight } from 'lucide-react';
 import { addDays, format, startOfWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
-import BottomNav from '@/components/BottomNav';
 import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
 import { fetchTimetable } from '@/lib/api';
@@ -109,14 +109,22 @@ function LessonDetailSheet({
     : subjectColor(entry.subjectName);
 
   return (
-    <div
+    <motion.div
       className="fixed inset-0 z-50 flex items-end"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
       style={{ background: 'rgba(0,0,0,0.5)' }}
       onClick={onClose}
     >
-      <div
+      <motion.div
         className="w-full max-h-[80dvh] overflow-y-auto rounded-t-2xl"
         style={{ background: 'var(--app-surface)' }}
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ duration: 0.28, ease: [0.25, 0.46, 0.45, 0.94] }}
         onClick={(e) => e.stopPropagation()}
       >
         <div
@@ -185,8 +193,8 @@ function LessonDetailSheet({
             )}
           </div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -276,9 +284,11 @@ function LessonCell({ entry }: { entry: TimetableEntry }) {
         </div>
       </button>
 
-      {open && (
-        <LessonDetailSheet entry={entry} onClose={() => setOpen(false)} />
-      )}
+      <AnimatePresence>
+        {open && (
+          <LessonDetailSheet entry={entry} onClose={() => setOpen(false)} />
+        )}
+      </AnimatePresence>
     </>
   );
 }
@@ -374,20 +384,12 @@ export default function TimetablePage() {
   return (
     <AuthGuard>
       <div
-        className="h-dvh flex flex-col overflow-hidden"
-        style={{ background: 'var(--app-bg)', paddingBottom: 'var(--nav-h)' }}
+        className="h-full flex flex-col overflow-hidden"
+        style={{ background: 'var(--app-bg)' }}
       >
-        {/* Header */}
-        <div className="px-5 pt-14 pb-3 fade-in flex-shrink-0">
-          <div className="mb-2">
-            <h1
-              className="text-[28px] font-bold tracking-tight"
-              style={{ color: 'var(--app-text-primary)' }}
-            >
-              Stundenplan
-            </h1>
-          </div>
-          <div className="flex items-center justify-between mt-1">
+        {/* Week nav */}
+        <div className="px-5 pt-4 pb-3 fade-in flex-shrink-0">
+          <div className="flex items-center justify-between">
             <button
               onClick={() => setWeekOffset((o) => o - 1)}
               className="p-2 rounded-full press-scale"
@@ -550,7 +552,6 @@ export default function TimetablePage() {
             </div>
           )}
         </div>
-        <BottomNav />
       </div>
     </AuthGuard>
   );

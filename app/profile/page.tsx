@@ -7,6 +7,7 @@ import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
 import { useSession } from '@/providers/SessionProvider';
 import { useTheme } from '@/providers/ThemeProvider';
+import { useFirebase } from '@/providers/FirebaseProvider';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -99,6 +100,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const { user, logout } = useSession();
   const { theme, setTheme } = useTheme();
+  const { stableUid, classId } = useFirebase();
   const [loggingOut, setLoggingOut] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
 
@@ -116,11 +118,11 @@ export default function ProfilePage() {
   return (
     <AuthGuard>
       <div
-        className="h-dvh flex flex-col overflow-hidden"
+        className="h-full flex flex-col overflow-hidden"
         style={{ background: 'var(--app-bg)' }}
       >
         {/* Nav bar */}
-        <div className="px-5 pt-14 pb-3 flex items-center gap-3 fade-in flex-shrink-0">
+        <div className="px-5 pt-4 pb-3 flex items-center gap-3 fade-in flex-shrink-0">
           <button
             onClick={() => router.back()}
             className="p-2 rounded-full press-scale"
@@ -170,7 +172,9 @@ export default function ProfilePage() {
                 <InfoRow label="Benutzername" value={user?.username ?? '–'} copyable />
                 <InfoRow label="Schüler-ID" value={String(user?.studentId ?? '–')} copyable />
                 <InfoRow label="Klasse" value={user?.klasseName ?? '–'} copyable />
-                <InfoRow label="Schule" value="LBS Brixen" separator={false} />
+                <InfoRow label="Schule" value="LBS Brixen" />
+                <InfoRow label="Firebase UID" value={stableUid ?? '…'} copyable />
+                <InfoRow label="Klassen-ID" value={classId ?? '…'} copyable separator={false} />
               </div>
             </section>
 

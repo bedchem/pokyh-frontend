@@ -14,6 +14,7 @@ export const SCHOOL_COOKIE_VAL = '_bGJzLWJyaXhlbg==';
 export function webUntisHeaders(session: Session): Record<string, string> {
   return {
     Cookie: `JSESSIONID=${session.sessionId}; schoolname="${SCHOOL_COOKIE_VAL}"`,
+    Accept: 'application/json',
     ...(session.bearerToken ? { Authorization: `Bearer ${session.bearerToken}` } : {}),
   };
 }
