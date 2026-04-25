@@ -1,26 +1,115 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Light theme */
+  --app-bg: #F2F2F7;
+  --app-surface: #FFFFFF;
+  --app-card: #F2F2F7;
+  --app-card-alt: #E5E5EA;
+  --app-text-primary: #000000;
+  --app-text-secondary: #8E8E93;
+  --app-text-tertiary: #AEAEB2;
+  --app-border: #D1D1D6;
+  --app-separator: #C6C6C8;
+
+  /* Fixed colors */
+  --accent: #0A84FF;
+  --accent-soft: #5E5CE6;
+  --tint: #30D158;
+  --success-mid: #34C759;
+  --warning: #FFD60A;
+  --danger: #FF3B30;
+  --orange: #FF9F0A;
+
+  /* Nav height */
+  --nav-h: 84px;
+}
+
+.dark {
+  --app-bg: #000000;
+  --app-surface: #1C1C1E;
+  --app-card: #2C2C2E;
+  --app-card-alt: #3A3A3C;
+  --app-text-primary: #FFFFFF;
+  --app-text-secondary: #98989D;
+  --app-text-tertiary: #636366;
+  --app-border: #38383A;
+  --app-separator: #48484A;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--app-bg);
+  --color-surface: var(--app-surface);
+  --color-card: var(--app-card);
+  --color-card-alt: var(--app-card-alt);
+  --color-text-primary: var(--app-text-primary);
+  --color-text-secondary: var(--app-text-secondary);
+  --color-text-tertiary: var(--app-text-tertiary);
+  --color-border: var(--app-border);
+  --color-accent: var(--accent);
+  --color-tint: var(--tint);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-orange: var(--orange);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--app-bg);
+  color: var(--app-text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+  min-height: 100%;
+}
+
+/* iOS-style scroll */
+::-webkit-scrollbar { display: none; }
+* { scrollbar-width: none; }
+
+/* Tap highlight removal */
+* { -webkit-tap-highlight-color: transparent; }
+
+/* Active press animation */
+.press-scale { transition: transform 0.1s ease; }
+.press-scale:active { transform: scale(0.96); }
+
+/* Fade-in animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in {
+  animation: fadeIn 0.38s ease both;
+}
+.delay-1 { animation-delay: 60ms; }
+.delay-2 { animation-delay: 120ms; }
+.delay-3 { animation-delay: 180ms; }
+.delay-4 { animation-delay: 240ms; }
+.delay-5 { animation-delay: 300ms; }
+.delay-6 { animation-delay: 360ms; }
+
+/* Bottom sheet slide-up */
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.slide-up {
+  animation: slideUp 0.28s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Backdrop fade */
+@keyframes fadeBackdrop {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.fade-backdrop {
+  animation: fadeBackdrop 0.2s ease both;
 }

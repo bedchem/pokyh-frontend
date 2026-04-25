@@ -1,0 +1,417 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { ChevronLeft, ChevronRight, Plus, Bell, Trash2, BellOff, Users, LogIn } from 'lucide-react';
+import {
+  collection,
+  onSnapshot,
+  addDoc,
+  deleteDoc,
+  doc,
+  getDoc,
+  serverTimestamp,
+  query,
+  orderBy,
+  Timestamp,
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import AuthGuard from '@/components/AuthGuard';
+import Spinner from '@/components/ui/Spinner';
+import EmptyView from '@/components/ui/EmptyView';
+import { useFirebase } from '@/providers/FirebaseProvider';
+import { useSession } from '@/providers/SessionProvider';
+
+interface Reminder {
+  id: string;
+  classId: string;
+  title: string;
+  body: string;
+  remindAt: Date;
+  createdByUid: string;
+  createdByName: string;
+  createdByUsername: string;
+}
+
+interface ClassMember {
+  uid: string;
+  username: string;
+}
+
+function memberColor(name: string): string {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h << 5) - h + name.charCodeAt(i);
+  return `hsl(${Math.abs(h) % 360}, 60%, 50%)`;
+}
+
+function timeUntil(date: Date): string {
+  const diff = date.getTime() - Date.now();
+  if (diff < 0) return 'Fällig';
+  const h = Math.floor(diff / 3600000);
+  const d = Math.floor(h / 24);
+  if (d > 0) return `in ${d} Tag${d > 1 ? 'en' : ''}`;
+  if (h > 0) return `in ${h} Std.`;
+  return 'Gleich';
+}
+
+export default function RemindersPage() {
+  const router = useRouter();
+  const { user } = useSession();
+  const { classId, stableUid, ready } = useFirebase();
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [showMembers, setShowMembers] = useState(false);
+  const [members, setMembers] = useState<ClassMember[]>([]);
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [due, setDue] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!ready) return;
+    if (!classId) { setLoading(false); return; }
+
+    // Fetch class members
+    getDoc(doc(db, 'classes', classId)).then((snap) => {
+      if (snap.exists()) {
+        const mn = (snap.data()?.memberNames ?? {}) as Record<string, string>;
+        setMembers(Object.entries(mn).map(([uid, username]) => ({ uid, username })));
+      }
+    });
+
+    const q = query(
+      collection(db, 'classes', classId, 'reminders'),
+      orderBy('remindAt', 'asc')
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      const cutoff = Date.now() - 25 * 3600 * 1000;
+      setReminders(
+        snap.docs
+          .map((d) => ({
+            id: d.id,
+            classId: classId,
+            title: d.data().title ?? '',
+            body: d.data().body ?? '',
+            remindAt: (d.data().remindAt as Timestamp)?.toDate() ?? new Date(),
+            createdByUid: d.data().createdBy ?? '',
+            createdByName: d.data().createdByName ?? 'Unbekannt',
+            createdByUsername: d.data().createdByUsername ?? '',
+          }))
+          .filter((r) => r.remindAt.getTime() > cutoff)
+      );
+      setLoading(false);
+    }, () => setLoading(false));
+
+    return () => unsub();
+  }, [classId, ready]);
+
+  async function addReminder() {
+    if (!title.trim() || !due || !classId || !stableUid || !user) return;
+    setSaving(true);
+    try {
+      await addDoc(collection(db, 'classes', classId, 'reminders'), {
+        title: title.trim(),
+        body: body.trim(),
+        remindAt: Timestamp.fromDate(new Date(due)),
+        createdBy: stableUid,
+        createdByName: user.username,
+        createdByUsername: user.username,
+        createdAt: serverTimestamp(),
+      });
+      setTitle(''); setBody(''); setDue(''); setShowAdd(false);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteReminder(reminder: Reminder) {
+    if (!classId) return;
+    await deleteDoc(doc(db, 'classes', classId, 'reminders', reminder.id));
+  }
+
+  const upcoming = reminders.filter((r) => r.remindAt >= new Date(Date.now() - 1000));
+  const overdue = reminders.filter((r) => r.remindAt < new Date());
+
+  return (
+    <AuthGuard>
+      <div className="h-dvh flex flex-col overflow-hidden" style={{ background: 'var(--app-bg)' }}>
+        {/* Header */}
+        <div className="px-5 pt-14 pb-3 fade-in flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.back()}
+              className="p-2 rounded-full press-scale"
+              style={{ background: 'var(--app-surface)' }}
+            >
+              <ChevronLeft size={20} color="var(--accent)" />
+            </button>
+            <h1 className="flex-1 text-[28px] font-bold tracking-tight" style={{ color: 'var(--app-text-primary)' }}>
+              Erinnerungen
+            </h1>
+            {classId && (
+              <button
+                onClick={() => setShowAdd(true)}
+                className="p-2 rounded-full press-scale"
+                style={{ background: 'color-mix(in srgb, var(--orange) 15%, var(--app-surface))' }}
+              >
+                <Plus size={20} color="var(--orange)" />
+              </button>
+            )}
+          </div>
+
+          {/* Class chip */}
+          {ready && classId && (
+            <button
+              onClick={() => setShowMembers(true)}
+              className="mt-2.5 ml-[44px] flex items-center gap-1.5 px-3 py-1.5 rounded-full press-scale"
+              style={{ background: 'var(--app-surface)' }}
+            >
+              <Users size={13} color="var(--accent)" />
+              <span className="text-[13px] font-medium" style={{ color: 'var(--app-text-primary)' }}>
+                {user?.klasseName}
+              </span>
+              {members.length > 0 && (
+                <span className="text-[12px]" style={{ color: 'var(--app-text-secondary)' }}>
+                  · {members.length}
+                </span>
+              )}
+              <ChevronRight size={12} color="var(--app-text-tertiary)" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex-1 px-4 pb-6 overflow-auto">
+          {!ready || loading ? (
+            <div className="flex justify-center py-16"><Spinner size={28} /></div>
+          ) : !classId ? (
+            <div className="flex flex-col items-center justify-center gap-4 py-16 text-center px-8">
+              <div
+                className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                style={{ background: 'color-mix(in srgb, var(--orange) 15%, transparent)' }}
+              >
+                <Users size={32} color="var(--orange)" />
+              </div>
+              <p className="text-base font-semibold" style={{ color: 'var(--app-text-primary)' }}>
+                Klasse nicht gefunden
+              </p>
+              <p className="text-sm" style={{ color: 'var(--app-text-secondary)' }}>
+                Deine Klasse wird automatisch synchronisiert. Bitte neu anmelden.
+              </p>
+              <button
+                onClick={() => router.replace('/login')}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm press-scale"
+                style={{ background: 'var(--accent)', color: '#fff' }}
+              >
+                <LogIn size={16} />
+                Neu anmelden
+              </button>
+            </div>
+          ) : reminders.length === 0 ? (
+            <EmptyView
+              icon={<BellOff size={56} color="var(--app-text-primary)" />}
+              title="Keine Erinnerungen"
+              subtitle="Füge Hausaufgaben oder Erinnerungen für deine Klasse hinzu."
+            />
+          ) : (
+            <div className="flex flex-col gap-3 fade-in">
+              {overdue.length > 0 && (
+                <p className="text-xs font-semibold uppercase tracking-wider px-1 mt-1"
+                   style={{ color: 'var(--danger)' }}>
+                  FÄLLIG
+                </p>
+              )}
+              {overdue.map((r) => (
+                <ReminderCard key={r.id} r={r} stableUid={stableUid} onDelete={deleteReminder} overdue />
+              ))}
+              {upcoming.filter(r => r.remindAt >= new Date()).length > 0 && (
+                <p className="text-xs font-semibold uppercase tracking-wider px-1 mt-2"
+                   style={{ color: 'var(--app-text-secondary)' }}>
+                  KOMMEND
+                </p>
+              )}
+              {upcoming.filter(r => r.remindAt >= new Date()).map((r) => (
+                <ReminderCard key={r.id} r={r} stableUid={stableUid} onDelete={deleteReminder} overdue={false} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Add reminder sheet */}
+        {showAdd && (
+          <div
+            className="fixed inset-0 z-50 flex items-end fade-backdrop"
+            style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+            onClick={() => setShowAdd(false)}
+          >
+            <div
+              className="w-full rounded-t-2xl p-6 pb-12 slide-up"
+              style={{ background: 'var(--app-surface)' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: 'var(--app-border)' }} />
+              <h3 className="text-[18px] font-bold mb-5" style={{ color: 'var(--app-text-primary)' }}>
+                Erinnerung hinzufügen
+              </h3>
+              <div className="flex flex-col gap-3">
+                <input
+                  placeholder="Titel *"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="w-full rounded-xl px-4 py-3 text-[15px] outline-none"
+                  style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)' }}
+                  autoFocus
+                />
+                <input
+                  placeholder="Beschreibung (optional)"
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  className="w-full rounded-xl px-4 py-3 text-[15px] outline-none"
+                  style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)' }}
+                />
+                <input
+                  type="datetime-local"
+                  value={due}
+                  onChange={(e) => setDue(e.target.value)}
+                  className="w-full rounded-xl px-4 py-3 text-[15px] outline-none"
+                  style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)' }}
+                />
+                <button
+                  onClick={addReminder}
+                  disabled={!title.trim() || !due || saving}
+                  className="h-12 rounded-xl font-semibold text-white press-scale disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={{ background: 'var(--accent)' }}
+                >
+                  {saving ? <Spinner size={18} /> : 'Hinzufügen'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Class members sheet */}
+        {showMembers && (
+          <div
+            className="fixed inset-0 z-50 flex items-end fade-backdrop"
+            style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+            onClick={() => setShowMembers(false)}
+          >
+            <div
+              className="w-full rounded-t-2xl pb-12 slide-up"
+              style={{ background: 'var(--app-surface)', maxHeight: '70dvh', overflowY: 'auto' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-10 h-1 rounded-full mx-auto mt-3 mb-4" style={{ background: 'var(--app-border)' }} />
+              <div className="px-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style={{ background: 'color-mix(in srgb, var(--accent) 15%, transparent)' }}
+                  >
+                    <Users size={20} color="var(--accent)" />
+                  </div>
+                  <div>
+                    <h3 className="text-[18px] font-bold" style={{ color: 'var(--app-text-primary)' }}>
+                      {user?.klasseName}
+                    </h3>
+                    <p className="text-sm" style={{ color: 'var(--app-text-secondary)' }}>
+                      {members.length} {members.length === 1 ? 'Mitglied' : 'Mitglieder'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {members.map((m) => (
+                    <div
+                      key={m.uid}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl"
+                      style={{ background: 'var(--app-card)' }}
+                    >
+                      <div
+                        className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
+                        style={{ background: memberColor(m.username) }}
+                      >
+                        {m.username.slice(0, 2).toUpperCase()}
+                      </div>
+                      <p className="font-medium text-[15px]" style={{ color: 'var(--app-text-primary)' }}>
+                        {m.username}
+                      </p>
+                      {m.uid === stableUid && (
+                        <span className="ml-auto text-xs font-medium px-2 py-0.5 rounded-full"
+                          style={{ background: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent)' }}>
+                          Du
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </AuthGuard>
+  );
+}
+
+function ReminderCard({
+  r,
+  stableUid,
+  onDelete,
+  overdue,
+}: {
+  r: Reminder;
+  stableUid: string | null;
+  onDelete: (r: Reminder) => void;
+  overdue: boolean;
+}) {
+  const isMine = stableUid != null && r.createdByUid === stableUid;
+  return (
+    <div
+      className="rounded-2xl p-4"
+      style={{
+        background: 'var(--app-surface)',
+        border: overdue ? '1px solid color-mix(in srgb, var(--danger) 25%, transparent)' : 'none',
+      }}
+    >
+      <div className="flex items-start gap-3">
+        <div
+          className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
+          style={{
+            background: overdue
+              ? 'color-mix(in srgb, var(--danger) 15%, transparent)'
+              : 'color-mix(in srgb, var(--orange) 15%, transparent)',
+          }}
+        >
+          <Bell size={18} color={overdue ? 'var(--danger)' : 'var(--orange)'} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-[15px]" style={{ color: 'var(--app-text-primary)' }}>
+            {r.title}
+          </p>
+          {r.body && (
+            <p className="text-sm mt-0.5" style={{ color: 'var(--app-text-secondary)' }}>
+              {r.body}
+            </p>
+          )}
+          <p className="text-xs mt-1.5" style={{ color: overdue ? 'var(--danger)' : 'var(--app-text-tertiary)' }}>
+            {timeUntil(r.remindAt)} · {r.remindAt.toLocaleDateString('de', { day: 'numeric', month: 'short' })}{' '}
+            {r.remindAt.toLocaleTimeString('de', { hour: '2-digit', minute: '2-digit' })}
+          </p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--app-text-tertiary)' }}>
+            von {r.createdByUsername || r.createdByName}
+          </p>
+        </div>
+        {isMine && (
+          <button
+            onClick={() => onDelete(r)}
+            className="p-1.5 press-scale flex-shrink-0"
+          >
+            <Trash2 size={16} color="var(--danger)" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}

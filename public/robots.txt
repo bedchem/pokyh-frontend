@@ -1,0 +1,23 @@
+User-agent: *
+
+# Allow the login page (the only public-facing page worth indexing)
+Allow: /$
+Allow: /login
+
+# Disallow private app routes (require authentication)
+Disallow: /home
+Disallow: /timetable
+Disallow: /school
+Disallow: /grades
+Disallow: /absences
+Disallow: /messages
+Disallow: /reminders
+Disallow: /profile
+Disallow: /mensa
+Disallow: /todos
+
+# Disallow all API routes
+Disallow: /api/
+
+# Sitemap location
+Sitemap: https://pokyh.app/sitemap.xml
