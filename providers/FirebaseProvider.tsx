@@ -21,7 +21,7 @@ import {
   arrayUnion,
   deleteField,
 } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { auth, db, firebaseEnabled } from '@/lib/firebase';
 import { useSession } from '@/providers/SessionProvider';
 
 interface FirebaseCtx {
@@ -56,6 +56,11 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
 
   const init = useCallback(async (username: string, klasseId: number, klasseName: string) => {
+    if (!firebaseEnabled || !auth || !db) {
+      setReady(true);
+      return;
+    }
+
     try {
       // 1. Ensure Firebase anonymous session
       let fbUid = auth.currentUser?.uid ?? null;
@@ -176,6 +181,12 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!user) return;
+
+    if (!firebaseEnabled || !auth) {
+      setReady(true);
+      return;
+    }
+
     // Restore existing Firebase session if present
     const unsub = onAuthStateChanged(auth, (fbUser) => {
       if (fbUser) setFirebaseUid(fbUser.uid);
