@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { format, isToday, isTomorrow, parseISO, startOfDay } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Star, Utensils, X } from 'lucide-react';
@@ -281,13 +281,11 @@ function DishDetail({
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const ref = doc(db, 'dish_ratings', dish.id);
+    const ref = doc(db!, 'dish_ratings', dish.id);
     const unsub = onSnapshot(ref, (snap) => {
-      if (snap.exists()) {
-        const data = snap.data() as Record<string, number>;
-        setRatings(data);
-        onRated(dish.id, data);
-      }
+      const data = snap.exists() ? (snap.data() as Record<string, number>) : {};
+      setRatings(data);
+      onRated(dish.id, data);
     });
     return () => unsub();
   }, [dish.id, onRated]);
@@ -300,7 +298,7 @@ function DishDetail({
     if (!stableUid || saving) return;
     setSaving(true);
     try {
-      await setDoc(doc(db, 'dish_ratings', dish.id), { [stableUid]: stars }, { merge: true });
+      await setDoc(doc(db!, 'dish_ratings', dish.id), { [stableUid]: stars }, { merge: true });
     } catch (e) {
       console.error('[mensa] rate error:', e);
     } finally {
@@ -423,17 +421,19 @@ function DishDetail({
 }
 
 export default function MensaPage() {
-  const { stableUid, ready } = useFirebase();
+  const { stableUid } = useFirebase();
   const [groups, setGroups] = useState<GroupedDishes[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selected, setSelected] = useState<Dish | null>(null);
   const [allRatings, setAllRatings] = useState<Record<string, Record<string, number>>>({});
+  // prevents double-fetch when both stableUid and groups become available together
+  const ratingsFetched = useRef(false);
 
-  // Step 1: load menu (no Firebase needed)
   const loadMenu = useCallback(async () => {
     setLoading(true);
     setError('');
+    ratingsFetched.current = false;
     try {
       const raw = await fetchMensa();
       const r = raw as Record<string, unknown>;
@@ -451,31 +451,25 @@ export default function MensaPage() {
     }
   }, []);
 
-  // Step 2: load ratings — only after Firebase anonymous auth is ready
-  const loadRatings = useCallback(async (gs: GroupedDishes[]) => {
-    const allDishes = gs.flatMap((g) => g.dishes);
-    if (!allDishes.length) return;
-    try {
-      const snaps = await Promise.all(
-        allDishes.map((d) => getDoc(doc(db, 'dish_ratings', d.id)))
-      );
-      const ratings: Record<string, Record<string, number>> = {};
-      snaps.forEach((snap, i) => {
-        if (snap.exists()) ratings[allDishes[i].id] = snap.data() as Record<string, number>;
-      });
-      setAllRatings(ratings);
-    } catch (e) {
-      console.error('[mensa] ratings fetch error:', e);
-    }
-  }, []);
-
   useEffect(() => { loadMenu(); }, [loadMenu]);
 
-  // Trigger ratings fetch once both the menu and Firebase auth are ready
+  // Fetch ratings once BOTH the menu is loaded AND stableUid is available.
+  // stableUid is only set after FirebaseProvider.init() completes (signInAnonymously done),
+  // guaranteeing Firestore auth is established before we read.
   useEffect(() => {
-    if (!ready || groups.length === 0) return;
-    loadRatings(groups);
-  }, [ready, groups, loadRatings]);
+    if (!stableUid || groups.length === 0 || ratingsFetched.current) return;
+    ratingsFetched.current = true;
+    const allDishes = groups.flatMap((g) => g.dishes);
+    Promise.all(allDishes.map((d) => getDoc(doc(db!, 'dish_ratings', d.id))))
+      .then((snaps) => {
+        const ratings: Record<string, Record<string, number>> = {};
+        snaps.forEach((snap, i) => {
+          if (snap.exists()) ratings[allDishes[i].id] = snap.data() as Record<string, number>;
+        });
+        setAllRatings(ratings);
+      })
+      .catch((e) => console.error('[mensa] ratings fetch error:', e));
+  }, [stableUid, groups]);
 
   const handleRated = useCallback((dishId: string, ratings: Record<string, number>) => {
     setAllRatings((prev) => ({ ...prev, [dishId]: ratings }));

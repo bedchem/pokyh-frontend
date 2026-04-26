@@ -31,6 +31,13 @@ function schoolYearStart(): string {
   return `${year}0901`;
 }
 
+function schoolYearEnd(): string {
+  const now = new Date();
+  // End year is always the year AFTER the start year
+  const endYear = now.getMonth() >= 8 ? now.getFullYear() + 1 : now.getFullYear();
+  return `${endYear}0630`; // June 30 — covers all possible school year end dates
+}
+
 async function apiFetch(url: string, opts?: RequestInit) {
   log('fetch', url);
   const res = await fetch(url, { credentials: 'same-origin', ...opts });
@@ -90,7 +97,9 @@ export function fetchGrades() {
 
 export function fetchAbsences() {
   const start = schoolYearStart();
-  const end = todayFormatted().replace(/-/g, '');
+  // Use school year end (not today) — WebUntis treats endDate as exclusive, so
+  // using today misses the current day's absences. School year end is always future.
+  const end = schoolYearEnd();
   return apiFetch(`/api/webuntis/absences?startDate=${start}&endDate=${end}`);
 }
 
