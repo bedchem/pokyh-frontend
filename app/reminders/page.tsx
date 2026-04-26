@@ -74,7 +74,7 @@ export default function RemindersPage() {
 
   useEffect(() => {
     if (!ready || !user) return;
-    getDoc(doc(db, 'users', user.username)).then((snap) => {
+    getDoc(doc(db!, 'users', user.username)).then((snap) => {
       if (snap.exists()) setIsAdmin((snap.data()?.isAdmin as boolean) === true);
     });
   }, [ready, user]);
@@ -84,7 +84,7 @@ export default function RemindersPage() {
     if (!classId) { setLoading(false); return; }
 
     // Fetch class members
-    getDoc(doc(db, 'classes', classId)).then((snap) => {
+    getDoc(doc(db!, 'classes', classId)).then((snap) => {
       if (snap.exists()) {
         const mn = (snap.data()?.memberNames ?? {}) as Record<string, string>;
         setMembers(Object.entries(mn).map(([uid, username]) => ({ uid, username })));
@@ -92,7 +92,7 @@ export default function RemindersPage() {
     });
 
     const q = query(
-      collection(db, 'classes', classId, 'reminders'),
+      collection(db!, 'classes', classId, 'reminders'),
       orderBy('remindAt', 'asc')
     );
     const unsub = onSnapshot(q, (snap) => {
@@ -122,7 +122,7 @@ export default function RemindersPage() {
     setSaving(true);
     setAddError('');
     try {
-      await addDoc(collection(db, 'classes', classId, 'reminders'), {
+      await addDoc(collection(db!, 'classes', classId, 'reminders'), {
         title: title.trim(),
         body: body.trim(),
         remindAt: Timestamp.fromDate(new Date(due)),
@@ -142,7 +142,7 @@ export default function RemindersPage() {
 
   async function deleteReminder(reminder: Reminder) {
     if (!classId) return;
-    await deleteDoc(doc(db, 'classes', classId, 'reminders', reminder.id));
+    await deleteDoc(doc(db!, 'classes', classId, 'reminders', reminder.id));
   }
 
   const upcoming = reminders.filter((r) => r.remindAt >= new Date(Date.now() - 1000));

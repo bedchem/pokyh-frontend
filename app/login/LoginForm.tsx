@@ -56,6 +56,7 @@ export default function LoginForm() {
       }
 
       try {
+        if (!auth || !db) throw new Error('Firebase not configured');
         const fbResult = await signInAnonymously(auth);
         const fbUid = fbResult.user.uid;
         const userRef = doc(db, 'users', username.trim());

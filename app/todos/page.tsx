@@ -51,7 +51,7 @@ export default function TodosPage() {
   useEffect(() => {
     if (!ready || !user) return;
     const q = query(
-      collection(db, 'users', user.username, 'todos'),
+      collection(db!, 'users', user.username, 'todos'),
       orderBy('createdAt', 'asc')
     );
     const unsub = onSnapshot(q, (snap) => {
@@ -79,7 +79,7 @@ export default function TodosPage() {
     setSaving(true);
     setAddError('');
     try {
-      await addDoc(collection(db, 'users', user.username, 'todos'), {
+      await addDoc(collection(db!, 'users', user.username, 'todos'), {
         title: title.trim(),
         details: details.trim(),
         dueAt: dueAt ? Timestamp.fromDate(new Date(dueAt)) : null,
@@ -99,7 +99,7 @@ export default function TodosPage() {
   async function toggle(todo: Todo) {
     if (!user) return;
     const nowDone = !todo.done;
-    await updateDoc(doc(db, 'users', user.username, 'todos', todo.id), {
+    await updateDoc(doc(db!, 'users', user.username, 'todos', todo.id), {
       done: nowDone,
       doneAt: nowDone ? serverTimestamp() : null,
     });
@@ -107,7 +107,7 @@ export default function TodosPage() {
 
   async function remove(id: string) {
     if (!user) return;
-    await deleteDoc(doc(db, 'users', user.username, 'todos', id));
+    await deleteDoc(doc(db!, 'users', user.username, 'todos', id));
   }
 
   const active = todos.filter((t) => !t.done);
