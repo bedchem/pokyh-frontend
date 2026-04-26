@@ -258,7 +258,7 @@ function LessonCell({ entry }: { entry: TimetableEntry }) {
         />
         <div className="flex-1 min-w-0 px-1 py-1 flex flex-col justify-center">
           <p
-            className="text-[10px] font-bold leading-tight truncate"
+            className="text-[12px] font-bold leading-tight truncate"
             style={{
               color: 'var(--app-text-primary)',
               textDecoration: entry.isCancelled ? 'line-through' : 'none',
@@ -267,7 +267,7 @@ function LessonCell({ entry }: { entry: TimetableEntry }) {
             {entry.subjectName}
           </p>
           <p
-            className="text-[9px] leading-tight truncate mt-0.5"
+            className="text-[11px] leading-tight truncate mt-0.5"
             style={{ color: 'var(--app-text-secondary)' }}
           >
             {entry.roomName}
@@ -301,12 +301,35 @@ export default function TimetablePage() {
   const [entries, setEntries] = useState<TimetableEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [panelX, setPanelX] = useState(0);
+  const [isDraggingSwipe, setIsDraggingSwipe] = useState(false);
+  const [isAnimatingSwipe, setIsAnimatingSwipe] = useState(false);
+  const [isPanelSnap, setIsPanelSnap] = useState(false);
+  const [panelTweenDuration, setPanelTweenDuration] = useState(0.2);
   const [nowMinutes, setNowMinutes] = useState<number>(() => {
     const n = new Date();
     return n.getHours() * 60 + n.getMinutes();
   });
+  const swipeHostRef = useRef<HTMLDivElement | null>(null);
   const cacheRef = useRef<Record<number, TimetableEntry[]>>({});
+  const preloadRef = useRef<Record<number, boolean>>({});
   const timeRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const swipeRef = useRef({
+    pointerId: -1,
+    startX: 0,
+    startY: 0,
+    endX: 0,
+    endY: 0,
+    lastX: 0,
+    lastTs: 0,
+    velocityX: 0,
+    horizontalIntent: false,
+    active: false,
+  });
+  const pendingWeekDeltaRef = useRef<0 | 1 | -1>(0);
+  const swipeStageRef = useRef<'idle' | 'exiting' | 'entering'>('idle');
+  const dragFrameRef = useRef<number | null>(null);
+  const dragXRef = useRef(0);
 
   const monday = startOfWeek(addDays(new Date(), weekOffset * 7), {
     weekStartsOn: 1,
@@ -356,6 +379,186 @@ export default function TimetablePage() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    const preloadOffsets = [weekOffset - 1, weekOffset + 1];
+
+    preloadOffsets.forEach((offset) => {
+      if (cacheRef.current[offset] || preloadRef.current[offset]) return;
+
+      preloadRef.current[offset] = true;
+      const preloadMonday = startOfWeek(addDays(new Date(), offset * 7), {
+        weekStartsOn: 1,
+      });
+      const dateStr = format(preloadMonday, 'yyyy-MM-dd');
+
+      fetchTimetable(dateStr)
+        .then((res) => {
+          cacheRef.current[offset] = parseTimetable(res);
+        })
+        .catch(() => {
+          // Ignore preload failures; regular load still handles visible errors.
+        })
+        .finally(() => {
+          preloadRef.current[offset] = false;
+        });
+    });
+  }, [weekOffset]);
+
+  useEffect(() => {
+    return () => {
+      if (dragFrameRef.current !== null) {
+        cancelAnimationFrame(dragFrameRef.current);
+      }
+    };
+  }, []);
+
+  function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (isAnimatingSwipe) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+
+    const nowTs = performance.now();
+    swipeRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      endX: e.clientX,
+      endY: e.clientY,
+      lastX: e.clientX,
+      lastTs: nowTs,
+      velocityX: 0,
+      horizontalIntent: false,
+      active: true,
+    };
+    setIsDraggingSwipe(false);
+
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+
+  function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!swipeRef.current.active || swipeRef.current.pointerId !== e.pointerId) return;
+
+    swipeRef.current.endX = e.clientX;
+    swipeRef.current.endY = e.clientY;
+
+    const deltaX = e.clientX - swipeRef.current.startX;
+    const deltaY = e.clientY - swipeRef.current.startY;
+
+    if (!swipeRef.current.horizontalIntent) {
+      if (
+        Math.abs(deltaX) > SWIPE_INTENT_THRESHOLD ||
+        Math.abs(deltaY) > SWIPE_INTENT_THRESHOLD
+      ) {
+        swipeRef.current.horizontalIntent = Math.abs(deltaX) > Math.abs(deltaY);
+      }
+    }
+
+    if (!swipeRef.current.horizontalIntent) return;
+
+    const nowTs = performance.now();
+    const dt = Math.max(1, nowTs - swipeRef.current.lastTs);
+    const instantV = (e.clientX - swipeRef.current.lastX) / dt;
+    swipeRef.current.velocityX = swipeRef.current.velocityX * 0.72 + instantV * 0.28;
+    swipeRef.current.lastX = e.clientX;
+    swipeRef.current.lastTs = nowTs;
+
+    const limit = Math.max(SWIPE_MAX_DRAG, (swipeHostRef.current?.clientWidth ?? 360) * 0.5);
+    let targetX = deltaX;
+    if (Math.abs(targetX) > limit) {
+      const overflow = Math.abs(targetX) - limit;
+      targetX = Math.sign(targetX) * (limit + overflow * 0.18);
+    }
+
+    dragXRef.current = targetX;
+
+    if (!isDraggingSwipe) setIsDraggingSwipe(true);
+
+    if (dragFrameRef.current !== null) return;
+
+    dragFrameRef.current = requestAnimationFrame(() => {
+      setPanelX(dragXRef.current);
+      dragFrameRef.current = null;
+    });
+  }
+
+  function finishSwipe(e: React.PointerEvent<HTMLDivElement>) {
+    if (!swipeRef.current.active || swipeRef.current.pointerId !== e.pointerId) return;
+
+    const deltaX = swipeRef.current.endX - swipeRef.current.startX;
+    const deltaY = swipeRef.current.endY - swipeRef.current.startY;
+
+    swipeRef.current.active = false;
+    setIsDraggingSwipe(false);
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+
+    if (!swipeRef.current.horizontalIntent || absX <= absY) {
+      setPanelTweenDuration(SWIPE_RESET_DURATION);
+      setPanelX(0);
+      return;
+    }
+
+    const containerW = swipeHostRef.current?.clientWidth ?? 360;
+    const velocity = swipeRef.current.velocityX;
+    const absVelocity = Math.abs(velocity);
+    const distanceTrigger = Math.max(SWIPE_THRESHOLD, containerW * 0.18);
+    const velocityTrigger = 0.55;
+
+    if (absX < distanceTrigger && absVelocity < velocityTrigger) {
+      const resetDuration = clamp(0.1 + absX / 900, 0.1, 0.18);
+      setPanelTweenDuration(resetDuration);
+      setPanelX(0);
+      return;
+    }
+
+    const weekDelta = deltaX < 0 ? 1 : -1;
+    const slideOut = containerW + 36;
+    const slideTarget = weekDelta === 1 ? -slideOut : slideOut;
+    const remainingPx = Math.max(12, Math.abs(slideTarget - panelX));
+    const estimatedSpeed = Math.max(900, absVelocity * 1800);
+    const exitDuration = clamp(remainingPx / estimatedSpeed, 0.12, 0.24);
+
+    setPanelTweenDuration(exitDuration);
+    pendingWeekDeltaRef.current = weekDelta;
+    swipeStageRef.current = 'exiting';
+    setIsAnimatingSwipe(true);
+    setPanelX(slideTarget);
+  }
+
+  function handlePanelAnimationComplete() {
+    if (!isAnimatingSwipe) return;
+
+    if (swipeStageRef.current === 'exiting') {
+      const weekDelta = pendingWeekDeltaRef.current;
+      if (!weekDelta) return;
+
+      pendingWeekDeltaRef.current = 0;
+      setWeekOffset((o) => o + weekDelta);
+
+      swipeStageRef.current = 'entering';
+      setIsPanelSnap(true);
+      const slideOut = (swipeHostRef.current?.clientWidth ?? 360) + 36;
+      setPanelX(weekDelta === 1 ? slideOut : -slideOut);
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setIsPanelSnap(false);
+          setPanelTweenDuration(SWIPE_PHASE_DURATION);
+          setPanelX(0);
+        });
+      });
+      return;
+    }
+
+    if (swipeStageRef.current === 'entering') {
+      swipeStageRef.current = 'idle';
+      setIsAnimatingSwipe(false);
+    }
+  }
+
   function entriesForDay(date: Date) {
     const d = parseInt(format(date, 'yyyyMMdd'));
     return entries.filter((e) => e.date === d);
@@ -374,6 +577,15 @@ export default function TimetablePage() {
   const totalMins = maxMins - minMins;
   const PX_PER_MIN = 1.4;
   const gridHeight = Math.max(totalMins * PX_PER_MIN, 400);
+  const SWIPE_THRESHOLD = 60;
+  const SWIPE_MAX_DRAG = 180;
+  const SWIPE_INTENT_THRESHOLD = 8;
+  const SWIPE_PHASE_DURATION = 0.2;
+  const SWIPE_RESET_DURATION = 0.14;
+
+  function clamp(n: number, min: number, max: number) {
+    return Math.max(min, Math.min(max, n));
+  }
 
   // Time labels every 50 minutes (one lesson block)
   const timeLabels: number[] = [];
@@ -384,8 +596,13 @@ export default function TimetablePage() {
   return (
     <AuthGuard>
       <div
+        ref={swipeHostRef}
         className="h-full flex flex-col overflow-hidden"
-        style={{ background: 'var(--app-bg)' }}
+        style={{ background: 'var(--app-bg)', touchAction: 'pan-y' }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={finishSwipe}
+        onPointerCancel={finishSwipe}
       >
         {/* Week nav */}
         <div className="px-5 pt-4 pb-3 fade-in flex-shrink-0">
@@ -398,7 +615,7 @@ export default function TimetablePage() {
               <ChevronLeft size={20} color="var(--accent)" />
             </button>
             <span
-              className="text-sm font-medium"
+              className="text-base font-medium"
               style={{ color: 'var(--app-text-secondary)' }}
             >
               {format(monday, 'd. MMM', { locale: de })} –{' '}
@@ -414,144 +631,159 @@ export default function TimetablePage() {
           </div>
         </div>
 
-        {/* Day header row */}
-        <div className="px-3 flex gap-1 mb-1">
-          <div className="w-9 flex-shrink-0" />
-          {weekDates.map((date, i) => {
-            const isToday = format(date, 'yyyyMMdd') === todayStr;
-            return (
-              <div key={i} className="flex-1 text-center">
-                <p
-                  className="text-[10px] font-medium"
-                  style={{ color: 'var(--app-text-secondary)' }}
-                >
-                  {DAY_LABELS[i]}
-                </p>
-                <div className="flex justify-center">
-                  <div
-                    className="w-6 h-6 rounded-full flex items-center justify-center"
-                    style={{
-                      background: isToday ? 'var(--accent)' : 'transparent',
-                    }}
+        <motion.div
+          className="flex-1 flex flex-col min-h-0 relative overflow-hidden"
+          animate={{ x: panelX }}
+          transition={
+            isPanelSnap || isDraggingSwipe
+              ? { duration: 0 }
+              : {
+                  type: 'tween',
+                  duration: panelTweenDuration,
+                  ease: [0.22, 0.61, 0.36, 1],
+                }
+          }
+          onAnimationComplete={handlePanelAnimationComplete}
+        >
+          {/* Day header row */}
+          <div className="px-3 flex gap-1 mb-1">
+            <div className="w-9 flex-shrink-0" />
+            {weekDates.map((date, i) => {
+              const isToday = format(date, 'yyyyMMdd') === todayStr;
+              return (
+                <div key={i} className="flex-1 text-center">
+                  <p
+                    className="text-[12px] font-medium"
+                    style={{ color: 'var(--app-text-secondary)' }}
                   >
-                    <span
-                      className="text-xs font-semibold"
+                    {DAY_LABELS[i]}
+                  </p>
+                  <div className="flex justify-center">
+                    <div
+                      className="w-6 h-6 rounded-full flex items-center justify-center"
                       style={{
-                        color: isToday ? '#fff' : 'var(--app-text-primary)',
+                        background: isToday ? 'var(--accent)' : 'transparent',
                       }}
                     >
-                      {format(date, 'd')}
-                    </span>
+                      <span
+                        className="text-sm font-semibold"
+                        style={{
+                          color: isToday ? '#fff' : 'var(--app-text-primary)',
+                        }}
+                      >
+                        {format(date, 'd')}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-auto px-3 pb-4">
-          {loading ? (
-            <div className="flex justify-center py-16">
-              <Spinner size={28} />
-            </div>
-          ) : error ? (
-            <ErrorView message={error} onRetry={load} />
-          ) : (
-            <div className="flex gap-1">
-              {/* Time column */}
-              <div
-                className="w-9 flex-shrink-0 relative"
-                style={{ height: gridHeight }}
-              >
-                {timeLabels.map((m) => {
-                  const top = (m - minMins) * PX_PER_MIN;
+          {/* Content */}
+          <div className="flex-1 overflow-auto px-3 pb-4">
+            {loading ? (
+              <div className="flex justify-center py-16">
+                <Spinner size={28} />
+              </div>
+            ) : error ? (
+              <ErrorView message={error} onRetry={load} />
+            ) : (
+              <div className="flex gap-1">
+                {/* Time column */}
+                <div
+                  className="w-9 flex-shrink-0 relative"
+                  style={{ height: gridHeight }}
+                >
+                  {timeLabels.map((m) => {
+                    const top = (m - minMins) * PX_PER_MIN;
+                    return (
+                      <div
+                        key={m}
+                        className="absolute left-0 right-0"
+                        style={{ top }}
+                      >
+                        <p
+                          className="text-[10px]"
+                          style={{ color: 'var(--app-text-tertiary)' }}
+                        >
+                          {Math.floor(m / 60)
+                            .toString()
+                            .padStart(2, '0')}
+                          :{(m % 60).toString().padStart(2, '0')}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Day columns */}
+                {weekDates.map((date, di) => {
+                  const dayEntries = entriesForDay(date);
+                  const isToday = format(date, 'yyyyMMdd') === todayStr;
+
                   return (
                     <div
-                      key={m}
-                      className="absolute left-0 right-0"
-                      style={{ top }}
+                      key={di}
+                      className="flex-1 relative"
+                      style={{
+                        height: gridHeight,
+                        background: isToday
+                          ? 'color-mix(in srgb, var(--accent) 5%, transparent)'
+                          : 'transparent',
+                        borderRadius: 6,
+                      }}
                     >
-                      <p
-                        className="text-[9px]"
-                        style={{ color: 'var(--app-text-tertiary)' }}
-                      >
-                        {Math.floor(m / 60)
-                          .toString()
-                          .padStart(2, '0')}
-                        :{(m % 60).toString().padStart(2, '0')}
-                      </p>
+                      {dayEntries.map((entry) => {
+                        const top =
+                          (timeToMinutes(entry.startTime) - minMins) *
+                          PX_PER_MIN;
+                        const height = Math.max(
+                          (timeToMinutes(entry.endTime) -
+                            timeToMinutes(entry.startTime)) *
+                            PX_PER_MIN -
+                            2,
+                          28
+                        );
+                        return (
+                          <div
+                            key={entry.id}
+                            className="absolute left-0.5 right-0.5"
+                            style={{ top, height }}
+                          >
+                            <LessonCell entry={entry} />
+                          </div>
+                        );
+                      })}
+
+                      {/* Current time red line */}
+                      {isToday &&
+                        isCurrentWeek &&
+                        nowMinutes >= minMins &&
+                        nowMinutes <= maxMins && (
+                          <div
+                            className="absolute left-0 right-0 flex items-center pointer-events-none z-10"
+                            style={{
+                              top: (nowMinutes - minMins) * PX_PER_MIN,
+                            }}
+                          >
+                            <div
+                              className="w-2 h-2 rounded-full flex-shrink-0"
+                              style={{ background: 'var(--danger)' }}
+                            />
+                            <div
+                              className="flex-1 h-[1.5px]"
+                              style={{ background: 'var(--danger)' }}
+                            />
+                          </div>
+                        )}
                     </div>
                   );
                 })}
               </div>
-
-              {/* Day columns */}
-              {weekDates.map((date, di) => {
-                const dayEntries = entriesForDay(date);
-                const isToday = format(date, 'yyyyMMdd') === todayStr;
-
-                return (
-                  <div
-                    key={di}
-                    className="flex-1 relative"
-                    style={{
-                      height: gridHeight,
-                      background: isToday
-                        ? 'color-mix(in srgb, var(--accent) 5%, transparent)'
-                        : 'transparent',
-                      borderRadius: 6,
-                    }}
-                  >
-                    {dayEntries.map((entry) => {
-                      const top =
-                        (timeToMinutes(entry.startTime) - minMins) *
-                        PX_PER_MIN;
-                      const height = Math.max(
-                        (timeToMinutes(entry.endTime) -
-                          timeToMinutes(entry.startTime)) *
-                          PX_PER_MIN -
-                          2,
-                        28
-                      );
-                      return (
-                        <div
-                          key={entry.id}
-                          className="absolute left-0.5 right-0.5"
-                          style={{ top, height }}
-                        >
-                          <LessonCell entry={entry} />
-                        </div>
-                      );
-                    })}
-
-                    {/* Current time red line */}
-                    {isToday &&
-                      isCurrentWeek &&
-                      nowMinutes >= minMins &&
-                      nowMinutes <= maxMins && (
-                        <div
-                          className="absolute left-0 right-0 flex items-center pointer-events-none z-10"
-                          style={{
-                            top: (nowMinutes - minMins) * PX_PER_MIN,
-                          }}
-                        >
-                          <div
-                            className="w-2 h-2 rounded-full flex-shrink-0"
-                            style={{ background: 'var(--danger)' }}
-                          />
-                          <div
-                            className="flex-1 h-[1.5px]"
-                            style={{ background: 'var(--danger)' }}
-                          />
-                        </div>
-                      )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        </motion.div>
       </div>
     </AuthGuard>
   );
