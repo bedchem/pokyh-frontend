@@ -310,19 +310,15 @@ function DishDetail({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center"
+      className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8"
       style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-t-2xl fade-in"
+        className="w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-[28px] fade-in"
         style={{ background: 'var(--app-surface)', animationDuration: '0.25s' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full" style={{ background: 'var(--app-border)' }} />
-        </div>
-
         {/* Header image / gradient */}
         <div className="relative" style={{ height: 200 }}>
           {dish.imageUrl ? (
@@ -341,10 +337,17 @@ function DishDetail({
           />
           <button
             onClick={onClose}
-            className="absolute top-3 right-3 p-1.5 rounded-full press-scale"
-            style={{ background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(8px)' }}
+            aria-label="Schließen"
+            className="absolute top-5 right-5 flex items-center justify-center rounded-full press-scale transition-colors duration-200 text-white hover:text-[#D97777]"
+            style={{
+              width: 32,
+              height: 32,
+              background: 'rgba(0, 0, 0, 0.55)',
+              border: '1px solid rgba(255, 255, 255, 0.35)',
+              boxShadow: '0 1px 10px rgba(0, 0, 0, 0.18)',
+            }}
           >
-            <X size={16} color="#fff" />
+            <X size={18} strokeWidth={2} />
           </button>
         </div>
 
