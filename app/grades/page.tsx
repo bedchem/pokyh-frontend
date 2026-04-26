@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BarChart2, ChevronDown } from 'lucide-react';
+import { BarChart2, ChevronDown, Plus, Trash2, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
@@ -14,6 +14,11 @@ type RecentItem = {
   id: number;
   subject: string;
   numeric: number;
+};
+
+type DraftSubjectState = {
+  removedTeacherGradeIds: number[];
+  customGrades: number[];
 };
 
 function parseGrades(json: unknown): SubjectGrades[] {
@@ -55,7 +60,13 @@ function parseGrades(json: unknown): SubjectGrades[] {
 }
 
 function fmtNum(value: number, digits = 2): string {
-  return value.toFixed(digits).replace('.', ',');
+  const factor = 10 ** digits;
+  const rounded = Math.round(value * factor) / factor;
+  const trimmed = rounded
+    .toFixed(digits)
+    .replace(/(\.\d*?[1-9])0+$/, '$1')
+    .replace(/\.0+$/, '');
+  return trimmed.replace('.', ',');
 }
 
 function fmtDateShort(date: number): string {
@@ -93,8 +104,29 @@ function gradeDisplay(g: GradeEntry): string {
 }
 
 function formatMark(value: number): string {
-  if (Number.isInteger(value)) return String(value);
-  return fmtNum(value, 1);
+  return fmtNum(value, 2);
+}
+
+function round2(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function clampGrade(value: number): number {
+  return round2(Math.max(1, Math.min(10, value)));
+}
+
+function averageOf(values: number[]): number {
+  if (!values.length) return 0;
+  return round2(values.reduce((a, b) => a + b, 0) / values.length);
+}
+
+function parseGradeInput(raw: string): number | null {
+  const normalized = raw.replace(',', '.').trim();
+  if (!normalized) return null;
+  const parsed = Number.parseFloat(normalized);
+  if (!Number.isFinite(parsed)) return null;
+  if (parsed < 1 || parsed > 10) return null;
+  return round2(parsed);
 }
 
 function gradeClass(value: number): 'v-excellent' | 'v-positive' | 'v-negative' | 'v-critical' {
@@ -131,6 +163,10 @@ export default function GradesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  const [draftState, setDraftState] = useState<Record<number, DraftSubjectState>>({});
+  const [detailsSubjectId, setDetailsSubjectId] = useState<number | null>(null);
+  const [newGradeInput, setNewGradeInput] = useState('');
+  const [hoverTrendIndex, setHoverTrendIndex] = useState<number | null>(null);
   const cacheRef = useRef<SubjectGrades[] | null>(null);
 
   const load = useCallback(async () => {
@@ -252,6 +288,66 @@ export default function GradesPage() {
     };
   }, [subjects]);
 
+  const valuesBySubject = useMemo(() => {
+    const map: Record<number, number[]> = {};
+    subjects.forEach((subject) => {
+      const state = draftState[subject.lessonId];
+      const removed = new Set(state?.removedTeacherGradeIds ?? []);
+      const base = subject.grades
+        .filter((g) => !removed.has(g.id))
+        .map((g) => g.markDisplayValue)
+        .filter((v) => v > 0)
+        .map(round2);
+      map[subject.lessonId] = [...base, ...(state?.customGrades ?? [])];
+    });
+    return map;
+  }, [subjects, draftState]);
+
+  const detailsSubject = useMemo(
+    () => subjects.find((s) => s.lessonId === detailsSubjectId) ?? null,
+    [subjects, detailsSubjectId]
+  );
+
+  const detailValues = useMemo(
+    () => (detailsSubject ? valuesBySubject[detailsSubject.lessonId] ?? [] : []),
+    [detailsSubject, valuesBySubject]
+  );
+
+  const detailAverage = averageOf(detailValues);
+  const detailPositive = detailValues.filter((v) => v >= 6).length;
+  const detailNegative = detailValues.filter((v) => v < 6).length;
+  const detailTeacherRows = useMemo(() => {
+    if (!detailsSubject) return [] as Array<{ id: number; label: string; date: string; value: number }>;
+    const removed = new Set(draftState[detailsSubject.lessonId]?.removedTeacherGradeIds ?? []);
+    return detailsSubject.grades
+      .filter((g) => !removed.has(g.id))
+      .map((g) => ({
+        id: g.id,
+        label: gradeDisplay(g),
+        date: fmtDateShort(g.date),
+        value: round2(g.markDisplayValue),
+      }));
+  }, [detailsSubject, draftState]);
+
+  const detailCustomValues = useMemo(() => {
+    if (!detailsSubject) return [] as number[];
+    return draftState[detailsSubject.lessonId]?.customGrades ?? [];
+  }, [detailsSubject, draftState]);
+
+  const trendAnimKey = useMemo(
+    () => detailValues.map((v) => v.toFixed(2)).join('|'),
+    [detailValues]
+  );
+
+  const trendPoints = useMemo(() => {
+    if (!detailValues.length) return [] as Array<{ x: number; y: number; value: number; index: number }>;
+    return detailValues.map((value, index) => {
+      const x = 46 + (index / Math.max(1, detailValues.length - 1)) * 604;
+      const y = Math.max(20, Math.min(220, 220 - ((value - 4) / 6) * 200));
+      return { x, y, value, index };
+    });
+  }, [detailValues]);
+
   const allExpanded = subjects.length > 0 && expandedRows.size === subjects.length;
 
   const toggleRow = (lessonId: number) => {
@@ -269,6 +365,82 @@ export default function GradesPage() {
       return;
     }
     setExpandedRows(new Set(subjects.map((s) => s.lessonId)));
+  };
+
+  const openDetails = (lessonId: number) => {
+    setDetailsSubjectId(lessonId);
+    setNewGradeInput('');
+    setHoverTrendIndex(null);
+  };
+
+  const closeDetails = () => {
+    setDetailsSubjectId(null);
+    setNewGradeInput('');
+    setHoverTrendIndex(null);
+  };
+
+  const removeTeacherGrade = (lessonId: number, gradeId: number) => {
+    setDraftState((prev) => {
+      const current = prev[lessonId] ?? { removedTeacherGradeIds: [], customGrades: [] };
+      if (current.removedTeacherGradeIds.includes(gradeId)) return prev;
+      return {
+        ...prev,
+        [lessonId]: {
+          ...current,
+          removedTeacherGradeIds: [...current.removedTeacherGradeIds, gradeId],
+        },
+      };
+    });
+  };
+
+  const removeCustomGrade = (lessonId: number, index: number) => {
+    setDraftState((prev) => {
+      const current = prev[lessonId] ?? { removedTeacherGradeIds: [], customGrades: [] };
+      const nextCustom = [...current.customGrades];
+      nextCustom.splice(index, 1);
+      return {
+        ...prev,
+        [lessonId]: {
+          ...current,
+          customGrades: nextCustom,
+        },
+      };
+    });
+  };
+
+  const addDraftValue = (lessonId: number) => {
+    const parsed = parseGradeInput(newGradeInput);
+    if (parsed === null) return;
+    setDraftState((prev) => {
+      const current = prev[lessonId] ?? { removedTeacherGradeIds: [], customGrades: [] };
+      return {
+        ...prev,
+        [lessonId]: {
+          ...current,
+          customGrades: [...current.customGrades, parsed],
+        },
+      };
+    });
+    setNewGradeInput('');
+  };
+
+  const handleTrendMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!trendPoints.length) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const relX = (e.clientX - rect.left) / rect.width;
+    const svgX = Math.max(46, Math.min(650, relX * 680));
+
+    let nearest = 0;
+    let minDist = Number.POSITIVE_INFINITY;
+    trendPoints.forEach((p, idx) => {
+      const d = Math.abs(p.x - svgX);
+      if (d < minDist) {
+        minDist = d;
+        nearest = idx;
+      }
+    });
+    setHoverTrendIndex(nearest);
   };
 
   return (
@@ -358,7 +530,7 @@ export default function GradesPage() {
                     <div className="card-title">Notenverteilung</div>
                     <div className="card-sub">Häufigkeit pro Note</div>
                   </div>
-                  <span className="pill">σ {fmtNum(dashboard.sigma, 1)}</span>
+                  <span className="pill">σ {fmtNum(dashboard.sigma, 2)}</span>
                 </div>
                 <div className="dist-bars" aria-hidden="true">
                   {dashboard.distribution.map((value, idx) => {
@@ -383,7 +555,7 @@ export default function GradesPage() {
                     Modus <span className="mono">{dashboard.mode}</span>
                   </span>
                   <span>
-                    Median <span className="mono">{fmtNum(dashboard.median, 1)}</span>
+                    Median <span className="mono">{fmtNum(dashboard.median, 2)}</span>
                   </span>
                 </div>
               </div>
@@ -394,7 +566,7 @@ export default function GradesPage() {
                     <div className="card-title">Kürzlich hinzugefügt</div>
                     <div className="card-sub">Letzte 3 Einträge</div>
                   </div>
-                  <span className="mini-link">Alle →</span>
+                  <span className="mini-link"></span>
                 </div>
                 <div className="recent">
                   {dashboard.recent.map((r) => {
@@ -420,7 +592,9 @@ export default function GradesPage() {
               <div className="timeline-list">
                 {subjects.map((subject) => {
                   const isExpanded = expandedRows.has(subject.lessonId);
-                  const avgClass = gradeClass(subject.average);
+                  const subjectValues = valuesBySubject[subject.lessonId] ?? [];
+                  const subjectAvg = averageOf(subjectValues);
+                  const avgClass = gradeClass(subjectAvg);
                   return (
                     <article key={subject.lessonId} className="timeline-item">
                       <button
@@ -431,7 +605,7 @@ export default function GradesPage() {
                       >
                         <span className="timeline-subject">{subject.subjectName}</span>
                         <span className="timeline-right">
-                          <span className={`timeline-avg ${avgClass}`}>{fmtNum(subject.average, 1)}</span>
+                          <span className={`timeline-avg ${avgClass}`}>{fmtNum(subjectAvg, 2)}</span>
                           <ChevronDown className={`timeline-chevron ${isExpanded ? 'open' : ''}`} size={20} strokeWidth={2.4} />
                         </span>
                       </button>
@@ -450,6 +624,11 @@ export default function GradesPage() {
                               </div>
                             );
                           })}
+                          <div className="timeline-actions">
+                            <button type="button" className="details-btn" onClick={() => openDetails(subject.lessonId)}>
+                              Details
+                            </button>
+                          </div>
                         </div>
                       )}
                     </article>
@@ -461,6 +640,165 @@ export default function GradesPage() {
         )}
       </div>
 
+      {detailsSubject && (
+        <div className="details-backdrop" onClick={closeDetails}>
+          <div className="details-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="details-head">
+              <h2>{detailsSubject.subjectName}</h2>
+              <button type="button" className="close-btn" onClick={closeDetails} aria-label="Schließen">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="details-grid">
+              <div className="detail-card">
+                <p>Durchschnittsnote</p>
+                <strong className={gradeClass(detailAverage)}>{fmtNum(detailAverage, 2)}</strong>
+              </div>
+              <div className="detail-card">
+                <p>Notenverhältnis</p>
+                <strong>
+                  <span className="v-positive">{detailPositive}</span> / <span className="v-negative">{detailNegative}</span>
+                </strong>
+              </div>
+            </div>
+
+            <div className="edit-card">
+              <div className="edit-head">
+                <h3>Mittelwert-Rechner</h3>
+              </div>
+
+              <div className="edit-list">
+                {detailTeacherRows.map((row) => (
+                  <div key={row.id} className="edit-row">
+                    <div className="edit-meta">
+                      <span>{row.date}</span>
+                      <em>{row.label}</em>
+                    </div>
+                    <div className="edit-controls">
+                      <strong className={`inline-grade ${gradeClass(row.value)}`}>{formatMark(row.value)}</strong>
+                      <button type="button" onClick={() => removeTeacherGrade(detailsSubject.lessonId, row.id)} aria-label="Note entfernen">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="trend-card">
+              <div className="edit-head">
+                <h3>Trend</h3>
+                <span>Notenentwicklung</span>
+              </div>
+              <svg
+                viewBox="0 0 680 240"
+                className="trend-svg"
+                onMouseMove={handleTrendMouseMove}
+                onMouseLeave={() => setHoverTrendIndex(null)}
+              >
+                <line x1="46" y1="20" x2="46" y2="220" className="trend-axis-line" />
+                {[10, 9.5, 9, 8.5, 8, 7.5, 7, 6.5, 6, 5.5, 5, 4.5, 4].map((grade) => {
+                  const y = 220 - ((grade - 4) / 6) * 200;
+                  return (
+                    <g key={`g-${grade}`}>
+                      <text x="32" y={y} textAnchor="end" dominantBaseline="middle" className="trend-axis-label">
+                        {grade.toFixed(1)}
+                      </text>
+                      <line x1="46" y1={y} x2="650" y2={y} className="trend-grid" />
+                    </g>
+                  );
+                })}
+                {trendPoints.length > 0 && (
+                  <polyline
+                    key={`line-${trendAnimKey}`}
+                    className="trend-line"
+                    fill="none"
+                    points={trendPoints.map((p) => `${p.x},${p.y}`).join(' ')}
+                  />
+                )}
+                {detailValues.length > 1 && (() => {
+                  const first = detailValues[0];
+                  const last = detailValues[detailValues.length - 1];
+                  const y1 = 220 - ((first - 4) / 6) * 200;
+                  const y2 = 220 - ((last - 4) / 6) * 200;
+                  return <line key={`fit-${trendAnimKey}`} x1="46" y1={Math.max(20, Math.min(220, y1))} x2="650" y2={Math.max(20, Math.min(220, y2))} className="trend-fit" />;
+                })()}
+
+                {trendPoints.map((p) => (
+                  <circle
+                    key={`pt-${p.index}-${trendAnimKey}`}
+                    cx={p.x}
+                    cy={p.y}
+                    r={hoverTrendIndex === p.index ? 4.6 : 3.2}
+                    className="trend-point"
+                    onMouseEnter={() => setHoverTrendIndex(p.index)}
+                  />
+                ))}
+
+                {hoverTrendIndex !== null && trendPoints[hoverTrendIndex] && (() => {
+                  const p = trendPoints[hoverTrendIndex];
+                  const t = trendPoints.length > 1 ? hoverTrendIndex / (trendPoints.length - 1) : 0;
+                  const first = detailValues[0] ?? detailAverage;
+                  const last = detailValues[detailValues.length - 1] ?? detailAverage;
+                  const fitValue = first + (last - first) * t;
+                  const tooltipX = Math.min(520, Math.max(78, p.x + 14));
+                  const tooltipY = Math.max(22, p.y - 62);
+                  return (
+                    <g className="trend-hover">
+                      <line x1={p.x} y1="20" x2={p.x} y2="220" className="trend-hover-line" />
+                      <circle cx={p.x} cy={p.y} r="4.8" className="trend-point-active" />
+
+                      <rect x={tooltipX} y={tooltipY} rx="7" ry="7" width="146" height="56" className="trend-tooltip-bg" />
+                      <rect x={tooltipX + 9} y={tooltipY + 11} width="8" height="8" rx="2" className="trend-tooltip-dot-main" />
+                      <text x={tooltipX + 22} y={tooltipY + 20} className="trend-tooltip-text">Note: {fmtNum(p.value, 2)}</text>
+                      <rect x={tooltipX + 9} y={tooltipY + 31} width="8" height="8" rx="2" className="trend-tooltip-dot-fit" />
+                      <text x={tooltipX + 22} y={tooltipY + 40} className="trend-tooltip-text">Trend: {fmtNum(fitValue, 2)}</text>
+                    </g>
+                  );
+                })()}
+              </svg>
+
+              <div className="custom-block">
+                <div className="custom-head">Eigene Noten</div>
+                {detailCustomValues.length > 0 ? (
+                  <div className="custom-list">
+                    {detailCustomValues.map((value, idx) => (
+                      <div key={`custom-${idx}`} className="custom-item">
+                        <span className={`inline-grade ${gradeClass(value)}`}>{formatMark(value)}</span>
+                        <button type="button" onClick={() => removeCustomGrade(detailsSubject.lessonId, idx)} aria-label="Eigene Note entfernen">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="custom-empty">Noch keine eigenen Noten</div>
+                )}
+              </div>
+
+              <div className="add-row">
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={newGradeInput}
+                  onChange={(e) => {
+                    const next = e.currentTarget.value;
+                    if (/^\d{0,2}([.,]\d{0,2})?$/.test(next)) {
+                      setNewGradeInput(next);
+                    }
+                  }}
+                  placeholder="Neue Note (1-10)"
+                />
+                <button type="button" onClick={() => addDraftValue(detailsSubject.lessonId)}>
+                  <Plus size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style jsx>{`
         .grades-dashboard-wrap {
           --g-bg: var(--app-bg);
@@ -471,10 +809,13 @@ export default function GradesPage() {
           --g-ink-2: color-mix(in srgb, var(--app-text-primary) 86%, var(--app-text-secondary));
           --g-muted: var(--app-text-secondary);
           --g-muted-2: var(--app-text-tertiary);
-          --g-good: #2f8f56;
-          --g-good-soft: color-mix(in srgb, #2f8f56 14%, transparent);
-          --g-bad: #c54a4e;
-          --g-bad-soft: color-mix(in srgb, #c54a4e 14%, transparent);
+          --g-good: var(--tint);
+          --g-good-soft: color-mix(in srgb, var(--tint) 14%, transparent);
+          --g-bad: var(--danger);
+          --g-bad-soft: color-mix(in srgb, var(--danger) 14%, transparent);
+          --g-excellent: color-mix(in srgb, var(--tint) 82%, #ffffff);
+          --g-negative: var(--orange);
+          --g-overlay: color-mix(in srgb, var(--app-bg) 52%, #000000 48%);
 
           height: 100%;
           overflow: auto;
@@ -483,11 +824,6 @@ export default function GradesPage() {
           font-feature-settings: 'ss01', 'cv11';
           text-rendering: optimizeLegibility;
           letter-spacing: -0.005em;
-        }
-
-        :global(.dark) .grades-dashboard-wrap {
-          --g-good: #5ecb80;
-          --g-bad: #f07779;
         }
 
         .grades-state {
@@ -811,19 +1147,19 @@ export default function GradesPage() {
         }
 
         .recent-row .grade.v-excellent {
-          color: #44d37d;
+          color: var(--g-excellent);
         }
 
         .recent-row .grade.v-positive {
-          color: #2f8f56;
+          color: var(--g-good);
         }
 
         .recent-row .grade.v-negative {
-          color: #ff7a4c;
+          color: var(--g-negative);
         }
 
         .recent-row .grade.v-critical {
-          color: #e3494f;
+          color: var(--g-bad);
         }
 
         .timeline-wrap {
@@ -901,19 +1237,19 @@ export default function GradesPage() {
         }
 
         .timeline-avg.v-excellent {
-          color: #44d37d;
+          color: var(--g-excellent);
         }
 
         .timeline-avg.v-positive {
-          color: #2f8f56;
+          color: var(--g-good);
         }
 
         .timeline-avg.v-negative {
-          color: #ff7a4c;
+          color: var(--g-negative);
         }
 
         .timeline-avg.v-critical {
-          color: #e3494f;
+          color: var(--g-bad);
         }
 
         .timeline-chevron {
@@ -929,6 +1265,28 @@ export default function GradesPage() {
           background: color-mix(in srgb, var(--g-bg) 55%, transparent);
           border-top: 1px solid var(--g-line);
           padding: 10px 18px 14px;
+        }
+
+        .timeline-actions {
+          display: flex;
+          justify-content: flex-end;
+          margin-top: 10px;
+        }
+
+        .details-btn {
+          border: 1px solid var(--g-line-2);
+          background: var(--g-surface);
+          color: var(--g-ink);
+          border-radius: 8px;
+          padding: 8px 14px;
+          font-size: 15px;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          cursor: pointer;
+        }
+
+        .details-btn:hover {
+          border-color: var(--g-ink);
         }
 
         .grade-row {
@@ -971,43 +1329,430 @@ export default function GradesPage() {
         }
 
         .grade-value.v-excellent {
-          color: #44d37d;
+          color: var(--g-excellent);
         }
 
         .grade-value.v-positive {
-          color: #2f8f56;
+          color: var(--g-good);
         }
 
         .grade-value.v-negative {
-          color: #ff7a4c;
+          color: var(--g-negative);
         }
 
         .grade-value.v-critical {
-          color: #e3494f;
+          color: var(--g-bad);
         }
 
-        :global(.dark) .recent-row .grade.v-excellent,
-        :global(.dark) .timeline-avg.v-excellent,
-        :global(.dark) .grade-value.v-excellent {
-          color: #60e292;
+        .details-backdrop {
+          position: fixed;
+          inset: 0;
+          background: var(--app-bg);
+          backdrop-filter: none;
+          display: grid;
+          place-items: center;
+          z-index: 80;
+          animation: fadeInBackdrop 0.2s ease;
+          padding: 16px;
         }
 
-        :global(.dark) .recent-row .grade.v-positive,
-        :global(.dark) .timeline-avg.v-positive,
-        :global(.dark) .grade-value.v-positive {
-          color: #56c17d;
+        .details-modal {
+          width: min(760px, 100%);
+          max-height: 92vh;
+          overflow: auto;
+          background: var(--app-surface);
+          border: 1px solid var(--g-line);
+          border-radius: 14px;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.32);
+          padding: 18px;
+          animation: popIn 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
 
-        :global(.dark) .recent-row .grade.v-negative,
-        :global(.dark) .timeline-avg.v-negative,
-        :global(.dark) .grade-value.v-negative {
-          color: #ff996c;
+        .details-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 14px;
         }
 
-        :global(.dark) .recent-row .grade.v-critical,
-        :global(.dark) .timeline-avg.v-critical,
-        :global(.dark) .grade-value.v-critical {
-          color: #ff6d73;
+        .details-head h2 {
+          margin: 0;
+          font-size: 26px;
+          letter-spacing: -0.02em;
+        }
+
+        .close-btn {
+          border: 1px solid var(--g-line);
+          background: var(--g-bg);
+          color: var(--g-ink);
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          display: grid;
+          place-items: center;
+          cursor: pointer;
+        }
+
+        .details-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+          margin-bottom: 12px;
+        }
+
+        .detail-card {
+          border: 1px solid var(--g-line);
+          border-radius: 12px;
+          padding: 14px;
+          background: var(--g-bg);
+        }
+
+        .detail-card p {
+          margin: 0;
+          font-size: 13px;
+          color: var(--g-muted);
+        }
+
+        .detail-card strong {
+          display: block;
+          margin-top: 8px;
+          font-size: 43px;
+          line-height: 1;
+          letter-spacing: -0.03em;
+          color: var(--g-ink);
+        }
+
+        .detail-card strong.v-excellent {
+          color: var(--g-good) !important;
+        }
+
+        .detail-card strong.v-positive {
+          color: var(--g-good) !important;
+        }
+
+        .detail-card strong.v-negative {
+          color: var(--g-bad) !important;
+        }
+
+        .detail-card strong.v-critical {
+          color: var(--g-bad) !important;
+        }
+
+        .edit-card,
+        .trend-card {
+          border: 1px solid var(--g-line);
+          border-radius: 12px;
+          padding: 14px;
+          background: var(--g-bg);
+          margin-bottom: 12px;
+        }
+
+        .edit-head {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          gap: 10px;
+          margin-bottom: 10px;
+        }
+
+        .edit-head h3 {
+          margin: 0;
+          font-size: 33px;
+          font-weight: 700;
+          letter-spacing: -0.01em;
+        }
+
+        .edit-head span {
+          color: var(--g-muted);
+          font-size: 12px;
+        }
+
+        .edit-list {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .edit-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          border-top: 1px solid var(--g-line);
+          padding-top: 8px;
+        }
+
+        .edit-meta {
+          display: flex;
+          gap: 14px;
+          align-items: baseline;
+          min-width: 0;
+        }
+
+        .edit-meta span {
+          color: var(--g-ink);
+          font-size: 13px;
+          font-weight: 500;
+          min-width: 84px;
+        }
+
+        .edit-meta em {
+          color: var(--g-muted);
+          font-size: 13px;
+          font-style: italic;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 320px;
+        }
+
+        .edit-controls {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .inline-grade {
+          min-width: 56px;
+          text-align: right;
+          font-size: 18px;
+          font-weight: 700;
+          font-variant-numeric: tabular-nums;
+        }
+
+        .inline-grade.v-excellent {
+          color: var(--g-good) !important;
+        }
+
+        .inline-grade.v-positive {
+          color: var(--g-good) !important;
+        }
+
+        .inline-grade.v-negative {
+          color: var(--g-bad) !important;
+        }
+
+        .inline-grade.v-critical {
+          color: var(--g-bad) !important;
+        }
+
+        .edit-controls .inline-grade,
+        .custom-item .inline-grade {
+          color: var(--g-good);
+        }
+
+        .add-row input {
+          width: 88px;
+          border: 1px solid var(--g-line-2);
+          border-radius: 8px;
+          background: var(--g-surface);
+          color: var(--g-ink);
+          padding: 8px 10px;
+          font-size: 13px;
+          font-weight: 600;
+          font-variant-numeric: tabular-nums;
+        }
+
+        .edit-controls button,
+        .add-row button {
+          width: 36px;
+          height: 36px;
+          border: 1px solid var(--g-line-2);
+          border-radius: 8px;
+          background: var(--g-surface);
+          color: var(--g-ink);
+          display: grid;
+          place-items: center;
+          cursor: pointer;
+        }
+
+        .add-row {
+          display: flex;
+          justify-content: flex-end;
+          gap: 8px;
+          margin-top: 12px;
+        }
+
+        .custom-block {
+          margin-top: 12px;
+          padding-top: 10px;
+          border-top: 1px dashed var(--g-line);
+        }
+
+        .custom-head {
+          font-size: 12px;
+          color: var(--g-muted);
+          margin-bottom: 8px;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          font-weight: 600;
+        }
+
+        .custom-list {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+
+        .custom-item {
+          display: flex;
+          justify-content: flex-end;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .custom-item button {
+          width: 30px;
+          height: 30px;
+          border: 1px solid var(--g-line-2);
+          border-radius: 8px;
+          background: var(--g-surface);
+          color: var(--g-ink);
+          display: grid;
+          place-items: center;
+          cursor: pointer;
+        }
+
+        .custom-empty {
+          color: var(--g-muted-2);
+          font-size: 12px;
+          text-align: right;
+          margin-bottom: 2px;
+        }
+
+        .add-row input::-webkit-outer-spin-button,
+        .add-row input::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+
+        .add-row input[type='text'] {
+          appearance: textfield;
+        }
+
+        .trend-svg {
+          width: 100%;
+          height: 240px;
+          overflow: visible;
+        }
+
+        .trend-grid {
+          stroke: rgba(255, 255, 255, 0.22);
+          stroke-width: 1.1;
+          opacity: 1;
+        }
+
+        .trend-axis-line {
+          stroke: rgba(255, 255, 255, 0.38);
+          stroke-width: 1.3;
+          opacity: 1;
+        }
+
+        .trend-axis-label {
+          fill: #f4f7ff;
+          font-size: 13px;
+          font-weight: 600;
+          font-variant-numeric: tabular-nums;
+        }
+
+        .trend-line {
+          stroke: var(--accent);
+          stroke-width: 2;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+          stroke-dasharray: 900;
+          stroke-dashoffset: 900;
+          animation: drawTrend 0.45s ease forwards;
+        }
+
+        .trend-fit {
+          stroke: var(--orange);
+          stroke-width: 1.5;
+          stroke-dasharray: 900;
+          stroke-dashoffset: 900;
+          animation: drawTrend 0.45s ease forwards;
+          animation-delay: 0.05s;
+        }
+
+        .trend-point {
+          fill: var(--accent);
+          stroke: var(--g-surface);
+          stroke-width: 1.3;
+          cursor: pointer;
+          animation: popPoint 0.28s ease both;
+        }
+
+        .trend-point-active {
+          fill: var(--accent);
+          stroke: var(--g-surface);
+          stroke-width: 1.7;
+        }
+
+        .trend-hover-line {
+          stroke: color-mix(in srgb, var(--g-ink) 55%, var(--g-bg));
+          stroke-width: 1;
+          stroke-dasharray: 3 3;
+        }
+
+        .trend-tooltip-bg {
+          fill: color-mix(in srgb, var(--g-surface) 96%, #000000 4%);
+          stroke: color-mix(in srgb, var(--g-ink) 20%, var(--g-bg));
+          stroke-width: 1;
+          pointer-events: none;
+        }
+
+        .trend-tooltip-dot-main {
+          fill: var(--accent);
+        }
+
+        .trend-tooltip-dot-fit {
+          fill: var(--orange);
+        }
+
+        .trend-tooltip-text {
+          fill: var(--g-ink);
+          font-size: 11px;
+          font-weight: 600;
+          pointer-events: none;
+        }
+
+        @keyframes fadeInBackdrop {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+
+        @keyframes popIn {
+          from {
+            opacity: 0;
+            transform: translateY(14px) scale(0.985);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        @keyframes drawTrend {
+          from {
+            stroke-dashoffset: 900;
+          }
+          to {
+            stroke-dashoffset: 0;
+          }
+        }
+
+        @keyframes popPoint {
+          from {
+            opacity: 0;
+            transform: scale(0.8);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
         }
 
         @media (max-width: 1200px) {
@@ -1039,6 +1784,22 @@ export default function GradesPage() {
         @media (max-width: 720px) {
           .kpis {
             grid-template-columns: 1fr;
+          }
+
+          .details-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .edit-head h3 {
+            font-size: 24px;
+          }
+
+          .edit-meta {
+            gap: 8px;
+          }
+
+          .edit-meta em {
+            max-width: 140px;
           }
 
           .expand-all {
