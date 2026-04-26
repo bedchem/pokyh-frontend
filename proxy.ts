@@ -15,6 +15,7 @@ const PUBLIC_PREFIXES = [
   '/apple-icon',
   '/api/webuntis/login',
   '/api/mensa',
+  '/legal',
 ];
 
 const SESSION_MAX_MS = 30 * 60 * 1000; // 30 minutes
@@ -43,9 +44,12 @@ export async function proxy(request: NextRequest) {
 
   const authenticated = await hasValidSession(request);
 
-  // Root → redirect based on auth state
+  // Root → authenticated users go to dashboard, others see the landing page
   if (pathname === '/') {
-    return NextResponse.redirect(new URL(authenticated ? '/home' : '/login', request.url));
+    if (authenticated) {
+      return NextResponse.redirect(new URL('/home', request.url));
+    }
+    return NextResponse.next();
   }
 
   // Login page: authenticated users go straight to /home

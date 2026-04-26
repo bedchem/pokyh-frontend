@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home, Calendar, BarChart2, MessageCircle, Utensils,
   UserX, Bell, CheckSquare, User, ChevronLeft,
-  ChevronRight, GraduationCap, Menu, X,
+  ChevronRight, Menu, X, Scale,
 } from 'lucide-react';
 import { useSidebar } from '@/providers/SidebarProvider';
 
@@ -43,7 +43,7 @@ function NavItem({
     <Link
       href={href}
       onClick={onClick}
-      className="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-150"
+      className="group relative flex items-center gap-3.5 rounded-xl px-3.5 py-3 transition-all duration-150"
       style={{
         background: active
           ? 'color-mix(in srgb, var(--accent) 14%, transparent)'
@@ -63,7 +63,7 @@ function NavItem({
           style={{ background: 'var(--accent)' }}
         />
       )}
-      <Icon size={18} strokeWidth={active ? 2.2 : 1.8} />
+      <Icon size={20} strokeWidth={active ? 2.2 : 1.8} />
       {!collapsed && (
         <span className="text-sm font-medium truncate leading-none">{label}</span>
       )}
@@ -85,10 +85,14 @@ export default function Sidebar() {
 
   const sidebarContent = (
     <div className="flex flex-col h-full py-4">
-      {/* Logo */}
-      <div className={`flex items-center gap-3 px-4 mb-6 flex-shrink-0 ${collapsed ? 'justify-center' : ''}`}>
+      {/* Logo — clickable, goes to dashboard */}
+      <Link
+        href="/home"
+        onClick={closeMobile}
+        className={`flex items-center gap-3 px-4 mb-6 flex-shrink-0 ${collapsed ? 'justify-center' : ''}`}
+      >
         <div
-          className="w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
+          className="w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold text-white flex-shrink-0 press-scale"
           style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-soft))' }}
         >
           P
@@ -98,7 +102,7 @@ export default function Sidebar() {
             POKYH
           </span>
         )}
-      </div>
+      </Link>
 
       {/* Main nav */}
       <nav className="flex flex-col gap-0.5 px-3 flex-1 overflow-y-auto">
@@ -114,7 +118,6 @@ export default function Sidebar() {
           />
         ))}
 
-        {/* Divider */}
         <div className="my-2 mx-1 h-px" style={{ background: 'var(--app-border)' }} />
 
         {!collapsed && (
@@ -146,6 +149,14 @@ export default function Sidebar() {
           collapsed={collapsed}
           onClick={closeMobile}
         />
+        <NavItem
+          href="/legal"
+          label="Rechtliches"
+          Icon={Scale}
+          active={pathname === '/legal'}
+          collapsed={collapsed}
+          onClick={closeMobile}
+        />
 
         {/* Collapse toggle (desktop only) */}
         <button
@@ -169,7 +180,7 @@ export default function Sidebar() {
     <>
       {/* Desktop sidebar */}
       <motion.aside
-        animate={{ width: collapsed ? 72 : 260 }}
+        animate={{ width: collapsed ? 72 : 280 }}
         transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
         className="hidden lg:flex flex-col flex-shrink-0 overflow-hidden relative"
         style={{
@@ -198,7 +209,7 @@ export default function Sidebar() {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-              className="lg:hidden fixed left-0 top-0 bottom-0 z-50 w-[260px] flex flex-col overflow-hidden"
+              className="lg:hidden fixed left-0 top-0 bottom-0 z-50 w-[280px] flex flex-col overflow-hidden"
               style={{
                 background: 'var(--app-surface)',
                 borderRight: '1px solid var(--app-border)',

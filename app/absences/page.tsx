@@ -10,15 +10,34 @@ import EmptyView from '@/components/ui/EmptyView';
 import { fetchAbsences } from '@/lib/api';
 import type { AbsenceEntry } from '@/lib/types';
 
+// ─── Time helpers ─────────────────────────────────────────────────────────────
+
+// Convert WebUntis time value to minutes from midnight.
+// The classreg absences endpoint may return times as minutes-from-midnight
+// (e.g. 475 = 07:55) or as HHMM integers (e.g. 755 = 07:55).
+// Detection: if the last two digits exceed 59, the value cannot be valid HHMM,
+// so it must already be minutes-from-midnight.
+function toMinutes(t: number): number {
+  if (!t) return 0;
+  if (t > 2359) return t; // too large to be HHMM
+  if (t % 100 > 59) return t; // minutes part > 59 → already minutes
+  return Math.floor(t / 100) * 60 + (t % 100);
+}
+
+function formatTime(t: number): string {
+  if (!t) return '';
+  const mins = toMinutes(t);
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
 // ─── Parser ───────────────────────────────────────────────────────────────────
 
 function parseAbsences(json: unknown): AbsenceEntry[] {
   try {
     const root = json as Record<string, unknown>;
-    // Handle multiple response shapes:
-    // data.data.absences, data.absences, data.data.absence, data[] directly
-    const inner =
-      (root?.data as Record<string, unknown>) ?? root;
+    const inner = (root?.data as Record<string, unknown>) ?? root;
 
     let items: Record<string, unknown>[] = [];
     if (inner?.absences && Array.isArray(inner.absences)) {
@@ -37,13 +56,21 @@ function parseAbsences(json: unknown): AbsenceEntry[] {
       const startTime = (item.startTime as number) ?? 0;
       const endTime = (item.endTime as number) ?? 0;
 
-      // Use `hours` field directly if available, otherwise calculate
-      let hours = (item.hours as number) ?? 0;
-      if (!hours) {
-        const startMins =
-          Math.floor(startTime / 100) * 60 + (startTime % 100);
-        const endMins = Math.floor(endTime / 100) * 60 + (endTime % 100);
-        hours = Math.max(1, Math.ceil((endMins - startMins) / 50));
+      // Prefer the server-provided hours value; only calculate as fallback
+      const rawHours =
+        (item.hours as number | null | undefined) ??
+        (item.lessonHours as number | null | undefined) ??
+        null;
+
+      let hours: number;
+      if (rawHours !== null && rawHours !== undefined && rawHours > 0) {
+        hours = rawHours;
+      } else {
+        const startMins = toMinutes(startTime);
+        const endMins = toMinutes(endTime);
+        hours = endMins > startMins
+          ? Math.max(1, Math.round((endMins - startMins) / 50))
+          : 1;
       }
 
       const teacherName =
@@ -85,11 +112,6 @@ function parseAbsences(json: unknown): AbsenceEntry[] {
 function formatDate(d: number): string {
   const s = d.toString();
   return `${s.slice(6, 8)}.${s.slice(4, 6)}.${s.slice(0, 4)}`;
-}
-
-function formatTime(t: number): string {
-  const s = t.toString().padStart(4, '0');
-  return `${s.slice(0, 2)}:${s.slice(2, 4)}`;
 }
 
 function groupByMonth(

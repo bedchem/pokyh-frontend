@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Check, Trash2, CheckSquare, Clock, AlignLeft, X } from 'lucide-react';
+import { Plus, Check, Trash2, CheckSquare, Clock, AlignLeft, X, Calendar } from 'lucide-react';
+import DateTimePicker from '@/components/ui/DateTimePicker';
 import {
   collection,
   onSnapshot,
@@ -40,10 +41,12 @@ export default function TodosPage() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [title, setTitle] = useState('');
   const [details, setDetails] = useState('');
   const [dueAt, setDueAt] = useState('');
   const [saving, setSaving] = useState(false);
+  const [addError, setAddError] = useState('');
 
   useEffect(() => {
     if (!ready || !user) return;
@@ -74,6 +77,7 @@ export default function TodosPage() {
   async function addTodo() {
     if (!title.trim() || !user) return;
     setSaving(true);
+    setAddError('');
     try {
       await addDoc(collection(db, 'users', user.username, 'todos'), {
         title: title.trim(),
@@ -84,8 +88,9 @@ export default function TodosPage() {
         createdAt: serverTimestamp(),
       });
       setTitle(''); setDetails(''); setDueAt(''); setShowAdd(false);
-    } catch (e) {
-      console.error(e);
+    } catch (e: unknown) {
+      console.error('[todos] addDoc error:', e);
+      setAddError(e instanceof Error ? e.message : 'Fehler beim Speichern. Bitte erneut versuchen.');
     } finally {
       setSaving(false);
     }
@@ -223,16 +228,31 @@ export default function TodosPage() {
                       style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)' }}
                     />
                   </div>
-                  <div className="relative">
-                    <Clock size={15} className="absolute left-3.5 top-3.5 pointer-events-none" color="var(--app-text-tertiary)" />
-                    <input
-                      type="datetime-local"
-                      value={dueAt}
-                      onChange={(e) => setDueAt(e.target.value)}
-                      className="w-full rounded-xl pl-10 pr-4 py-3 text-[15px] outline-none"
-                      style={{ background: 'var(--app-card)', color: dueAt ? 'var(--app-text-primary)' : 'var(--app-text-tertiary)' }}
-                    />
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowDatePicker(true)}
+                    className="w-full rounded-xl px-4 py-3 text-[15px] text-left flex items-center gap-3 press-scale"
+                    style={{
+                      background: 'var(--app-card)',
+                      color: dueAt ? 'var(--app-text-primary)' : 'var(--app-text-tertiary)',
+                      border: `1.5px solid ${dueAt ? 'var(--accent)' : 'transparent'}`,
+                    }}
+                  >
+                    <Calendar size={16} color={dueAt ? 'var(--accent)' : 'var(--app-text-tertiary)'} />
+                    {dueAt
+                      ? (() => {
+                          const d = new Date(dueAt);
+                          return d.toLocaleDateString('de', { weekday: 'short', day: 'numeric', month: 'short' }) +
+                            ' · ' + d.toLocaleTimeString('de', { hour: '2-digit', minute: '2-digit' }) + ' Uhr';
+                        })()
+                      : 'Fälligkeitsdatum wählen (optional)'
+                    }
+                  </button>
+                  {addError && (
+                    <p className="text-sm px-3 py-2.5 rounded-xl" style={{ background: 'color-mix(in srgb, var(--danger) 12%, transparent)', color: 'var(--danger)' }}>
+                      {addError}
+                    </p>
+                  )}
                   <button
                     onClick={addTodo}
                     disabled={!title.trim() || saving}
@@ -246,6 +266,15 @@ export default function TodosPage() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={dueAt}
+            onChange={(v) => setDueAt(v)}
+            onClose={() => setShowDatePicker(false)}
+            title="Fälligkeitsdatum"
+          />
+        )}
       </div>
     </AuthGuard>
   );

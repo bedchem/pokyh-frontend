@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
   if (DEBUG) console.log('[absences] startDate:', startDate, 'endDate:', endDate, 'studentId:', session.studentId);
 
   try {
-    const url = `${BASE}/api/classreg/absences/students?studentId=${session.studentId}&startDate=${startDate}&endDate=${endDate}&excuseStatusId=-1`;
+    const url = `${BASE}/api/classreg/absences/students?studentId=${session.studentId}&startDate=${startDate}&endDate=${endDate}&excuseStatusId=-1&limit=9999&pageSize=9999`;
     const res = await fetch(url, { headers: webUntisHeaders(session), signal: AbortSignal.timeout(15000) });
     const text = await res.text();
 

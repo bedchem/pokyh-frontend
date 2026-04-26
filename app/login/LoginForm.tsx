@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Eye, EyeOff, Lock, User, GraduationCap } from 'lucide-react';
+import { Eye, EyeOff, GraduationCap, ShieldCheck } from 'lucide-react';
 import { signInAnonymously } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useSession } from '@/providers/SessionProvider';
 import Spinner from '@/components/ui/Spinner';
+import Link from 'next/link';
 
 export default function LoginForm() {
   const router = useRouter();
@@ -16,13 +17,14 @@ export default function LoginForm() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
+  const [userFocus, setUserFocus] = useState(false);
+  const [passFocus, setPassFocus] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (user) {
       const raw = params.get('next') ?? '';
-      // Prevent open redirect: only accept relative paths, never protocol-relative URLs
       const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/home';
       router.replace(next);
     }
@@ -89,123 +91,139 @@ export default function LoginForm() {
   }
 
   return (
-    <div
-      className="min-h-dvh flex"
-      style={{ background: 'var(--app-bg)' }}
-    >
-      {/* Left panel - branding (hidden on mobile) */}
+    <div className="min-h-dvh flex" style={{ background: 'var(--app-bg)' }}>
+      {/* Left panel — branding, desktop only */}
       <div
-        className="hidden lg:flex flex-col justify-between w-[480px] flex-shrink-0 p-12"
-        style={{
-          background: 'linear-gradient(160deg, #6366F1 0%, #8B5CF6 60%, #4F46E5 100%)',
-        }}
+        className="hidden lg:flex flex-col justify-between w-[420px] flex-shrink-0 p-12 relative overflow-hidden"
+        style={{ background: 'linear-gradient(160deg, #6366F1 0%, #8B5CF6 60%, #4F46E5 100%)' }}
       >
-        <div className="flex items-center gap-3">
+        {/* Decorative circles */}
+        <div
+          className="absolute -top-24 -right-24 w-64 h-64 rounded-full opacity-20"
+          style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.4) 0%, transparent 70%)' }}
+        />
+        <div
+          className="absolute bottom-32 -left-16 w-48 h-48 rounded-full opacity-10"
+          style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.5) 0%, transparent 70%)' }}
+        />
+
+        <div className="flex items-center gap-3 relative z-10">
           <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-white font-bold text-base">
             P
           </div>
           <span className="text-white font-semibold text-lg tracking-tight">POKYH</span>
         </div>
 
-        <div>
-          <GraduationCap size={48} color="rgba(255,255,255,0.8)" className="mb-6" />
-          <h2 className="text-4xl font-bold text-white leading-tight mb-4">
+        <div className="relative z-10">
+          <GraduationCap size={44} color="rgba(255,255,255,0.7)" className="mb-5" />
+          <h2 className="text-[2.2rem] font-bold text-white leading-tight mb-3">
             Deine Schule,<br />
-            <span className="text-white/70">alles an einem Ort.</span>
+            <span className="text-white/60">alles an einem Ort.</span>
           </h2>
-          <p className="text-white/60 text-base leading-relaxed">
-            Stundenplan, Noten, Mensa, Abwesenheiten und Nachrichten – alles für LBS Brixen Schüler.
+          <p className="text-white/55 text-[15px] leading-relaxed">
+            Stundenplan, Noten, Mensa, Abwesenheiten und Nachrichten für LBS Brixen Schüler.
           </p>
         </div>
 
-        <div className="flex flex-col gap-3">
-          {['Stundenplan', 'Noten & Simulator', 'Mensa-Plan', 'Klassen-Erinnerungen'].map((f) => (
-            <div key={f} className="flex items-center gap-3">
-              <div className="w-1.5 h-1.5 rounded-full bg-white/60" />
-              <span className="text-white/70 text-sm">{f}</span>
+        <div className="flex flex-col gap-2.5 relative z-10">
+          {['Stundenplan & Vertretungen', 'Noten & Schnitt', 'Mensa-Plan', 'Klassen-Erinnerungen', 'Nachrichten & Anhänge'].map((f) => (
+            <div key={f} className="flex items-center gap-2.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-white/50 flex-shrink-0" />
+              <span className="text-white/60 text-sm">{f}</span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Right panel - form */}
-      <div className="flex-1 flex items-center justify-center px-6 py-12">
-        <div className="w-full max-w-sm">
+      {/* Right panel — form */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 min-h-dvh">
+        <div className="w-full max-w-[360px]">
           {/* Mobile logo */}
-          <div className="lg:hidden text-center mb-8">
+          <div className="lg:hidden text-center mb-10">
             <div
-              className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center text-2xl font-bold text-white"
+              className="w-14 h-14 rounded-2xl mx-auto mb-3 flex items-center justify-center text-xl font-bold text-white"
               style={{ background: 'linear-gradient(135deg, #6366F1, #8B5CF6)' }}
             >
               P
             </div>
-            <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--app-text-primary)' }}>
+            <p className="text-xl font-bold tracking-tight" style={{ color: 'var(--app-text-primary)' }}>
               POKYH
-            </h1>
+            </p>
           </div>
 
-          <h2 className="text-2xl font-bold mb-1 tracking-tight" style={{ color: 'var(--app-text-primary)' }}>
+          <h1 className="text-[1.6rem] font-bold tracking-tight mb-1" style={{ color: 'var(--app-text-primary)' }}>
             Willkommen zurück
-          </h2>
+          </h1>
           <p className="text-sm mb-8" style={{ color: 'var(--app-text-secondary)' }}>
             Melde dich mit deinem WebUntis-Account an
           </p>
 
           <form onSubmit={handleLogin} className="flex flex-col gap-3" noValidate>
-            <div>
-              <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wider" style={{ color: 'var(--app-text-secondary)' }}>
-                Username
-              </label>
-              <div
-                className="flex items-center gap-3 rounded-xl px-4 py-3 transition-colors"
-                style={{ background: 'var(--app-surface)', border: '1px solid var(--app-border)' }}
-              >
-                <User size={16} style={{ color: 'var(--app-text-tertiary)', flexShrink: 0 }} />
-                <input
-                  type="text"
-                  placeholder="username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  autoCapitalize="none"
-                  autoComplete="username"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  className="flex-1 bg-transparent text-sm outline-none placeholder:opacity-40"
-                  style={{ color: 'var(--app-text-primary)' }}
-                />
-              </div>
+            {/* Username */}
+            <div
+              className="flex items-center gap-3 rounded-xl px-4 h-12 transition-all duration-150"
+              style={{
+                background: 'var(--app-surface)',
+                border: `1.5px solid ${userFocus ? 'var(--accent)' : 'var(--app-border)'}`,
+                boxShadow: userFocus ? '0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent)' : 'none',
+              }}
+            >
+              <input
+                type="text"
+                placeholder="Benutzername"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onFocus={() => setUserFocus(true)}
+                onBlur={() => setUserFocus(false)}
+                autoCapitalize="none"
+                autoComplete="username"
+                autoCorrect="off"
+                spellCheck={false}
+                className="flex-1 bg-transparent text-sm outline-none ring-0 placeholder:opacity-40"
+                style={{ color: 'var(--app-text-primary)' }}
+              />
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wider" style={{ color: 'var(--app-text-secondary)' }}>
-                Passwort
-              </label>
-              <div
-                className="flex items-center gap-3 rounded-xl px-4 py-3 transition-colors"
-                style={{ background: 'var(--app-surface)', border: '1px solid var(--app-border)' }}
+            {/* Password */}
+            <div
+              className="flex items-center gap-3 rounded-xl px-4 h-12 transition-all duration-150"
+              style={{
+                background: 'var(--app-surface)',
+                border: `1.5px solid ${passFocus ? 'var(--accent)' : 'var(--app-border)'}`,
+                boxShadow: passFocus ? '0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent)' : 'none',
+              }}
+            >
+              <input
+                type={showPw ? 'text' : 'password'}
+                placeholder="Passwort"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onFocus={() => setPassFocus(true)}
+                onBlur={() => setPassFocus(false)}
+                autoComplete="current-password"
+                className="flex-1 bg-transparent text-sm outline-none ring-0 placeholder:opacity-40"
+                style={{ color: 'var(--app-text-primary)' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPw((s) => !s)}
+                tabIndex={-1}
+                className="p-1 flex-shrink-0 transition-opacity hover:opacity-70"
               >
-                <Lock size={16} style={{ color: 'var(--app-text-tertiary)', flexShrink: 0 }} />
-                <input
-                  type={showPw ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="current-password"
-                  className="flex-1 bg-transparent text-sm outline-none placeholder:opacity-40"
-                  style={{ color: 'var(--app-text-primary)' }}
-                />
-                <button type="button" onClick={() => setShowPw(!showPw)} tabIndex={-1} className="p-0.5 flex-shrink-0">
-                  {showPw
-                    ? <EyeOff size={16} style={{ color: 'var(--app-text-tertiary)' }} />
-                    : <Eye size={16} style={{ color: 'var(--app-text-tertiary)' }} />}
-                </button>
-              </div>
+                {showPw
+                  ? <EyeOff size={16} style={{ color: 'var(--app-text-tertiary)' }} />
+                  : <Eye size={16} style={{ color: 'var(--app-text-tertiary)' }} />}
+              </button>
             </div>
 
             {error && (
               <div
                 className="rounded-xl px-4 py-3 text-sm"
-                style={{ background: 'color-mix(in srgb, var(--danger) 12%, transparent)', color: 'var(--danger)', border: '1px solid color-mix(in srgb, var(--danger) 25%, transparent)' }}
+                style={{
+                  background: 'color-mix(in srgb, var(--danger) 10%, transparent)',
+                  color: 'var(--danger)',
+                  border: '1px solid color-mix(in srgb, var(--danger) 20%, transparent)',
+                }}
               >
                 {error}
               </div>
@@ -221,9 +239,24 @@ export default function LoginForm() {
             </button>
           </form>
 
-          <p className="text-[11px] text-center mt-6 leading-5" style={{ color: 'var(--app-text-tertiary)' }}>
-            Zugangsdaten werden verschlüsselt an lbs-brixen.webuntis.com übertragen.
-          </p>
+          {/* Security note */}
+          <div className="flex items-center gap-2 mt-5 justify-center">
+            <ShieldCheck size={13} style={{ color: 'var(--app-text-tertiary)', flexShrink: 0 }} />
+            <p className="text-[11px] leading-4 text-center" style={{ color: 'var(--app-text-tertiary)' }}>
+              Zugangsdaten werden verschlüsselt an lbs-brixen.webuntis.com übertragen
+            </p>
+          </div>
+
+          {/* Legal links */}
+          <div className="flex items-center justify-center gap-3 mt-6">
+            <Link href="/legal" className="text-xs transition-opacity hover:opacity-70" style={{ color: 'var(--app-text-tertiary)' }}>
+              Impressum
+            </Link>
+            <span style={{ color: 'var(--app-text-tertiary)' }} className="text-xs">·</span>
+            <Link href="/legal#datenschutz" className="text-xs transition-opacity hover:opacity-70" style={{ color: 'var(--app-text-tertiary)' }}>
+              Datenschutz
+            </Link>
+          </div>
         </div>
       </div>
     </div>

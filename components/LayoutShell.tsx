@@ -7,7 +7,7 @@ import DashboardTopbar from './DashboardTopbar';
 export default function LayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  if (pathname === '/login' || pathname === '/') {
+  if (pathname === '/' || pathname === '/login' || pathname === '/legal') {
     return <>{children}</>;
   }
 

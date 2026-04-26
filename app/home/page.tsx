@@ -385,7 +385,7 @@ export default function HomePage() {
                   />
                   <StatCard
                     label="Notenschnitt"
-                    value={overallAvg != null ? overallAvg.toFixed(1) : '–'}
+                    value={overallAvg != null ? overallAvg.toFixed(2) : '–'}
                     sub={`${subjectCount} ${subjectCount === 1 ? 'Fach' : 'Fächer'}`}
                     color={overallAvg != null ? averageColor(overallAvg) : 'var(--app-text-secondary)'}
                     icon={TrendingUp}

@@ -8,6 +8,9 @@ import {
   Archive,
   Film,
   File,
+  Download,
+  X,
+  AlertTriangle,
   ExternalLink,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -16,6 +19,8 @@ import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
 import { fetchMessageDetail, markMessageRead, getAttachmentUrl } from '@/lib/api';
 import type { MessageDetail } from '@/lib/types';
+
+const URL_REGEX = /(https?:\/\/[^\s<>"{}|\\^`[\]]+)/g;
 
 function senderColor(name: string): string {
   let hash = 0;
@@ -107,17 +112,19 @@ function parseMessageDetail(json: unknown): MessageDetail | null {
   }
 }
 
-function attachmentIcon(name: string): React.ReactNode {
+function attachmentMeta(name: string): { icon: React.ReactNode; type: 'image' | 'pdf' | 'other' } {
   const ext = name.split('.').pop()?.toLowerCase() ?? '';
   if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'heic'].includes(ext))
-    return <ImageIcon size={18} color="var(--accent)" />;
+    return { icon: <ImageIcon size={18} color="var(--accent)" />, type: 'image' };
   if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext))
-    return <Archive size={18} color="var(--orange)" />;
+    return { icon: <Archive size={18} color="var(--orange)" />, type: 'other' };
   if (['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext))
-    return <Film size={18} color="var(--accent-soft)" />;
-  if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'].includes(ext))
-    return <FileText size={18} color="var(--accent)" />;
-  return <File size={18} color="var(--app-text-secondary)" />;
+    return { icon: <Film size={18} color="var(--accent-soft)" />, type: 'other' };
+  if (['pdf'].includes(ext))
+    return { icon: <FileText size={18} color="var(--danger)" />, type: 'pdf' };
+  if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'].includes(ext))
+    return { icon: <FileText size={18} color="var(--accent)" />, type: 'other' };
+  return { icon: <File size={18} color="var(--app-text-secondary)" />, type: 'other' };
 }
 
 function formatFileSize(bytes: number): string {
@@ -125,6 +132,29 @@ function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.ceil(bytes / 1024)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// Render text with clickable URL segments
+function TextWithLinks({ text, onLink }: { text: string; onLink: (url: string) => void }) {
+  const parts = text.split(URL_REGEX);
+  return (
+    <>
+      {parts.map((part, i) =>
+        URL_REGEX.test(part) ? (
+          <button
+            key={i}
+            onClick={() => onLink(part)}
+            className="underline break-all text-left"
+            style={{ color: 'var(--accent)', background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer' }}
+          >
+            {part}
+          </button>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
+  );
 }
 
 export default function MessageDetailPage({
@@ -137,6 +167,8 @@ export default function MessageDetailPage({
   const [msg, setMsg] = useState<MessageDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [linkWarning, setLinkWarning] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ url: string; name: string; type: 'image' | 'pdf' | 'other' } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -160,6 +192,16 @@ export default function MessageDetailPage({
   useEffect(() => {
     load();
   }, [load]);
+
+  function openAttachment(att: { id: number; storageId: string; name: string; size: number }) {
+    const url = getAttachmentUrl(msg!.id, att.storageId, att.name, att.id);
+    const { type } = attachmentMeta(att.name);
+    if (type === 'image' || type === 'pdf') {
+      setPreview({ url, name: att.name, type });
+    } else {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  }
 
   return (
     <AuthGuard>
@@ -237,7 +279,7 @@ export default function MessageDetailPage({
                   className="text-[15px] leading-relaxed whitespace-pre-wrap"
                   style={{ color: 'var(--app-text-primary)' }}
                 >
-                  {htmlToText(msg.body ?? '')}
+                  <TextWithLinks text={htmlToText(msg.body ?? '')} onLink={setLinkWarning} />
                 </p>
               </div>
 
@@ -253,46 +295,153 @@ export default function MessageDetailPage({
                   >
                     Anhänge ({msg.attachments.length})
                   </p>
-                  {msg.attachments.map((att, i) => (
-                    <a
-                      key={att.id}
-                      href={getAttachmentUrl(msg.id, att.storageId, att.name, att.id)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-4 py-3 flex items-center gap-3 press-scale"
-                      style={{
-                        borderTop:
-                          i > 0 ? '1px solid var(--app-separator)' : 'none',
-                        display: 'flex',
-                        textDecoration: 'none',
-                      }}
-                    >
-                      <div className="flex-shrink-0">
-                        {attachmentIcon(att.name)}
-                      </div>
-                      <p
-                        className="flex-1 text-sm truncate"
-                        style={{ color: 'var(--app-text-primary)' }}
+                  {msg.attachments.map((att, i) => {
+                    const { icon } = attachmentMeta(att.name);
+                    return (
+                      <button
+                        key={att.id}
+                        onClick={() => openAttachment(att)}
+                        className="px-4 py-3 flex items-center gap-3 press-scale w-full text-left"
+                        style={{
+                          borderTop: i > 0 ? '1px solid var(--app-separator)' : 'none',
+                          background: 'none',
+                        }}
                       >
-                        {att.name}
-                      </p>
-                      {att.size > 0 && (
+                        <div className="flex-shrink-0">{icon}</div>
                         <p
-                          className="text-xs flex-shrink-0"
-                          style={{ color: 'var(--app-text-tertiary)' }}
+                          className="flex-1 text-sm truncate"
+                          style={{ color: 'var(--app-text-primary)' }}
                         >
-                          {formatFileSize(att.size)}
+                          {att.name}
                         </p>
-                      )}
-                      <ExternalLink size={14} color="var(--accent)" style={{ flexShrink: 0 }} />
-                    </a>
-                  ))}
+                        {att.size > 0 && (
+                          <p
+                            className="text-xs flex-shrink-0"
+                            style={{ color: 'var(--app-text-tertiary)' }}
+                          >
+                            {formatFileSize(att.size)}
+                          </p>
+                        )}
+                        <Download size={14} color="var(--accent)" style={{ flexShrink: 0 }} />
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
           ) : null}
         </div>
       </div>
+
+      {/* Link warning modal */}
+      {linkWarning && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setLinkWarning(null)}
+        >
+          <div
+            className="rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+            style={{ background: 'var(--app-surface)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: 'color-mix(in srgb, var(--warning) 15%, transparent)' }}
+              >
+                <AlertTriangle size={20} color="var(--warning)" />
+              </div>
+              <div>
+                <p className="font-bold text-[16px]" style={{ color: 'var(--app-text-primary)' }}>
+                  Externer Link
+                </p>
+                <p className="text-xs" style={{ color: 'var(--app-text-secondary)' }}>
+                  Du verlässt die POKYH App
+                </p>
+              </div>
+            </div>
+            <p
+              className="text-sm break-all px-3 py-2.5 rounded-xl mb-5"
+              style={{ background: 'var(--app-card)', color: 'var(--accent)' }}
+            >
+              {linkWarning}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setLinkWarning(null)}
+                className="flex-1 py-3 rounded-xl font-medium text-sm transition-opacity hover:opacity-70"
+                style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)' }}
+              >
+                Abbrechen
+              </button>
+              <a
+                href={linkWarning}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 py-3 rounded-xl font-semibold text-sm text-white text-center press-scale flex items-center justify-center gap-1.5"
+                style={{ background: 'var(--accent)' }}
+                onClick={() => setLinkWarning(null)}
+              >
+                Öffnen
+                <ExternalLink size={13} />
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Attachment preview modal */}
+      {preview && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col"
+          style={{ background: 'rgba(0,0,0,0.92)' }}
+        >
+          {/* Toolbar */}
+          <div className="flex items-center justify-between px-4 py-3 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+            <p className="text-sm font-medium text-white/80 truncate flex-1 mr-4">{preview.name}</p>
+            <div className="flex items-center gap-2">
+              <a
+                href={preview.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2 rounded-xl press-scale"
+                style={{ background: 'rgba(255,255,255,0.1)' }}
+                title="In neuem Tab öffnen"
+              >
+                <ExternalLink size={16} color="white" />
+              </a>
+              <button
+                onClick={() => setPreview(null)}
+                className="p-2 rounded-xl press-scale"
+                style={{ background: 'rgba(255,255,255,0.1)' }}
+              >
+                <X size={18} color="white" />
+              </button>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-hidden flex items-center justify-center p-4">
+            {preview.type === 'image' ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={preview.url}
+                alt={preview.name}
+                className="max-w-full max-h-full object-contain rounded-xl"
+                style={{ boxShadow: '0 0 60px rgba(0,0,0,0.5)' }}
+              />
+            ) : preview.type === 'pdf' ? (
+              <iframe
+                src={preview.url}
+                title={preview.name}
+                className="w-full h-full rounded-xl"
+                style={{ border: 'none', background: '#fff' }}
+              />
+            ) : null}
+          </div>
+        </div>
+      )}
     </AuthGuard>
   );
 }

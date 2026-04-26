@@ -10,19 +10,50 @@ import ErrorView from '@/components/ui/ErrorView';
 import EmptyView from '@/components/ui/EmptyView';
 import { fetchMensa } from '@/lib/api';
 import type { Dish } from '@/lib/types';
+import { useFirebase } from '@/providers/FirebaseProvider';
+import { db } from '@/lib/firebase';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 
-interface GroupedDishes {
-  date: Date;
-  label: string;
-  isToday: boolean;
-  dishes: Dish[];
-}
+// -- helpers --
 
 function resolveName(raw: unknown): string {
   if (!raw) return '';
   if (typeof raw === 'string') return raw;
   const obj = raw as Record<string, string>;
   return obj.de ?? obj.it ?? obj.en ?? String(raw);
+}
+
+const CATEGORY_GRADIENTS: Record<string, string> = {
+  suppe:   'linear-gradient(135deg, #FF9F43 0%, #EE5A24 100%)',
+  pasta:   'linear-gradient(135deg, #F8C291 0%, #E55039 100%)',
+  fleisch: 'linear-gradient(135deg, #B8860B 0%, #8B4513 100%)',
+  fisch:   'linear-gradient(135deg, #0066CC 0%, #003366 100%)',
+  salat:   'linear-gradient(135deg, #2ecc71 0%, #27ae60 100%)',
+  dessert: 'linear-gradient(135deg, #e84393 0%, #c0392b 100%)',
+  vegan:   'linear-gradient(135deg, #00b894 0%, #00cec9 100%)',
+  default: 'linear-gradient(135deg, #636e72 0%, #2d3436 100%)',
+};
+
+function dishPlaceholderBg(dish: Dish): string {
+  const cat = (dish.category ?? '').toLowerCase();
+  for (const key of Object.keys(CATEGORY_GRADIENTS)) {
+    if (cat.includes(key)) return CATEGORY_GRADIENTS[key];
+  }
+  if (dish.tags?.some((t) => t.toLowerCase().includes('vegan'))) return CATEGORY_GRADIENTS.vegan;
+  return CATEGORY_GRADIENTS.default;
+}
+
+function avgRating(ratings: Record<string, number>): number {
+  const vals = Object.values(ratings);
+  if (!vals.length) return 0;
+  return vals.reduce((a, b) => a + b, 0) / vals.length;
+}
+
+interface GroupedDishes {
+  date: Date;
+  label: string;
+  isToday: boolean;
+  dishes: Dish[];
 }
 
 function groupDishes(dishes: Dish[]): GroupedDishes[] {
@@ -39,10 +70,13 @@ function groupDishes(dishes: Dish[]): GroupedDishes[] {
   map.forEach((dayDishes, key) => {
     const date = parseISO(key);
     if (date < today) return;
-    let label = format(date, 'EEEE, d. MMMM', { locale: de });
     const todayFlag = isToday(date);
-    if (todayFlag) label = 'Heute';
-    else if (isTomorrow(date)) label = 'Morgen';
+    const tomorrowFlag = isTomorrow(date);
+    const label = todayFlag
+      ? 'Heute'
+      : tomorrowFlag
+      ? 'Morgen'
+      : format(date, 'EEEE, d. MMMM', { locale: de });
     result.push({ date, label, isToday: todayFlag, dishes: dayDishes });
   });
 
@@ -72,76 +106,207 @@ function TagBadge({ tag }: { tag: string }) {
   );
 }
 
-function DishCard({ dish, onOpen }: { dish: Dish; onOpen: (d: Dish) => void }) {
+function StarDisplay({
+  avgVal,
+  myRating,
+  onRate,
+}: {
+  avgVal: number;
+  myRating: number;
+  onRate: (s: number) => void;
+}) {
+  const [hover, setHover] = useState(0);
   return (
-    <button
-      onClick={() => onOpen(dish)}
-      className="w-full rounded-2xl overflow-hidden text-left press-scale"
-      style={{ background: 'var(--app-surface)' }}
-    >
-      {dish.imageUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={dish.imageUrl}
-          alt={resolveName(dish.name)}
-          className="w-full object-cover"
-          style={{ height: 150 }}
-          loading="lazy"
-        />
-      )}
-      <div className="p-4">
-        <p
-          className="text-[15px] font-semibold leading-snug mb-1"
-          style={{ color: 'var(--app-text-primary)' }}
-        >
-          {resolveName(dish.name)}
-        </p>
-        {dish.description && (
-          <p
-            className="text-xs mb-2 line-clamp-2"
-            style={{ color: 'var(--app-text-secondary)' }}
+    <div className="flex items-center gap-1">
+      {[1, 2, 3, 4, 5].map((s) => {
+        const active = s <= (hover || myRating);
+        return (
+          <button
+            key={s}
+            onClick={() => onRate(s)}
+            onMouseEnter={() => setHover(s)}
+            onMouseLeave={() => setHover(0)}
+            className="p-0.5 press-scale"
           >
-            {resolveName(dish.description)}
-          </p>
-        )}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex flex-wrap gap-1">
-            {dish.tags?.map((tag) => (
-              <TagBadge key={tag} tag={tag} />
-            ))}
-          </div>
-          {dish.price != null && (
-            <p
-              className="text-sm font-semibold flex-shrink-0"
-              style={{ color: 'var(--accent)' }}
-            >
-              €{dish.price.toFixed(2)}
-            </p>
-          )}
-        </div>
-      </div>
-    </button>
+            <Star
+              size={24}
+              fill={active ? '#FFD60A' : 'none'}
+              color={active ? '#FFD60A' : 'var(--app-text-tertiary)'}
+            />
+          </button>
+        );
+      })}
+      {avgVal > 0 && (
+        <span className="text-sm font-semibold ml-1" style={{ color: 'var(--app-text-secondary)' }}>
+          {avgVal.toFixed(1)}
+        </span>
+      )}
+    </div>
   );
 }
 
 function NutriCell({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="text-center">
-      <p
-        className="text-base font-bold"
-        style={{ color: 'var(--app-text-primary)' }}
-      >
-        {value}
-      </p>
-      <p className="text-[10px] mt-0.5" style={{ color: 'var(--app-text-secondary)' }}>
-        {label}
-      </p>
+      <p className="text-base font-bold" style={{ color: 'var(--app-text-primary)' }}>{value}</p>
+      <p className="text-[10px] mt-0.5" style={{ color: 'var(--app-text-secondary)' }}>{label}</p>
     </div>
   );
 }
 
-function DishDetail({ dish, onClose }: { dish: Dish; onClose: () => void }) {
-  const [rating, setRating] = useState(0);
+function MiniStars({ value, count }: { value: number; count: number }) {
+  return (
+    <div className="flex items-center gap-1">
+      <div className="flex gap-0.5">
+        {[1, 2, 3, 4, 5].map((s) => {
+          const fill = Math.min(1, Math.max(0, value - (s - 1)));
+          return (
+            <div key={s} className="relative" style={{ width: 11, height: 11 }}>
+              <Star size={11} fill="none" color="var(--app-text-tertiary)" />
+              {fill > 0 && (
+                <div className="absolute inset-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
+                  <Star size={11} fill="#FFD60A" color="#FFD60A" />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <span className="text-[11px] font-semibold" style={{ color: 'var(--app-text-secondary)' }}>
+        {value.toFixed(1)}
+      </span>
+      <span className="text-[10px]" style={{ color: 'var(--app-text-tertiary)' }}>
+        ({count})
+      </span>
+    </div>
+  );
+}
+
+function DishCard({
+  dish,
+  rating,
+  ratingCount,
+  onOpen,
+}: {
+  dish: Dish;
+  rating: number;
+  ratingCount: number;
+  onOpen: (d: Dish) => void;
+}) {
+  const name = resolveName(dish.name);
+  const desc = dish.description ? resolveName(dish.description) : null;
+
+  return (
+    <button
+      onClick={() => onOpen(dish)}
+      className="w-full rounded-2xl overflow-hidden text-left press-scale flex gap-0"
+      style={{ background: 'var(--app-surface)', border: '1px solid var(--app-border)' }}
+    >
+      {/* Thumbnail */}
+      <div className="relative flex-shrink-0" style={{ width: 100, height: 110 }}>
+        {dish.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={dish.imageUrl}
+            alt={name}
+            className="w-full h-full object-cover"
+            loading="lazy"
+          />
+        ) : (
+          <div className="w-full h-full" style={{ background: dishPlaceholderBg(dish) }} />
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0 px-3.5 py-3 flex flex-col justify-between" style={{ minHeight: 110 }}>
+        <div>
+          <p
+            className="text-[14px] font-semibold leading-snug line-clamp-2"
+            style={{ color: 'var(--app-text-primary)' }}
+          >
+            {name}
+          </p>
+          {desc && (
+            <p
+              className="text-xs mt-0.5 line-clamp-1"
+              style={{ color: 'var(--app-text-secondary)' }}
+            >
+              {desc}
+            </p>
+          )}
+        </div>
+        <div className="mt-2 flex flex-col gap-1.5">
+          {rating > 0 ? (
+            <MiniStars value={rating} count={ratingCount} />
+          ) : (
+            <div className="flex gap-0.5">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <Star key={s} size={11} fill="none" color="var(--app-text-tertiary)" />
+              ))}
+              <span className="text-[10px] ml-1" style={{ color: 'var(--app-text-tertiary)' }}>
+                Noch keine Bewertung
+              </span>
+            </div>
+          )}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap gap-1">
+              {dish.tags?.slice(0, 2).map((tag) => (
+                <TagBadge key={tag} tag={tag} />
+              ))}
+            </div>
+            {dish.price != null && (
+              <p className="text-sm font-bold flex-shrink-0" style={{ color: 'var(--accent)' }}>
+                €{dish.price.toFixed(2)}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function DishDetail({
+  dish,
+  stableUid,
+  onClose,
+  onRated,
+}: {
+  dish: Dish;
+  stableUid: string | null;
+  onClose: () => void;
+  onRated: (dishId: string, ratings: Record<string, number>) => void;
+}) {
+  const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const ref = doc(db, 'dish_ratings', dish.id);
+    const unsub = onSnapshot(ref, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data() as Record<string, number>;
+        setRatings(data);
+        onRated(dish.id, data);
+      }
+    });
+    return () => unsub();
+  }, [dish.id, onRated]);
+
+  const avg = avgRating(ratings);
+  const myRating = stableUid ? (ratings[stableUid] ?? 0) : 0;
+  const ratingCount = Object.keys(ratings).length;
+
+  async function rate(stars: number) {
+    if (!stableUid || saving) return;
+    setSaving(true);
+    try {
+      await setDoc(doc(db, 'dish_ratings', dish.id), { [stableUid]: stars }, { merge: true });
+    } catch (e) {
+      console.error('[mensa] rate error:', e);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div
@@ -150,118 +315,95 @@ function DishDetail({ dish, onClose }: { dish: Dish; onClose: () => void }) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg max-h-[88dvh] overflow-y-auto rounded-t-2xl fade-in"
+        className="w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-t-2xl fade-in"
         style={{ background: 'var(--app-surface)', animationDuration: '0.25s' }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Handle + close */}
-        <div className="flex items-center justify-between px-4 pt-4 pb-2">
-          <div
-            className="w-10 h-1 rounded-full mx-auto"
-            style={{ background: 'var(--app-border)' }}
-          />
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full" style={{ background: 'var(--app-border)' }} />
         </div>
 
-        {dish.imageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={dish.imageUrl}
-            alt={resolveName(dish.name)}
-            className="w-full object-cover"
-            style={{ height: 200 }}
+        {/* Header image / gradient */}
+        <div className="relative" style={{ height: 200 }}>
+          {dish.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={dish.imageUrl}
+              alt={resolveName(dish.name)}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full" style={{ background: dishPlaceholderBg(dish) }} />
+          )}
+          <div
+            className="absolute inset-0"
+            style={{ background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.45) 100%)' }}
           />
-        )}
+          <button
+            onClick={onClose}
+            className="absolute top-3 right-3 p-1.5 rounded-full press-scale"
+            style={{ background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(8px)' }}
+          >
+            <X size={16} color="#fff" />
+          </button>
+        </div>
 
         <div className="p-5">
-          <div className="flex items-start justify-between gap-3 mb-3">
-            <h2
-              className="text-xl font-bold flex-1"
-              style={{ color: 'var(--app-text-primary)' }}
-            >
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <h2 className="text-xl font-bold flex-1" style={{ color: 'var(--app-text-primary)' }}>
               {resolveName(dish.name)}
             </h2>
-            <button onClick={onClose} className="p-1.5 rounded-full press-scale flex-shrink-0" style={{ background: 'var(--app-card)' }}>
-              <X size={16} color="var(--app-text-secondary)" />
-            </button>
+            {dish.price != null && (
+              <span className="text-lg font-bold flex-shrink-0" style={{ color: 'var(--accent)' }}>
+                €{dish.price.toFixed(2)}
+              </span>
+            )}
           </div>
 
           {dish.description && (
-            <p
-              className="text-sm mb-4"
-              style={{ color: 'var(--app-text-secondary)' }}
-            >
+            <p className="text-sm mb-3" style={{ color: 'var(--app-text-secondary)' }}>
               {resolveName(dish.description)}
             </p>
           )}
 
-          {/* Tags */}
           {dish.tags && dish.tags.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-4">
-              {dish.tags.map((tag) => (
-                <TagBadge key={tag} tag={tag} />
-              ))}
+              {dish.tags.map((tag) => <TagBadge key={tag} tag={tag} />)}
             </div>
-          )}
-
-          {/* Price */}
-          {dish.price != null && (
-            <p
-              className="text-2xl font-bold mb-4"
-              style={{ color: 'var(--accent)' }}
-            >
-              €{dish.price.toFixed(2)}
-            </p>
           )}
 
           {/* Rating */}
-          <div className="flex items-center gap-3 mb-5">
-            <p className="text-sm" style={{ color: 'var(--app-text-secondary)' }}>
+          <div className="rounded-xl p-4 mb-4" style={{ background: 'var(--app-card)' }}>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--app-text-secondary)' }}>
               Bewertung
             </p>
-            <div className="flex gap-1">
-              {[1, 2, 3, 4, 5].map((s) => (
-                <button key={s} onClick={() => setRating(s)} className="p-0.5 press-scale">
-                  <Star
-                    size={22}
-                    fill={s <= rating ? '#FFD60A' : 'none'}
-                    color={s <= rating ? '#FFD60A' : 'var(--app-text-tertiary)'}
-                  />
-                </button>
-              ))}
-            </div>
+            <StarDisplay avgVal={avg} myRating={myRating} onRate={rate} />
+            {ratingCount > 0 && (
+              <p className="text-xs mt-2" style={{ color: 'var(--app-text-tertiary)' }}>
+                {ratingCount} Bewertung{ratingCount !== 1 ? 'en' : ''}
+              </p>
+            )}
+            {!stableUid && (
+              <p className="text-xs mt-2" style={{ color: 'var(--app-text-tertiary)' }}>
+                Anmelden um zu bewerten
+              </p>
+            )}
           </div>
 
           {/* Nutrition */}
-          {(dish.calories != null ||
-            dish.protein != null ||
-            dish.carbs != null ||
-            dish.fat != null) && (
-            <div
-              className="rounded-xl p-4 mb-4 grid grid-cols-4 gap-3"
-              style={{ background: 'var(--app-card)' }}
-            >
-              {dish.calories != null && (
-                <NutriCell label="kcal" value={dish.calories} />
-              )}
-              {dish.protein != null && (
-                <NutriCell label="Protein" value={`${dish.protein}g`} />
-              )}
-              {dish.carbs != null && (
-                <NutriCell label="Kohlenh." value={`${dish.carbs}g`} />
-              )}
-              {dish.fat != null && (
-                <NutriCell label="Fett" value={`${dish.fat}g`} />
-              )}
+          {(dish.calories != null || dish.protein != null || dish.carbs != null || dish.fat != null) && (
+            <div className="rounded-xl p-4 mb-4 grid grid-cols-4 gap-3" style={{ background: 'var(--app-card)' }}>
+              {dish.calories != null && <NutriCell label="kcal" value={dish.calories} />}
+              {dish.protein != null && <NutriCell label="Protein" value={`${dish.protein}g`} />}
+              {dish.carbs != null && <NutriCell label="Kohlenh." value={`${dish.carbs}g`} />}
+              {dish.fat != null && <NutriCell label="Fett" value={`${dish.fat}g`} />}
             </div>
           )}
 
           {/* Allergens */}
           {dish.allergens && dish.allergens.length > 0 && (
-            <div>
-              <p
-                className="text-xs font-semibold uppercase tracking-wider mb-2"
-                style={{ color: 'var(--app-text-secondary)' }}
-              >
+            <div className="rounded-xl p-4 mb-4" style={{ background: 'var(--app-card)' }}>
+              <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--app-text-secondary)' }}>
                 Allergene
               </p>
               <p className="text-sm" style={{ color: 'var(--app-text-primary)' }}>
@@ -278,12 +420,15 @@ function DishDetail({ dish, onClose }: { dish: Dish; onClose: () => void }) {
 }
 
 export default function MensaPage() {
+  const { stableUid, ready } = useFirebase();
   const [groups, setGroups] = useState<GroupedDishes[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selected, setSelected] = useState<Dish | null>(null);
+  const [allRatings, setAllRatings] = useState<Record<string, Record<string, number>>>({});
 
-  const load = useCallback(async () => {
+  // Step 1: load menu (no Firebase needed)
+  const loadMenu = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -297,43 +442,59 @@ export default function MensaPage() {
           [];
       setGroups(groupDishes(dishes));
     } catch (e: unknown) {
-      setError(
-        e instanceof Error ? e.message : 'Fehler beim Laden der Speisekarte'
-      );
+      setError(e instanceof Error ? e.message : 'Fehler beim Laden der Speisekarte');
     } finally {
       setLoading(false);
     }
   }, []);
 
+  // Step 2: load ratings — only after Firebase anonymous auth is ready
+  const loadRatings = useCallback(async (gs: GroupedDishes[]) => {
+    const allDishes = gs.flatMap((g) => g.dishes);
+    if (!allDishes.length) return;
+    try {
+      const snaps = await Promise.all(
+        allDishes.map((d) => getDoc(doc(db, 'dish_ratings', d.id)))
+      );
+      const ratings: Record<string, Record<string, number>> = {};
+      snaps.forEach((snap, i) => {
+        if (snap.exists()) ratings[allDishes[i].id] = snap.data() as Record<string, number>;
+      });
+      setAllRatings(ratings);
+    } catch (e) {
+      console.error('[mensa] ratings fetch error:', e);
+    }
+  }, []);
+
+  useEffect(() => { loadMenu(); }, [loadMenu]);
+
+  // Trigger ratings fetch once both the menu and Firebase auth are ready
   useEffect(() => {
-    load();
-  }, [load]);
+    if (!ready || groups.length === 0) return;
+    loadRatings(groups);
+  }, [ready, groups, loadRatings]);
+
+  const handleRated = useCallback((dishId: string, ratings: Record<string, number>) => {
+    setAllRatings((prev) => ({ ...prev, [dishId]: ratings }));
+  }, []);
 
   return (
     <AuthGuard>
-      <div
-        className="h-full flex flex-col overflow-hidden"
-        style={{ background: 'var(--app-bg)' }}
-      >
+      <div className="h-full flex flex-col overflow-hidden" style={{ background: 'var(--app-bg)' }}>
+        {/* Header */}
         <div className="px-5 pt-5 pb-4 fade-in flex-shrink-0">
-          <h1
-            className="text-[28px] font-bold tracking-tight"
-            style={{ color: 'var(--app-text-primary)' }}
-          >
+          <h1 className="text-[28px] font-bold tracking-tight" style={{ color: 'var(--app-text-primary)' }}>
             Mensa
           </h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--app-text-secondary)' }}>
-            LBS Brixen
-          </p>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--app-text-secondary)' }}>LBS Brixen</p>
         </div>
 
-        <div className="flex-1 overflow-auto px-4 pb-4">
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-auto px-4 pb-8">
           {loading ? (
-            <div className="flex justify-center py-16">
-              <Spinner size={28} />
-            </div>
+            <div className="flex justify-center py-16"><Spinner size={28} /></div>
           ) : error ? (
-            <ErrorView message={error} onRetry={load} />
+            <ErrorView message={error} onRetry={loadMenu} />
           ) : groups.length === 0 ? (
             <EmptyView
               icon={<Utensils size={56} color="var(--app-text-primary)" />}
@@ -341,13 +502,14 @@ export default function MensaPage() {
               subtitle="Für diese Woche sind keine Gerichte verfügbar."
             />
           ) : (
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-6 fade-in">
               {groups.map((group, gi) => (
                 <section
                   key={group.label}
                   className="fade-in"
-                  style={{ animationDelay: `${gi * 80}ms` }}
+                  style={{ animationDelay: `${gi * 60}ms` }}
                 >
+                  {/* Day header */}
                   <div className="flex items-center gap-2 mb-3 px-1">
                     <h2
                       className="text-[17px] font-semibold"
@@ -359,8 +521,7 @@ export default function MensaPage() {
                       <span
                         className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
                         style={{
-                          background:
-                            'color-mix(in srgb, var(--accent) 15%, transparent)',
+                          background: 'color-mix(in srgb, var(--accent) 15%, transparent)',
                           color: 'var(--accent)',
                         }}
                       >
@@ -368,11 +529,15 @@ export default function MensaPage() {
                       </span>
                     )}
                   </div>
-                  <div className="flex flex-col gap-3">
+
+                  {/* Dish list */}
+                  <div className="flex flex-col gap-2.5">
                     {group.dishes.map((dish) => (
                       <DishCard
                         key={dish.id}
                         dish={dish}
+                        rating={avgRating(allRatings[dish.id] ?? {})}
+                        ratingCount={Object.keys(allRatings[dish.id] ?? {}).length}
                         onOpen={setSelected}
                       />
                     ))}
@@ -384,7 +549,12 @@ export default function MensaPage() {
         </div>
 
         {selected && (
-          <DishDetail dish={selected} onClose={() => setSelected(null)} />
+          <DishDetail
+            dish={selected}
+            stableUid={stableUid}
+            onClose={() => setSelected(null)}
+            onRated={handleRated}
+          />
         )}
       </div>
     </AuthGuard>

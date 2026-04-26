@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -23,7 +22,7 @@
   --orange: #F97316;
 
   /* Layout */
-  --sidebar-w: 260px;
+  --sidebar-w: 280px;
   --sidebar-collapsed-w: 72px;
   --topbar-h: 64px;
   --nav-h: 0px;
@@ -70,7 +69,7 @@ html {
 body {
   background-color: var(--app-bg);
   color: var(--app-text-primary);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--font-inter, 'Inter'), -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   min-height: 100%;
 }
 
@@ -155,9 +154,14 @@ body {
   -webkit-backdrop-filter: blur(20px);
 }
 
-/* Focus ring */
-:focus-visible {
+/* Focus ring — only for keyboard navigation, not for inputs (they handle focus via their wrapper) */
+:focus-visible:not(input):not(textarea):not(select) {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: 6px;
+}
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
 }

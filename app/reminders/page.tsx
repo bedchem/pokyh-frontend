@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, ChevronRight, Plus, Bell, Trash2, BellOff, Users, LogIn } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Bell, Trash2, BellOff, Users, LogIn, Calendar } from 'lucide-react';
+import DateTimePicker from '@/components/ui/DateTimePicker';
 import {
   collection,
   onSnapshot,
@@ -61,12 +62,14 @@ export default function RemindersPage() {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
   const [members, setMembers] = useState<ClassMember[]>([]);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [due, setDue] = useState('');
   const [saving, setSaving] = useState(false);
+  const [addError, setAddError] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -117,6 +120,7 @@ export default function RemindersPage() {
   async function addReminder() {
     if (!title.trim() || !due || !classId || !stableUid || !user) return;
     setSaving(true);
+    setAddError('');
     try {
       await addDoc(collection(db, 'classes', classId, 'reminders'), {
         title: title.trim(),
@@ -128,8 +132,9 @@ export default function RemindersPage() {
         createdAt: serverTimestamp(),
       });
       setTitle(''); setBody(''); setDue(''); setShowAdd(false);
-    } catch (e) {
-      console.error(e);
+    } catch (e: unknown) {
+      console.error('[reminders] addDoc error:', e);
+      setAddError(e instanceof Error ? e.message : 'Fehler beim Speichern. Bitte erneut versuchen.');
     } finally {
       setSaving(false);
     }
@@ -279,13 +284,31 @@ export default function RemindersPage() {
                   className="w-full rounded-xl px-4 py-3 text-[15px] outline-none"
                   style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)' }}
                 />
-                <input
-                  type="datetime-local"
-                  value={due}
-                  onChange={(e) => setDue(e.target.value)}
-                  className="w-full rounded-xl px-4 py-3 text-[15px] outline-none"
-                  style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)' }}
-                />
+                <button
+                  type="button"
+                  onClick={() => setShowDatePicker(true)}
+                  className="w-full rounded-xl px-4 py-3 text-[15px] text-left flex items-center gap-3 press-scale"
+                  style={{
+                    background: 'var(--app-card)',
+                    color: due ? 'var(--app-text-primary)' : 'var(--app-text-tertiary)',
+                    border: `1.5px solid ${due ? 'var(--accent)' : 'transparent'}`,
+                  }}
+                >
+                  <Calendar size={16} color={due ? 'var(--accent)' : 'var(--app-text-tertiary)'} />
+                  {due
+                    ? (() => {
+                        const d = new Date(due);
+                        return d.toLocaleDateString('de', { weekday: 'short', day: 'numeric', month: 'short' }) +
+                          ' · ' + d.toLocaleTimeString('de', { hour: '2-digit', minute: '2-digit' }) + ' Uhr';
+                      })()
+                    : 'Datum & Uhrzeit wählen *'
+                  }
+                </button>
+                {addError && (
+                  <p className="text-sm px-3 py-2.5 rounded-xl" style={{ background: 'color-mix(in srgb, var(--danger) 12%, transparent)', color: 'var(--danger)' }}>
+                    {addError}
+                  </p>
+                )}
                 <button
                   onClick={addReminder}
                   disabled={!title.trim() || !due || saving}
@@ -297,6 +320,15 @@ export default function RemindersPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={due}
+            onChange={(v) => setDue(v)}
+            onClose={() => setShowDatePicker(false)}
+            title="Erinnerungszeitpunkt"
+          />
         )}
 
         {/* Class members sheet */}
