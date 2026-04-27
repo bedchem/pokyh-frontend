@@ -27,18 +27,20 @@ export const metadata: Metadata = {
     template: '%s | POKYH',
   },
   description:
-    'POKYH ist die offizielle Web-App für LBS Brixen Schüler. Stundenplan, Noten, Mensa, Abwesenheiten und Nachrichten – alles über deinen WebUntis-Account.',
+    'POKYH ist die kostenlose Web-App für LBS Brixen Schüler. Stundenplan, Noten, Mensa, Abwesenheiten und Nachrichten – alles über deinen WebUntis-Account.',
   keywords: [
     'POKYH', 'LBS Brixen', 'Schulapp', 'WebUntis LBS Brixen',
-    'Stundenplan Brixen', 'Noten LBS Brixen', 'Mensa LBS Brixen',
+    'Stundenplan LBS Brixen', 'Noten LBS Brixen', 'Mensa LBS Brixen',
     'Schule App Südtirol', 'LBS Brixen online', 'Berufsschule Brixen',
-    'Landesberufsschule Brixen', 'LBS Brixen App',
+    'Landesberufsschule Brixen', 'LBS Brixen App', 'Abwesenheiten LBS Brixen',
+    'Schulapp kostenlos Südtirol', 'WebUntis App Brixen',
   ],
-  authors: [{ name: 'POKYH Team', url: 'https://github.com/bedchem/POKYH' }],
-  creator: 'POKYH',
+  authors: [{ name: 'Felix Plattner', url: 'https://github.com/bedchem/POKYH' }],
+  creator: 'Felix Plattner',
   publisher: 'POKYH',
   applicationName: 'POKYH',
   generator: 'Next.js',
+  category: 'Education',
   alternates: {
     canonical: SITE_URL,
     languages: {
@@ -51,17 +53,18 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'de_IT',
+    alternateLocale: ['it_IT', 'de_DE'],
     url: SITE_URL,
     siteName: 'POKYH',
     title: 'POKYH – Schulapp LBS Brixen',
-    description: 'Stundenplan, Noten, Mensa und mehr für LBS Brixen Schüler.',
-    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'POKYH App' }],
+    description: 'Kostenlose Web-App für LBS Brixen Schüler: Stundenplan, Noten, Mensa, Abwesenheiten und Nachrichten über WebUntis.',
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'POKYH – Schulapp für LBS Brixen Schüler' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'POKYH – Schulapp LBS Brixen',
-    description: 'Stundenplan, Noten, Mensa und mehr für LBS Brixen Schüler.',
-    images: ['/og-image.png'],
+    description: 'Kostenlose Web-App für LBS Brixen Schüler: Stundenplan, Noten, Mensa und mehr.',
+    images: [{ url: '/og-image.png', alt: 'POKYH – Schulapp LBS Brixen' }],
   },
   manifest: '/manifest.json',
   icons: {
@@ -99,27 +102,50 @@ const structuredData = {
   alternateName: 'POKYH Schulapp LBS Brixen',
   url: SITE_URL,
   description:
-    'Schulapp für LBS Brixen Schüler mit Stundenplan, Noten, Mensa, Abwesenheiten und Nachrichten über WebUntis.',
+    'Kostenlose Web-App für Schülerinnen und Schüler der LBS Brixen mit Stundenplan, Noten, Mensa, Abwesenheiten, Nachrichten und Klassen-Erinnerungen über WebUntis.',
   applicationCategory: 'EducationalApplication',
   operatingSystem: 'Web',
   browserRequirements: 'Requires JavaScript. Requires a modern browser.',
-  inLanguage: 'de',
+  inLanguage: ['de', 'it'],
+  softwareVersion: '1.0',
+  featureList: [
+    'Stundenplan (Wochenansicht, Prüfungen, Vertretungen)',
+    'Noten & Notensimulator',
+    'Mensa-Speiseplan mit Nährwerten',
+    'Nachrichten-Inbox mit Anhängen',
+    'Abwesenheiten & Fehlstunden',
+    'Klassen-Erinnerungen & Hausaufgaben',
+    'Persönliche Todo-Liste',
+    'Dunkelmodus',
+  ],
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
   author: {
-    '@type': 'Organization',
-    name: 'POKYH',
-    url: 'https://github.com/bedchem/POKYH',
+    '@type': 'Person',
+    name: 'Felix Plattner',
+    url: 'https://github.com/bedchem',
+    sameAs: ['https://github.com/bedchem'],
   },
+  maintainer: {
+    '@type': 'Person',
+    name: 'Felix Plattner',
+    url: 'https://github.com/bedchem',
+  },
+  sameAs: ['https://github.com/bedchem/POKYH', 'https://github.com/bedchem/pocky-web'],
   educationalUse: 'Student information system',
   audience: {
     '@type': 'EducationalAudience',
     educationalRole: 'student',
+    educationalAlignment: {
+      '@type': 'AlignmentObject',
+      alignmentType: 'educationalSubject',
+      targetName: 'Landesberufsschule Brixen',
+    },
   },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="de" className={inter.variable} suppressHydrationWarning>
+    <html lang="de-IT" className={inter.variable} suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
