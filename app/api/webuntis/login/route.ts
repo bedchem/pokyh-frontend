@@ -30,13 +30,13 @@ function isRateLimited(ip: string): boolean {
   return false;
 }
 
-// Session cookies — 30-minute expiry
+// Session cookies — 4-hour expiry
 const COOKIE_OPTS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'strict' as const,
   path: '/',
-  maxAge: 30 * 60, // 30 minutes
+  maxAge: 4 * 60 * 60, // 4 hours
 };
 
 export async function POST(req: NextRequest) {

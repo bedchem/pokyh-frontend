@@ -1,14 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, Paperclip, Inbox } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Paperclip, Inbox, CheckCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
 import EmptyView from '@/components/ui/EmptyView';
-import { fetchMessages } from '@/lib/api';
+import { fetchMessages, markAllMessagesRead } from '@/lib/api';
 import type { MessagePreview } from '@/lib/types';
 
 function senderColor(name: string): string {
@@ -82,6 +82,7 @@ export default function MessagesPage() {
   const [messages, setMessages] = useState<MessagePreview[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [markingAll, setMarkingAll] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -104,6 +105,16 @@ export default function MessagesPage() {
     load();
   }, [load]);
 
+  const unreadIds = messages.filter((m) => !m.isRead).map((m) => m.id);
+
+  async function handleMarkAllRead() {
+    if (!unreadIds.length || markingAll) return;
+    setMarkingAll(true);
+    await markAllMessagesRead(unreadIds);
+    setMessages((prev) => prev.map((m) => ({ ...m, isRead: true })));
+    setMarkingAll(false);
+  }
+
   return (
     <AuthGuard>
       <div
@@ -125,6 +136,17 @@ export default function MessagesPage() {
           >
             Nachrichten
           </h1>
+          {unreadIds.length > 0 && (
+            <button
+              onClick={handleMarkAllRead}
+              disabled={markingAll}
+              className="flex items-center gap-1.5 px-3 h-9 rounded-xl text-sm font-medium press-scale disabled:opacity-50"
+              style={{ background: 'var(--app-surface)', color: 'var(--accent)' }}
+            >
+              {markingAll ? <Spinner size={14} /> : <CheckCheck size={16} />}
+              {!markingAll && 'Alle lesen'}
+            </button>
+          )}
         </div>
 
         <div className="flex-1 overflow-auto pb-8">

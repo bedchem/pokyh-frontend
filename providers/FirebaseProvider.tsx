@@ -29,6 +29,7 @@ interface FirebaseCtx {
   stableUid: string | null;
   classId: string | null;
   ready: boolean;
+  retryInit: () => void;
 }
 
 const Ctx = createContext<FirebaseCtx>({
@@ -36,6 +37,7 @@ const Ctx = createContext<FirebaseCtx>({
   stableUid: null,
   classId: null,
   ready: false,
+  retryInit: () => {},
 });
 
 function generateId(): string {
@@ -179,6 +181,13 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const retryInit = useCallback(() => {
+    if (!user) return;
+    setReady(false);
+    setClassId(null);
+    init(user.username, user.klasseId, user.klasseName);
+  }, [user, init]);
+
   useEffect(() => {
     if (!user) return;
 
@@ -196,7 +205,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   }, [user, init]);
 
   return (
-    <Ctx.Provider value={{ firebaseUid, stableUid, classId, ready }}>
+    <Ctx.Provider value={{ firebaseUid, stableUid, classId, ready, retryInit }}>
       {children}
     </Ctx.Provider>
   );

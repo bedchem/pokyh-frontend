@@ -154,6 +154,21 @@ body {
   -webkit-backdrop-filter: blur(20px);
 }
 
+/* Message HTML body — prose-like styles for rendered HTML from WebUntis */
+.message-html-body p { margin-bottom: 0.75em; }
+.message-html-body p:last-child { margin-bottom: 0; }
+.message-html-body br { display: block; content: ''; margin-top: 0.25em; }
+.message-html-body b, .message-html-body strong { font-weight: 600; }
+.message-html-body i, .message-html-body em { font-style: italic; }
+.message-html-body ul { list-style: disc; padding-left: 1.25em; margin-bottom: 0.75em; }
+.message-html-body ol { list-style: decimal; padding-left: 1.25em; margin-bottom: 0.75em; }
+.message-html-body li { margin-bottom: 0.2em; }
+.message-html-body a { color: var(--accent); text-decoration: underline; cursor: pointer; }
+.message-html-body h1, .message-html-body h2, .message-html-body h3 { font-weight: 700; margin-bottom: 0.5em; }
+.message-html-body h1 { font-size: 1.2em; }
+.message-html-body h2 { font-size: 1.1em; }
+.message-html-body h3 { font-size: 1em; }
+
 /* Focus ring — only for keyboard navigation, not for inputs (they handle focus via their wrapper) */
 :focus-visible:not(input):not(textarea):not(select) {
   outline: 2px solid var(--accent);

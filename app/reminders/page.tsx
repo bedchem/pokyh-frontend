@@ -57,8 +57,8 @@ function timeUntil(date: Date): string {
 
 export default function RemindersPage() {
   const router = useRouter();
-  const { user } = useSession();
-  const { classId, stableUid, ready } = useFirebase();
+  const { user, logout } = useSession();
+  const { classId, stableUid, ready, retryInit } = useFirebase();
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -211,16 +211,26 @@ export default function RemindersPage() {
                 Klasse nicht gefunden
               </p>
               <p className="text-sm" style={{ color: 'var(--app-text-secondary)' }}>
-                Deine Klasse wird automatisch synchronisiert. Bitte neu anmelden.
+                Synchronisierung fehlgeschlagen. Versuche es erneut oder melde dich neu an.
               </p>
-              <button
-                onClick={() => router.replace('/login')}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm press-scale"
-                style={{ background: 'var(--accent)', color: '#fff' }}
-              >
-                <LogIn size={16} />
-                Neu anmelden
-              </button>
+              <div className="flex flex-col gap-2 w-full max-w-xs">
+                <button
+                  onClick={retryInit}
+                  className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm press-scale"
+                  style={{ background: 'var(--accent)', color: '#fff' }}
+                >
+                  <Users size={16} />
+                  Erneut versuchen
+                </button>
+                <button
+                  onClick={() => logout()}
+                  className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm press-scale"
+                  style={{ background: 'var(--app-surface)', color: 'var(--app-text-primary)' }}
+                >
+                  <LogIn size={16} />
+                  Neu anmelden
+                </button>
+              </div>
             </div>
           ) : reminders.length === 0 ? (
             <EmptyView

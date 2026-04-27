@@ -587,11 +587,10 @@ export default function TimetablePage() {
     return Math.max(min, Math.min(max, n));
   }
 
-  // Time labels every 50 minutes (one lesson block)
-  const timeLabels: number[] = [];
-  for (let m = minMins; m <= maxMins; m += 50) {
-    timeLabels.push(m);
-  }
+  // Time labels at each unique lesson start time so they align perfectly with lesson blocks
+  const timeLabels: number[] = entries.length
+    ? [...new Set(entries.map((e) => timeToMinutes(e.startTime)))].sort((a, b) => a - b)
+    : [];
 
   return (
     <AuthGuard>
@@ -608,6 +607,7 @@ export default function TimetablePage() {
         <div className="px-5 pt-4 pb-3 fade-in flex-shrink-0">
           <div className="flex items-center justify-between">
             <button
+              onPointerDown={(e) => e.stopPropagation()}
               onClick={() => setWeekOffset((o) => o - 1)}
               className="p-2 rounded-full press-scale"
               style={{ background: 'var(--app-surface)' }}
@@ -622,6 +622,7 @@ export default function TimetablePage() {
               {format(addDays(monday, 4), 'd. MMM yyyy', { locale: de })}
             </span>
             <button
+              onPointerDown={(e) => e.stopPropagation()}
               onClick={() => setWeekOffset((o) => o + 1)}
               className="p-2 rounded-full press-scale"
               style={{ background: 'var(--app-surface)' }}

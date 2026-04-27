@@ -8,19 +8,20 @@ import {
   Archive,
   Film,
   File,
-  Download,
+  Music,
   X,
   AlertTriangle,
   ExternalLink,
+  Paperclip,
+  RefreshCw,
+  ArrowUpRight,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
-import { fetchMessageDetail, markMessageRead, getAttachmentUrl } from '@/lib/api';
-import type { MessageDetail } from '@/lib/types';
-
-const URL_REGEX = /(https?:\/\/[^\s<>"{}|\\^`[\]]+)/g;
+import { fetchMessageDetail, fetchMessageAttachments, markMessageRead, getAttachmentUrl } from '@/lib/api';
+import type { MessageDetail, MessageAttachment } from '@/lib/types';
 
 function senderColor(name: string): string {
   let hash = 0;
@@ -42,22 +43,43 @@ function formatDate(dateStr: string): string {
   }
 }
 
-function htmlToText(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n')
-    .replace(/<\/div>/gi, '\n')
-    .replace(/<\/li>/gi, '\n')
-    .replace(/<\/h[1-6]>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+const URL_REGEX = /(https?:\/\/[^\s<>"{}|\\^`[\]]+)/g;
+
+function sanitizeMessageHtml(raw: string): string {
+  if (!raw) return '';
+  if (typeof window === 'undefined') return raw.replace(/<[^>]+>/g, '').trim();
+
+  const looksLikeHtml = /<[a-z][^>]*>/i.test(raw);
+  let html: string;
+  if (looksLikeHtml) {
+    html = raw;
+  } else {
+    html = raw
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\n/g, '<br>')
+      .replace(URL_REGEX, '<a href="$1">$1</a>');
+  }
+
+  try {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    for (const tag of ['script', 'style', 'iframe', 'object', 'embed', 'form', 'meta', 'link', 'input', 'button']) {
+      doc.querySelectorAll(tag).forEach((el) => el.remove());
+    }
+    doc.body.querySelectorAll('*').forEach((el) => {
+      const toRemove = [...el.attributes].filter((a) => {
+        if (a.name.startsWith('on')) return true;
+        if (a.name === 'style') return true;
+        if ((a.name === 'href' || a.name === 'src') && /^javascript:/i.test(a.value.trim())) return true;
+        return false;
+      });
+      toRemove.forEach((a) => el.removeAttribute(a.name));
+    });
+    return doc.body.innerHTML;
+  } catch {
+    return raw.replace(/<[^>]+>/g, '').replace(/\n/g, '<br>');
+  }
 }
 
 function parseMessageDetail(json: unknown): MessageDetail | null {
@@ -87,7 +109,10 @@ function parseMessageDetail(json: unknown): MessageDetail | null {
       '';
 
     const rawAttachments =
-      (msg.attachments as Array<Record<string, unknown>>) ?? [];
+      (msg.attachments as Array<Record<string, unknown>>) ??
+      (msg.messageFile as Array<Record<string, unknown>>) ??
+      (msg.files as Array<Record<string, unknown>>) ??
+      [];
     const attachments = rawAttachments.map((a) => ({
       id: a.id as number,
       storageId: (a.storageId as string) ?? '',
@@ -103,7 +128,7 @@ function parseMessageDetail(json: unknown): MessageDetail | null {
       senderId: (sender?.userId as number) ?? 0,
       sentDate,
       isRead: true,
-      hasAttachments: attachments.length > 0,
+      hasAttachments: (msg.hasAttachments as boolean) ?? attachments.length > 0,
       body: (msg.body as string) ?? (msg.content as string) ?? '',
       attachments,
     };
@@ -112,19 +137,53 @@ function parseMessageDetail(json: unknown): MessageDetail | null {
   }
 }
 
-function attachmentMeta(name: string): { icon: React.ReactNode; type: 'image' | 'pdf' | 'other' } {
-  const ext = name.split('.').pop()?.toLowerCase() ?? '';
-  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'heic'].includes(ext))
-    return { icon: <ImageIcon size={18} color="var(--accent)" />, type: 'image' };
-  if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext))
-    return { icon: <Archive size={18} color="var(--orange)" />, type: 'other' };
-  if (['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext))
-    return { icon: <Film size={18} color="var(--accent-soft)" />, type: 'other' };
-  if (['pdf'].includes(ext))
-    return { icon: <FileText size={18} color="var(--danger)" />, type: 'pdf' };
-  if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'].includes(ext))
-    return { icon: <FileText size={18} color="var(--accent)" />, type: 'other' };
-  return { icon: <File size={18} color="var(--app-text-secondary)" />, type: 'other' };
+function parseAttachmentsFallback(json: unknown): MessageAttachment[] {
+  try {
+    const root = json as Record<string, unknown>;
+    // Try various wrapper keys
+    const arr =
+      (root?.attachments as unknown[]) ??
+      (root?.messageFile as unknown[]) ??
+      (root?.files as unknown[]) ??
+      (root?.fileAttachments as unknown[]) ??
+      (Array.isArray(root) ? (root as unknown[]) : null) ??
+      [];
+    return (arr as Record<string, unknown>[]).map((a) => ({
+      id: a.id as number,
+      storageId: (a.storageId as string) ?? '',
+      name: (a.name as string) ?? 'Anhang',
+      size: (a.size as number) ?? 0,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+interface FileStyle {
+  icon: React.ReactNode;
+  color: string;
+  type: 'image' | 'pdf' | 'other';
+}
+
+function getFileStyle(name: string): FileStyle {
+  const n = name.toLowerCase();
+  if (n.endsWith('.pdf'))
+    return { icon: <FileText size={22} />, color: '#E53935', type: 'pdf' };
+  if (['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.heic'].some((e) => n.endsWith(e)))
+    return { icon: <ImageIcon size={22} />, color: '#1E88E5', type: 'image' };
+  if (['.doc', '.docx'].some((e) => n.endsWith(e)))
+    return { icon: <FileText size={22} />, color: '#1565C0', type: 'other' };
+  if (['.xls', '.xlsx'].some((e) => n.endsWith(e)))
+    return { icon: <FileText size={22} />, color: '#2E7D32', type: 'other' };
+  if (['.ppt', '.pptx'].some((e) => n.endsWith(e)))
+    return { icon: <FileText size={22} />, color: '#E65100', type: 'other' };
+  if (['.zip', '.rar', '.7z', '.tar', '.gz'].some((e) => n.endsWith(e)))
+    return { icon: <Archive size={22} />, color: '#6D4C41', type: 'other' };
+  if (['.mp4', '.mov', '.avi', '.mkv', '.webm'].some((e) => n.endsWith(e)))
+    return { icon: <Film size={22} />, color: '#6A1B9A', type: 'other' };
+  if (['.mp3', '.m4a', '.wav'].some((e) => n.endsWith(e)))
+    return { icon: <Music size={22} />, color: '#AD1457', type: 'other' };
+  return { icon: <File size={22} />, color: 'var(--accent)', type: 'other' };
 }
 
 function formatFileSize(bytes: number): string {
@@ -132,29 +191,6 @@ function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.ceil(bytes / 1024)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-// Render text with clickable URL segments
-function TextWithLinks({ text, onLink }: { text: string; onLink: (url: string) => void }) {
-  const parts = text.split(URL_REGEX);
-  return (
-    <>
-      {parts.map((part, i) =>
-        URL_REGEX.test(part) ? (
-          <button
-            key={i}
-            onClick={() => onLink(part)}
-            className="underline break-all text-left"
-            style={{ color: 'var(--accent)', background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer' }}
-          >
-            {part}
-          </button>
-        ) : (
-          <span key={i}>{part}</span>
-        )
-      )}
-    </>
-  );
 }
 
 export default function MessageDetailPage({
@@ -167,17 +203,48 @@ export default function MessageDetailPage({
   const [msg, setMsg] = useState<MessageDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Attachment fallback state (null = not yet attempted)
+  const [loadedAttachments, setLoadedAttachments] = useState<MessageAttachment[] | null>(null);
+  const [attachmentsLoading, setAttachmentsLoading] = useState(false);
+  const [attachmentsFetchFailed, setAttachmentsFetchFailed] = useState(false);
+
   const [linkWarning, setLinkWarning] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ url: string; name: string; type: 'image' | 'pdf' | 'other' } | null>(null);
+
+  const fetchFallbackAttachments = useCallback(async (msgId: number) => {
+    setAttachmentsLoading(true);
+    setAttachmentsFetchFailed(false);
+    try {
+      const data = await fetchMessageAttachments(msgId);
+      const list = parseAttachmentsFallback(data);
+      if (list.length > 0) {
+        setLoadedAttachments(list);
+      } else {
+        setAttachmentsFetchFailed(true);
+      }
+    } catch {
+      setAttachmentsFetchFailed(true);
+    } finally {
+      setAttachmentsLoading(false);
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
+    setLoadedAttachments(null);
+    setAttachmentsFetchFailed(false);
     try {
       const data = await fetchMessageDetail(parseInt(id));
       const parsed = parseMessageDetail(data);
       setMsg(parsed);
       markMessageRead(parseInt(id)).catch(() => {});
+
+      // Fallback: detail returned no attachments but message has them
+      if (parsed && parsed.attachments.length === 0 && parsed.hasAttachments) {
+        fetchFallbackAttachments(parsed.id);
+      }
     } catch (e: unknown) {
       if (e instanceof Error && e.message === 'session_expired') {
         router.replace('/login');
@@ -187,15 +254,26 @@ export default function MessageDetailPage({
     } finally {
       setLoading(false);
     }
-  }, [id, router]);
+  }, [id, router, fetchFallbackAttachments]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  function openAttachment(att: { id: number; storageId: string; name: string; size: number }) {
+  // Effective attachment list: from detail or from fallback
+  const attachments: MessageAttachment[] =
+    msg && msg.attachments.length > 0
+      ? msg.attachments
+      : loadedAttachments ?? [];
+
+  const showAttachmentSection =
+    attachments.length > 0 ||
+    attachmentsLoading ||
+    (msg?.hasAttachments && (attachmentsFetchFailed || loadedAttachments === null));
+
+  function openAttachment(att: MessageAttachment) {
     const url = getAttachmentUrl(msg!.id, att.storageId, att.name, att.id);
-    const { type } = attachmentMeta(att.name);
+    const { type } = getFileStyle(att.name);
     if (type === 'image' || type === 'pdf') {
       setPreview({ url, name: att.name, type });
     } else {
@@ -234,22 +312,25 @@ export default function MessageDetailPage({
           ) : error ? (
             <ErrorView message={error} onRetry={load} />
           ) : msg ? (
-            <div className="flex flex-col gap-4">
-              {/* Header card */}
+            <div className="flex flex-col gap-3">
+              {/* Header card: subject + sender */}
               <div
                 className="rounded-2xl p-4 fade-in delay-1"
                 style={{ background: 'var(--app-surface)' }}
               >
                 <p
-                  className="text-[17px] font-bold mb-3"
-                  style={{ color: 'var(--app-text-primary)' }}
+                  className="text-[20px] font-bold mb-3 leading-tight"
+                  style={{ color: 'var(--app-text-primary)', letterSpacing: '-0.3px' }}
                 >
                   {msg.subject}
                 </p>
                 <div className="flex items-center gap-3">
                   <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
-                    style={{ background: senderColor(msg.senderName) }}
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
+                    style={{
+                      background: `color-mix(in srgb, ${senderColor(msg.senderName)} 15%, transparent)`,
+                      color: senderColor(msg.senderName),
+                    }}
                   >
                     {msg.senderName.slice(0, 1).toUpperCase()}
                   </div>
@@ -262,7 +343,7 @@ export default function MessageDetailPage({
                     </p>
                     <p
                       className="text-xs"
-                      style={{ color: 'var(--app-text-tertiary)' }}
+                      style={{ color: 'var(--app-text-secondary)' }}
                     >
                       {formatDate(msg.sentDate)}
                     </p>
@@ -270,64 +351,160 @@ export default function MessageDetailPage({
                 </div>
               </div>
 
-              {/* Body */}
+              {/* Body + Attachments — one card (mail-app style) */}
               <div
-                className="rounded-2xl p-5 fade-in delay-2"
+                className="rounded-2xl overflow-hidden fade-in delay-2"
                 style={{ background: 'var(--app-surface)' }}
               >
-                <p
-                  className="text-[15px] leading-relaxed whitespace-pre-wrap"
-                  style={{ color: 'var(--app-text-primary)' }}
-                >
-                  <TextWithLinks text={htmlToText(msg.body ?? '')} onLink={setLinkWarning} />
-                </p>
-              </div>
+                {/* Body */}
+                {msg.body ? (
+                  /* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */
+                  <div
+                    className="message-html-body text-[15px] leading-relaxed px-4"
+                    style={{
+                      color: 'var(--app-text-primary)',
+                      paddingTop: 16,
+                      paddingBottom: showAttachmentSection ? 12 : 16,
+                    }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeMessageHtml(msg.body) }}
+                    onClick={(e) => {
+                      const anchor = (e.target as HTMLElement).closest('a');
+                      if (!anchor) return;
+                      e.preventDefault();
+                      const href = anchor.getAttribute('href') ?? '';
+                      if (href) setLinkWarning(href);
+                    }}
+                  />
+                ) : null}
 
-              {/* Attachments */}
-              {msg.attachments?.length > 0 && (
-                <div
-                  className="rounded-2xl overflow-hidden fade-in delay-3"
-                  style={{ background: 'var(--app-surface)' }}
-                >
-                  <p
-                    className="px-4 pt-4 pb-2 text-xs font-semibold uppercase tracking-wider"
-                    style={{ color: 'var(--app-text-secondary)' }}
-                  >
-                    Anhänge ({msg.attachments.length})
-                  </p>
-                  {msg.attachments.map((att, i) => {
-                    const { icon } = attachmentMeta(att.name);
-                    return (
-                      <button
-                        key={att.id}
-                        onClick={() => openAttachment(att)}
-                        className="px-4 py-3 flex items-center gap-3 press-scale w-full text-left"
-                        style={{
-                          borderTop: i > 0 ? '1px solid var(--app-separator)' : 'none',
-                          background: 'none',
-                        }}
-                      >
-                        <div className="flex-shrink-0">{icon}</div>
-                        <p
-                          className="flex-1 text-sm truncate"
-                          style={{ color: 'var(--app-text-primary)' }}
+                {/* Divider */}
+                {showAttachmentSection && msg.body ? (
+                  <div style={{ height: 1, background: 'var(--app-separator)', opacity: 0.5 }} />
+                ) : null}
+
+                {/* Attachment section */}
+                {showAttachmentSection && (
+                  <div>
+                    {/* Header row */}
+                    <div className="flex items-center gap-1.5 px-4 pt-2.5 pb-1.5">
+                      <Paperclip size={13} color="var(--app-text-tertiary)" />
+                      {attachmentsLoading ? (
+                        <>
+                          <Spinner size={10} />
+                          <span className="text-xs" style={{ color: 'var(--app-text-tertiary)' }}>
+                            Anhänge werden geladen…
+                          </span>
+                        </>
+                      ) : attachments.length > 0 ? (
+                        <span
+                          className="text-xs font-semibold"
+                          style={{ color: 'var(--app-text-tertiary)', letterSpacing: '0.2px' }}
                         >
-                          {att.name}
-                        </p>
-                        {att.size > 0 && (
-                          <p
-                            className="text-xs flex-shrink-0"
-                            style={{ color: 'var(--app-text-tertiary)' }}
+                          {attachments.length === 1 ? '1 Anhang' : `${attachments.length} Anhänge`}
+                        </span>
+                      ) : (
+                        <span
+                          className="text-xs font-semibold"
+                          style={{ color: 'var(--app-text-tertiary)' }}
+                        >
+                          Anhang vorhanden
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Attachment tiles */}
+                    {attachments.length > 0 && (
+                      <div className="px-3 pb-3 flex flex-col gap-1.5">
+                        {attachments.map((att) => {
+                          const { icon, color, type } = getFileStyle(att.name);
+                          const url = getAttachmentUrl(msg.id, att.storageId, att.name, att.id);
+                          return (
+                            <button
+                              key={att.id ?? att.storageId}
+                              onClick={() => openAttachment(att)}
+                              className="flex items-center gap-3 rounded-xl px-2.5 py-2.5 press-scale w-full text-left"
+                              style={{ background: 'var(--app-bg)' }}
+                            >
+                              {/* Colored file-type icon box */}
+                              <div
+                                className="flex items-center justify-center rounded-xl flex-shrink-0"
+                                style={{
+                                  width: 44,
+                                  height: 44,
+                                  background: `${color}1f`,
+                                  color,
+                                }}
+                              >
+                                {icon}
+                              </div>
+
+                              {/* Name + size */}
+                              <div className="flex-1 min-w-0">
+                                <p
+                                  className="text-sm font-medium leading-snug"
+                                  style={{ color: 'var(--app-text-primary)' }}
+                                >
+                                  {att.name}
+                                </p>
+                                {att.size > 0 && (
+                                  <p
+                                    className="text-xs mt-0.5"
+                                    style={{ color: 'var(--app-text-tertiary)' }}
+                                  >
+                                    {formatFileSize(att.size)}
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Open icon */}
+                              <ArrowUpRight size={22} color="var(--accent)" style={{ flexShrink: 0 }} />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Retry button */}
+                    {attachmentsFetchFailed && attachments.length === 0 && !attachmentsLoading && (
+                      <div className="px-3 pb-3">
+                        <button
+                          onClick={() => fetchFallbackAttachments(msg.id)}
+                          className="flex items-center gap-3 rounded-xl px-3.5 py-3.5 press-scale w-full text-left"
+                          style={{ background: 'var(--app-bg)' }}
+                        >
+                          <div
+                            className="flex items-center justify-center rounded-xl flex-shrink-0"
+                            style={{
+                              width: 44,
+                              height: 44,
+                              background: 'color-mix(in srgb, var(--accent) 12%, transparent)',
+                            }}
                           >
-                            {formatFileSize(att.size)}
-                          </p>
-                        )}
-                        <Download size={14} color="var(--accent)" style={{ flexShrink: 0 }} />
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+                            <ArrowUpRight size={22} color="var(--accent)" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium" style={{ color: 'var(--accent)' }}>
+                              Anhang laden
+                            </p>
+                            <p className="text-xs mt-0.5" style={{ color: 'var(--app-text-tertiary)' }}>
+                              Tippen zum erneuten Laden
+                            </p>
+                          </div>
+                          <RefreshCw size={18} color="var(--accent)" style={{ flexShrink: 0 }} />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Bottom padding when loading or empty-not-failed */}
+                    {(attachmentsLoading || (attachments.length === 0 && !attachmentsFetchFailed)) && (
+                      <div style={{ height: 8 }} />
+                    )}
+                  </div>
+                )}
+
+                {/* Bottom padding when no attachments at all */}
+                {!showAttachmentSection && !msg.body && <div style={{ height: 16 }} />}
+              </div>
             </div>
           ) : null}
         </div>
@@ -370,7 +547,7 @@ export default function MessageDetailPage({
             <div className="flex gap-3">
               <button
                 onClick={() => setLinkWarning(null)}
-                className="flex-1 py-3 rounded-xl font-medium text-sm transition-opacity hover:opacity-70"
+                className="flex-1 py-3 rounded-xl font-medium text-sm"
                 style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)' }}
               >
                 Abbrechen
@@ -397,7 +574,6 @@ export default function MessageDetailPage({
           className="fixed inset-0 z-50 flex flex-col"
           style={{ background: 'rgba(0,0,0,0.92)' }}
         >
-          {/* Toolbar */}
           <div className="flex items-center justify-between px-4 py-3 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
             <p className="text-sm font-medium text-white/80 truncate flex-1 mr-4">{preview.name}</p>
             <div className="flex items-center gap-2">
@@ -407,7 +583,6 @@ export default function MessageDetailPage({
                 rel="noopener noreferrer"
                 className="p-2 rounded-xl press-scale"
                 style={{ background: 'rgba(255,255,255,0.1)' }}
-                title="In neuem Tab öffnen"
               >
                 <ExternalLink size={16} color="white" />
               </a>
@@ -420,8 +595,6 @@ export default function MessageDetailPage({
               </button>
             </div>
           </div>
-
-          {/* Content */}
           <div className="flex-1 overflow-hidden flex items-center justify-center p-4">
             {preview.type === 'image' ? (
               // eslint-disable-next-line @next/next/no-img-element

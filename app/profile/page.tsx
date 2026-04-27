@@ -1,13 +1,21 @@
 'use client';
 
-import { useState } from 'react';
-import { ChevronLeft, LogOut, Moon, Sun, Monitor, Check } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ChevronLeft, LogOut, Moon, Sun, Monitor, Check, Key, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
 import { useSession } from '@/providers/SessionProvider';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useFirebase } from '@/providers/FirebaseProvider';
+import {
+  isPasswordCredentialSupported,
+  hasDeclinedPasskey,
+  setPasskeyDeclined,
+  clearPasskeyDeclined,
+  getSessionCredentials,
+  storePasswordCredential,
+} from '@/lib/passkey';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -95,6 +103,100 @@ const THEME_OPTS: {
 ];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
+
+function PasskeySection() {
+  const supported = isPasswordCredentialSupported();
+  const [declined, setDeclined] = useState(() => hasDeclinedPasskey());
+  const [saving, setSaving] = useState(false);
+  const [saveResult, setSaveResult] = useState<'success' | 'error' | null>(null);
+  const hasCreds = !!getSessionCredentials();
+
+  useEffect(() => {
+    setDeclined(hasDeclinedPasskey());
+  }, []);
+
+  async function handleSave() {
+    const creds = getSessionCredentials();
+    if (!creds) return;
+    setSaving(true);
+    setSaveResult(null);
+    const ok = await storePasswordCredential(creds.username, creds.password);
+    setSaveResult(ok ? 'success' : 'error');
+    setSaving(false);
+  }
+
+  if (!supported) {
+    return (
+      <div className="rounded-2xl px-4 py-3" style={{ background: 'var(--app-surface)' }}>
+        <p className="text-[14px]" style={{ color: 'var(--app-text-secondary)' }}>
+          Passkeys werden auf diesem Browser nicht unterstützt. Verwende Chrome oder Edge.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--app-surface)' }}>
+      {hasCreds ? (
+        <button
+          onClick={handleSave}
+          disabled={saving || saveResult === 'success'}
+          className="w-full px-4 flex items-center gap-3 press-scale disabled:opacity-60"
+          style={{ minHeight: 44, borderBottom: '1px solid var(--app-separator)' }}
+        >
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: 'color-mix(in srgb, var(--accent) 14%, transparent)' }}>
+            <Key size={16} color="var(--accent)" />
+          </div>
+          <span className="flex-1 text-left text-[15px]" style={{ color: 'var(--app-text-primary)' }}>
+            {saveResult === 'success' ? 'Gespeichert ✓' : saving ? 'Wird gespeichert…' : 'Passkey erstellen'}
+          </span>
+          {saving && <Spinner size={16} />}
+        </button>
+      ) : (
+        <div className="px-4 flex items-center gap-3" style={{ minHeight: 44, borderBottom: '1px solid var(--app-separator)' }}>
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: 'var(--app-card)' }}>
+            <Key size={16} color="var(--app-text-tertiary)" />
+          </div>
+          <span className="flex-1 text-[15px]" style={{ color: 'var(--app-text-secondary)' }}>
+            Passkey erstellen (neu anmelden)
+          </span>
+        </div>
+      )}
+
+      {declined ? (
+        <button
+          onClick={() => { clearPasskeyDeclined(); setDeclined(false); }}
+          className="w-full px-4 flex items-center gap-3 press-scale"
+          style={{ minHeight: 44 }}
+        >
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: 'color-mix(in srgb, var(--tint) 14%, transparent)' }}>
+            <Check size={16} color="var(--tint)" />
+          </div>
+          <span className="flex-1 text-left text-[15px]" style={{ color: 'var(--app-text-primary)' }}>
+            Wieder nach Passkey fragen
+          </span>
+        </button>
+      ) : (
+        <button
+          onClick={() => { setPasskeyDeclined(); setDeclined(true); }}
+          className="w-full px-4 flex items-center gap-3 press-scale"
+          style={{ minHeight: 44 }}
+        >
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: 'color-mix(in srgb, var(--danger) 12%, transparent)' }}>
+            <Trash2 size={16} color="var(--danger)" />
+          </div>
+          <span className="flex-1 text-left text-[15px]" style={{ color: 'var(--app-text-primary)' }}>
+            Nicht mehr nach Passkey fragen
+          </span>
+        </button>
+      )}
+    </div>
+  );
+}
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -222,8 +324,14 @@ export default function ProfilePage() {
               </div>
             </section>
 
-            {/* App info */}
+            {/* Passkey */}
             <section className="fade-in delay-3">
+              <SectionHeader label="Passkey / Anmeldedaten" />
+              <PasskeySection />
+            </section>
+
+            {/* App info */}
+            <section className="fade-in delay-4">
               <SectionHeader label="App" />
               <div
                 className="rounded-2xl overflow-hidden"
@@ -235,7 +343,7 @@ export default function ProfilePage() {
             </section>
 
             {/* Logout */}
-            <section className="fade-in delay-4">
+            <section className="fade-in delay-5">
               <div
                 className="rounded-2xl overflow-hidden"
                 style={{ background: 'var(--app-surface)' }}

@@ -24,6 +24,7 @@ export interface TimetableEntry {
   isSubstitution: boolean;
   isAdditional: boolean;
   originalSubject?: string;
+  originalSubjectLong?: string;
   originalTeacher?: string;
   originalRoom?: string;
   homeworkText?: string;
