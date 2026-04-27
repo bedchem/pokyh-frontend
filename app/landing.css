@@ -409,7 +409,8 @@ html:not(.dark) .lp-hero-glow {
 
 /* Phone portrait (≤ 680px) */
 @media (max-width: 680px) {
-  .lp-nav-links        { display: none; }
+  .lp-nav-links        { display: flex; align-items: center; gap: 14px; }
+  .lp-nav-link         { display: none; }
   .lp-hero-text        { padding: 60px 18px 48px; }
   .lp-hero-eyebrow     { font-size: 17px; }
   .lp-hero-sub         { font-size: clamp(16px,4.5vw,20px); }

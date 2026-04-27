@@ -349,7 +349,7 @@ export default function LandingClient() {
         </div>
         <div className="lp-steps-grid">
           {[
-            { num:'01', title:'Schule wählen',   body: <><strong>LBS Brixen</strong> — wird automatisch vorgeschlagen.</>,                                    rd:0   },
+            { num:'01', title:'BFS Tschuggmall',   body: <><strong>Momentan</strong> wird nur das Berufsbildungszentrum <strong>„Christian Josef Tschuggmall“</strong> unterstützt.</>,                                    rd:0   },
             { num:'02', title:'WebUntis‑Login',  body: <>Gib deinen <strong>WebUntis‑Benutzernamen</strong> und dein Passwort ein — wie in der WebUntis‑App.</>, rd:100 },
             { num:'03', title:'Loslegen',        body: <>Stundenplan, Noten und Mensa werden <strong>automatisch geladen</strong>.</>,                          rd:200 },
           ].map(({ num, title, body, rd }) => (

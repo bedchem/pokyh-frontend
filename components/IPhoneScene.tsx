@@ -144,7 +144,7 @@ export default function IPhoneScene({
     renderer.setClearColor(0x000000, 0);
 
     const camera = new THREE.PerspectiveCamera(26, 1, 0.1, 100);
-    camera.position.set(0, -0.17, 7.5);
+    camera.position.set(0, -0.17, 7.0);
     camera.lookAt(0, 0, 0);
 
     const scene = new THREE.Scene();
@@ -171,11 +171,20 @@ scene.environment = null;
     
     // diagonales Hintergrundlicht von hinten rechts oben
     const backLight = new THREE.DirectionalLight(0xfff4d8, 1);
-    backLight.position.set(4, 3, 0);
+    backLight.position.set(4, 3, -3);
     backLight.target.position.set(0, 0, 0);
-    scene.add(backLight);
     
-    scene.add(ambLight, fillLight, rimLight);
+    // zusätzliches Vorderlicht von vorne links
+    const frontLight = new THREE.DirectionalLight(0xffffff, 0.85);
+    frontLight.position.set(-1.5, 1.8, 4);
+    frontLight.target.position.set(0, 0, 0);
+
+    // Oberlicht von oben
+    const topLight = new THREE.DirectionalLight(0xffffff, 0.55);
+    topLight.position.set(0, 5, 2);
+    topLight.target.position.set(0, 0, 0);
+
+    scene.add(ambLight, fillLight, rimLight, backLight, frontLight, topLight);
 
     const screenTex = buildScreenTexture();
 
@@ -232,7 +241,7 @@ scene.environment = null;
 
         const pivot = new THREE.Group();
         pivot.add(model);
-        pivot.scale.setScalar(0.82);
+        pivot.scale.setScalar(0.92);
         scene.add(pivot);
         phone       = pivot;
         loadedModel = model;
@@ -295,7 +304,7 @@ scene.environment = null;
         phone.rotation.x  = Math.sin(rotFraction * Math.PI * 2) * 0.055;
 
         const entry = Math.min(1, smoothP / 0.30);
-        phone.scale.setScalar(0.82 + entry * 0.18);
+        phone.scale.setScalar(0.92 + entry * 0.18);
 
         const t = timer.getElapsed();
         phone.position.y = 0.32 + Math.sin(t * 0.75) * 0.026 * entry;
