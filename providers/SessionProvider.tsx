@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { logout as apiLogout } from '@/lib/api';
+import { clearSessionCredentials } from '@/lib/passkey';
 
 export interface UserInfo {
   username: string;
@@ -51,12 +52,23 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     refreshUser();
   }, [refreshUser]);
 
+  // Clear React state immediately when any API call detects session expiry
+  useEffect(() => {
+    const handler = () => {
+      setUser(null);
+      setIsLoading(false);
+    };
+    window.addEventListener('pockyh-session-expired', handler);
+    return () => window.removeEventListener('pockyh-session-expired', handler);
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await apiLogout();
     } catch {
       /* best effort */
     }
+    clearSessionCredentials();
     setUser(null);
     router.replace('/login');
   }, [router]);

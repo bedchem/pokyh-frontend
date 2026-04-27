@@ -30,13 +30,13 @@ function isRateLimited(ip: string): boolean {
   return false;
 }
 
-// Session cookies — 30-minute expiry
+// Session cookies — 4-hour expiry
 const COOKIE_OPTS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'strict' as const,
   path: '/',
-  maxAge: 30 * 60, // 30 minutes
+  maxAge: 4 * 60 * 60, // 4 hours
 };
 
 export async function POST(req: NextRequest) {
@@ -59,9 +59,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Ungültige Anfrage.' }, { status: 400 });
   }
 
-  const { username, password } = body;
+  const { username: rawUsername, password } = body;
+  // Normalise: trim + lowercase for all internal storage; WebUntis itself is case-insensitive
+  const username = rawUsername?.trim().toLowerCase() ?? '';
 
-  if (!username?.trim() || !password?.trim()) {
+  if (!username || !password?.trim()) {
     return NextResponse.json({ error: 'Benutzername und Passwort erforderlich.' }, { status: 400 });
   }
   if (username.length > 100 || password.length > 200) {
@@ -69,14 +71,14 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // 1. WebUntis JSON-RPC authentication
+    // 1. WebUntis JSON-RPC authentication (send lowercase — WebUntis accepts it)
     const rpcRes = await fetch(`${BASE}/jsonrpc.do?school=${SCHOOL}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         id: 'pockyh-web',
         method: 'authenticate',
-        params: { user: username.trim(), password, client: 'pockyh' },
+        params: { user: username, password, client: 'pockyh' },
         jsonrpc: '2.0',
       }),
       signal: AbortSignal.timeout(15000),
@@ -96,50 +98,35 @@ export async function POST(req: NextRequest) {
 
     const { personId: studentId, klasseId } = rpcJson.result;
 
-    // 2. Fetch bearer token
-    let bearerToken = '';
-    try {
-      const tokenRes = await fetch(`${BASE}/api/token/new`, {
-        headers: { Cookie: `JSESSIONID=${sessionId}; schoolname="${SCHOOL_COOKIE}"` },
+    // 2+3. Fetch bearer token and class name in parallel (both only need sessionId)
+    const cookie = `JSESSIONID=${sessionId}; schoolname="${SCHOOL_COOKIE}"`;
+    const [bearerToken, klasseName] = await Promise.all([
+      fetch(`${BASE}/api/token/new`, {
+        headers: { Cookie: cookie },
         signal: AbortSignal.timeout(10000),
-      });
-      const tok = await tokenRes.text();
-      if ((tok.match(/\./g) ?? []).length === 2) bearerToken = tok.trim();
-    } catch {
-      /* non-fatal */
-    }
-
-    // 3. Resolve class name
-    let klasseName = '';
-    try {
-      const klassenRes = await fetch(`${BASE}/jsonrpc.do?school=${SCHOOL}`, {
+      })
+        .then((r) => r.text())
+        .then((tok) => ((tok.match(/\./g) ?? []).length === 2 ? tok.trim() : ''))
+        .catch(() => ''),
+      fetch(`${BASE}/jsonrpc.do?school=${SCHOOL}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Cookie: `JSESSIONID=${sessionId}; schoolname="${SCHOOL_COOKIE}"`,
-        },
-        body: JSON.stringify({
-          id: 'pockyh-klassen',
-          method: 'getKlassen',
-          params: {},
-          jsonrpc: '2.0',
-        }),
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify({ id: 'pockyh-klassen', method: 'getKlassen', params: {}, jsonrpc: '2.0' }),
         signal: AbortSignal.timeout(10000),
-      });
-      const kj = await klassenRes.json();
-      klasseName = (kj.result as Array<{ id: number; name: string }>)?.find((k) => k.id === klasseId)?.name ?? '';
-    } catch {
-      /* non-fatal */
-    }
+      })
+        .then((r) => r.json())
+        .then((kj) => (kj.result as Array<{ id: number; name: string }>)?.find((k) => k.id === klasseId)?.name ?? '')
+        .catch(() => ''),
+    ]);
 
     // 4. Encrypt full session into httpOnly cookie
-    const sessionData = { sessionId, bearerToken, studentId, klasseId, klasseName, username: username.trim(), loginAt: Date.now() };
+    const sessionData = { sessionId, bearerToken, studentId, klasseId, klasseName, username, loginAt: Date.now() };
     const encrypted = await encryptSession(sessionData);
 
     // 5. Non-sensitive user data for client
-    const userPublic = JSON.stringify({ username: username.trim(), studentId, klasseId, klasseName });
+    const userPublic = JSON.stringify({ username, studentId, klasseId, klasseName });
 
-    const res = NextResponse.json({ ok: true, username: username.trim(), studentId, klasseId, klasseName });
+    const res = NextResponse.json({ ok: true, username, studentId, klasseId, klasseName });
 
     res.cookies.set('pockyh_session', encrypted, COOKIE_OPTS);
     res.cookies.set('pockyh_user', userPublic, {

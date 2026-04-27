@@ -354,7 +354,7 @@ export default function HomePage() {
   return (
     <AuthGuard>
       <div className="h-full flex flex-col overflow-hidden" style={{ background: 'var(--app-bg)' }}>
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden">
           <div className="max-w-6xl mx-auto px-4 md:px-6 py-6">
 
             {/* Welcome header */}

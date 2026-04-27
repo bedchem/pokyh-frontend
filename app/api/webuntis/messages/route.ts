@@ -16,6 +16,28 @@ export async function GET(req: NextRequest) {
   }
 
   // List: add pageSize so WebUntis returns messages instead of an empty array
+  const wantsAttachments = searchParams.get('attachments') === '1';
+
+  // Fallback attachment list fetch: try /messages/{id}/attachments then /messages/{id}
+  if (messageId !== null && wantsAttachments) {
+    const headers = webUntisHeaders(session);
+    const candidates = [
+      `${BASE}/api/rest/view/v1/messages/${messageId}/attachments`,
+      `${BASE}/api/rest/view/v1/messages/${messageId}`,
+    ];
+    for (const u of candidates) {
+      try {
+        const r = await fetch(u, { headers, signal: AbortSignal.timeout(12000) });
+        if (!r.ok) continue;
+        const t = await r.text();
+        if (t.trimStart().startsWith('<')) continue;
+        const j = JSON.parse(t);
+        return NextResponse.json(j);
+      } catch { /* try next */ }
+    }
+    return NextResponse.json({ attachments: [] });
+  }
+
   const url = messageId
     ? `${BASE}/api/rest/view/v1/messages/${messageId}`
     : `${BASE}/api/rest/view/v1/messages?pageSize=100&start=0`;

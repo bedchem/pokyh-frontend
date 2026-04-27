@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Scale, Shield, Mail, ArrowLeft, ChevronRight, ExternalLink } from 'lucide-react';
+import { Scale, Shield, Mail, ArrowLeft, ChevronRight, ExternalLink, Cookie } from 'lucide-react';
 
-type View = 'impressum' | 'datenschutz' | null;
+type View = 'impressum' | 'datenschutz' | 'cookies' | null;
 
 export async function generateMetadata({
   searchParams,
@@ -24,6 +24,14 @@ export async function generateMetadata({
       description: 'Datenschutzerklärung der POKYH Schulapp gemäß DSGVO. Informationen zu Datenverarbeitung, Cookies und Ihren Rechten.',
       robots: { index: true, follow: false },
       alternates: { canonical: '/legal?view=datenschutz' },
+    };
+  }
+  if (view === 'cookies') {
+    return {
+      title: 'Cookie-Richtlinie',
+      description: 'Cookie-Richtlinie der POKYH Schulapp. Welche Cookies wir verwenden und wie du deine Einwilligung verwalten kannst.',
+      robots: { index: true, follow: false },
+      alternates: { canonical: '/legal?view=cookies' },
     };
   }
   return {
@@ -48,6 +56,8 @@ export default async function LegalPage({
           <ImpressumView />
         ) : view === 'datenschutz' ? (
           <DatenschutzView />
+        ) : view === 'cookies' ? (
+          <CookiesView />
         ) : (
           <LandingView />
         )}
@@ -115,6 +125,26 @@ function LandingView() {
             <h2 className="text-lg font-bold" style={{ color: 'var(--app-text-primary)' }}>Datenschutzerklärung</h2>
             <p className="text-sm mt-0.5" style={{ color: 'var(--app-text-secondary)' }}>
               DSGVO-Informationen zu Datenverarbeitung und deinen Rechten
+            </p>
+          </div>
+          <ChevronRight size={20} style={{ color: 'var(--app-text-tertiary)' }} className="flex-shrink-0" />
+        </Link>
+
+        <Link
+          href="/legal?view=cookies"
+          className="group rounded-2xl p-6 flex items-center gap-5 press-scale transition-all duration-200 hover:scale-[1.01]"
+          style={{ background: 'var(--app-surface)', border: '1px solid var(--app-border)' }}
+        >
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
+            style={{ background: 'color-mix(in srgb, #f97316 14%, transparent)' }}
+          >
+            <Cookie size={26} color="#f97316" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg font-bold" style={{ color: 'var(--app-text-primary)' }}>Cookie-Richtlinie</h2>
+            <p className="text-sm mt-0.5" style={{ color: 'var(--app-text-secondary)' }}>
+              Welche Cookies wir verwenden und wie du deine Einwilligung verwaltest
             </p>
           </div>
           <ChevronRight size={20} style={{ color: 'var(--app-text-tertiary)' }} className="flex-shrink-0" />
@@ -417,6 +447,167 @@ function DatenschutzView() {
           <p>
             Diese Datenschutzerklärung kann bei Bedarf angepasst werden. Die aktuelle Version ist stets
             unter <strong style={{ color: 'var(--app-text-primary)' }}>/legal?view=datenschutz</strong> abrufbar.
+            Stand: April 2026.
+          </p>
+        </LegalSection>
+      </div>
+
+      <div className="flex justify-center mt-8">
+        <Link
+          href="/legal"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium press-scale transition-opacity hover:opacity-70"
+          style={{ background: 'var(--app-surface)', color: 'var(--app-text-secondary)', border: '1px solid var(--app-border)' }}
+        >
+          <ArrowLeft size={15} />
+          Zurück zu Rechtliches
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Cookies ─────────────────────────────────────────────────────────────── */
+
+function CookiesView() {
+  return (
+    <div className="fade-in">
+      <div className="mb-8">
+        <Link
+          href="/legal"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium press-scale transition-opacity hover:opacity-70"
+          style={{ background: 'var(--app-surface)', color: 'var(--app-text-secondary)', border: '1px solid var(--app-border)' }}
+        >
+          <ArrowLeft size={15} />
+          Rechtliches
+        </Link>
+      </div>
+
+      <div className="flex items-center gap-3 mb-6">
+        <div
+          className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
+          style={{ background: 'color-mix(in srgb, #f97316 14%, transparent)' }}
+        >
+          <Cookie size={20} color="#f97316" />
+        </div>
+        <h1 className="text-2xl font-black tracking-tight" style={{ color: 'var(--app-text-primary)' }}>
+          Cookie-Richtlinie
+        </h1>
+      </div>
+
+      <div
+        className="rounded-2xl p-6 flex flex-col gap-6"
+        style={{ background: 'var(--app-surface)', border: '1px solid var(--app-border)' }}
+      >
+        <LegalSection title="Was sind Cookies?">
+          <p>
+            Cookies sind kleine Textdateien, die beim Besuch einer Website auf deinem Gerät gespeichert
+            werden. Sie ermöglichen es uns, dich wiederzuerkennen, deine Einstellungen zu speichern und
+            den Dienst bereitzustellen. Neben Cookies verwenden wir auch den lokalen Browserspeicher
+            (localStorage) für Einstellungen, die ausschließlich auf deinem Gerät verbleiben.
+          </p>
+        </LegalSection>
+
+        <LegalSection title="Notwendige Cookies">
+          <p className="mb-3">
+            Diese Cookies sind für den Betrieb der App zwingend erforderlich. Ohne sie funktioniert die
+            Anmeldung und Sitzungsverwaltung nicht. Sie können nicht abgelehnt werden.
+          </p>
+          <div className="flex flex-col gap-2">
+            <CookieRow
+              name="pockyh_session"
+              type="Notwendig"
+              desc="Verschlüsseltes WebUntis-Session-Token (AES-GCM, httpOnly). Enthält keine persönlichen Daten im Klartext. Läuft nach 4 Stunden ab."
+            />
+            <CookieRow
+              name="pockyh_user"
+              type="Notwendig"
+              desc="Nicht-sensible Anzeigeinformationen (Benutzername, Klasse). Kein Passwort, kein Session-Token. Läuft nach 4 Stunden ab."
+            />
+          </div>
+        </LegalSection>
+
+        <LegalSection title="Analytics-Cookies (optional)">
+          <p className="mb-3">
+            Diese Cookies werden nur gesetzt, wenn du <strong style={{ color: 'var(--app-text-primary)' }}>„Alles akzeptieren"</strong> wählst.
+            Sie helfen uns, die App zu verbessern, indem sie anonymisierte Nutzungsdaten erfassen.
+          </p>
+          <div className="flex flex-col gap-2">
+            <CookieRow
+              name="_ga"
+              type="Analytics"
+              desc="Google Analytics 4 – eindeutiger Zähler für Websitebesuche. Läuft nach 2 Jahren ab. IP-Adresse wird vor Übermittlung anonymisiert."
+            />
+            <CookieRow
+              name="_ga_*"
+              type="Analytics"
+              desc="Google Analytics 4 – Session-Status und Seitenzähler. Läuft nach 2 Jahren ab."
+            />
+          </div>
+        </LegalSection>
+
+        <LegalSection title="Lokaler Speicher (localStorage)">
+          <p className="mb-3">
+            Diese Einträge werden nur lokal in deinem Browser gespeichert und verlassen niemals dein Gerät.
+            Sie sind keine Cookies im rechtlichen Sinne, werden aber der Vollständigkeit halber aufgeführt.
+          </p>
+          <div className="flex flex-col gap-2">
+            <CookieRow
+              name="pockyh_theme"
+              type="Einstellung"
+              desc="Gespeichertes Farbschema (hell/dunkel/System). Kein Ablaufdatum."
+            />
+            <CookieRow
+              name="pockyh_sidebar_collapsed"
+              type="Einstellung"
+              desc="Sidebar ein- oder ausgeklappt. Kein Ablaufdatum."
+            />
+            <CookieRow
+              name="pokyh_cookie_consent"
+              type="Einstellung"
+              desc="Deine Cookie-Entscheidung (‚all' oder ‚necessary'). Wird gesetzt, sobald du eine Wahl triffst. Kein Ablaufdatum."
+            />
+          </div>
+        </LegalSection>
+
+        <LegalSection title="Einwilligung widerrufen">
+          <p className="mb-3">
+            Du kannst deine Einwilligung jederzeit widerrufen, indem du den gespeicherten Eintrag aus
+            dem lokalen Speicher entfernst. Danach erscheint das Cookie-Banner erneut.
+          </p>
+          <div
+            className="rounded-xl p-4 text-[13px] font-mono"
+            style={{ background: 'var(--app-card)', color: 'var(--app-text-secondary)' }}
+          >
+            Browserkonsole öffnen (F12) → Anwendung → Lokaler Speicher → Schlüssel{' '}
+            <code style={{ color: 'var(--accent)' }}>pokyh_cookie_consent</code> löschen → Seite neu laden.
+          </div>
+          <p className="mt-3">
+            Alternativ kannst du Google Analytics dauerhaft deaktivieren:{' '}
+            <a
+              href="https://tools.google.com/dlpage/gaoptout"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 transition-opacity hover:opacity-70"
+              style={{ color: 'var(--accent)' }}
+            >
+              Google Analytics Opt-out <ExternalLink size={11} />
+            </a>
+          </p>
+        </LegalSection>
+
+        <LegalSection title="Rechtsgrundlage">
+          <p>
+            Notwendige Cookies werden auf Basis von Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung)
+            gesetzt. Analytics-Cookies werden nur auf Basis deiner ausdrücklichen Einwilligung
+            (Art. 6 Abs. 1 lit. a DSGVO) gesetzt. Du kannst deine Einwilligung jederzeit widerrufen,
+            ohne dass die Rechtmäßigkeit der bis zum Widerruf erfolgten Verarbeitung berührt wird.
+          </p>
+        </LegalSection>
+
+        <LegalSection title="Kontakt">
+          <p>
+            Bei Fragen zur Cookie-Nutzung wende dich an:{' '}
+            <a href="mailto:contact@pokyh.com" style={{ color: 'var(--accent)' }}>contact@pokyh.com</a>.
             Stand: April 2026.
           </p>
         </LegalSection>

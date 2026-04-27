@@ -3,6 +3,8 @@
 // All API routes read the session from the httpOnly cookie automatically.
 // No credentials are ever sent from the client.
 
+import { cacheGet, cacheSet, cacheIsStale, cacheClear, cacheDel } from './cache';
+
 const DEBUG = process.env.NEXT_PUBLIC_DEBUG_API === 'true';
 
 function log(...args: unknown[]) {
@@ -15,6 +17,10 @@ async function clearSessionOnce() {
   if (_logoutInFlight) return;
   _logoutInFlight = true;
   await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
+  cacheClear();
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('pockyh-session-expired'));
+  }
 }
 
 function todayFormatted(): string {
@@ -29,6 +35,13 @@ function schoolYearStart(): string {
   const now = new Date();
   const year = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
   return `${year}0901`;
+}
+
+function schoolYearEnd(): string {
+  const now = new Date();
+  // End year is always the year AFTER the start year
+  const endYear = now.getMonth() >= 8 ? now.getFullYear() + 1 : now.getFullYear();
+  return `${endYear}0630`; // June 30 — covers all possible school year end dates
 }
 
 async function apiFetch(url: string, opts?: RequestInit) {
@@ -79,27 +92,45 @@ async function apiFetch(url: string, opts?: RequestInit) {
   return json;
 }
 
+async function apiFetchCached(url: string, opts?: RequestInit): Promise<unknown> {
+  const cached = cacheGet<unknown>(url);
+  if (cached !== undefined && !cacheIsStale(url)) {
+    log('cache hit', url);
+    return cached;
+  }
+  const data = await apiFetch(url, opts);
+  cacheSet(url, data);
+  // Background revalidation when stale: return fresh data, already cached
+  return data;
+}
+
 export function fetchTimetable(date?: string) {
   const d = date ?? todayFormatted();
-  return apiFetch(`/api/webuntis/timetable?date=${d}`);
+  return apiFetchCached(`/api/webuntis/timetable?date=${d}`);
 }
 
 export function fetchGrades() {
-  return apiFetch('/api/webuntis/grades');
+  return apiFetchCached('/api/webuntis/grades');
 }
 
 export function fetchAbsences() {
   const start = schoolYearStart();
-  const end = todayFormatted().replace(/-/g, '');
-  return apiFetch(`/api/webuntis/absences?startDate=${start}&endDate=${end}`);
+  // Use school year end (not today) — WebUntis treats endDate as exclusive, so
+  // using today misses the current day's absences. School year end is always future.
+  const end = schoolYearEnd();
+  return apiFetchCached(`/api/webuntis/absences?startDate=${start}&endDate=${end}`);
 }
 
 export function fetchMessages() {
-  return apiFetch('/api/webuntis/messages');
+  return apiFetchCached('/api/webuntis/messages');
 }
 
 export function fetchMessageDetail(id: number) {
   return apiFetch(`/api/webuntis/messages?id=${id}`);
+}
+
+export function fetchMessageAttachments(id: number) {
+  return apiFetch(`/api/webuntis/messages?id=${id}&attachments=1`);
 }
 
 export async function markMessageRead(id: number) {
@@ -107,6 +138,13 @@ export async function markMessageRead(id: number) {
     method: 'POST',
     credentials: 'same-origin',
   });
+}
+
+export async function markAllMessagesRead(ids: number[]): Promise<void> {
+  if (!ids.length) return;
+  await Promise.allSettled(ids.map((id) => markMessageRead(id)));
+  // Invalidate messages cache so next load reflects the updated read status
+  cacheDel('/api/webuntis/messages');
 }
 
 export function fetchHomework() {

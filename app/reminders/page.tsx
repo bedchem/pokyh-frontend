@@ -57,8 +57,8 @@ function timeUntil(date: Date): string {
 
 export default function RemindersPage() {
   const router = useRouter();
-  const { user } = useSession();
-  const { classId, stableUid, ready } = useFirebase();
+  const { user, logout } = useSession();
+  const { classId, stableUid, ready, retryInit } = useFirebase();
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -74,7 +74,7 @@ export default function RemindersPage() {
 
   useEffect(() => {
     if (!ready || !user) return;
-    getDoc(doc(db, 'users', user.username)).then((snap) => {
+    getDoc(doc(db!, 'users', user.username)).then((snap) => {
       if (snap.exists()) setIsAdmin((snap.data()?.isAdmin as boolean) === true);
     });
   }, [ready, user]);
@@ -84,7 +84,7 @@ export default function RemindersPage() {
     if (!classId) { setLoading(false); return; }
 
     // Fetch class members
-    getDoc(doc(db, 'classes', classId)).then((snap) => {
+    getDoc(doc(db!, 'classes', classId)).then((snap) => {
       if (snap.exists()) {
         const mn = (snap.data()?.memberNames ?? {}) as Record<string, string>;
         setMembers(Object.entries(mn).map(([uid, username]) => ({ uid, username })));
@@ -92,7 +92,7 @@ export default function RemindersPage() {
     });
 
     const q = query(
-      collection(db, 'classes', classId, 'reminders'),
+      collection(db!, 'classes', classId, 'reminders'),
       orderBy('remindAt', 'asc')
     );
     const unsub = onSnapshot(q, (snap) => {
@@ -122,7 +122,7 @@ export default function RemindersPage() {
     setSaving(true);
     setAddError('');
     try {
-      await addDoc(collection(db, 'classes', classId, 'reminders'), {
+      await addDoc(collection(db!, 'classes', classId, 'reminders'), {
         title: title.trim(),
         body: body.trim(),
         remindAt: Timestamp.fromDate(new Date(due)),
@@ -142,7 +142,7 @@ export default function RemindersPage() {
 
   async function deleteReminder(reminder: Reminder) {
     if (!classId) return;
-    await deleteDoc(doc(db, 'classes', classId, 'reminders', reminder.id));
+    await deleteDoc(doc(db!, 'classes', classId, 'reminders', reminder.id));
   }
 
   const upcoming = reminders.filter((r) => r.remindAt >= new Date(Date.now() - 1000));
@@ -211,16 +211,26 @@ export default function RemindersPage() {
                 Klasse nicht gefunden
               </p>
               <p className="text-sm" style={{ color: 'var(--app-text-secondary)' }}>
-                Deine Klasse wird automatisch synchronisiert. Bitte neu anmelden.
+                Synchronisierung fehlgeschlagen. Versuche es erneut oder melde dich neu an.
               </p>
-              <button
-                onClick={() => router.replace('/login')}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm press-scale"
-                style={{ background: 'var(--accent)', color: '#fff' }}
-              >
-                <LogIn size={16} />
-                Neu anmelden
-              </button>
+              <div className="flex flex-col gap-2 w-full max-w-xs">
+                <button
+                  onClick={retryInit}
+                  className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm press-scale"
+                  style={{ background: 'var(--accent)', color: '#fff' }}
+                >
+                  <Users size={16} />
+                  Erneut versuchen
+                </button>
+                <button
+                  onClick={() => logout()}
+                  className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm press-scale"
+                  style={{ background: 'var(--app-surface)', color: 'var(--app-text-primary)' }}
+                >
+                  <LogIn size={16} />
+                  Neu anmelden
+                </button>
+              </div>
             </div>
           ) : reminders.length === 0 ? (
             <EmptyView
