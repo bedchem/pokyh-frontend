@@ -167,22 +167,30 @@ export default function LoginForm() {
 
       // Firebase is non-blocking
       if (auth && db) {
+        const normalUser = username.trim().toLowerCase();
         signInAnonymously(auth).then(async (fbResult) => {
           const fbUid = fbResult.user.uid;
-          const userRef = doc(db!, 'users', username.trim());
+          const userRef = doc(db!, 'users', normalUser);
           const existing = await getDoc(userRef);
           const stableUid = existing.exists() ? existing.data().stableUid : doc(db!, '_').id;
           if (!existing.exists()) {
             await setDoc(userRef, {
               stableUid,
-              username: username.trim(),
+              username: normalUser,
               webuntisKlasseId: data.klasseId,
               webuntisKlasseName: data.klasseName,
               createdAt: serverTimestamp(),
             });
+          } else {
+            // Always refresh class info on every login so it stays current
+            await setDoc(userRef, {
+              webuntisKlasseId: data.klasseId,
+              webuntisKlasseName: data.klasseName,
+              updatedAt: serverTimestamp(),
+            }, { merge: true });
           }
           await setDoc(doc(db!, 'users', fbUid), {
-            username: username.trim(),
+            username: normalUser,
             stableUid,
             updatedAt: serverTimestamp(),
           });

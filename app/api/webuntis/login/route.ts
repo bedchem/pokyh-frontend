@@ -59,9 +59,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Ungültige Anfrage.' }, { status: 400 });
   }
 
-  const { username, password } = body;
+  const { username: rawUsername, password } = body;
+  // Normalise: trim + lowercase for all internal storage; WebUntis itself is case-insensitive
+  const username = rawUsername?.trim().toLowerCase() ?? '';
 
-  if (!username?.trim() || !password?.trim()) {
+  if (!username || !password?.trim()) {
     return NextResponse.json({ error: 'Benutzername und Passwort erforderlich.' }, { status: 400 });
   }
   if (username.length > 100 || password.length > 200) {
@@ -69,14 +71,14 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // 1. WebUntis JSON-RPC authentication
+    // 1. WebUntis JSON-RPC authentication (send lowercase — WebUntis accepts it)
     const rpcRes = await fetch(`${BASE}/jsonrpc.do?school=${SCHOOL}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         id: 'pockyh-web',
         method: 'authenticate',
-        params: { user: username.trim(), password, client: 'pockyh' },
+        params: { user: username, password, client: 'pockyh' },
         jsonrpc: '2.0',
       }),
       signal: AbortSignal.timeout(15000),
@@ -118,13 +120,13 @@ export async function POST(req: NextRequest) {
     ]);
 
     // 4. Encrypt full session into httpOnly cookie
-    const sessionData = { sessionId, bearerToken, studentId, klasseId, klasseName, username: username.trim(), loginAt: Date.now() };
+    const sessionData = { sessionId, bearerToken, studentId, klasseId, klasseName, username, loginAt: Date.now() };
     const encrypted = await encryptSession(sessionData);
 
     // 5. Non-sensitive user data for client
-    const userPublic = JSON.stringify({ username: username.trim(), studentId, klasseId, klasseName });
+    const userPublic = JSON.stringify({ username, studentId, klasseId, klasseName });
 
-    const res = NextResponse.json({ ok: true, username: username.trim(), studentId, klasseId, klasseName });
+    const res = NextResponse.json({ ok: true, username, studentId, klasseId, klasseName });
 
     res.cookies.set('pockyh_session', encrypted, COOKIE_OPTS);
     res.cookies.set('pockyh_user', userPublic, {

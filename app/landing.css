@@ -111,7 +111,7 @@
   min-height: calc(100vh - 60px);
   display: flex; flex-direction: column;
   justify-content: center; align-items: center;
-  padding: 80px 22px 56px; position: relative; z-index: 1;
+  padding: 80px 22px 0px; position: relative; z-index: 1;
 }
 /* Animated scroll-down cue */
 @keyframes lp-bounce {
@@ -128,7 +128,7 @@
 /* Atmospheric glow behind the phone — dark mode vibrant, light mode subtle */
 .lp-hero-glow {
   position: absolute;
-  bottom: -60px; left: 50%;
+  bottom: 0px; left: 50%;
   transform: translateX(-50%);
   width: min(140%, 1000px);
   height: 70%;
@@ -165,8 +165,8 @@ html:not(.dark) .lp-hero-glow {
 
 /* ── Three.js phone stage ── */
 .lp-phone-stage {
-  height: 1100px; position: relative;
-  margin-top: 0; margin-bottom: 80px;
+  height: 1000px; position: relative;
+  margin-top: -60px; margin-bottom: 0px;
   z-index: 1;
 }
 /* Raw <canvas> element — vanilla Three.js, no R3F wrapper div */
@@ -399,7 +399,7 @@ html:not(.dark) .lp-hero-glow {
   .lp-compare          { padding: 72px 20px; }
   .lp-tile             { padding: 40px 28px; min-height: 440px; }
   .lp-tile.tall        { min-height: 540px; }
-  .lp-phone-stage      { height: 860px; margin-bottom: 60px; }
+  .lp-phone-stage      { height: 860px; margin-top: -40px; margin-bottom: 0px; }
   .lp-mock-week,
   .lp-mock-grades,
   .lp-mock-mensa,
@@ -416,7 +416,7 @@ html:not(.dark) .lp-hero-glow {
   .lp-hero-actions     { gap: 16px; }
   .lp-alink            { font-size: 15px; }
   .lp-btn              { font-size: 15px; padding: 11px 20px; }
-  .lp-phone-stage      { height: 700px; margin-bottom: 48px; }
+  .lp-phone-stage      { height: 700px; margin-top: -30px; margin-bottom: 0px; }
   .lp-tiles-section    { padding: 10px 14px; }
   .lp-tiles            { gap: 10px; }
   .lp-tile             { padding: 32px 20px; min-height: 380px; border-radius: 22px; }
@@ -448,7 +448,7 @@ html:not(.dark) .lp-hero-glow {
 /* Small phones — iPhone SE, Pixel 6a, etc. (≤ 400px) */
 @media (max-width: 400px) {
   .lp-hero-text        { padding: 48px 14px 44px; }
-  .lp-phone-stage      { height: 600px; margin-bottom: 40px; }
+  .lp-phone-stage      { height: 600px; margin-top: -20px; margin-bottom: 0px; }
   .lp-tile             { padding: 26px 16px; min-height: 340px; }
   .lp-tile.tall        { min-height: 420px; }
   .lp-compare-cell     { padding: 16px 10px; min-height: 140px; }

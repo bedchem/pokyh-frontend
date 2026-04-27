@@ -183,8 +183,40 @@ export default function IPhoneScene({
     glowLight.position.set(0, 0, 2.2);
     scene.add(ambLight, keyLight, fillLight, rimLight, glowLight);
 
-    /* ── Screen texture ── */
+    /* ── Fallback canvas texture (used only if JPEG not yet loaded) ── */
     const screenTex = buildScreenTexture();
+
+    /* ── Custom screen JPEG (the real app screenshot) ── */
+    let customTex:  THREE.Texture | null = null;
+    let loadedModel: THREE.Group  | null = null;
+
+    function applyScreenTex() {
+      const tex = customTex ?? screenTex;
+      if (!loadedModel) return;
+      loadedModel.traverse((child) => {
+        if (!(child instanceof THREE.Mesh)) return;
+        const mat = child.material as THREE.MeshStandardMaterial;
+        const nm  = (child.name + (mat?.name ?? '')).toLowerCase();
+        const isNamedScreen =
+          nm.includes('screen') || nm.includes('display') ||
+          nm.includes('glass_fr') || nm.includes('front_gl') ||
+          nm.includes('oled')    || nm.includes('lcd');
+        // Portrait aspect ratio check: screen texture is ~1:2 (tall)
+        const img = mat?.map?.image as (ImageBitmap | HTMLImageElement | null) | undefined;
+        const isPortrait = img && (img as ImageBitmap).width > 0 &&
+          (img as ImageBitmap).height > (img as ImageBitmap).width * 1.6;
+        if (isNamedScreen || isPortrait) {
+          child.material = new THREE.MeshBasicMaterial({ map: tex });
+        }
+      });
+    }
+
+    new THREE.TextureLoader().load('/models/screen.jpeg', (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.flipY      = false; // match GLB UV convention
+      customTex      = tex;
+      applyScreenTex();
+    });
 
     /* ── GLB loader (DRACO via Google CDN) ── */
     const draco = new DRACOLoader();
@@ -205,34 +237,19 @@ export default function IPhoneScene({
         const size   = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
         const maxDim = Math.max(size.x, size.y, size.z);
-        const sf     = 1.9 / maxDim; // target: longest dim = 1.9 units
+        const sf     = 1.9 / maxDim;
 
-        /* Center model at local origin, apply base scale */
         model.position.set(-center.x, -center.y, -center.z);
         model.scale.setScalar(sf);
 
-        /* Wrap in pivot so animation scale is independent of centering */
         const pivot = new THREE.Group();
         pivot.add(model);
-        pivot.scale.setScalar(0.82); // start a bit smaller; grows to 1.0 on scroll-in
+        pivot.scale.setScalar(0.82);
         scene.add(pivot);
-        phone = pivot;
+        phone       = pivot;
+        loadedModel = model;
 
-        /* Inject our screen texture if the mesh is identifiable */
-        model.traverse((child) => {
-          if (!(child instanceof THREE.Mesh)) return;
-          const nm = (
-            child.name +
-            (Array.isArray(child.material) ? '' : ((child.material as THREE.Material)?.name ?? ''))
-          ).toLowerCase();
-          if (
-            nm.includes('screen') || nm.includes('display') ||
-            nm.includes('glass_fr') || nm.includes('front_gl') ||
-            nm.includes('oled')    || nm.includes('lcd')
-          ) {
-            child.material = new THREE.MeshBasicMaterial({ map: screenTex });
-          }
-        });
+        applyScreenTex(); // apply whichever tex is ready first
       },
       undefined,
       (err) => console.error('[IPhoneScene] GLB load error', err),
@@ -276,28 +293,28 @@ export default function IPhoneScene({
       syncSize();
 
       if (phone) {
-        /* Smooth-track raw scroll progress (0.055 = slow, deliberate feel) */
+        /* Smooth-track raw scroll progress — 0.04 gives deliberate, silky feel */
         const rawP = Math.max(0, Math.min(1, progressRef.current ?? 0));
-        smoothP += (rawP - smoothP) * (noMotion ? 1 : 0.055);
+        smoothP += (rawP - smoothP) * (noMotion ? 1 : 0.04);
 
-        /* ── One full rotation, completes at 65% of scroll, then holds ──
-           rotFraction goes 0→1 while smoothP goes 0→0.65, then stays at 1 */
-        const rotFraction = Math.min(1, smoothP / 0.65);
+        /* ── Rotation starts at 20% scroll, completes at 82%, then holds ──
+           0…0.20 → phone faces front, static
+           0.20…0.82 → 360° spin
+           0.82…1.0 → locked at front again                                  */
+        const ROT_START = 0.20, ROT_END = 0.82;
+        const rotFraction = Math.min(1, Math.max(0, (smoothP - ROT_START) / (ROT_END - ROT_START)));
         phone.rotation.y  = rotFraction * Math.PI * 2;
+        phone.rotation.x  = Math.sin(rotFraction * Math.PI * 2) * 0.055; // gentle rock
 
-        /* Subtle X rock: peaks at halfway through spin */
-        phone.rotation.x = Math.sin(rotFraction * Math.PI * 2) * 0.06;
-
-        /* Scale in on entry: 0.82 → 1.0 over first 25% of scroll */
-        const entry = Math.min(1, smoothP * 4);
+        /* Scale in: 0.82 → 1.0 over first 30% of scroll */
+        const entry = Math.min(1, smoothP / 0.30);
         phone.scale.setScalar(0.82 + entry * 0.18);
 
-        /* Gentle idle float once phone is visible */
+        /* Gentle idle float — base offset raises phone in the canvas */
         const t = timer.getElapsed();
-        phone.position.y = Math.sin(t * 0.75) * 0.028 * entry;
+        phone.position.y = 0.32 + Math.sin(t * 0.75) * 0.026 * entry;
 
-        /* Screen glow breathes softly */
-        glowLight.intensity = 0.20 + Math.sin(t * 1.1) * 0.055;
+        glowLight.intensity = 0.18 + Math.sin(t * 1.1) * 0.05;
       }
 
       renderer.render(scene, camera);
