@@ -96,41 +96,26 @@ export async function POST(req: NextRequest) {
 
     const { personId: studentId, klasseId } = rpcJson.result;
 
-    // 2. Fetch bearer token
-    let bearerToken = '';
-    try {
-      const tokenRes = await fetch(`${BASE}/api/token/new`, {
-        headers: { Cookie: `JSESSIONID=${sessionId}; schoolname="${SCHOOL_COOKIE}"` },
+    // 2+3. Fetch bearer token and class name in parallel (both only need sessionId)
+    const cookie = `JSESSIONID=${sessionId}; schoolname="${SCHOOL_COOKIE}"`;
+    const [bearerToken, klasseName] = await Promise.all([
+      fetch(`${BASE}/api/token/new`, {
+        headers: { Cookie: cookie },
         signal: AbortSignal.timeout(10000),
-      });
-      const tok = await tokenRes.text();
-      if ((tok.match(/\./g) ?? []).length === 2) bearerToken = tok.trim();
-    } catch {
-      /* non-fatal */
-    }
-
-    // 3. Resolve class name
-    let klasseName = '';
-    try {
-      const klassenRes = await fetch(`${BASE}/jsonrpc.do?school=${SCHOOL}`, {
+      })
+        .then((r) => r.text())
+        .then((tok) => ((tok.match(/\./g) ?? []).length === 2 ? tok.trim() : ''))
+        .catch(() => ''),
+      fetch(`${BASE}/jsonrpc.do?school=${SCHOOL}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Cookie: `JSESSIONID=${sessionId}; schoolname="${SCHOOL_COOKIE}"`,
-        },
-        body: JSON.stringify({
-          id: 'pockyh-klassen',
-          method: 'getKlassen',
-          params: {},
-          jsonrpc: '2.0',
-        }),
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify({ id: 'pockyh-klassen', method: 'getKlassen', params: {}, jsonrpc: '2.0' }),
         signal: AbortSignal.timeout(10000),
-      });
-      const kj = await klassenRes.json();
-      klasseName = (kj.result as Array<{ id: number; name: string }>)?.find((k) => k.id === klasseId)?.name ?? '';
-    } catch {
-      /* non-fatal */
-    }
+      })
+        .then((r) => r.json())
+        .then((kj) => (kj.result as Array<{ id: number; name: string }>)?.find((k) => k.id === klasseId)?.name ?? '')
+        .catch(() => ''),
+    ]);
 
     // 4. Encrypt full session into httpOnly cookie
     const sessionData = { sessionId, bearerToken, studentId, klasseId, klasseName, username: username.trim(), loginAt: Date.now() };

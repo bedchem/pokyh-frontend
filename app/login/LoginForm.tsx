@@ -55,38 +55,37 @@ export default function LoginForm() {
         return;
       }
 
-      try {
-        if (!auth || !db) throw new Error('Firebase not configured');
-        const fbResult = await signInAnonymously(auth);
-        const fbUid = fbResult.user.uid;
-        const userRef = doc(db, 'users', username.trim());
-        const existing = await getDoc(userRef);
-        const stableUid = existing.exists() ? existing.data().stableUid : doc(db, '_').id;
-        if (!existing.exists()) {
-          await setDoc(userRef, {
-            stableUid,
+      // Firebase is non-blocking — FirebaseProvider handles init after redirect anyway
+      if (auth && db) {
+        signInAnonymously(auth).then(async (fbResult) => {
+          const fbUid = fbResult.user.uid;
+          const userRef = doc(db!, 'users', username.trim());
+          const existing = await getDoc(userRef);
+          const stableUid = existing.exists() ? existing.data().stableUid : doc(db!, '_').id;
+          if (!existing.exists()) {
+            await setDoc(userRef, {
+              stableUid,
+              username: username.trim(),
+              webuntisKlasseId: data.klasseId,
+              webuntisKlasseName: data.klasseName,
+              createdAt: serverTimestamp(),
+            });
+          }
+          await setDoc(doc(db!, 'users', fbUid), {
             username: username.trim(),
-            webuntisKlasseId: data.klasseId,
-            webuntisKlasseName: data.klasseName,
-            createdAt: serverTimestamp(),
+            stableUid,
+            updatedAt: serverTimestamp(),
           });
-        }
-        await setDoc(doc(db, 'users', fbUid), {
-          username: username.trim(),
-          stableUid,
-          updatedAt: serverTimestamp(),
-        });
-      } catch {
-        /* Firebase errors are non-fatal */
+        }).catch(() => { /* non-fatal */ });
       }
 
       refreshUser();
       const raw = params.get('next') ?? '';
       const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/home';
       router.replace(next);
+      // Keep loading=true during navigation for instant visual feedback
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Netzwerkfehler.');
-    } finally {
       setLoading(false);
     }
   }
