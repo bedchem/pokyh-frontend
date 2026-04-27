@@ -168,18 +168,18 @@ export default function IPhoneScene({
     /* ── Lights — soft studio, nothing harsh ── */
     const isDarkInit = document.documentElement.classList.contains('dark');
     // Ambient: soft overall fill
-    const ambLight  = new THREE.AmbientLight(0xffffff, isDarkInit ? 0.55 : 0.85);
+    const ambLight  = new THREE.AmbientLight(0xffffff, isDarkInit ? 0.50 : 0.75);
     // Key: single gentle directional from upper-right
-    const keyLight  = new THREE.DirectionalLight(0xffffff, isDarkInit ? 0.55 : 0.45);
+    const keyLight  = new THREE.DirectionalLight(0xffffff, isDarkInit ? 0.45 : 0.38);
     keyLight.position.set(2.5, 4, 3);
     // Fill: cool-tinted from the left
-    const fillLight = new THREE.DirectionalLight(0xccd8ff, 0.22);
+    const fillLight = new THREE.DirectionalLight(0xccd8ff, 0.16);
     fillLight.position.set(-3, 0, 2);
     // Rim: subtle back-light for depth
-    const rimLight  = new THREE.DirectionalLight(0x8899bb, 0.18);
+    const rimLight  = new THREE.DirectionalLight(0x8899bb, 0.12);
     rimLight.position.set(-1, -4, -3);
     // Screen glow: indigo point light
-    const glowLight = new THREE.PointLight(0x6366f1, 0.28, 6);
+    const glowLight = new THREE.PointLight(0x6366f1, 0.20, 6);
     glowLight.position.set(0, 0, 2.2);
     scene.add(ambLight, keyLight, fillLight, rimLight, glowLight);
 
@@ -250,6 +250,16 @@ export default function IPhoneScene({
         loadedModel = model;
 
         applyScreenTex(); // apply whichever tex is ready first
+
+        // Reduce metallic reflections while keeping illumination
+        model.traverse((child) => {
+          if (!(child instanceof THREE.Mesh)) return;
+          const mat = child.material as THREE.MeshStandardMaterial;
+          if (mat && mat.isMeshStandardMaterial) {
+            mat.envMapIntensity = 0.30;
+            mat.needsUpdate = true;
+          }
+        });
       },
       undefined,
       (err) => console.error('[IPhoneScene] GLB load error', err),
@@ -314,7 +324,7 @@ export default function IPhoneScene({
         const t = timer.getElapsed();
         phone.position.y = 0.32 + Math.sin(t * 0.75) * 0.026 * entry;
 
-        glowLight.intensity = 0.18 + Math.sin(t * 1.1) * 0.05;
+        glowLight.intensity = 0.14 + Math.sin(t * 1.1) * 0.04;
       }
 
       renderer.render(scene, camera);

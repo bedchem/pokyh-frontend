@@ -15,6 +15,7 @@ import {
   Paperclip,
   RefreshCw,
   ArrowUpRight,
+  Download,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
@@ -82,6 +83,37 @@ function sanitizeMessageHtml(raw: string): string {
   }
 }
 
+function coerceAttachmentList(v: unknown): Array<Record<string, unknown>> | null {
+  if (Array.isArray(v)) return v as Array<Record<string, unknown>>;
+  if (v && typeof v === 'object') {
+    const o = v as Record<string, unknown>;
+    for (const key of ['attachments', 'messageFile', 'files', 'data']) {
+      if (Array.isArray(o[key])) return o[key] as Array<Record<string, unknown>>;
+    }
+  }
+  return null;
+}
+
+function parseOneAttachment(a: Record<string, unknown>): MessageAttachment {
+  const rawId = a.id ?? a.fileId;
+  const numId = typeof rawId === 'number' ? rawId : parseInt(String(rawId ?? '0'), 10);
+  return {
+    id: isNaN(numId) ? 0 : numId,
+    storageId: (a.storageId as string) ?? '',
+    name: ((a.name ?? a.fileName ?? a.originalName ?? a.src ?? 'Anhang') as string),
+    size: typeof a.size === 'number' ? a.size : typeof a.fileSize === 'number' ? a.fileSize : 0,
+  };
+}
+
+function parseStorageAttachment(a: Record<string, unknown>): MessageAttachment {
+  return {
+    id: 0,
+    storageId: (a.id as string) ?? '',  // storageAttachments uses 'id' as UUID
+    name: (a.name as string) ?? 'Anhang',
+    size: 0,
+  };
+}
+
 function parseMessageDetail(json: unknown): MessageDetail | null {
   try {
     const root = json as Record<string, unknown>;
@@ -108,17 +140,29 @@ function parseMessageDetail(json: unknown): MessageDetail | null {
       (msg.date as string) ??
       '';
 
-    const rawAttachments =
-      (msg.attachments as Array<Record<string, unknown>>) ??
-      (msg.messageFile as Array<Record<string, unknown>>) ??
-      (msg.files as Array<Record<string, unknown>>) ??
+    // Mirror Flutter: try all known field names, including singular 'attachment'
+    const rawList =
+      coerceAttachmentList(msg.attachments) ??
+      coerceAttachmentList(msg.messageFile) ??
+      coerceAttachmentList(msg.files) ??
+      coerceAttachmentList(msg.fileAttachments) ??
+      coerceAttachmentList(msg.attachment) ??
+      coerceAttachmentList(msg.data) ??
       [];
-    const attachments = rawAttachments.map((a) => ({
-      id: a.id as number,
-      storageId: (a.storageId as string) ?? '',
-      name: (a.name as string) ?? 'Anhang',
-      size: (a.size as number) ?? 0,
-    }));
+    const normalAttachments = rawList.map(parseOneAttachment);
+
+    // Mirror Flutter: storageAttachments is a separate array (UUID-keyed)
+    const storageList = Array.isArray(msg.storageAttachments)
+      ? (msg.storageAttachments as Array<Record<string, unknown>>)
+      : [];
+    const storageAttachments = storageList.map(parseStorageAttachment);
+
+    const attachments = normalAttachments.length > 0 ? normalAttachments : storageAttachments;
+
+    const hasAttachments =
+      attachments.length > 0 ||
+      (msg.hasAttachments as boolean) === true ||
+      ((msg.attachmentCount as number) ?? 0) > 0;
 
     return {
       id: msg.id as number,
@@ -128,7 +172,7 @@ function parseMessageDetail(json: unknown): MessageDetail | null {
       senderId: (sender?.userId as number) ?? 0,
       sentDate,
       isRead: true,
-      hasAttachments: (msg.hasAttachments as boolean) ?? attachments.length > 0,
+      hasAttachments,
       body: (msg.body as string) ?? (msg.content as string) ?? '',
       attachments,
     };
@@ -139,21 +183,26 @@ function parseMessageDetail(json: unknown): MessageDetail | null {
 
 function parseAttachmentsFallback(json: unknown): MessageAttachment[] {
   try {
+    if (Array.isArray(json)) {
+      return (json as Record<string, unknown>[]).map(parseOneAttachment);
+    }
     const root = json as Record<string, unknown>;
-    // Try various wrapper keys
     const arr =
-      (root?.attachments as unknown[]) ??
-      (root?.messageFile as unknown[]) ??
-      (root?.files as unknown[]) ??
-      (root?.fileAttachments as unknown[]) ??
-      (Array.isArray(root) ? (root as unknown[]) : null) ??
-      [];
-    return (arr as Record<string, unknown>[]).map((a) => ({
-      id: a.id as number,
-      storageId: (a.storageId as string) ?? '',
-      name: (a.name as string) ?? 'Anhang',
-      size: (a.size as number) ?? 0,
-    }));
+      coerceAttachmentList(root.attachments) ??
+      coerceAttachmentList(root.messageFile) ??
+      coerceAttachmentList(root.files) ??
+      coerceAttachmentList(root.fileAttachments) ??
+      coerceAttachmentList(root.attachment) ??
+      coerceAttachmentList(root.items) ??
+      coerceAttachmentList(root.content) ??
+      null;
+    if (arr) return arr.map(parseOneAttachment);
+
+    // storageAttachments fallback
+    if (Array.isArray(root.storageAttachments)) {
+      return (root.storageAttachments as Record<string, unknown>[]).map(parseStorageAttachment);
+    }
+    return [];
   } catch {
     return [];
   }
@@ -218,13 +267,10 @@ export default function MessageDetailPage({
     try {
       const data = await fetchMessageAttachments(msgId);
       const list = parseAttachmentsFallback(data);
-      if (list.length > 0) {
-        setLoadedAttachments(list);
-      } else {
-        setAttachmentsFetchFailed(true);
-      }
+      setLoadedAttachments(list); // empty array = no attachments, that's fine
     } catch {
       setAttachmentsFetchFailed(true);
+      setLoadedAttachments([]);
     } finally {
       setAttachmentsLoading(false);
     }
@@ -241,8 +287,9 @@ export default function MessageDetailPage({
       setMsg(parsed);
       markMessageRead(parseInt(id)).catch(() => {});
 
-      // Fallback: detail returned no attachments but message has them
-      if (parsed && parsed.attachments.length === 0 && parsed.hasAttachments) {
+      // Always probe for attachments when the detail response didn't include them.
+      // WebUntis sometimes returns hasAttachments:false even when attachments exist.
+      if (parsed && parsed.attachments.length === 0) {
         fetchFallbackAttachments(parsed.id);
       }
     } catch (e: unknown) {
@@ -269,7 +316,7 @@ export default function MessageDetailPage({
   const showAttachmentSection =
     attachments.length > 0 ||
     attachmentsLoading ||
-    (msg?.hasAttachments && (attachmentsFetchFailed || loadedAttachments === null));
+    attachmentsFetchFailed;
 
   function openAttachment(att: MessageAttachment) {
     const url = getAttachmentUrl(msg!.id, att.storageId, att.name, att.id);
@@ -395,19 +442,12 @@ export default function MessageDetailPage({
                             Anhänge werden geladen…
                           </span>
                         </>
-                      ) : attachments.length > 0 ? (
+                      ) : (
                         <span
                           className="text-xs font-semibold"
                           style={{ color: 'var(--app-text-tertiary)', letterSpacing: '0.2px' }}
                         >
-                          {attachments.length === 1 ? '1 Anhang' : `${attachments.length} Anhänge`}
-                        </span>
-                      ) : (
-                        <span
-                          className="text-xs font-semibold"
-                          style={{ color: 'var(--app-text-tertiary)' }}
-                        >
-                          Anhang vorhanden
+                          {attachments.length === 1 ? '1 Anhang' : attachments.length > 1 ? `${attachments.length} Anhänge` : 'Fehler beim Laden'}
                         </span>
                       )}
                     </div>
@@ -416,49 +456,71 @@ export default function MessageDetailPage({
                     {attachments.length > 0 && (
                       <div className="px-3 pb-3 flex flex-col gap-1.5">
                         {attachments.map((att) => {
-                          const { icon, color, type } = getFileStyle(att.name);
+                          const { icon, color } = getFileStyle(att.name);
                           const url = getAttachmentUrl(msg.id, att.storageId, att.name, att.id);
                           return (
-                            <button
+                            <div
                               key={att.id ?? att.storageId}
-                              onClick={() => openAttachment(att)}
-                              className="flex items-center gap-3 rounded-xl px-2.5 py-2.5 press-scale w-full text-left"
+                              className="flex items-center gap-1.5 rounded-xl overflow-hidden"
                               style={{ background: 'var(--app-bg)' }}
                             >
-                              {/* Colored file-type icon box */}
-                              <div
-                                className="flex items-center justify-center rounded-xl flex-shrink-0"
+                              {/* Main open button */}
+                              <button
+                                onClick={() => openAttachment(att)}
+                                className="flex items-center gap-3 px-2.5 py-2.5 press-scale flex-1 text-left min-w-0"
+                              >
+                                {/* Colored file-type icon box */}
+                                <div
+                                  className="flex items-center justify-center rounded-xl flex-shrink-0"
+                                  style={{
+                                    width: 44,
+                                    height: 44,
+                                    background: `${color}1f`,
+                                    color,
+                                  }}
+                                >
+                                  {icon}
+                                </div>
+
+                                {/* Name + size */}
+                                <div className="flex-1 min-w-0">
+                                  <p
+                                    className="text-sm font-medium leading-snug truncate"
+                                    style={{ color: 'var(--app-text-primary)' }}
+                                  >
+                                    {att.name}
+                                  </p>
+                                  {att.size > 0 && (
+                                    <p
+                                      className="text-xs mt-0.5"
+                                      style={{ color: 'var(--app-text-tertiary)' }}
+                                    >
+                                      {formatFileSize(att.size)}
+                                    </p>
+                                  )}
+                                </div>
+
+                                <ArrowUpRight size={20} color="var(--accent)" style={{ flexShrink: 0 }} />
+                              </button>
+
+                              {/* Download button */}
+                              <a
+                                href={url}
+                                download={att.name}
+                                onClick={(e) => e.stopPropagation()}
+                                className="flex items-center justify-center flex-shrink-0 press-scale"
                                 style={{
                                   width: 44,
                                   height: 44,
-                                  background: `${color}1f`,
-                                  color,
+                                  marginRight: 6,
+                                  borderRadius: 12,
+                                  background: 'color-mix(in srgb, var(--accent) 12%, transparent)',
                                 }}
+                                title="Herunterladen"
                               >
-                                {icon}
-                              </div>
-
-                              {/* Name + size */}
-                              <div className="flex-1 min-w-0">
-                                <p
-                                  className="text-sm font-medium leading-snug"
-                                  style={{ color: 'var(--app-text-primary)' }}
-                                >
-                                  {att.name}
-                                </p>
-                                {att.size > 0 && (
-                                  <p
-                                    className="text-xs mt-0.5"
-                                    style={{ color: 'var(--app-text-tertiary)' }}
-                                  >
-                                    {formatFileSize(att.size)}
-                                  </p>
-                                )}
-                              </div>
-
-                              {/* Open icon */}
-                              <ArrowUpRight size={22} color="var(--accent)" style={{ flexShrink: 0 }} />
-                            </button>
+                                <Download size={18} color="var(--accent)" />
+                              </a>
+                            </div>
                           );
                         })}
                       </div>

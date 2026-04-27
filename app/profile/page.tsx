@@ -109,18 +109,22 @@ function PasskeySection() {
   const [declined, setDeclined] = useState(() => hasDeclinedPasskey());
   const [saving, setSaving] = useState(false);
   const [saveResult, setSaveResult] = useState<'success' | 'error' | null>(null);
-  const hasCreds = !!getSessionCredentials();
+  const creds = getSessionCredentials();
 
   useEffect(() => {
     setDeclined(hasDeclinedPasskey());
   }, []);
 
   async function handleSave() {
-    const creds = getSessionCredentials();
-    if (!creds) return;
     setSaving(true);
     setSaveResult(null);
-    const ok = await storePasswordCredential(creds.username, creds.password);
+    let ok = false;
+    if (creds) {
+      ok = await storePasswordCredential(creds.username, creds.password);
+    } else {
+      // No session creds — still trigger the browser UI so it can offer saved ones
+      ok = await storePasswordCredential('', '');
+    }
     setSaveResult(ok ? 'success' : 'error');
     setSaving(false);
   }
@@ -137,33 +141,25 @@ function PasskeySection() {
 
   return (
     <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--app-surface)' }}>
-      {hasCreds ? (
-        <button
-          onClick={handleSave}
-          disabled={saving || saveResult === 'success'}
-          className="w-full px-4 flex items-center gap-3 press-scale disabled:opacity-60"
-          style={{ minHeight: 44, borderBottom: '1px solid var(--app-separator)' }}
-        >
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{ background: 'color-mix(in srgb, var(--accent) 14%, transparent)' }}>
-            <Key size={16} color="var(--accent)" />
-          </div>
-          <span className="flex-1 text-left text-[15px]" style={{ color: 'var(--app-text-primary)' }}>
-            {saveResult === 'success' ? 'Gespeichert ✓' : saving ? 'Wird gespeichert…' : 'Passkey erstellen'}
-          </span>
-          {saving && <Spinner size={16} />}
-        </button>
-      ) : (
-        <div className="px-4 flex items-center gap-3" style={{ minHeight: 44, borderBottom: '1px solid var(--app-separator)' }}>
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{ background: 'var(--app-card)' }}>
-            <Key size={16} color="var(--app-text-tertiary)" />
-          </div>
-          <span className="flex-1 text-[15px]" style={{ color: 'var(--app-text-secondary)' }}>
-            Passkey erstellen (neu anmelden)
-          </span>
+      {/* Always show the save button — browser handles the native UI */}
+      <button
+        onClick={handleSave}
+        disabled={saving}
+        className="w-full px-4 flex items-center gap-3 press-scale disabled:opacity-60"
+        style={{ minHeight: 44, borderBottom: '1px solid var(--app-separator)' }}
+      >
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+          style={{ background: 'color-mix(in srgb, var(--accent) 14%, transparent)' }}>
+          <Key size={16} color="var(--accent)" />
         </div>
-      )}
+        <span className="flex-1 text-left text-[15px]" style={{ color: 'var(--app-text-primary)' }}>
+          {saveResult === 'success' ? 'Gespeichert ✓' : saving ? 'Wird gespeichert…' : 'Passkey einrichten'}
+        </span>
+        {saving && <Spinner size={16} />}
+        {saveResult === 'error' && (
+          <span className="text-xs" style={{ color: 'var(--danger)' }}>Fehler</span>
+        )}
+      </button>
 
       {declined ? (
         <button
