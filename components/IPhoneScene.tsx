@@ -32,11 +32,9 @@ function buildScreenTexture(): THREE.CanvasTexture {
 
   g.fillStyle = '#050506'; g.fillRect(0, 0, W, H);
 
-  /* Dynamic Island */
   g.fillStyle = '#000';
   rrect(g, (W - 168) / 2, 24, 168, 42, 21); g.fill();
 
-  /* Status bar */
   g.fillStyle = '#f5f5f7';
   g.font = 'bold 28px -apple-system, Helvetica Neue, sans-serif';
   g.textBaseline = 'alphabetic';
@@ -46,17 +44,14 @@ function buildScreenTexture(): THREE.CanvasTexture {
   g.fillText('●●●', W - 30, 75);
   g.textAlign = 'left';
 
-  /* Date */
   g.fillStyle = '#6e6e73';
   g.font = '400 24px -apple-system, Helvetica Neue, sans-serif';
   g.fillText('Montag, 27. April', 30, 138);
 
-  /* Greeting */
   g.fillStyle = '#f5f5f7';
   g.font = 'bold 54px -apple-system, Helvetica Neue, sans-serif';
   g.fillText('Hallo, Sabby', 30, 204);
 
-  /* Separator */
   g.strokeStyle = 'rgba(255,255,255,0.07)'; g.lineWidth = 1;
   g.beginPath(); g.moveTo(18, 224); g.lineTo(W - 18, 224); g.stroke();
 
@@ -67,7 +62,6 @@ function buildScreenTexture(): THREE.CanvasTexture {
     rrect(g, 16, y, W - 32, h, 28); g.stroke();
   };
 
-  /* Card 1: grade + next lesson */
   card(234, 136);
   g.fillStyle = '#6e6e73';
   g.font = '600 17px -apple-system, Helvetica Neue, sans-serif';
@@ -87,7 +81,6 @@ function buildScreenTexture(): THREE.CanvasTexture {
   g.fillText('in 12 min · R204', W - 36, 342);
   g.textAlign = 'left';
 
-  /* Card 2: timetable */
   const LESSONS = [
     { time: '08:00', col: '#6366F1', title: 'Mathematik', room: 'R204 · Hofer' },
     { time: '09:00', col: '#10b981', title: 'Deutsch',    room: 'R112 · Mair'  },
@@ -139,7 +132,6 @@ export default function IPhoneScene({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    /* ── Renderer ── */
     const renderer = new THREE.WebGLRenderer({
       canvas,
       alpha: true,
@@ -151,44 +143,44 @@ export default function IPhoneScene({
     renderer.toneMappingExposure = 0.88;
     renderer.setClearColor(0x000000, 0);
 
-    /* ── Camera — slight downward offset so phone sits centred in viewport ── */
     const camera = new THREE.PerspectiveCamera(26, 1, 0.1, 100);
     camera.position.set(0, -0.17, 7.5);
     camera.lookAt(0, 0, 0);
 
-    /* ── Scene ── */
     const scene = new THREE.Scene();
 
-    /* ── Environment map (bundled RoomEnvironment — no CDN) ── */
+    /* ── Environment map ── */
     const pmrem  = new THREE.PMREMGenerator(renderer);
-    const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-    scene.environment = envTex;
+const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environment = null;
     pmrem.dispose();
 
-    /* ── Lights — soft studio, nothing harsh ── */
+    /* ── Lights (weiter nach hinten versetzt) ── */
     const isDarkInit = document.documentElement.classList.contains('dark');
-    // Ambient: soft overall fill
-    const ambLight  = new THREE.AmbientLight(0xffffff, isDarkInit ? 0.50 : 0.75);
-    // Key: single gentle directional from upper-right
-    const keyLight  = new THREE.DirectionalLight(0xffffff, isDarkInit ? 0.45 : 0.38);
-    keyLight.position.set(2.5, 4, 3);
-    // Fill: cool-tinted from the left
-    const fillLight = new THREE.DirectionalLight(0xccd8ff, 0.16);
-    fillLight.position.set(-3, 0, 2);
-    // Rim: subtle back-light for depth
-    const rimLight  = new THREE.DirectionalLight(0x8899bb, 0.12);
-    rimLight.position.set(-1, -4, -3);
-    // Screen glow: indigo point light
-    const glowLight = new THREE.PointLight(0x6366f1, 0.20, 6);
-    glowLight.position.set(0, 0, 2.2);
-    scene.add(ambLight, keyLight, fillLight, rimLight, glowLight);
+    
+    // Ambient bleibt gleich
+    const ambLight  = new THREE.AmbientLight(0xffffff, isDarkInit ? 0.85 : 1);
+    
+    // fillLight weiter nach hinten (von -3,0,2 auf -5,0,3)
+    const fillLight = new THREE.DirectionalLight(0xccd8ff, 1);
+    fillLight.position.set(-5, 0, 2);
+    
+    // rimLight weiter nach hinten (von -1,-4,-3 auf -2,-6,-5)
+    const rimLight  = new THREE.DirectionalLight(0x8899bb, 1);
+    rimLight.position.set(-2, -6, 0);
+    
+    // diagonales Hintergrundlicht von hinten rechts oben
+    const backLight = new THREE.DirectionalLight(0xfff4d8, 1);
+    backLight.position.set(4, 3, 0);
+    backLight.target.position.set(0, 0, 0);
+    scene.add(backLight);
+    
+    scene.add(ambLight, fillLight, rimLight);
 
-    /* ── Fallback canvas texture (used only if JPEG not yet loaded) ── */
     const screenTex = buildScreenTexture();
 
-    /* ── Custom screen JPEG (the real app screenshot) ── */
-    let customTex:  THREE.Texture | null = null;
-    let loadedModel: THREE.Group  | null = null;
+    let customTex: THREE.Texture | null = null;
+    let loadedModel: THREE.Group | null = null;
 
     function applyScreenTex() {
       const tex = customTex ?? screenTex;
@@ -201,7 +193,6 @@ export default function IPhoneScene({
           nm.includes('screen') || nm.includes('display') ||
           nm.includes('glass_fr') || nm.includes('front_gl') ||
           nm.includes('oled')    || nm.includes('lcd');
-        // Portrait aspect ratio check: screen texture is ~1:2 (tall)
         const img = mat?.map?.image as (ImageBitmap | HTMLImageElement | null) | undefined;
         const isPortrait = img && (img as ImageBitmap).width > 0 &&
           (img as ImageBitmap).height > (img as ImageBitmap).width * 1.6;
@@ -213,18 +204,16 @@ export default function IPhoneScene({
 
     new THREE.TextureLoader().load('/models/screen.jpeg', (tex) => {
       tex.colorSpace = THREE.SRGBColorSpace;
-      tex.flipY      = false; // match GLB UV convention
+      tex.flipY      = false;
       customTex      = tex;
       applyScreenTex();
     });
 
-    /* ── GLB loader (DRACO via Google CDN) ── */
     const draco = new DRACOLoader();
     draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
     const gltfLoader = new GLTFLoader();
     gltfLoader.setDRACOLoader(draco);
 
-    /* phone = pivot group wrapping the model (scale changes won't drift center) */
     let phone: THREE.Group | null = null;
 
     gltfLoader.load(
@@ -232,7 +221,6 @@ export default function IPhoneScene({
       (gltf) => {
         const model = gltf.scene;
 
-        /* Compute bounding box before any scale change */
         const box    = new THREE.Box3().setFromObject(model);
         const size   = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
@@ -249,9 +237,8 @@ export default function IPhoneScene({
         phone       = pivot;
         loadedModel = model;
 
-        applyScreenTex(); // apply whichever tex is ready first
+        applyScreenTex();
 
-        // Reduce metallic reflections while keeping illumination
         model.traverse((child) => {
           if (!(child instanceof THREE.Mesh)) return;
           const mat = child.material as THREE.MeshStandardMaterial;
@@ -265,7 +252,6 @@ export default function IPhoneScene({
       (err) => console.error('[IPhoneScene] GLB load error', err),
     );
 
-    /* ── Resize ── */
     function syncSize() {
       const el = canvasRef.current;
       if (!el) return;
@@ -279,23 +265,20 @@ export default function IPhoneScene({
     const ro = new ResizeObserver(syncSize);
     ro.observe(canvas);
 
-    /* ── Dark-mode observer ── */
     let currentDark = isDarkInit;
     const moObs = new MutationObserver(() => {
       const dark = document.documentElement.classList.contains('dark');
       if (dark === currentDark) return;
       currentDark = dark;
       ambLight.intensity  = dark ? 0.55 : 0.85;
-      keyLight.intensity  = dark ? 0.55 : 0.45;
       renderer.toneMappingExposure = dark ? 0.88 : 0.78;
     });
     moObs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
-    /* ── Animation loop ── */
     let rafId: number;
     const timer    = new THREE.Timer();
     const noMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    let smoothP    = 0; // smoothed scroll progress, no React state
+    let smoothP    = 0;
 
     function frame() {
       rafId = requestAnimationFrame(frame);
@@ -303,28 +286,19 @@ export default function IPhoneScene({
       syncSize();
 
       if (phone) {
-        /* Smooth-track raw scroll progress — 0.04 gives deliberate, silky feel */
         const rawP = Math.max(0, Math.min(1, progressRef.current ?? 0));
         smoothP += (rawP - smoothP) * (noMotion ? 1 : 0.04);
 
-        /* ── Rotation starts at 20% scroll, completes at 82%, then holds ──
-           0…0.20 → phone faces front, static
-           0.20…0.82 → 360° spin
-           0.82…1.0 → locked at front again                                  */
         const ROT_START = 0.20, ROT_END = 0.82;
         const rotFraction = Math.min(1, Math.max(0, (smoothP - ROT_START) / (ROT_END - ROT_START)));
         phone.rotation.y  = rotFraction * Math.PI * 2;
-        phone.rotation.x  = Math.sin(rotFraction * Math.PI * 2) * 0.055; // gentle rock
+        phone.rotation.x  = Math.sin(rotFraction * Math.PI * 2) * 0.055;
 
-        /* Scale in: 0.82 → 1.0 over first 30% of scroll */
         const entry = Math.min(1, smoothP / 0.30);
         phone.scale.setScalar(0.82 + entry * 0.18);
 
-        /* Gentle idle float — base offset raises phone in the canvas */
         const t = timer.getElapsed();
         phone.position.y = 0.32 + Math.sin(t * 0.75) * 0.026 * entry;
-
-        glowLight.intensity = 0.14 + Math.sin(t * 1.1) * 0.04;
       }
 
       renderer.render(scene, camera);
@@ -341,7 +315,6 @@ export default function IPhoneScene({
       draco.dispose();
       timer.dispose();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

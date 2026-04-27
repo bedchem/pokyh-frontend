@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
   if (storageId) {
     try {
       const infoRes = await fetch(
-        `${BASE}/api/rest/view/v1/messages/${storageId}/attachmentstorageurl`,
+      `${BASE}/api/rest/view/v1/messages/${messageId}/attachmentstorageurl/${storageId}`,
         { headers: jsonHeaders, signal: AbortSignal.timeout(8000) },
       );
       if (infoRes.ok) {
