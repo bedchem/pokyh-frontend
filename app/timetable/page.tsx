@@ -1061,7 +1061,7 @@ export default function TimetablePage() {
                       className="flex-1 relative"
                       style={{
                         height: totalGridHeight,
-                        background: isToday ? 'color-mix(in srgb, var(--accent) 5%, transparent)' : 'transparent',
+                        background: 'transparent',
                         borderRadius: 6,
                       }}
                     >
