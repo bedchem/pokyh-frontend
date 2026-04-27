@@ -163,92 +163,19 @@ html:not(.dark) .lp-hero-glow {
   justify-content: center; flex-wrap: wrap; margin-bottom: 32px;
 }
 
-/* ── Phone ── */
+/* ── Three.js phone stage ── */
 .lp-phone-stage {
-  height: 860px; position: relative;
-  margin-top: 0; margin-bottom: -150px;
-  z-index: 1; contain: layout;
+  height: 1100px; position: relative;
+  margin-top: 0; margin-bottom: 80px;
+  z-index: 1;
 }
-.lp-phone-wrap {
-  position: relative; width: 280px; margin: 0 auto;
-  transform-style: preserve-3d; will-change: transform;
+/* Raw <canvas> element — vanilla Three.js, no R3F wrapper div */
+.lp-phone-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none; /* prevent scroll hijack on the canvas */
 }
-
-/* ── 3-D side faces (CSS preserve-3d geometry) ── */
-/* Left face: visible when phone has negative rotateY (left side shown) */
-.lp-phone-left-edge {
-  position: absolute; top: 0; right: 100%;
-  width: 11px; height: 100%;
-  transform: rotateY(90deg); transform-origin: right center;
-  background: linear-gradient(180deg, #2a2a2c 0%, #0e0e10 100%);
-  border-radius: 46px 0 0 46px; pointer-events: none;
-}
-/* Right face: visible when phone has positive rotateY */
-.lp-phone-right-edge {
-  position: absolute; top: 0; left: 100%;
-  width: 11px; height: 100%;
-  transform: rotateY(-90deg); transform-origin: left center;
-  background: linear-gradient(180deg, #222224 0%, #0e0e10 100%);
-  border-radius: 0 46px 46px 0; pointer-events: none;
-}
-
-.lp-phone {
-  position: relative; width: 100%; aspect-ratio: 9/19;
-  background: #0a0a0a; border: 9px solid #1c1c1e; border-radius: 48px;
-  overflow: hidden;
-  box-shadow:
-    0 0 0 1.5px rgba(255,255,255,0.07),
-    inset 0 0 0 1px rgba(0,0,0,0.65),
-    0 70px 120px -30px rgba(0,0,0,0.95),
-    0 30px 60px -20px rgba(99,102,241,0.22),
-    0 4px 20px -4px rgba(99,102,241,0.10);
-  transform-style: preserve-3d;
-}
-/* Screen glare — simulates glass depth when phone is tilted */
-.lp-phone::before {
-  content: ''; position: absolute; inset: 0; z-index: 10;
-  background: linear-gradient(140deg, rgba(255,255,255,0.055) 0%, transparent 48%);
-  pointer-events: none;
-}
-/* Tighten border radius on mobile */
-@media (max-width: 680px) {
-  .lp-phone { border-radius: 38px; border-width: 7px; }
-  .lp-phone-notch { width: 70px; height: 18px; top: 5px; }
-}
-.lp-phone-notch {
-  position: absolute; top: 7px; left: 50%; transform: translateX(-50%);
-  width: 88px; height: 22px; background: #000; border-radius: 99px; z-index: 5;
-}
-.lp-phone-screen {
-  width: 100%; height: 100%; padding: 38px 14px 14px;
-  background: #050505; display: flex; flex-direction: column; gap: 8px;
-}
-.lp-ph-status {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 0 12px 4px; font-size: 11px; font-weight: 600; color: #f5f5f7;
-}
-.lp-ph-greeting { padding: 4px 4px 2px; }
-.lp-ph-date { font-size: 11px; color: #6e6e73; margin-bottom: 2px; }
-.lp-ph-name { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; color: #f5f5f7; }
-.lp-ph-card {
-  background: #0f0f10; border: 0.5px solid rgba(255,255,255,0.08);
-  border-radius: 14px; padding: 12px;
-}
-.lp-ph-card-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
-.lp-ph-label { font-size: 10px; color: #6e6e73; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
-.lp-ph-value { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: #f5f5f7; margin-top: 2px; }
-.lp-ph-mini { font-size: 10px; color: #6e6e73; margin-top: 1px; }
-.lp-ph-lessons-h { font-size: 10px; color: #6e6e73; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 8px; }
-.lp-ph-lesson {
-  display: flex; gap: 10px; align-items: center; padding: 7px 0;
-  border-bottom: 0.5px solid rgba(255,255,255,0.06);
-}
-.lp-ph-lesson:last-child { border-bottom: 0; padding-bottom: 0; }
-.lp-ph-lesson:first-of-type { padding-top: 0; }
-.lp-ph-time { font-size: 10px; color: #6e6e73; min-width: 30px; font-variant-numeric: tabular-nums; }
-.lp-ph-bar { width: 2px; height: 26px; border-radius: 1px; }
-.lp-ph-title { font-size: 12px; font-weight: 600; letter-spacing: -0.01em; color: #f5f5f7; }
-.lp-ph-room { font-size: 10px; color: #6e6e73; }
 
 /* ── Tiles ── */
 .lp-tiles-section { padding: 12px 22px; background: var(--app-bg); }
@@ -472,9 +399,7 @@ html:not(.dark) .lp-hero-glow {
   .lp-compare          { padding: 72px 20px; }
   .lp-tile             { padding: 40px 28px; min-height: 440px; }
   .lp-tile.tall        { min-height: 540px; }
-  /* Phone smaller but still full 3D */
-  .lp-phone-stage      { height: 720px; margin-bottom: -110px; }
-  .lp-phone-wrap       { width: 240px; }
+  .lp-phone-stage      { height: 860px; margin-bottom: 60px; }
   .lp-mock-week,
   .lp-mock-grades,
   .lp-mock-mensa,
@@ -491,10 +416,7 @@ html:not(.dark) .lp-hero-glow {
   .lp-hero-actions     { gap: 16px; }
   .lp-alink            { font-size: 15px; }
   .lp-btn              { font-size: 15px; padding: 11px 20px; }
-  .lp-phone-stage      { height: 640px; margin-bottom: -90px; }
-  .lp-phone-wrap       { width: 210px; }
-  .lp-phone-left-edge  { border-radius: 36px 0 0 36px; }
-  .lp-phone-right-edge { border-radius: 0 36px 36px 0; }
+  .lp-phone-stage      { height: 700px; margin-bottom: 48px; }
   .lp-tiles-section    { padding: 10px 14px; }
   .lp-tiles            { gap: 10px; }
   .lp-tile             { padding: 32px 20px; min-height: 380px; border-radius: 22px; }
@@ -526,10 +448,7 @@ html:not(.dark) .lp-hero-glow {
 /* Small phones — iPhone SE, Pixel 6a, etc. (≤ 400px) */
 @media (max-width: 400px) {
   .lp-hero-text        { padding: 48px 14px 44px; }
-  .lp-phone-stage      { height: 560px; margin-bottom: -75px; }
-  .lp-phone-wrap       { width: 186px; }
-  .lp-phone-left-edge  { border-radius: 30px 0 0 30px; }
-  .lp-phone-right-edge { border-radius: 0 30px 30px 0; }
+  .lp-phone-stage      { height: 600px; margin-bottom: 40px; }
   .lp-tile             { padding: 26px 16px; min-height: 340px; }
   .lp-tile.tall        { min-height: 420px; }
   .lp-compare-cell     { padding: 16px 10px; min-height: 140px; }
@@ -538,10 +457,8 @@ html:not(.dark) .lp-hero-glow {
   .lp-compare-sub      { font-size: 11px; }
 }
 
-/* Reduced motion — snap to final state instantly */
+/* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .lp-reveal  { opacity: 1 !important; transform: none !important; transition: none !important; }
-  .lp-phone-wrap { transform:
-    perspective(900px) translateY(0px) rotateX(0deg) rotateY(0deg) scale(1) !important; }
   .lp-scroll-hint { animation: none !important; opacity: 0.35; }
 }

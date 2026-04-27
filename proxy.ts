@@ -16,6 +16,8 @@ const PUBLIC_PREFIXES = [
   '/api/webuntis/login',
   '/api/mensa',
   '/legal',
+  '/models',
+  '/og-image',
 ];
 
 const SESSION_MAX_MS = 30 * 60 * 1000; // 30 minutes

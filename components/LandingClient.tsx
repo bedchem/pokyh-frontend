@@ -1,8 +1,12 @@
 'use client';
 
 import { Fragment, useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import '@/app/landing.css';
+
+// Dynamic import — Three.js is heavy and SSR-incompatible
+const IPhoneScene = dynamic(() => import('@/components/IPhoneScene'), { ssr: false });
 
 const LESSONS = [
   { time: '08:00', bar: '#6366F1', title: 'Mathematik',  room: 'R204 · Hofer' },
@@ -65,9 +69,10 @@ function reveal(td: number) {
 
 export default function LandingClient() {
   const phoneStageRef = useRef<HTMLDivElement>(null);
-  const phoneWrapRef  = useRef<HTMLDivElement>(null);
+  // Scroll progress for Three.js — updated on scroll, never triggers re-render
+  const progressRef   = useRef<number>(0);
 
-  /* Scroll-driven reveal */
+  /* Scroll-driven reveal for section cards */
   useEffect(() => {
     const io = new IntersectionObserver(
       (entries) => {
@@ -84,59 +89,25 @@ export default function LandingClient() {
     return () => io.disconnect();
   }, []);
 
-  /* ─────────────────────────────────────────────────────
-     Apple-style scroll-driven 3-D phone animation
-     · perspective(900px)        → dramatic tight depth
-     · rotateX  60° → 0°        → tilted back → facing you
-     · rotateY -14° → 0°        → left edge shown → face-on
-       (negative = left side toward viewer at start)
-     · scale   0.70 → 1.0       → grows as it rises
-     · ease-out quart            → fast entry, buttery stop
-     CSS preserve-3d side faces reveal on rotateY
-  ───────────────────────────────────────────────────── */
+  /* Scroll progress → progressRef (read by Three.js useFrame each tick) */
   useEffect(() => {
     const stage = phoneStageRef.current;
-    const wrap  = phoneWrapRef.current;
-    if (!stage || !wrap) return;
-
-    // Respect prefers-reduced-motion (CSS already handles snap)
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-
-    let raf: number | null = null;
+    if (!stage) return;
 
     function update() {
-      if (!stage || !wrap) return;
-      const { top } = stage.getBoundingClientRect();
+      const { top, height } = stage!.getBoundingClientRect();
       const vh = window.innerHeight;
-
-      // t=0: stage top at viewport bottom (phone enters view)
-      // t=1: stage top at 30% from top (animation done)
-      const raw = (vh - top) / (vh * 0.70);
-      const t   = Math.max(0, Math.min(1, raw));
-
-      // Ease-out quart — Apple's signature deceleration
-      const e = 1 - Math.pow(1 - t, 4);
-
-      const rotX  = (1 - e) * 60;      // 60° → 0° (tilt back → face you)
-      const rotY  = -(1 - e) * 14;     // -14° → 0° (left side → face-on)
-      const scale = 0.70 + e * 0.30;   // 0.70 → 1.0
-      const ty    = (1 - e) * 120;     // 120px rise
-
-      // perspective inline — not on parent — for size-independent depth
-      wrap.style.transform =
-        `perspective(900px) translateY(${ty}px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(${scale})`;
-
-      raf = null;
+      // 0 when stage enters from bottom, 1 when stage has scrolled fully through
+      // Using stage height as scroll distance → full 360° over the whole stage
+      progressRef.current = Math.max(0, Math.min(1, (vh - top) / (height * 0.9)));
     }
 
-    function onScroll() { if (!raf) raf = requestAnimationFrame(update); }
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
     update();
     return () => {
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
-      if (raf) cancelAnimationFrame(raf);
+      window.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
     };
   }, []);
 
@@ -186,52 +157,9 @@ export default function LandingClient() {
         {/* Atmospheric glow — sits behind the phone */}
         <div className="lp-hero-glow" aria-hidden="true" />
 
-        {/* Phone mockup — 3-D object with CSS preserve-3d side faces */}
+        {/* Three.js iPhone — full 3-D model, scroll-driven animation */}
         <div className="lp-phone-stage" ref={phoneStageRef}>
-          <div className="lp-phone-wrap" ref={phoneWrapRef}>
-            {/* Side faces — become visible as phone spins on rotateY */}
-            <div className="lp-phone-left-edge"  aria-hidden="true" />
-            <div className="lp-phone-right-edge" aria-hidden="true" />
-            <div className="lp-phone">
-              <div className="lp-phone-notch" />
-              <div className="lp-phone-screen">
-                <div className="lp-ph-status">
-                  <span>9:41</span>
-                  <span style={{ fontSize: 10 }}>●●●</span>
-                </div>
-                <div className="lp-ph-greeting">
-                  <div className="lp-ph-date">Montag, 27. April</div>
-                  <div className="lp-ph-name">Hallo, Sabby</div>
-                </div>
-                <div className="lp-ph-card">
-                  <div className="lp-ph-card-row">
-                    <div>
-                      <div className="lp-ph-label">Schnitt</div>
-                      <div className="lp-ph-value">8,42</div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div className="lp-ph-label">Nächste</div>
-                      <div className="lp-ph-value" style={{ fontSize: 12 }}>Mathematik</div>
-                      <div className="lp-ph-mini">in 12 min · R204</div>
-                    </div>
-                  </div>
-                </div>
-                <div className="lp-ph-card">
-                  <div className="lp-ph-lessons-h">Heute</div>
-                  {LESSONS.map((l) => (
-                    <div className="lp-ph-lesson" key={l.time}>
-                      <div className="lp-ph-time">{l.time}</div>
-                      <div className="lp-ph-bar" style={{ background: l.bar }} />
-                      <div>
-                        <div className="lp-ph-title">{l.title}</div>
-                        <div className="lp-ph-room">{l.room}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
+          <IPhoneScene progressRef={progressRef} className="lp-phone-canvas" />
         </div>
       </header>
 
@@ -490,7 +418,7 @@ export default function LandingClient() {
               © 2026{' '}
               <a href="https://github.com/bedchem" target="_blank" rel="noopener noreferrer">bedchem</a>
               {' '}· POKYH · Made by{' '}
-              <a href="https://github.com/plattnericus" target="_blank" rel="noopener noreferrer">Nexor (Plattnericus)</a>
+              <a href="https://github.com/plattnericus" target="_blank" rel="noopener noreferrer">Plattnericus</a>
               {' '}&amp;{' '}
               <a href="https://github.com/ryhox" target="_blank" rel="noopener noreferrer">Ryhox</a>
             </div>
