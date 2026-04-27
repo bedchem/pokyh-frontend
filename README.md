@@ -149,3 +149,11 @@ next.config.ts        # Security-Header, Image-Domains, Kompression
 | **Flutter-Original** | [github.com/bedchem/POKYH](https://github.com/bedchem/POKYH) |
 | **Kontakt** | contact@pokyh.com |
 | **Lizenz** | MIT |
+
+---
+
+<div align="center">
+
+**Made with ❤️ by [plattnericus](https://github.com/plattnericus) & [ryhox](https://github.com/ryhox)**
+
+</div>
