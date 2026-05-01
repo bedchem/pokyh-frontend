@@ -97,10 +97,10 @@ function monthKey(date: number): string {
 
 function gradeDisplay(g: GradeEntry): string {
   const raw = g.text?.trim() || g.markName?.trim() || g.examType?.trim();
-  if (raw) return raw;
-  const v = g.markDisplayValue > 0 ? g.markDisplayValue : g.markValue;
-  if (Number.isInteger(v)) return String(v);
-  return String(v).replace('.', ',');
+  const normalized = (raw ?? '').replace(',', '.').replace(/[−–—]/g, '-').trim();
+  const isGradeLike = /^(?:\d{1,2}(?:\.\d{1,2})?[+\-]?|\d{1,2}\/\d{1,2})$/.test(normalized);
+  if (!raw || isGradeLike) return 'Prüfung';
+  return raw;
 }
 
 function formatMark(value: number): string {
@@ -331,19 +331,19 @@ export default function GradesPage() {
   );
 
   const detailAverage = averageOf(detailValues);
+  const detailAverageTone = detailAverage >= 6.5 ? 'avg-good' : detailAverage < 6 ? 'avg-bad' : 'avg-warn';
   const detailPositive = detailValues.filter((v) => v >= 6).length;
   const detailNegative = detailValues.filter((v) => v < 6).length;
   const detailTeacherRows = useMemo(() => {
-    if (!detailsSubject) return [] as Array<{ id: number; label: string; date: string; value: number }>;
+    if (!detailsSubject) return [] as Array<{ id: number; label: string; date: string; value: number; removed: boolean }>;
     const removed = new Set(draftState[detailsSubject.lessonId]?.removedTeacherGradeIds ?? []);
-    return detailsSubject.grades
-      .filter((g) => !removed.has(g.id))
-      .map((g) => ({
-        id: g.id,
-        label: gradeDisplay(g),
-        date: fmtDateShort(g.date),
-        value: round2(g.markDisplayValue),
-      }));
+    return detailsSubject.grades.map((g) => ({
+      id: g.id,
+      label: gradeDisplay(g),
+      date: fmtDateShort(g.date),
+      value: round2(g.markDisplayValue),
+      removed: removed.has(g.id),
+    }));
   }, [detailsSubject, draftState]);
 
   const detailCustomValues = useMemo(() => {
@@ -391,20 +391,27 @@ export default function GradesPage() {
   };
 
   const closeDetails = () => {
+    setDraftState((prev) => {
+      if (detailsSubjectId === null) return prev;
+      const { [detailsSubjectId]: _removed, ...rest } = prev;
+      return rest;
+    });
     setDetailsSubjectId(null);
     setNewGradeInput('');
     setHoverTrendIndex(null);
   };
 
-  const removeTeacherGrade = (lessonId: number, gradeId: number) => {
+  const toggleTeacherGrade = (lessonId: number, gradeId: number) => {
     setDraftState((prev) => {
       const current = prev[lessonId] ?? { removedTeacherGradeIds: [], customGrades: [] };
-      if (current.removedTeacherGradeIds.includes(gradeId)) return prev;
+      const set = new Set(current.removedTeacherGradeIds);
+      if (set.has(gradeId)) set.delete(gradeId);
+      else set.add(gradeId);
       return {
         ...prev,
         [lessonId]: {
           ...current,
-          removedTeacherGradeIds: [...current.removedTeacherGradeIds, gradeId],
+          removedTeacherGradeIds: Array.from(set),
         },
       };
     });
@@ -709,36 +716,15 @@ export default function GradesPage() {
             <div className="details-grid">
               <div className="detail-card">
                 <p>Durchschnittsnote</p>
-                <strong className={gradeClass(detailAverage)}>{fmtNum(detailAverage, 2)}</strong>
+                <strong className={detailAverageTone}>{fmtNum(detailAverage, 2)}</strong>
               </div>
               <div className="detail-card">
                 <p>Notenverhältnis</p>
                 <strong>
-                  <span className="v-positive">{detailPositive}</span> / <span className="v-negative">{detailNegative}</span>
+                  <span className="ratio-pos">{detailPositive}</span>
+                  <span className="ratio-sep">/</span>
+                  <span className="ratio-neg">{detailNegative}</span>
                 </strong>
-              </div>
-            </div>
-
-            <div className="edit-card">
-              <div className="edit-head">
-                <h3>Mittelwert-Rechner</h3>
-              </div>
-
-              <div className="edit-list">
-                {detailTeacherRows.map((row) => (
-                  <div key={row.id} className="edit-row">
-                    <div className="edit-meta">
-                      <span>{row.date}</span>
-                      <em>{row.label}</em>
-                    </div>
-                    <div className="edit-controls">
-                      <strong className={`inline-grade ${gradeClass(row.value)}`}>{formatMark(row.value)}</strong>
-                      <button type="button" onClick={() => removeTeacherGrade(detailsSubject.lessonId, row.id)} aria-label="Note entfernen">
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
               </div>
             </div>
 
@@ -814,14 +800,41 @@ export default function GradesPage() {
                   );
                 })()}
               </svg>
+            </div>
+
+            <div className="edit-card">
+              <div className="edit-head">
+                <h3>Mittelwert-Rechner</h3>
+              </div>
+
+              <div className="edit-list">
+                {detailTeacherRows.map((row) => (
+                  <div key={row.id} className={`edit-row${row.removed ? ' removed' : ''}`}>
+                    <div className="edit-meta">
+                      <span>{row.date}</span>
+                      <em>{row.label}</em>
+                    </div>
+                    <div className="edit-controls">
+                      <strong className={`inline-grade ${row.value >= 6.5 ? 'mw-good' : 'mw-warn'}`}>{formatMark(row.value)}</strong>
+                      <button
+                        type="button"
+                        onClick={() => toggleTeacherGrade(detailsSubject.lessonId, row.id)}
+                        aria-label={row.removed ? 'Note wiederherstellen' : 'Note entfernen'}
+                      >
+                        {row.removed ? <Plus size={14} /> : <Trash2 size={14} />}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
 
               <div className="custom-block">
-                <div className="custom-head">Eigene Noten</div>
+                <div className="custom-head" style={{ textAlign: 'center' }}>Eigene Noten</div>
                 {detailCustomValues.length > 0 ? (
                   <div className="custom-list">
                     {detailCustomValues.map((value, idx) => (
-                      <div key={`custom-${idx}`} className="custom-item">
-                        <span className={`inline-grade ${gradeClass(value)}`}>{formatMark(value)}</span>
+                      <div key={`custom-${idx}`} className={`custom-item ${value >= 6.5 ? 'mw-good' : 'mw-warn'}`}>
+                        <span className={`inline-grade ${value >= 6.5 ? 'mw-good' : 'mw-warn'}`}>{formatMark(value)}</span>
                         <button type="button" onClick={() => removeCustomGrade(detailsSubject.lessonId, idx)} aria-label="Eigene Note entfernen">
                           <Trash2 size={14} />
                         </button>
@@ -834,21 +847,28 @@ export default function GradesPage() {
               </div>
 
               <div className="add-row">
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={newGradeInput}
-                  onChange={(e) => {
-                    const next = e.currentTarget.value;
-                    if (/^\d{0,2}([.,]\d{0,2})?$/.test(next)) {
-                      setNewGradeInput(next);
-                    }
-                  }}
-                  placeholder="Neue Note (1-10)"
-                />
-                <button type="button" onClick={() => addDraftValue(detailsSubject.lessonId)}>
-                  <Plus size={16} />
-                </button>
+                <div className="add-input">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={newGradeInput}
+                    onChange={(e) => {
+                      const next = e.currentTarget.value;
+                      if (/^\d{0,2}([.,]\d{0,2})?$/.test(next)) {
+                        const parsed = Number.parseFloat(next.replace(',', '.'));
+                        if (Number.isFinite(parsed) && parsed > 10) {
+                          setNewGradeInput('10');
+                        } else {
+                          setNewGradeInput(next);
+                        }
+                      }
+                    }}
+                    placeholder="Neue Note"
+                  />
+                  <button type="button" onClick={() => addDraftValue(detailsSubject.lessonId)} aria-label="Neue Note hinzufügen">
+                    <Plus size={16} />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1479,21 +1499,31 @@ export default function GradesPage() {
           color: var(--g-ink);
         }
 
-        .detail-card strong.v-excellent {
-          color: var(--g-good) !important;
+        .detail-card strong.avg-good {
+          color: #28c281;
         }
 
-        .detail-card strong.v-positive {
-          color: var(--g-good) !important;
+        .detail-card strong.avg-warn {
+          color: #f3a53a;
         }
 
-        .detail-card strong.v-negative {
-          color: var(--g-bad) !important;
+        .detail-card strong.avg-bad {
+          color: #ff4d4f;
         }
 
-        .detail-card strong.v-critical {
-          color: var(--g-bad) !important;
+        .detail-card .ratio-pos {
+          color: #28c281;
         }
+
+        .detail-card .ratio-sep {
+          color: #8c8c8c;
+          padding: 0 6px;
+        }
+
+        .detail-card .ratio-neg {
+          color: #ff4d4f;
+        }
+
 
         .edit-card,
         .trend-card {
@@ -1534,8 +1564,17 @@ export default function GradesPage() {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          border-top: 1px solid var(--g-line);
-          padding-top: 8px;
+          border: 1px solid color-mix(in srgb, var(--g-line) 55%, transparent);
+          background: color-mix(in srgb, var(--g-bg) 62%, #000000 38%);
+          border-radius: 10px;
+          padding: 10px 12px;
+        }
+
+        .edit-row.removed .edit-meta span,
+        .edit-row.removed .edit-meta em,
+        .edit-row.removed .inline-grade {
+          text-decoration: line-through;
+          opacity: 0.55;
         }
 
         .edit-meta {
@@ -1592,25 +1631,35 @@ export default function GradesPage() {
           color: var(--g-bad) !important;
         }
 
-        .edit-controls .inline-grade,
-        .custom-item .inline-grade {
-          color: var(--g-good);
+        .inline-grade.mw-good {
+          color: #28c281;
+        }
+
+        .inline-grade.mw-warn {
+          color: #f3a53a;
         }
 
         .add-row input {
-          width: 88px;
-          border: 1px solid var(--g-line-2);
+          width: 132px;
+          border: 1px solid #6a6a6a;
           border-radius: 8px;
-          background: var(--g-surface);
+          background: rgba(255, 255, 255, 0.08);
           color: var(--g-ink);
-          padding: 8px 10px;
+          padding: 8px 36px 8px 10px;
           font-size: 13px;
           font-weight: 600;
           font-variant-numeric: tabular-nums;
+          box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+        }
+
+        .add-row input:focus {
+          outline: none;
+          border-color: rgba(255, 255, 255, 0.7);
+          box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.18);
         }
 
         .edit-controls button,
-        .add-row button {
+        .add-input button {
           width: 36px;
           height: 36px;
           border: 1px solid var(--g-line-2);
@@ -1624,9 +1673,23 @@ export default function GradesPage() {
 
         .add-row {
           display: flex;
-          justify-content: flex-end;
+          justify-content: center;
           gap: 8px;
           margin-top: 12px;
+        }
+
+        .add-input {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+        }
+
+        .add-input button {
+          position: absolute;
+          right: 4px;
+          width: 28px;
+          height: 28px;
+          border-radius: 7px;
         }
 
         .custom-block {
@@ -1646,15 +1709,32 @@ export default function GradesPage() {
 
         .custom-list {
           display: flex;
-          flex-direction: column;
-          gap: 6px;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 12px;
         }
 
         .custom-item {
-          display: flex;
-          justify-content: flex-end;
+          display: inline-flex;
+          flex: 0 0 auto;
+          justify-content: center;
           align-items: center;
           gap: 8px;
+          width: max-content;
+          border: 1px solid rgba(255, 255, 255, 0.18);
+          background: rgba(255, 255, 255, 0.06);
+          border-radius: 10px;
+          padding: 6px 10px;
+        }
+
+        .custom-item.mw-good {
+          border-color: color-mix(in srgb, #28c281 55%, transparent);
+          background: color-mix(in srgb, #28c281 14%, transparent);
+        }
+
+        .custom-item.mw-warn {
+          border-color: color-mix(in srgb, #f3a53a 55%, transparent);
+          background: color-mix(in srgb, #f3a53a 14%, transparent);
         }
 
         .custom-item button {
@@ -1669,10 +1749,15 @@ export default function GradesPage() {
           cursor: pointer;
         }
 
+        .custom-item .inline-grade {
+          min-width: 0;
+          text-align: center;
+        }
+
         .custom-empty {
           color: var(--g-muted-2);
           font-size: 12px;
-          text-align: right;
+          text-align: center;
           margin-bottom: 2px;
         }
 
@@ -1766,7 +1851,7 @@ export default function GradesPage() {
         }
 
         .trend-tooltip-text {
-          fill: var(--g-ink);
+          fill: #ffffff;
           font-size: 11px;
           font-weight: 600;
           pointer-events: none;
