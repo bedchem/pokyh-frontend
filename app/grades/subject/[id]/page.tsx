@@ -207,6 +207,15 @@ export default function SubjectDetailPage({
     return diff > 0 ? 'up' : 'down';
   }, [chronological]);
 
+  const hoverPoint = hoverTrendIndex !== null ? trendPoints[hoverTrendIndex] : null;
+  const hoverFlip = hoverPoint ? hoverPoint.x > 480 : false;
+  const hoverPos = hoverPoint
+    ? { left: `${(hoverPoint.x / 660) * 100}%`, top: `${(hoverPoint.y / 240) * 100}%` }
+    : null;
+  const hoverDateText = hoverPoint
+    ? (hoverPoint.isCustom ? 'Eigene Note' : fmtDateShort(hoverPoint.date))
+    : '';
+
   const GRADE_STEP = 0.5;
 
   const roundToGradeStep = (value: number, mode: 'up' | 'down') => {
@@ -505,92 +514,97 @@ export default function SubjectDetailPage({
               {chronological.length === 0 ? (
                 <div className="trend-empty">Noch keine Noten</div>
               ) : (
-                <svg
-                  viewBox="0 0 660 240"
-                  className="trend-svg"
-                  onMouseMove={handleTrendMouseMove}
-                  onMouseLeave={() => setHoverTrendIndex(null)}
-                >
-                  {[10, 9, 8, 7, 6, 5, 4].map((grade) => {
-                    const y = 220 - ((grade - 4) / 6) * 200;
-                    return (
-                      <g key={`g-${grade}`}>
-                        <line x1="0" y1={y} x2="660" y2={y} className="trend-grid" />
-                        <text x="8" y={y - 4} className="trend-axis-label">{grade}</text>
-                      </g>
-                    );
-                  })}
-                  {(() => {
-                    const y = 220 - ((6 - 4) / 6) * 200;
-                    return <line x1="0" y1={y} x2="660" y2={y} className="trend-baseline" />;
-                  })()}
+                <div className="trend-plot">
+                  <svg
+                    viewBox="0 0 660 240"
+                    className="trend-svg"
+                    onMouseMove={handleTrendMouseMove}
+                    onMouseLeave={() => setHoverTrendIndex(null)}
+                  >
+                    {[10, 9, 8, 7, 6, 5, 4].map((grade) => {
+                      const y = 220 - ((grade - 4) / 6) * 200;
+                      return (
+                        <g key={`g-${grade}`}>
+                          <line x1="0" y1={y} x2="660" y2={y} className="trend-grid" />
+                          <text x="8" y={y - 4} className="trend-axis-label">{grade}</text>
+                        </g>
+                      );
+                    })}
+                    {(() => {
+                      const y = 220 - ((6 - 4) / 6) * 200;
+                      return <line x1="0" y1={y} x2="660" y2={y} className="trend-baseline" />;
+                    })()}
 
-                  {trendPoints.length > 1 && (() => {
-                    const lastRealIdx = chronological.reduce((last, g, i) => (!g.isCustom ? i : last), -1);
-                    const hasCustomSeg = draft.customGrades.length > 0 && lastRealIdx >= 0;
-                    const realPts = hasCustomSeg ? trendPoints.slice(0, lastRealIdx + 1) : trendPoints;
-                    const dashedPts = hasCustomSeg
-                      ? [trendPoints[lastRealIdx], ...trendPoints.slice(lastRealIdx + 1)]
-                      : [];
-                    return (
-                      <>
-                        {realPts.length > 1 && (
-                          <polyline
-                            key={`line-real-${trendAnimKey}`}
-                            className="trend-line"
-                            fill="none"
-                            points={realPts.map((p) => `${p.x},${p.y}`).join(' ')}
-                          />
-                        )}
-                        {dashedPts.length > 1 && (
-                          <polyline
-                            key={`line-custom-${trendAnimKey}`}
-                            className="trend-line-custom"
-                            fill="none"
-                            points={dashedPts.map((p) => `${p.x},${p.y}`).join(' ')}
-                          />
-                        )}
-                      </>
-                    );
-                  })()}
+                    {trendPoints.length > 1 && (() => {
+                      const lastRealIdx = chronological.reduce((last, g, i) => (!g.isCustom ? i : last), -1);
+                      const hasCustomSeg = draft.customGrades.length > 0 && lastRealIdx >= 0;
+                      const realPts = hasCustomSeg ? trendPoints.slice(0, lastRealIdx + 1) : trendPoints;
+                      const dashedPts = hasCustomSeg
+                        ? [trendPoints[lastRealIdx], ...trendPoints.slice(lastRealIdx + 1)]
+                        : [];
+                      return (
+                        <>
+                          {realPts.length > 1 && (
+                            <polyline
+                              key={`line-real-${trendAnimKey}`}
+                              className="trend-line"
+                              fill="none"
+                              points={realPts.map((p) => `${p.x},${p.y}`).join(' ')}
+                            />
+                          )}
+                          {dashedPts.length > 1 && (
+                            <polyline
+                              key={`line-custom-${trendAnimKey}`}
+                              className="trend-line-custom"
+                              fill="none"
+                              points={dashedPts.map((p) => `${p.x},${p.y}`).join(' ')}
+                            />
+                          )}
+                        </>
+                      );
+                    })()}
 
-                  {chronological.length > 1 && (() => {
-                    const first = chronological[0].value;
-                    const last = chronological[chronological.length - 1].value;
-                    const y1 = 220 - ((first - 4) / 6) * 200;
-                    const y2 = 220 - ((last - 4) / 6) * 200;
-                    return <line key={`fit-${trendAnimKey}`} x1="32" y1={Math.max(20, Math.min(220, y1))} x2="628" y2={Math.max(20, Math.min(220, y2))} className="trend-fit" />;
-                  })()}
+                    {chronological.length > 1 && (() => {
+                      const first = chronological[0].value;
+                      const last = chronological[chronological.length - 1].value;
+                      const y1 = 220 - ((first - 4) / 6) * 200;
+                      const y2 = 220 - ((last - 4) / 6) * 200;
+                      return <line key={`fit-${trendAnimKey}`} x1="32" y1={Math.max(20, Math.min(220, y1))} x2="628" y2={Math.max(20, Math.min(220, y2))} className="trend-fit" />;
+                    })()}
 
-                  {trendPoints.map((p) => (
-                    <circle
-                      key={`pt-${p.index}-${trendAnimKey}`}
-                      cx={p.x}
-                      cy={p.y}
-                      r={hoverTrendIndex === p.index ? 5 : p.isCustom ? 4 : 3.4}
-                      className={`trend-point ${p.isCustom ? 'custom' : ''}`}
-                      onMouseEnter={() => setHoverTrendIndex(p.index)}
-                    />
-                  ))}
+                    {trendPoints.map((p) => (
+                      <circle
+                        key={`pt-${p.index}-${trendAnimKey}`}
+                        cx={p.x}
+                        cy={p.y}
+                        r={hoverTrendIndex === p.index ? 5 : p.isCustom ? 4 : 3.4}
+                        className={`trend-point ${p.isCustom ? 'custom' : ''}`}
+                        onMouseEnter={() => setHoverTrendIndex(p.index)}
+                      />
+                    ))}
 
-                  {hoverTrendIndex !== null && trendPoints[hoverTrendIndex] && (() => {
-                    const p = trendPoints[hoverTrendIndex];
-                    const tooltipX = p.x + 10 > 550 ? p.x - 120 : p.x + 10;
-                    const tooltipY = Math.max(22, p.y - 60);
-                    const dateText = p.isCustom ? 'Eigene Note' : fmtDateShort(p.date);
-                    return (
+                    {hoverPoint && (
                       <g className="trend-hover">
-                        <line x1={p.x} y1="20" x2={p.x} y2="220" className="trend-hover-line" />
-                        <circle cx={p.x} cy={p.y} r="5.4" className="trend-point-active" />
-                        <rect x={tooltipX} y={tooltipY} rx="5" ry="5" width="110" height="34" className="trend-tooltip-bg" />
-                        <text x={tooltipX + 8} y={tooltipY + 12} className="trend-tooltip-title">{dateText}</text>
-                        <text x={tooltipX + 8} y={tooltipY + 26} className="trend-tooltip-text">
-                          {p.label}: <tspan className="trend-tooltip-grade">{fmtNum(p.value, 2)}</tspan>
-                        </text>
+                        <line x1={hoverPoint.x} y1="20" x2={hoverPoint.x} y2="220" className="trend-hover-line" />
+                        <circle cx={hoverPoint.x} cy={hoverPoint.y} r="5.4" className="trend-point-active" />
                       </g>
-                    );
-                  })()}
-                </svg>
+                    )}
+                  </svg>
+
+                  {hoverPoint && hoverPos && (
+                    <div
+                      className={`trend-tooltip${hoverFlip ? ' flip' : ''}`}
+                      style={{ left: hoverPos.left, top: hoverPos.top }}
+                    >
+                      <div className="trend-tooltip-inner">
+                        <div className="trend-tooltip-title">{hoverDateText}</div>
+                        <div className="trend-tooltip-text">
+                          {hoverPoint.label}: <span className="trend-tooltip-grade">{fmtNum(hoverPoint.value, 2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </section>
@@ -1075,6 +1089,10 @@ export default function SubjectDetailPage({
           overflow: hidden;
         }
 
+        .trend-plot {
+          position: relative;
+        }
+
         .trend-svg {
           width: 100%;
           height: auto;
@@ -1160,30 +1178,44 @@ export default function SubjectDetailPage({
           opacity: 0.5;
         }
 
-        .trend-tooltip-bg {
-          fill: var(--g-surface);
-          stroke: var(--g-line-2);
-          stroke-width: 1;
+        .trend-tooltip {
+          position: absolute;
           pointer-events: none;
-          filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.18));
+          transform: translate(10px, -60px);
+          z-index: 2;
+        }
+
+        .trend-tooltip.flip {
+          transform: translate(calc(-100% - 10px), -60px);
+        }
+
+        .trend-tooltip-inner {
+          width: max-content;
+          max-width: 250px;
+          padding: 6px 8px;
+          border-radius: 6px;
+          background: var(--g-surface);
+          border: 1px solid var(--g-line-2);
+          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
         }
 
         .trend-tooltip-title {
-          fill: var(--g-muted);
-          font-size: 7px;
+          color: var(--g-muted);
+          font-size: 10px;
           font-weight: 600;
-          pointer-events: none;
+          line-height: 1.2;
         }
 
         .trend-tooltip-text {
-          fill: var(--g-ink);
-          font-size: 8px;
+          color: var(--g-ink);
+          font-size: 11px;
           font-weight: 600;
-          pointer-events: none;
+          line-height: 1.2;
+          white-space: normal;
         }
 
         .trend-tooltip-grade {
-          fill: var(--accent);
+          color: var(--accent);
           font-weight: 700;
           font-variant-numeric: tabular-nums;
         }
