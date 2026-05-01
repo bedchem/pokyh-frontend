@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, Paperclip, Inbox, CheckCheck } from 'lucide-react';
+import { ChevronRight, Paperclip, Inbox, CheckCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AuthGuard from '@/components/AuthGuard';
@@ -123,13 +123,6 @@ export default function MessagesPage() {
       >
         {/* Nav */}
         <div className="px-5 pt-4 pb-4 flex items-center gap-3 fade-in flex-shrink-0">
-          <button
-            onClick={() => router.back()}
-            className="p-2 rounded-full press-scale"
-            style={{ background: 'var(--app-surface)' }}
-          >
-            <ChevronLeft size={20} color="var(--accent)" />
-          </button>
           <h1
             className="flex-1 text-[28px] font-bold tracking-tight"
             style={{ color: 'var(--app-text-primary)' }}
