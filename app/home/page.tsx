@@ -8,7 +8,7 @@ import { useSession } from '@/providers/SessionProvider';
 import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
 import { fetchTimetable, fetchGrades, fetchMensa, fetchMessages } from '@/lib/api';
-import { subjectColor, gradeColor, averageColor } from '@/lib/colors';
+import { subjectColor, averageColor } from '@/lib/colors';
 import { format, addDays } from 'date-fns';
 import { de } from 'date-fns/locale';
 import type { TimetableEntry, MessagePreview, Dish } from '@/lib/types';
@@ -29,6 +29,10 @@ function parseTime(t: number): string {
 function formatGradeDate(d: number): string {
   const s = d.toString();
   return `${s.slice(6, 8)}.${s.slice(4, 6)}.`;
+}
+
+function gradePillTone(value: number): string {
+  return value >= 6.5 ? '#28c281' : '#f3a53a';
 }
 
 function senderInitial(name: string): string {
@@ -515,7 +519,14 @@ export default function HomePage() {
                                 <p className="text-sm font-medium truncate" style={{ color: 'var(--app-text-primary)' }}>{g.subjectName || '–'}</p>
                                 <p className="text-xs" style={{ color: 'var(--app-text-tertiary)' }}>{g.examType || 'Note'} · {formatGradeDate(g.date)}</p>
                               </div>
-                              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style={{ background: gradeColor(g.markDisplayValue) }}>
+                              <div
+                                className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0"
+                                style={{
+                                  color: gradePillTone(g.markDisplayValue),
+                                  background: `color-mix(in srgb, ${gradePillTone(g.markDisplayValue)} 14%, transparent)`,
+                                  border: `1px solid color-mix(in srgb, ${gradePillTone(g.markDisplayValue)} 55%, transparent)`,
+                                }}
+                              >
                                 {g.markDisplayValue}
                               </div>
                             </div>

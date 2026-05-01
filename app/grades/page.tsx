@@ -1,14 +1,46 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BarChart2, ChevronDown, Plus, Trash2, X } from 'lucide-react';
+import { BarChart2, ChevronDown, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
 import EmptyView from '@/components/ui/EmptyView';
 import { fetchGrades } from '@/lib/api';
-import type { GradeEntry, SubjectGrades } from '@/lib/types';
+import type { SubjectGrades } from '@/lib/types';
+import {
+  parseGrades,
+  fmtNum,
+  fmtDateShort,
+  fmtUntisDateLong,
+  monthKey,
+  gradeDisplay,
+  formatMark,
+  averageOf,
+  gradeClass,
+} from '@/lib/grades';
+
+const DONUT_GRADE_COLORS: Record<number, string> = {
+  10: '#30D158',
+  9: '#00C7BE',
+  8: '#0A84FF',
+  7: '#5E5CE6',
+  6: '#FFD60A',
+  5: '#FF9F0A',
+  4: '#FF453A',
+};
+
+type DonutSeg = {
+  grade: number;
+  count: number;
+  color: string;
+  path: string;
+  sweep: number;
+  tickStart: [number, number];
+  tickEnd: [number, number];
+  labelPos: [number, number];
+};
 
 type RecentItem = {
   id: number;
@@ -16,146 +48,7 @@ type RecentItem = {
   numeric: number;
 };
 
-type DraftSubjectState = {
-  removedTeacherGradeIds: number[];
-  customGrades: number[];
-};
-
-function parseGrades(json: unknown): SubjectGrades[] {
-  try {
-    const root = json as Record<string, unknown>;
-    const raw = (root?.subjects ?? []) as Array<Record<string, unknown>>;
-    return raw
-      .map((s) => {
-        const entries: GradeEntry[] = ((s.grades ?? []) as Array<Record<string, unknown>>)
-          .map((g) => ({
-            id: g.id as number,
-            text: (g.text as string) ?? '',
-            date: g.date as number,
-            markName: (g.markName as string) ?? '',
-            markValue: (g.markValue as number) ?? 0,
-            markDisplayValue: (g.markDisplayValue as number) ?? 0,
-            examType: (g.examType as string) ?? '',
-          }))
-          .filter((g) => g.markValue > 0 && g.date > 0);
-
-        const vals = entries.map((g) => g.markDisplayValue).filter((v) => v > 0);
-        const average = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
-
-        return {
-          lessonId: s.lessonId as number,
-          subjectName: (s.subjectName as string) ?? '',
-          teacherName: (s.teacherName as string) ?? '',
-          grades: entries,
-          average,
-          positiveCount: vals.filter((v) => v >= 6).length,
-          negativeCount: vals.filter((v) => v < 6).length,
-        } as SubjectGrades;
-      })
-      .filter((s) => s.subjectName && s.grades.length > 0)
-      .sort((a, b) => a.subjectName.localeCompare(b.subjectName));
-  } catch {
-    return [];
-  }
-}
-
-function fmtNum(value: number, digits = 2): string {
-  const factor = 10 ** digits;
-  const rounded = Math.round(value * factor) / factor;
-  const trimmed = rounded
-    .toFixed(digits)
-    .replace(/(\.\d*?[1-9])0+$/, '$1')
-    .replace(/\.0+$/, '');
-  return trimmed.replace('.', ',');
-}
-
-function fmtDateShort(date: number): string {
-  const s = String(date);
-  if (s.length !== 8) return String(date);
-  return `${s.slice(6, 8)}.${s.slice(4, 6)}.${s.slice(2, 4)}`;
-}
-
-function fmtDateLong(date: Date): string {
-  return date.toLocaleDateString('de-CH', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-}
-
-function fmtUntisDateLong(date: number): string {
-  const s = String(date);
-  if (s.length !== 8) return String(date);
-  const d = new Date(Number(s.slice(0, 4)), Number(s.slice(4, 6)) - 1, Number(s.slice(6, 8)));
-  return fmtDateLong(d);
-}
-
-function monthKey(date: number): string {
-  const s = String(date);
-  return s.slice(0, 6);
-}
-
-function gradeDisplay(g: GradeEntry): string {
-  const raw = g.text?.trim() || g.markName?.trim() || g.examType?.trim();
-  const normalized = (raw ?? '').replace(',', '.').replace(/[−–—]/g, '-').trim();
-  const isGradeLike = /^(?:\d{1,2}(?:\.\d{1,2})?[+\-]?|\d{1,2}\/\d{1,2})$/.test(normalized);
-  if (!raw || isGradeLike) return 'Prüfung';
-  return raw;
-}
-
-function formatMark(value: number): string {
-  return fmtNum(value, 2);
-}
-
-function round2(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
-function clampGrade(value: number): number {
-  return round2(Math.max(1, Math.min(10, value)));
-}
-
-function averageOf(values: number[]): number {
-  if (!values.length) return 0;
-  return round2(values.reduce((a, b) => a + b, 0) / values.length);
-}
-
-function parseGradeInput(raw: string): number | null {
-  const normalized = raw.replace(',', '.').trim();
-  if (!normalized) return null;
-  const parsed = Number.parseFloat(normalized);
-  if (!Number.isFinite(parsed)) return null;
-  if (parsed < 1 || parsed > 10) return null;
-  return round2(parsed);
-}
-
-function gradeClass(value: number): 'v-excellent' | 'v-positive' | 'v-negative' | 'v-critical' {
-  if (value >= 9) return 'v-excellent';
-  if (value >= 6) return 'v-positive';
-  if (value > 4) return 'v-negative';
-  return 'v-critical';
-}
-
-function sparkPath(values: number[]): { line: string; area: string } {
-  if (values.length === 0) return { line: '', area: '' };
-  if (values.length === 1) {
-    const y = Math.round((1 - (values[0] - 1) / 9) * 42);
-    return {
-      line: `M0,${y} L200,${y}`,
-      area: `M0,${y} L200,${y} L200,60 L0,60 Z`,
-    };
-  }
-
-  const xs = values.map((_, i) => (i / (values.length - 1)) * 200);
-  const ys = values.map((v) => {
-    const clamped = Math.max(1, Math.min(10, v));
-    return 42 - ((clamped - 1) / 9) * 24;
-  });
-
-  const line = ys.map((y, i) => `${i === 0 ? 'M' : 'L'}${xs[i].toFixed(1)},${y.toFixed(1)}`).join(' ');
-  const area = `${line} L200,60 L0,60 Z`;
-  return { line, area };
-}
+type SortMode = 'name' | 'avg-desc' | 'avg-asc' | 'recent';
 
 export default function GradesPage() {
   const router = useRouter();
@@ -163,11 +56,9 @@ export default function GradesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
-  const [draftState, setDraftState] = useState<Record<number, DraftSubjectState>>({});
-  const [detailsSubjectId, setDetailsSubjectId] = useState<number | null>(null);
-  const [newGradeInput, setNewGradeInput] = useState('');
-  const [hoverTrendIndex, setHoverTrendIndex] = useState<number | null>(null);
   const [hoverSparkIndex, setHoverSparkIndex] = useState<number | null>(null);
+  const [hoverDonutGrade, setHoverDonutGrade] = useState<number | null>(null);
+  const [sortMode, setSortMode] = useState<SortMode>('name');
   const cacheRef = useRef<SubjectGrades[] | null>(null);
 
   const load = useCallback(async () => {
@@ -255,19 +146,54 @@ export default function GradesPage() {
     const MONTH_LABELS = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
 
     const keys = Array.from(new Set(allGrades.map((g) => monthKey(g.date)))).sort();
-    const monthKeys = keys.length > 8 ? keys.slice(-8) : keys;
-    const monthAverages = monthKeys.map((k) => {
-      const monthVals = allGrades.filter((g) => monthKey(g.date) === k).map((g) => g.markDisplayValue);
-      if (monthVals.length === 0) return 0;
-      return monthVals.reduce((a, b) => a + b, 0) / monthVals.length;
+    const monthKeys = keys;
+
+    // Kumulative Durchschnitte: Schnitt aller Noten von Anfang bis zu diesem Monat
+    const cumulativeAvgs = monthKeys.map((_, i) => {
+      const upto = new Set(monthKeys.slice(0, i + 1));
+      const vals = allGrades
+        .filter((g) => upto.has(monthKey(g.date)))
+        .map((g) => g.markDisplayValue)
+        .filter((v) => v > 0);
+      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
     });
-    const spark = sparkPath(monthAverages.length ? monthAverages : [overallAvg]);
+
+    // Dynamisches Y-scaling, damit Variation sichtbar wird
+    const validAvgs = cumulativeAvgs.filter((v) => v > 0);
+    const minA = validAvgs.length ? Math.min(...validAvgs) : 1;
+    const maxA = validAvgs.length ? Math.max(...validAvgs) : 10;
+    const rangePad = Math.max(0.4, (maxA - minA) * 0.3);
+    const dataMin = Math.max(1, minA - rangePad);
+    const dataMax = Math.min(10, maxA + rangePad);
+    const toSparkY = (v: number): number => {
+      if (dataMax === dataMin) return 30;
+      return 54 - ((v - dataMin) / (dataMax - dataMin)) * 48;
+    };
+
+    const sparkXs = cumulativeAvgs.map((_, i) =>
+      cumulativeAvgs.length <= 1 ? 100 : (i / (cumulativeAvgs.length - 1)) * 200
+    );
+
+    let spark: { line: string; area: string };
+    if (cumulativeAvgs.length === 0) {
+      spark = { line: '', area: '' };
+    } else if (cumulativeAvgs.length === 1) {
+      const y = cumulativeAvgs[0] > 0 ? toSparkY(cumulativeAvgs[0]) : 30;
+      spark = {
+        line: `M0,${y.toFixed(1)} L200,${y.toFixed(1)}`,
+        area: `M0,${y.toFixed(1)} L200,${y.toFixed(1)} L200,60 L0,60 Z`,
+      };
+    } else {
+      const line = cumulativeAvgs
+        .map((v, i) => `${i === 0 ? 'M' : 'L'}${sparkXs[i].toFixed(1)},${(v > 0 ? toSparkY(v) : 58).toFixed(1)}`)
+        .join(' ');
+      spark = { line, area: `${line} L200,60 L0,60 Z` };
+    }
 
     const sparkPoints = monthKeys.map((k, i) => {
-      const avg = monthAverages[i];
-      const x = monthKeys.length === 1 ? 100 : (i / (monthKeys.length - 1)) * 200;
-      const clamped = Math.max(1, Math.min(10, avg));
-      const y = 42 - ((clamped - 1) / 9) * 24;
+      const avg = cumulativeAvgs[i];
+      const x = sparkXs[i];
+      const y = avg > 0 ? toSparkY(avg) : 58;
       const mNum = parseInt(k.slice(4, 6)) - 1;
       const yShort = k.slice(2, 4);
       return { x, y, avg, label: `${MONTH_LABELS[mNum]} ${yShort}` };
@@ -281,6 +207,39 @@ export default function GradesPage() {
         subject: g.subjectName,
         numeric: g.markDisplayValue,
       }));
+
+    const donutSegs: DonutSeg[] = [];
+    if (values.length > 0) {
+      const CX = 55, CY = 55, R = 29, SW = 16, GAP = 0.035;
+      const gradeEntries: [number, number][] = [];
+      for (let i = 9; i >= 0; i--) {
+        if (distribution[i] > 0) gradeEntries.push([i + 1, distribution[i]]);
+      }
+      let startAngle = -Math.PI / 2;
+      for (const [grade, count] of gradeEntries) {
+        const sweep = Math.max(0.01, (count / values.length) * Math.PI * 2 - GAP);
+        const endAngle = startAngle + sweep;
+        const midAngle = startAngle + sweep / 2;
+        const x1 = CX + R * Math.cos(startAngle);
+        const y1 = CY + R * Math.sin(startAngle);
+        const x2 = CX + R * Math.cos(endAngle);
+        const y2 = CY + R * Math.sin(endAngle);
+        const outerEdge = R + SW / 2 + 1;
+        const tickEndR = R + SW / 2 + 7;
+        const labelR = R + SW / 2 + 14;
+        donutSegs.push({
+          grade,
+          count,
+          color: DONUT_GRADE_COLORS[grade] ?? '#636366',
+          path: `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${R} ${R} 0 ${sweep > Math.PI ? 1 : 0} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`,
+          sweep,
+          tickStart: [CX + outerEdge * Math.cos(midAngle), CY + outerEdge * Math.sin(midAngle)],
+          tickEnd: [CX + tickEndR * Math.cos(midAngle), CY + tickEndR * Math.sin(midAngle)],
+          labelPos: [CX + labelR * Math.cos(midAngle), CY + labelR * Math.sin(midAngle)],
+        });
+        startAngle += sweep + GAP;
+      }
+    }
 
     return {
       allCount: allGrades.length,
@@ -301,71 +260,33 @@ export default function GradesPage() {
       spark,
       sparkPoints,
       recent,
+      donutSegs,
       schoolYearLabel: `${schoolYearStart} / ${schoolYearStart + 1}`,
     };
   }, [subjects]);
 
-  const valuesBySubject = useMemo(() => {
-    const map: Record<number, number[]> = {};
-    subjects.forEach((subject) => {
-      const state = draftState[subject.lessonId];
-      const removed = new Set(state?.removedTeacherGradeIds ?? []);
-      const base = subject.grades
-        .filter((g) => !removed.has(g.id))
-        .map((g) => g.markDisplayValue)
-        .filter((v) => v > 0)
-        .map(round2);
-      map[subject.lessonId] = [...base, ...(state?.customGrades ?? [])];
+  const filteredSubjects = useMemo(() => {
+    const withMeta = subjects.map((s) => {
+      const vals = s.grades.map((g) => g.markDisplayValue).filter((v) => v > 0);
+      const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+      const latest = s.grades.reduce((max, g) => (g.date > max ? g.date : max), 0);
+      return { ...s, avg, latest };
     });
-    return map;
-  }, [subjects, draftState]);
 
-  const detailsSubject = useMemo(
-    () => subjects.find((s) => s.lessonId === detailsSubjectId) ?? null,
-    [subjects, detailsSubjectId]
-  );
+    if (sortMode === 'name') {
+      withMeta.sort((a, b) => a.subjectName.localeCompare(b.subjectName));
+    } else if (sortMode === 'avg-desc') {
+      withMeta.sort((a, b) => b.avg - a.avg);
+    } else if (sortMode === 'avg-asc') {
+      withMeta.sort((a, b) => a.avg - b.avg);
+    } else if (sortMode === 'recent') {
+      withMeta.sort((a, b) => b.latest - a.latest);
+    }
 
-  const detailValues = useMemo(
-    () => (detailsSubject ? valuesBySubject[detailsSubject.lessonId] ?? [] : []),
-    [detailsSubject, valuesBySubject]
-  );
+    return withMeta;
+  }, [subjects, sortMode]);
 
-  const detailAverage = averageOf(detailValues);
-  const detailAverageTone = detailAverage >= 6.5 ? 'avg-good' : detailAverage < 6 ? 'avg-bad' : 'avg-warn';
-  const detailPositive = detailValues.filter((v) => v >= 6).length;
-  const detailNegative = detailValues.filter((v) => v < 6).length;
-  const detailTeacherRows = useMemo(() => {
-    if (!detailsSubject) return [] as Array<{ id: number; label: string; date: string; value: number; removed: boolean }>;
-    const removed = new Set(draftState[detailsSubject.lessonId]?.removedTeacherGradeIds ?? []);
-    return detailsSubject.grades.map((g) => ({
-      id: g.id,
-      label: gradeDisplay(g),
-      date: fmtDateShort(g.date),
-      value: round2(g.markDisplayValue),
-      removed: removed.has(g.id),
-    }));
-  }, [detailsSubject, draftState]);
-
-  const detailCustomValues = useMemo(() => {
-    if (!detailsSubject) return [] as number[];
-    return draftState[detailsSubject.lessonId]?.customGrades ?? [];
-  }, [detailsSubject, draftState]);
-
-  const trendAnimKey = useMemo(
-    () => detailValues.map((v) => v.toFixed(2)).join('|'),
-    [detailValues]
-  );
-
-  const trendPoints = useMemo(() => {
-    if (!detailValues.length) return [] as Array<{ x: number; y: number; value: number; index: number }>;
-    return detailValues.map((value, index) => {
-      const x = 46 + (index / Math.max(1, detailValues.length - 1)) * 604;
-      const y = Math.max(20, Math.min(220, 220 - ((value - 4) / 6) * 200));
-      return { x, y, value, index };
-    });
-  }, [detailValues]);
-
-  const allExpanded = subjects.length > 0 && expandedRows.size === subjects.length;
+  const allExpanded = filteredSubjects.length > 0 && expandedRows.size === filteredSubjects.length;
 
   const toggleRow = (lessonId: number) => {
     setExpandedRows((prev) => {
@@ -381,90 +302,11 @@ export default function GradesPage() {
       setExpandedRows(new Set());
       return;
     }
-    setExpandedRows(new Set(subjects.map((s) => s.lessonId)));
+    setExpandedRows(new Set(filteredSubjects.map((s) => s.lessonId)));
   };
 
   const openDetails = (lessonId: number) => {
-    setDetailsSubjectId(lessonId);
-    setNewGradeInput('');
-    setHoverTrendIndex(null);
-  };
-
-  const closeDetails = () => {
-    setDraftState((prev) => {
-      if (detailsSubjectId === null) return prev;
-      const { [detailsSubjectId]: _removed, ...rest } = prev;
-      return rest;
-    });
-    setDetailsSubjectId(null);
-    setNewGradeInput('');
-    setHoverTrendIndex(null);
-  };
-
-  const toggleTeacherGrade = (lessonId: number, gradeId: number) => {
-    setDraftState((prev) => {
-      const current = prev[lessonId] ?? { removedTeacherGradeIds: [], customGrades: [] };
-      const set = new Set(current.removedTeacherGradeIds);
-      if (set.has(gradeId)) set.delete(gradeId);
-      else set.add(gradeId);
-      return {
-        ...prev,
-        [lessonId]: {
-          ...current,
-          removedTeacherGradeIds: Array.from(set),
-        },
-      };
-    });
-  };
-
-  const removeCustomGrade = (lessonId: number, index: number) => {
-    setDraftState((prev) => {
-      const current = prev[lessonId] ?? { removedTeacherGradeIds: [], customGrades: [] };
-      const nextCustom = [...current.customGrades];
-      nextCustom.splice(index, 1);
-      return {
-        ...prev,
-        [lessonId]: {
-          ...current,
-          customGrades: nextCustom,
-        },
-      };
-    });
-  };
-
-  const addDraftValue = (lessonId: number) => {
-    const parsed = parseGradeInput(newGradeInput);
-    if (parsed === null) return;
-    setDraftState((prev) => {
-      const current = prev[lessonId] ?? { removedTeacherGradeIds: [], customGrades: [] };
-      return {
-        ...prev,
-        [lessonId]: {
-          ...current,
-          customGrades: [...current.customGrades, parsed],
-        },
-      };
-    });
-    setNewGradeInput('');
-  };
-
-  const handleTrendMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (!trendPoints.length) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    if (rect.width <= 0) return;
-    const relX = (e.clientX - rect.left) / rect.width;
-    const svgX = Math.max(46, Math.min(650, relX * 680));
-
-    let nearest = 0;
-    let minDist = Number.POSITIVE_INFINITY;
-    trendPoints.forEach((p, idx) => {
-      const d = Math.abs(p.x - svgX);
-      if (d < minDist) {
-        minDist = d;
-        nearest = idx;
-      }
-    });
-    setHoverTrendIndex(nearest);
+    router.push(`/grades/subject/${lessonId}`);
   };
 
   const handleSparkMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -595,23 +437,75 @@ export default function GradesPage() {
                   </div>
                   <span className="pill">σ {fmtNum(dashboard.sigma, 2)}</span>
                 </div>
-                <div className="dist-bars" aria-hidden="true">
-                  {dashboard.distribution.map((value, idx) => {
-                    const h = value === 0 ? 4 : (value / dashboard.distMax) * 60 + 6;
-                    return (
-                      <div
-                        key={`b-${idx}`}
-                        className={`b ${idx < 5 ? 'bad' : ''}`}
-                        style={{ height: `${h}px` }}
-                        title={`Note ${idx + 1}: ${value}×`}
+                <div className="donut-wrap">
+                  <svg viewBox="0 0 110 110" width="110" height="110" aria-hidden="true">
+                    {dashboard.donutSegs.map((seg) => (
+                      <path
+                        key={`arc-${seg.grade}`}
+                        d={seg.path}
+                        fill="none"
+                        stroke={seg.color}
+                        strokeWidth="16"
+                        strokeLinecap="butt"
+                        opacity={hoverDonutGrade === null || hoverDonutGrade === seg.grade ? 1 : 0.35}
+                        style={{ transition: 'opacity 0.15s' }}
                       />
-                    );
-                  })}
-                </div>
-                <div className="dist-axis">
-                  {Array.from({ length: 10 }, (_, i) => (
-                    <span key={`a-${i}`}>{i + 1}</span>
-                  ))}
+                    ))}
+                    {dashboard.donutSegs.filter((s) => s.sweep >= 0.18).map((seg) => (
+                      <g key={`lbl-${seg.grade}`} opacity={hoverDonutGrade === null || hoverDonutGrade === seg.grade ? 1 : 0.35} style={{ transition: 'opacity 0.15s' }}>
+                        <line
+                          x1={seg.tickStart[0].toFixed(2)}
+                          y1={seg.tickStart[1].toFixed(2)}
+                          x2={seg.tickEnd[0].toFixed(2)}
+                          y2={seg.tickEnd[1].toFixed(2)}
+                          stroke={seg.color}
+                          strokeWidth="1.2"
+                          strokeOpacity="0.8"
+                        />
+                        <text
+                          x={seg.labelPos[0].toFixed(2)}
+                          y={seg.labelPos[1].toFixed(2)}
+                          fontSize="9"
+                          fontWeight="700"
+                          fill={seg.color}
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                        >
+                          {seg.grade}
+                        </text>
+                      </g>
+                    ))}
+                    {dashboard.donutSegs.map((seg) => (
+                      <path
+                        key={`hit-${seg.grade}`}
+                        d={seg.path}
+                        fill="none"
+                        stroke="transparent"
+                        strokeWidth="24"
+                        strokeLinecap="butt"
+                        style={{ cursor: 'default' }}
+                        onMouseEnter={() => setHoverDonutGrade(seg.grade)}
+                        onMouseLeave={() => setHoverDonutGrade(null)}
+                      />
+                    ))}
+                    {hoverDonutGrade !== null && (() => {
+                      const seg = dashboard.donutSegs.find((s) => s.grade === hoverDonutGrade);
+                      return seg ? (
+                        <text
+                          x="55"
+                          y="55"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fontSize="14"
+                          fontWeight="700"
+                          fill={seg.color}
+                          style={{ pointerEvents: 'none' }}
+                        >
+                          {seg.count}×
+                        </text>
+                      ) : null;
+                    })()}
+                  </svg>
                 </div>
                 <div className="kpi-foot">
                   <span>
@@ -647,233 +541,86 @@ export default function GradesPage() {
 
             <section className="timeline-wrap">
               <div className="timeline-head">
-                <button className="expand-all" onClick={toggleAllRows} type="button">
-                  {allExpanded ? 'Alle einklappen' : 'Alle ausklappen'}
-                </button>
+                <div className="timeline-head-title">Fächer</div>
+                <div className="sort-wrap">
+                  <select
+                    className="sort-select"
+                    value={sortMode}
+                    onChange={(e) => setSortMode(e.currentTarget.value as SortMode)}
+                    aria-label="Sortierung"
+                  >
+                    <option value="name">Name</option>
+                    <option value="avg-desc">Bester ⌀</option>
+                    <option value="avg-asc">Schlechtester ⌀</option>
+                    <option value="recent">Letzte Note</option>
+                  </select>
+                  <button className="expand-all" onClick={toggleAllRows} type="button">
+                    {allExpanded ? 'Einklappen' : 'Alle aufklappen'}
+                  </button>
+                </div>
               </div>
 
               <div className="timeline-list">
-                {subjects.map((subject) => {
-                  const isExpanded = expandedRows.has(subject.lessonId);
-                  const subjectValues = valuesBySubject[subject.lessonId] ?? [];
-                  const subjectAvg = averageOf(subjectValues);
-                  const avgClass = gradeClass(subjectAvg);
-                  return (
-                    <article key={subject.lessonId} className="timeline-item">
-                      <button
-                        type="button"
-                        className="timeline-row"
-                        onClick={() => toggleRow(subject.lessonId)}
-                        aria-expanded={isExpanded}
-                      >
-                        <span className="timeline-subject">{subject.subjectName}</span>
-                        <span className="timeline-right">
-                          <span className={`timeline-avg ${avgClass}`}>{fmtNum(subjectAvg, 2)}</span>
-                          <ChevronDown className={`timeline-chevron ${isExpanded ? 'open' : ''}`} size={20} strokeWidth={2.4} />
-                        </span>
-                      </button>
-
-                      {isExpanded && (
-                        <div className="timeline-panel">
-                          {subject.grades.map((grade) => {
-                            const gradeCls = gradeClass(grade.markDisplayValue);
-                            return (
-                              <div key={grade.id} className="grade-row">
-                                <div className="grade-meta">
-                                  <span className="grade-name">{gradeDisplay(grade)}</span>
-                                  <span className="grade-date">{fmtDateShort(grade.date)}</span>
-                                </div>
-                                <span className={`grade-value ${gradeCls}`}>{formatMark(grade.markDisplayValue)}</span>
-                              </div>
-                            );
-                          })}
-                          <div className="timeline-actions">
-                            <button type="button" className="details-btn" onClick={() => openDetails(subject.lessonId)}>
-                              Details
-                            </button>
+                {filteredSubjects.length === 0 ? (
+                  <div className="timeline-empty">Keine Treffer</div>
+                ) : (
+                  filteredSubjects.map((subject) => {
+                    const isExpanded = expandedRows.has(subject.lessonId);
+                    const subjectAvg = averageOf(
+                      subject.grades.map((g) => g.markDisplayValue).filter((v) => v > 0)
+                    );
+                    const avgClass = gradeClass(subjectAvg);
+                    return (
+                      <article key={subject.lessonId} className="timeline-item">
+                        <button
+                          type="button"
+                          className="timeline-row"
+                          onClick={() => toggleRow(subject.lessonId)}
+                          aria-expanded={isExpanded}
+                          aria-label={`${subject.subjectName} ${isExpanded ? 'einklappen' : 'aufklappen'}`}
+                        >
+                          <div className="timeline-left">
+                            <span className="timeline-subject">{subject.subjectName}</span>
+                            <span className="timeline-meta">{subject.grades.length} Note{subject.grades.length === 1 ? '' : 'n'}</span>
                           </div>
-                        </div>
-                      )}
-                    </article>
-                  );
-                })}
+                          <span className="timeline-right">
+                            <span className={`timeline-avg ${avgClass}`}>{fmtNum(subjectAvg, 2)}</span>
+                            <ChevronDown className={`timeline-chevron ${isExpanded ? 'open' : ''}`} size={18} strokeWidth={2.2} />
+                          </span>
+                        </button>
+
+                        {isExpanded && (
+                          <div className="timeline-panel">
+                            <div className="grade-list">
+                              {[...subject.grades]
+                                .sort((a, b) => b.date - a.date)
+                                .map((grade) => {
+                                  const gradeCls = gradeClass(grade.markDisplayValue);
+                                  return (
+                                    <div key={grade.id} className="grade-row">
+                                      <span className="grade-date">{fmtDateShort(grade.date)}</span>
+                                      <span className="grade-name">{gradeDisplay(grade)}</span>
+                                      <span className={`grade-value ${gradeCls}`}>{formatMark(grade.markDisplayValue)}</span>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                            <div className="timeline-actions">
+                              <button type="button" className="details-btn" onClick={() => openDetails(subject.lessonId)}>
+                                Details öffnen <ChevronRight size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </article>
+                    );
+                  })
+                )}
               </div>
             </section>
           </main>
         )}
       </div>
-
-      {detailsSubject && (
-        <div className="details-backdrop" onClick={closeDetails}>
-          <div className="details-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="details-head">
-              <h2>{detailsSubject.subjectName}</h2>
-              <button type="button" className="close-btn" onClick={closeDetails} aria-label="Schließen">
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="details-grid">
-              <div className="detail-card">
-                <p>Durchschnittsnote</p>
-                <strong className={detailAverageTone}>{fmtNum(detailAverage, 2)}</strong>
-              </div>
-              <div className="detail-card">
-                <p>Notenverhältnis</p>
-                <strong>
-                  <span className="ratio-pos">{detailPositive}</span>
-                  <span className="ratio-sep">/</span>
-                  <span className="ratio-neg">{detailNegative}</span>
-                </strong>
-              </div>
-            </div>
-
-            <div className="trend-card">
-              <div className="edit-head">
-                <h3>Trend</h3>
-                <span>Notenentwicklung</span>
-              </div>
-              <svg
-                viewBox="0 0 680 240"
-                className="trend-svg"
-                onMouseMove={handleTrendMouseMove}
-                onMouseLeave={() => setHoverTrendIndex(null)}
-              >
-                <line x1="46" y1="20" x2="46" y2="220" className="trend-axis-line" />
-                {[10, 9.5, 9, 8.5, 8, 7.5, 7, 6.5, 6, 5.5, 5, 4.5, 4].map((grade) => {
-                  const y = 220 - ((grade - 4) / 6) * 200;
-                  return (
-                    <g key={`g-${grade}`}>
-                      <text x="32" y={y} textAnchor="end" dominantBaseline="middle" className="trend-axis-label">
-                        {grade.toFixed(1)}
-                      </text>
-                      <line x1="46" y1={y} x2="650" y2={y} className="trend-grid" />
-                    </g>
-                  );
-                })}
-                {trendPoints.length > 0 && (
-                  <polyline
-                    key={`line-${trendAnimKey}`}
-                    className="trend-line"
-                    fill="none"
-                    points={trendPoints.map((p) => `${p.x},${p.y}`).join(' ')}
-                  />
-                )}
-                {detailValues.length > 1 && (() => {
-                  const first = detailValues[0];
-                  const last = detailValues[detailValues.length - 1];
-                  const y1 = 220 - ((first - 4) / 6) * 200;
-                  const y2 = 220 - ((last - 4) / 6) * 200;
-                  return <line key={`fit-${trendAnimKey}`} x1="46" y1={Math.max(20, Math.min(220, y1))} x2="650" y2={Math.max(20, Math.min(220, y2))} className="trend-fit" />;
-                })()}
-
-                {trendPoints.map((p) => (
-                  <circle
-                    key={`pt-${p.index}-${trendAnimKey}`}
-                    cx={p.x}
-                    cy={p.y}
-                    r={hoverTrendIndex === p.index ? 4.6 : 3.2}
-                    className="trend-point"
-                    onMouseEnter={() => setHoverTrendIndex(p.index)}
-                  />
-                ))}
-
-                {hoverTrendIndex !== null && trendPoints[hoverTrendIndex] && (() => {
-                  const p = trendPoints[hoverTrendIndex];
-                  const t = trendPoints.length > 1 ? hoverTrendIndex / (trendPoints.length - 1) : 0;
-                  const first = detailValues[0] ?? detailAverage;
-                  const last = detailValues[detailValues.length - 1] ?? detailAverage;
-                  const fitValue = first + (last - first) * t;
-                  const tooltipX = Math.min(520, Math.max(78, p.x + 14));
-                  const tooltipY = Math.max(22, p.y - 62);
-                  return (
-                    <g className="trend-hover">
-                      <line x1={p.x} y1="20" x2={p.x} y2="220" className="trend-hover-line" />
-                      <circle cx={p.x} cy={p.y} r="4.8" className="trend-point-active" />
-
-                      <rect x={tooltipX} y={tooltipY} rx="7" ry="7" width="146" height="56" className="trend-tooltip-bg" />
-                      <rect x={tooltipX + 9} y={tooltipY + 11} width="8" height="8" rx="2" className="trend-tooltip-dot-main" />
-                      <text x={tooltipX + 22} y={tooltipY + 20} className="trend-tooltip-text">Note: {fmtNum(p.value, 2)}</text>
-                      <rect x={tooltipX + 9} y={tooltipY + 31} width="8" height="8" rx="2" className="trend-tooltip-dot-fit" />
-                      <text x={tooltipX + 22} y={tooltipY + 40} className="trend-tooltip-text">Trend: {fmtNum(fitValue, 2)}</text>
-                    </g>
-                  );
-                })()}
-              </svg>
-            </div>
-
-            <div className="edit-card">
-              <div className="edit-head">
-                <h3>Mittelwert-Rechner</h3>
-              </div>
-
-              <div className="edit-list">
-                {detailTeacherRows.map((row) => (
-                  <div key={row.id} className={`edit-row${row.removed ? ' removed' : ''}`}>
-                    <div className="edit-meta">
-                      <span>{row.date}</span>
-                      <em>{row.label}</em>
-                    </div>
-                    <div className="edit-controls">
-                      <strong className={`inline-grade ${row.value >= 6.5 ? 'mw-good' : 'mw-warn'}`}>{formatMark(row.value)}</strong>
-                      <button
-                        type="button"
-                        onClick={() => toggleTeacherGrade(detailsSubject.lessonId, row.id)}
-                        aria-label={row.removed ? 'Note wiederherstellen' : 'Note entfernen'}
-                      >
-                        {row.removed ? <Plus size={14} /> : <Trash2 size={14} />}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="custom-block">
-                <div className="custom-head" style={{ textAlign: 'center' }}>Eigene Noten</div>
-                {detailCustomValues.length > 0 ? (
-                  <div className="custom-list">
-                    {detailCustomValues.map((value, idx) => (
-                      <div key={`custom-${idx}`} className={`custom-item ${value >= 6.5 ? 'mw-good' : 'mw-warn'}`}>
-                        <span className={`inline-grade ${value >= 6.5 ? 'mw-good' : 'mw-warn'}`}>{formatMark(value)}</span>
-                        <button type="button" onClick={() => removeCustomGrade(detailsSubject.lessonId, idx)} aria-label="Eigene Note entfernen">
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="custom-empty">Noch keine eigenen Noten</div>
-                )}
-              </div>
-
-              <div className="add-row">
-                <div className="add-input">
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={newGradeInput}
-                    onChange={(e) => {
-                      const next = e.currentTarget.value;
-                      if (/^\d{0,2}([.,]\d{0,2})?$/.test(next)) {
-                        const parsed = Number.parseFloat(next.replace(',', '.'));
-                        if (Number.isFinite(parsed) && parsed > 10) {
-                          setNewGradeInput('10');
-                        } else {
-                          setNewGradeInput(next);
-                        }
-                      }
-                    }}
-                    placeholder="Neue Note"
-                  />
-                  <button type="button" onClick={() => addDraftValue(detailsSubject.lessonId)} aria-label="Neue Note hinzufügen">
-                    <Plus size={16} />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       <style jsx>{`
         .grades-dashboard-wrap {
@@ -940,71 +687,6 @@ export default function GradesPage() {
           color: var(--g-muted);
           font-size: 13.5px;
           margin-top: 6px;
-        }
-
-        .filters {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-
-        .seg {
-          display: inline-flex;
-          padding: 3px;
-          background: var(--g-surface);
-          border: 1px solid var(--g-line);
-          border-radius: 13px;
-        }
-
-        .seg button {
-          appearance: none;
-          background: transparent;
-          border: 0;
-          cursor: pointer;
-          font-family: inherit;
-          font-size: 14px;
-          color: var(--g-muted);
-          padding: 9px 16px;
-          border-radius: 10px;
-          transition: all 0.15s;
-        }
-
-        .seg button.on {
-          background: var(--g-ink);
-          color: var(--g-bg);
-        }
-
-        .seg button:not(.on):hover {
-          color: var(--g-ink);
-        }
-
-        .btn {
-          appearance: none;
-          cursor: pointer;
-          font-family: inherit;
-          border: 0;
-          padding: 10px 16px;
-          border-radius: 13px;
-          font-size: 14px;
-          font-weight: 600;
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          transition: opacity 0.15s, transform 0.1s;
-        }
-
-        .btn:active {
-          transform: translateY(1px);
-        }
-
-        .btn.ghost {
-          background: var(--g-surface);
-          color: var(--g-ink);
-          border: 1px solid var(--g-line);
-        }
-
-        .btn.ghost:hover {
-          border-color: var(--g-line-2);
         }
 
         .kpis {
@@ -1148,42 +830,10 @@ export default function GradesPage() {
           background: var(--g-bad);
         }
 
-        .dist-bars {
+        .donut-wrap {
           display: flex;
-          align-items: flex-end;
-          gap: 4px;
-          height: 64px;
+          justify-content: center;
           margin-top: 6px;
-        }
-
-        .dist-bars .b {
-          flex: 1;
-          background: var(--g-ink);
-          border-radius: 3px 3px 0 0;
-          opacity: 0.85;
-          transition: opacity 0.15s, transform 0.15s;
-        }
-
-        .dist-bars .b.bad {
-          background: color-mix(in srgb, var(--g-bad) 85%, var(--g-ink));
-        }
-
-        .dist-bars .b:hover {
-          opacity: 1;
-          transform: translateY(-2px);
-        }
-
-        .dist-axis {
-          display: flex;
-          gap: 4px;
-          margin-top: 6px;
-          font-size: 9.5px;
-          color: var(--g-muted-2);
-        }
-
-        .dist-axis span {
-          flex: 1;
-          text-align: center;
         }
 
         .mini-link {
@@ -1249,19 +899,68 @@ export default function GradesPage() {
         .timeline-head {
           display: flex;
           align-items: center;
+          justify-content: space-between;
           padding: 14px 18px;
           border-bottom: 1px solid var(--g-line);
+          gap: 12px;
+        }
+
+        .timeline-head-title {
+          font-size: 14.5px;
+          font-weight: 700;
+          letter-spacing: -0.01em;
+          color: var(--g-ink);
+        }
+
+        .sort-wrap {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .sort-select {
+          appearance: none;
+          -webkit-appearance: none;
+          font-family: inherit;
+          font-size: 12.5px;
+          font-weight: 600;
+          color: var(--g-ink);
+          background: var(--g-bg);
+          border: 1px solid var(--g-line);
+          border-radius: 9px;
+          padding: 6px 28px 6px 10px;
+          cursor: pointer;
+          background-image: linear-gradient(45deg, transparent 50%, var(--g-muted) 50%), linear-gradient(135deg, var(--g-muted) 50%, transparent 50%);
+          background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%;
+          background-size: 5px 5px, 5px 5px;
+          background-repeat: no-repeat;
+          transition: border-color 0.15s;
+        }
+
+        .sort-select:hover {
+          border-color: var(--g-line-2);
+        }
+
+        .sort-select:focus {
+          outline: none;
+          border-color: var(--g-line-2);
         }
 
         .expand-all {
-          border: 0;
-          background: transparent;
+          border: 1px solid var(--g-line);
+          background: var(--g-bg);
           color: var(--g-ink);
-          padding: 0;
-          font-size: 18px;
-          font-weight: 700;
-          letter-spacing: 0.01em;
+          padding: 6px 10px;
+          font-family: inherit;
+          font-size: 12.5px;
+          font-weight: 600;
+          border-radius: 9px;
           cursor: pointer;
+          transition: border-color 0.15s;
+        }
+
+        .expand-all:hover {
+          border-color: var(--g-line-2);
         }
 
         .timeline-list {
@@ -1293,17 +992,33 @@ export default function GradesPage() {
           background: color-mix(in srgb, var(--g-bg) 45%, transparent);
         }
 
+        .timeline-left {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          min-width: 0;
+        }
+
         .timeline-subject {
           font-size: 15px;
           font-weight: 600;
           letter-spacing: -0.01em;
           color: var(--g-ink);
+          white-space: nowrap;
+        }
+
+        .timeline-meta {
+          font-size: 12.5px;
+          color: var(--g-muted-2);
+          font-weight: 500;
+          white-space: nowrap;
         }
 
         .timeline-right {
           display: inline-flex;
           align-items: center;
-          gap: 14px;
+          gap: 10px;
+          flex-shrink: 0;
         }
 
         .timeline-avg {
@@ -1341,68 +1056,52 @@ export default function GradesPage() {
         .timeline-panel {
           background: color-mix(in srgb, var(--g-bg) 55%, transparent);
           border-top: 1px solid var(--g-line);
-          padding: 10px 18px 14px;
+          padding: 6px 22px 14px;
         }
 
-        .timeline-actions {
+        .grade-list {
           display: flex;
-          justify-content: flex-end;
-          margin-top: 10px;
-        }
-
-        .details-btn {
-          border: 1px solid var(--g-line-2);
-          background: var(--g-surface);
-          color: var(--g-ink);
-          border-radius: 8px;
-          padding: 8px 14px;
-          font-size: 15px;
-          font-weight: 600;
-          letter-spacing: 0.08em;
-          cursor: pointer;
-        }
-
-        .details-btn:hover {
-          border-color: var(--g-ink);
+          flex-direction: column;
         }
 
         .grade-row {
-          display: flex;
+          display: grid;
+          grid-template-columns: 76px 1fr auto;
           align-items: center;
-          justify-content: space-between;
-          border: 1px solid var(--g-line);
-          background: var(--g-surface);
-          border-radius: 10px;
-          padding: 10px 12px;
-          margin-top: 8px;
+          gap: 16px;
+          padding: 11px 4px;
+          border-bottom: 1px dashed color-mix(in srgb, var(--g-line) 55%, transparent);
         }
 
-        .grade-meta {
-          display: flex;
-          flex-direction: column;
-          min-width: 0;
+        .grade-row:last-child {
+          border-bottom: 0;
+        }
+
+        .grade-date {
+          font-size: 12px;
+          color: var(--g-muted);
+          font-variant-numeric: tabular-nums;
+          letter-spacing: 0.01em;
         }
 
         .grade-name {
           color: var(--g-ink);
-          font-size: 13px;
-          font-weight: 600;
-          line-height: 1.2;
+          font-size: 13.5px;
+          font-weight: 500;
+          line-height: 1.25;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
-        }
-
-        .grade-date {
-          margin-top: 3px;
-          color: var(--g-muted);
-          font-size: 11px;
+          min-width: 0;
         }
 
         .grade-value {
-          font-size: 13px;
+          font-size: 15px;
           font-weight: 700;
           font-variant-numeric: tabular-nums;
+          letter-spacing: -0.01em;
+          min-width: 44px;
+          text-align: right;
         }
 
         .grade-value.v-excellent {
@@ -1421,480 +1120,30 @@ export default function GradesPage() {
           color: var(--g-bad);
         }
 
-        .details-backdrop {
-          position: fixed;
-          inset: 0;
-          background: var(--app-bg);
-          backdrop-filter: none;
-          display: grid;
-          place-items: center;
-          z-index: 80;
-          animation: fadeInBackdrop 0.2s ease;
-          padding: 16px;
-        }
-
-        .details-modal {
-          width: min(760px, 100%);
-          max-height: 92vh;
-          overflow: auto;
-          background: var(--app-surface);
-          border: 1px solid var(--g-line);
-          border-radius: 14px;
-          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.32);
-          padding: 18px;
-          animation: popIn 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
-        }
-
-        .details-head {
+        .timeline-actions {
           display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 14px;
-        }
-
-        .details-head h2 {
-          margin: 0;
-          font-size: 26px;
-          letter-spacing: -0.02em;
-        }
-
-        .close-btn {
-          border: 1px solid var(--g-line);
-          background: var(--g-bg);
-          color: var(--g-ink);
-          width: 34px;
-          height: 34px;
-          border-radius: 50%;
-          display: grid;
-          place-items: center;
-          cursor: pointer;
-        }
-
-        .details-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 10px;
-          margin-bottom: 12px;
-        }
-
-        .detail-card {
-          border: 1px solid var(--g-line);
-          border-radius: 12px;
-          padding: 14px;
-          background: var(--g-bg);
-        }
-
-        .detail-card p {
-          margin: 0;
-          font-size: 13px;
-          color: var(--g-muted);
-        }
-
-        .detail-card strong {
-          display: block;
-          margin-top: 8px;
-          font-size: 43px;
-          line-height: 1;
-          letter-spacing: -0.03em;
-          color: var(--g-ink);
-        }
-
-        .detail-card strong.avg-good {
-          color: #28c281;
-        }
-
-        .detail-card strong.avg-warn {
-          color: #f3a53a;
-        }
-
-        .detail-card strong.avg-bad {
-          color: #ff4d4f;
-        }
-
-        .detail-card .ratio-pos {
-          color: #28c281;
-        }
-
-        .detail-card .ratio-sep {
-          color: #8c8c8c;
-          padding: 0 6px;
-        }
-
-        .detail-card .ratio-neg {
-          color: #ff4d4f;
-        }
-
-
-        .edit-card,
-        .trend-card {
-          border: 1px solid var(--g-line);
-          border-radius: 12px;
-          padding: 14px;
-          background: var(--g-bg);
-          margin-bottom: 12px;
-        }
-
-        .edit-head {
-          display: flex;
-          justify-content: space-between;
-          align-items: baseline;
-          gap: 10px;
-          margin-bottom: 10px;
-        }
-
-        .edit-head h3 {
-          margin: 0;
-          font-size: 33px;
-          font-weight: 700;
-          letter-spacing: -0.01em;
-        }
-
-        .edit-head span {
-          color: var(--g-muted);
-          font-size: 12px;
-        }
-
-        .edit-list {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-
-        .edit-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          border: 1px solid color-mix(in srgb, var(--g-line) 55%, transparent);
-          background: color-mix(in srgb, var(--g-bg) 62%, #000000 38%);
-          border-radius: 10px;
-          padding: 10px 12px;
-        }
-
-        .edit-row.removed .edit-meta span,
-        .edit-row.removed .edit-meta em,
-        .edit-row.removed .inline-grade {
-          text-decoration: line-through;
-          opacity: 0.55;
-        }
-
-        .edit-meta {
-          display: flex;
-          gap: 14px;
-          align-items: baseline;
-          min-width: 0;
-        }
-
-        .edit-meta span {
-          color: var(--g-ink);
-          font-size: 13px;
-          font-weight: 500;
-          min-width: 84px;
-        }
-
-        .edit-meta em {
-          color: var(--g-muted);
-          font-size: 13px;
-          font-style: italic;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          max-width: 320px;
-        }
-
-        .edit-controls {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-
-        .inline-grade {
-          min-width: 56px;
-          text-align: right;
-          font-size: 18px;
-          font-weight: 700;
-          font-variant-numeric: tabular-nums;
-        }
-
-        .inline-grade.v-excellent {
-          color: var(--g-good) !important;
-        }
-
-        .inline-grade.v-positive {
-          color: var(--g-good) !important;
-        }
-
-        .inline-grade.v-negative {
-          color: var(--g-bad) !important;
-        }
-
-        .inline-grade.v-critical {
-          color: var(--g-bad) !important;
-        }
-
-        .inline-grade.mw-good {
-          color: #28c281;
-        }
-
-        .inline-grade.mw-warn {
-          color: #f3a53a;
-        }
-
-        .add-row input {
-          width: 132px;
-          border: 1px solid #6a6a6a;
-          border-radius: 8px;
-          background: rgba(255, 255, 255, 0.08);
-          color: var(--g-ink);
-          padding: 8px 36px 8px 10px;
-          font-size: 13px;
-          font-weight: 600;
-          font-variant-numeric: tabular-nums;
-          box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
-        }
-
-        .add-row input:focus {
-          outline: none;
-          border-color: rgba(255, 255, 255, 0.7);
-          box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.18);
-        }
-
-        .edit-controls button,
-        .add-input button {
-          width: 36px;
-          height: 36px;
-          border: 1px solid var(--g-line-2);
-          border-radius: 8px;
-          background: var(--g-surface);
-          color: var(--g-ink);
-          display: grid;
-          place-items: center;
-          cursor: pointer;
-        }
-
-        .add-row {
-          display: flex;
-          justify-content: center;
-          gap: 8px;
+          justify-content: flex-end;
           margin-top: 12px;
         }
 
-        .add-input {
-          position: relative;
-          display: inline-flex;
-          align-items: center;
-        }
-
-        .add-input button {
-          position: absolute;
-          right: 4px;
-          width: 28px;
-          height: 28px;
-          border-radius: 7px;
-        }
-
-        .custom-block {
-          margin-top: 12px;
-          padding-top: 10px;
-          border-top: 1px dashed var(--g-line);
-        }
-
-        .custom-head {
-          font-size: 12px;
-          color: var(--g-muted);
-          margin-bottom: 8px;
-          text-transform: uppercase;
-          letter-spacing: 0.06em;
-          font-weight: 600;
-        }
-
-        .custom-list {
-          display: flex;
-          flex-wrap: wrap;
-          justify-content: center;
-          gap: 12px;
-        }
-
-        .custom-item {
-          display: inline-flex;
-          flex: 0 0 auto;
-          justify-content: center;
-          align-items: center;
-          gap: 8px;
-          width: max-content;
-          border: 1px solid rgba(255, 255, 255, 0.18);
-          background: rgba(255, 255, 255, 0.06);
-          border-radius: 10px;
-          padding: 6px 10px;
-        }
-
-        .custom-item.mw-good {
-          border-color: color-mix(in srgb, #28c281 55%, transparent);
-          background: color-mix(in srgb, #28c281 14%, transparent);
-        }
-
-        .custom-item.mw-warn {
-          border-color: color-mix(in srgb, #f3a53a 55%, transparent);
-          background: color-mix(in srgb, #f3a53a 14%, transparent);
-        }
-
-        .custom-item button {
-          width: 30px;
-          height: 30px;
+        .details-btn {
           border: 1px solid var(--g-line-2);
-          border-radius: 8px;
           background: var(--g-surface);
           color: var(--g-ink);
-          display: grid;
-          place-items: center;
-          cursor: pointer;
-        }
-
-        .custom-item .inline-grade {
-          min-width: 0;
-          text-align: center;
-        }
-
-        .custom-empty {
-          color: var(--g-muted-2);
-          font-size: 12px;
-          text-align: center;
-          margin-bottom: 2px;
-        }
-
-        .add-row input::-webkit-outer-spin-button,
-        .add-row input::-webkit-inner-spin-button {
-          -webkit-appearance: none;
-          margin: 0;
-        }
-
-        .add-row input[type='text'] {
-          appearance: textfield;
-        }
-
-        .trend-svg {
-          width: 100%;
-          height: 240px;
-          overflow: visible;
-        }
-
-        .trend-grid {
-          stroke: rgba(255, 255, 255, 0.22);
-          stroke-width: 1.1;
-          opacity: 1;
-        }
-
-        .trend-axis-line {
-          stroke: rgba(255, 255, 255, 0.38);
-          stroke-width: 1.3;
-          opacity: 1;
-        }
-
-        .trend-axis-label {
-          fill: #f4f7ff;
-          font-size: 13px;
+          border-radius: 9px;
+          padding: 7px 12px;
+          font-size: 12.5px;
           font-weight: 600;
-          font-variant-numeric: tabular-nums;
-        }
-
-        .trend-line {
-          stroke: var(--accent);
-          stroke-width: 2;
-          stroke-linecap: round;
-          stroke-linejoin: round;
-          stroke-dasharray: 900;
-          stroke-dashoffset: 900;
-          animation: drawTrend 0.45s ease forwards;
-        }
-
-        .trend-fit {
-          stroke: var(--orange);
-          stroke-width: 1.5;
-          stroke-dasharray: 900;
-          stroke-dashoffset: 900;
-          animation: drawTrend 0.45s ease forwards;
-          animation-delay: 0.05s;
-        }
-
-        .trend-point {
-          fill: var(--accent);
-          stroke: var(--g-surface);
-          stroke-width: 1.3;
+          letter-spacing: 0.02em;
           cursor: pointer;
-          animation: popPoint 0.28s ease both;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          transition: border-color 0.15s, color 0.15s;
         }
 
-        .trend-point-active {
-          fill: var(--accent);
-          stroke: var(--g-surface);
-          stroke-width: 1.7;
-        }
-
-        .trend-hover-line {
-          stroke: color-mix(in srgb, var(--g-ink) 55%, var(--g-bg));
-          stroke-width: 1;
-          stroke-dasharray: 3 3;
-        }
-
-        .trend-tooltip-bg {
-          fill: color-mix(in srgb, var(--g-surface) 96%, #000000 4%);
-          stroke: color-mix(in srgb, var(--g-ink) 20%, var(--g-bg));
-          stroke-width: 1;
-          pointer-events: none;
-        }
-
-        .trend-tooltip-dot-main {
-          fill: var(--accent);
-        }
-
-        .trend-tooltip-dot-fit {
-          fill: var(--orange);
-        }
-
-        .trend-tooltip-text {
-          fill: #ffffff;
-          font-size: 11px;
-          font-weight: 600;
-          pointer-events: none;
-        }
-
-        @keyframes fadeInBackdrop {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-
-        @keyframes popIn {
-          from {
-            opacity: 0;
-            transform: translateY(14px) scale(0.985);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-
-        @keyframes drawTrend {
-          from {
-            stroke-dashoffset: 900;
-          }
-          to {
-            stroke-dashoffset: 0;
-          }
-        }
-
-        @keyframes popPoint {
-          from {
-            opacity: 0;
-            transform: scale(0.8);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
+        .details-btn:hover {
+          border-color: var(--g-ink);
         }
 
         .spark-wrap {
@@ -1956,22 +1205,6 @@ export default function GradesPage() {
             grid-template-columns: 1fr;
           }
 
-          .details-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .edit-head h3 {
-            font-size: 24px;
-          }
-
-          .edit-meta {
-            gap: 8px;
-          }
-
-          .edit-meta em {
-            max-width: 140px;
-          }
-
           .expand-all {
             font-size: 16px;
           }
@@ -1982,7 +1215,7 @@ export default function GradesPage() {
           }
 
           .timeline-panel {
-            padding: 10px 14px 12px;
+            padding: 6px 14px 12px;
           }
 
           .timeline-subject {
@@ -1991,6 +1224,11 @@ export default function GradesPage() {
 
           .timeline-avg {
             font-size: 14px;
+          }
+
+          .grade-row {
+            grid-template-columns: 60px 1fr auto;
+            gap: 12px;
           }
         }
       `}</style>
