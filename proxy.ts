@@ -64,6 +64,16 @@ export async function proxy(request: NextRequest) {
 
   // All other routes require a valid session
   if (!authenticated) {
+    // API routes: return JSON 401 (don't redirect — iframes can't follow
+    // redirects to pages that set X-Frame-Options: deny, which breaks
+    // attachment previews and any other in-frame fetch).
+    if (pathname.startsWith('/api/')) {
+      const res = NextResponse.json({ error: 'session_expired' }, { status: 401 });
+      res.cookies.delete('pockyh_session');
+      res.cookies.delete('pockyh_user');
+      return res;
+    }
+
     const url = new URL('/login', request.url);
     // Only propagate safe relative paths (no protocol-relative or absolute URLs)
     if (pathname.startsWith('/') && !pathname.startsWith('//')) {

@@ -167,6 +167,7 @@ export default function GradesPage() {
   const [detailsSubjectId, setDetailsSubjectId] = useState<number | null>(null);
   const [newGradeInput, setNewGradeInput] = useState('');
   const [hoverTrendIndex, setHoverTrendIndex] = useState<number | null>(null);
+  const [hoverSparkIndex, setHoverSparkIndex] = useState<number | null>(null);
   const cacheRef = useRef<SubjectGrades[] | null>(null);
 
   const load = useCallback(async () => {
@@ -234,20 +235,43 @@ export default function GradesPage() {
       ? Math.sqrt(values.reduce((acc, v) => acc + (v - mean) ** 2, 0) / values.length)
       : 0;
 
+    const today = new Date();
+    const schoolYearStart = today.getMonth() >= 7 ? today.getFullYear() : today.getFullYear() - 1;
+
+    // Vormonat: Gesamtdurchschnitt aller Noten OHNE die letzten 4 Wochen
+    const oneMonthAgo = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+    const oneMonthAgoKey = Number(
+      `${oneMonthAgo.getFullYear()}${String(oneMonthAgo.getMonth() + 1).padStart(2, '0')}${String(oneMonthAgo.getDate()).padStart(2, '0')}`
+    );
+    const prevMonthVals = allGrades
+      .filter((g) => g.date < oneMonthAgoKey)
+      .map((g) => g.markDisplayValue)
+      .filter((v) => v > 0);
+    const previousMonthAvg = prevMonthVals.length
+      ? prevMonthVals.reduce((a, b) => a + b, 0) / prevMonthVals.length
+      : overallAvg;
+    const delta = overallAvg - previousMonthAvg;
+
+    const MONTH_LABELS = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+
     const keys = Array.from(new Set(allGrades.map((g) => monthKey(g.date)))).sort();
     const monthKeys = keys.length > 8 ? keys.slice(-8) : keys;
-
     const monthAverages = monthKeys.map((k) => {
       const monthVals = allGrades.filter((g) => monthKey(g.date) === k).map((g) => g.markDisplayValue);
       if (monthVals.length === 0) return 0;
       return monthVals.reduce((a, b) => a + b, 0) / monthVals.length;
     });
-
-    const currentMonthAvg = monthAverages[monthAverages.length - 1] ?? overallAvg;
-    const previousMonthAvg = monthAverages[monthAverages.length - 2] ?? currentMonthAvg;
-    const delta = currentMonthAvg - previousMonthAvg;
-
     const spark = sparkPath(monthAverages.length ? monthAverages : [overallAvg]);
+
+    const sparkPoints = monthKeys.map((k, i) => {
+      const avg = monthAverages[i];
+      const x = monthKeys.length === 1 ? 100 : (i / (monthKeys.length - 1)) * 200;
+      const clamped = Math.max(1, Math.min(10, avg));
+      const y = 42 - ((clamped - 1) / 9) * 24;
+      const mNum = parseInt(k.slice(4, 6)) - 1;
+      const yShort = k.slice(2, 4);
+      return { x, y, avg, label: `${MONTH_LABELS[mNum]} ${yShort}` };
+    });
 
     const recent: RecentItem[] = [...allGrades]
       .sort((a, b) => b.date - a.date)
@@ -257,15 +281,6 @@ export default function GradesPage() {
         subject: g.subjectName,
         numeric: g.markDisplayValue,
       }));
-
-    const refDate = latestGradeDate
-      ? new Date(
-          Number(String(latestGradeDate).slice(0, 4)),
-          Number(String(latestGradeDate).slice(4, 6)) - 1,
-          Number(String(latestGradeDate).slice(6, 8))
-        )
-      : new Date();
-    const schoolYearStart = refDate.getMonth() >= 7 ? refDate.getFullYear() : refDate.getFullYear() - 1;
 
     return {
       allCount: allGrades.length,
@@ -282,7 +297,9 @@ export default function GradesPage() {
       median,
       sigma,
       delta,
+      previousMonthAvg,
       spark,
+      sparkPoints,
       recent,
       schoolYearLabel: `${schoolYearStart} / ${schoolYearStart + 1}`,
     };
@@ -443,6 +460,21 @@ export default function GradesPage() {
     setHoverTrendIndex(nearest);
   };
 
+  const handleSparkMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    const pts = dashboard.sparkPoints;
+    if (!pts.length) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const svgX = ((e.clientX - rect.left) / rect.width) * 200;
+    let nearest = 0;
+    let minDist = Number.POSITIVE_INFINITY;
+    pts.forEach((p, idx) => {
+      const d = Math.abs(p.x - svgX);
+      if (d < minDist) { minDist = d; nearest = idx; }
+    });
+    setHoverSparkIndex(nearest);
+  };
+
   return (
     <AuthGuard>
       <div className="grades-dashboard-wrap">
@@ -489,16 +521,40 @@ export default function GradesPage() {
                     Beste Note <span className="mono">{dashboard.bestGrade ? formatMark(dashboard.bestGrade) : '—'}</span>
                   </span>
                 </div>
-                <svg className="spark" viewBox="0 0 200 60" preserveAspectRatio="none" aria-hidden="true">
-                  <defs>
-                    <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="currentColor" stopOpacity="0.12" />
-                      <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  <path d={dashboard.spark.area} fill="url(#sg)" />
-                  <path d={dashboard.spark.line} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
-                </svg>
+                <div className="spark-wrap">
+                  <svg
+                    className="spark"
+                    viewBox="0 0 200 60"
+                    preserveAspectRatio="none"
+                    onMouseMove={handleSparkMouseMove}
+                    onMouseLeave={() => setHoverSparkIndex(null)}
+                  >
+                    <defs>
+                      <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="currentColor" stopOpacity="0.12" />
+                        <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                    <path d={dashboard.spark.area} fill="url(#sg)" />
+                    <path d={dashboard.spark.line} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+                    {dashboard.sparkPoints.map((p, idx) => (
+                      <circle
+                        key={idx}
+                        cx={p.x}
+                        cy={p.y}
+                        r={hoverSparkIndex === idx ? 3.5 : 2}
+                        fill="currentColor"
+                        opacity={hoverSparkIndex === idx ? 1 : 0.4}
+                      />
+                    ))}
+                  </svg>
+                  {hoverSparkIndex !== null && dashboard.sparkPoints[hoverSparkIndex] && (
+                    <div className="spark-tooltip">
+                      <span>{dashboard.sparkPoints[hoverSparkIndex].label}</span>
+                      <strong>{fmtNum(dashboard.sparkPoints[hoverSparkIndex].avg, 2)}</strong>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="card">
@@ -1022,8 +1078,9 @@ export default function GradesPage() {
         .spark {
           height: 64px;
           width: 100%;
-          margin-top: 4px;
           color: var(--g-ink);
+          cursor: crosshair;
+          display: block;
         }
 
         .ratio {
@@ -1753,6 +1810,34 @@ export default function GradesPage() {
             opacity: 1;
             transform: scale(1);
           }
+        }
+
+        .spark-wrap {
+          position: relative;
+          margin-top: 4px;
+        }
+
+        .spark-tooltip {
+          position: absolute;
+          top: 6px;
+          right: 0;
+          background: color-mix(in srgb, var(--g-surface) 96%, #000000 4%);
+          border: 1px solid var(--g-line-2);
+          border-radius: 7px;
+          padding: 4px 9px;
+          font-size: 11px;
+          font-weight: 600;
+          color: var(--g-ink);
+          font-variant-numeric: tabular-nums;
+          pointer-events: none;
+          display: flex;
+          align-items: center;
+          gap: 7px;
+        }
+
+        .spark-tooltip span {
+          color: var(--g-muted);
+          font-weight: 500;
         }
 
         @media (max-width: 1200px) {

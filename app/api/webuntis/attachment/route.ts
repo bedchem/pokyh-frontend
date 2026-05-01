@@ -21,13 +21,11 @@ export async function GET(req: NextRequest) {
   }
   const attachmentId = /^\d{1,12}$/.test(attachmentIdRaw) ? attachmentIdRaw : '';
 
-  // Auth headers matching Flutter: Bearer + Cookie, NO Accept:application/json
   const authHeaders: Record<string, string> = {
     Cookie: `JSESSIONID=${session.sessionId}; schoolname="${SCHOOL_COOKIE_VAL}"`,
     ...(session.bearerToken ? { Authorization: `Bearer ${session.bearerToken}` } : {}),
   };
 
-  // JSON-specific headers for metadata endpoints only
   const jsonHeaders: Record<string, string> = {
     ...authHeaders,
     Accept: 'application/json',
@@ -38,19 +36,23 @@ export async function GET(req: NextRequest) {
   if (storageId) {
     try {
       const infoRes = await fetch(
-      `${BASE}/api/rest/view/v1/messages/${messageId}/attachmentstorageurl/${storageId}`,
+        `${BASE}/api/rest/view/v1/messages/${storageId}/attachmentstorageurl`,
         { headers: jsonHeaders, signal: AbortSignal.timeout(8000) },
       );
       if (infoRes.ok) {
         const info = (await infoRes.json()) as Record<string, unknown>;
         const downloadUrl = info?.downloadUrl as string | undefined;
+        // WebUntis returns headers as { key, value } pairs — some deployments use { name, value }.
         const additionalHeaders = info?.additionalHeaders as
-          | Array<{ name: string; value: string }>
+          | Array<Record<string, unknown>>
           | undefined;
         if (downloadUrl) {
           const s3Headers: Record<string, string> = {};
           for (const h of additionalHeaders ?? []) {
-            if (h.name && h.value) s3Headers[h.name] = h.value;
+            const k = (h.key ?? h.name) as string | undefined;
+            const v = h.value as string | undefined;
+            // Skip 'host' — fetch sets it from the URL.
+            if (k && v && k.toLowerCase() !== 'host') s3Headers[k] = v;
           }
           const fileRes = await fetch(downloadUrl, {
             headers: s3Headers,
@@ -101,7 +103,6 @@ export async function GET(req: NextRequest) {
 
 function isFileResponse(res: Response): boolean {
   const ct = res.headers.get('content-type') ?? '';
-  // Reject JSON/HTML error pages masquerading as "OK"
   if (ct.includes('text/html') || ct.includes('application/json')) return false;
   return true;
 }
