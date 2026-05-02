@@ -23,8 +23,10 @@ export interface TimetableEntry {
   isCancelled: boolean;
   isSubstitution: boolean;
   isAdditional: boolean;
+  subjectDisplayName?: string;
   originalSubject?: string;
   originalSubjectLong?: string;
+  originalSubjectDisplayName?: string;
   originalTeacher?: string;
   originalRoom?: string;
   homeworkText?: string;

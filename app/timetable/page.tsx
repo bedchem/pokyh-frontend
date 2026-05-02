@@ -18,13 +18,27 @@ import type { TimetableEntry } from '@/lib/types';
 const DAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 const PX_PER_MIN = 1.35;
 
+const PERIODS = [
+  { num: 1, s: 470, e: 520 },  // 07:50 - 08:40
+  { num: 2, s: 520, e: 570 },  // 08:40 - 09:30
+  { num: 3, s: 570, e: 620 },  // 09:30 - 10:20
+  { num: 4, s: 635, e: 685 },  // 10:35 - 11:25
+  { num: 5, s: 685, e: 735 },  // 11:25 - 12:15
+  { num: 6, s: 735, e: 785 },  // 12:15 - 13:05
+  { num: 7, s: 795, e: 845 },  // 13:15 - 14:05
+  { num: 8, s: 845, e: 895 },  // 14:05 - 14:55
+  { num: 9, s: 905, e: 955 },  // 15:05 - 15:55
+  { num: 10, s: 955, e: 1005 },// 15:55 - 16:45
+];
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type SlotKind = 'normal' | 'cancelled' | 'replacement' | 'exam' | 'event';
-type DayKind = 'normal' | 'holiday' | 'allCancelled' | 'fullDayEvent' | 'weekend';
+type DayKind = 'normal' | 'holiday' | 'allCancelled' | 'allReplacement' | 'fullDayEvent' | 'weekend';
 
 interface MergedSlot {
   display: TimetableEntry;
+  replacement?: TimetableEntry;
   kind: SlotKind;
 }
 
@@ -153,17 +167,44 @@ function buildSlots(dayEntries: TimetableEntry[]): MergedSlot[] {
   }
 
   const slots: MergedSlot[] = [];
-  for (const [, group] of [...groups.entries()].sort((a, b) => a[0] - b[0])) {
+  for (const [groupStart, group] of [...groups.entries()].sort((a, b) => a[0] - b[0])) {
     const cancelled = group.filter(e => e.isCancelled);
-    const active    = group.filter(e => !e.isCancelled);
+    let   active    = group.filter(e => !e.isCancelled);
+
+    // A cancelled lesson whose startTime is earlier but whose range covers this slot
+    // (one long cancelled entry spanning multiple period groups).
+    const spanningCancelled = cancelled.length === 0
+      ? dayEntries.filter(e =>
+          e.isCancelled &&
+          toMins(e.startTime) < toMins(groupStart) &&
+          toMins(e.endTime)   > toMins(groupStart)
+        )
+      : [];
+    const effectiveCancelled = cancelled.length > 0 ? cancelled : spanningCancelled;
+
+    // A substitute whose startTime is earlier but whose range covers this slot
+    // (one long active entry spanning multiple period groups).
+    if (active.length === 0 && effectiveCancelled.length > 0) {
+      const spanning = dayEntries.filter(e =>
+        !e.isCancelled &&
+        toMins(e.startTime) < toMins(groupStart) &&
+        toMins(e.endTime)   > toMins(groupStart)
+      );
+      if (spanning.length > 0) active = spanning;
+    }
 
     if (active.length === 0) {
-      slots.push({ display: cancelled[0], kind: 'cancelled' });
+      slots.push({ display: effectiveCancelled[0], kind: 'cancelled' });
       continue;
     }
 
-    // Priority: exam > additional hour > event (no subject) > substitution > normal.
-    // Additional hours beat substitutions so a Zusatzstunde wins when a teacher is absent.
+    if (effectiveCancelled.length > 0) {
+      // Cancelled original + substitute active
+      slots.push({ display: effectiveCancelled[0], replacement: active[0], kind: 'replacement' });
+      continue;
+    }
+
+    // No cancelled entries — pick best active entry
     const display =
       active.find(e => e.isExam) ??
       active.find(e => e.isAdditional) ??
@@ -216,8 +257,10 @@ function getDayKind(dayEntries: TimetableEntry[], hasOtherDayEntries: boolean): 
 
 function LessonDetailSheet({ slot, onClose }: { slot: MergedSlot; onClose: () => void }) {
   const { display, kind } = slot;
+  const hasReplacement = !!slot.replacement;
 
   const hasInlineOriginal =
+    !hasReplacement &&
     display.isSubstitution &&
     !!display.originalSubject &&
     display.originalSubject !== display.subjectName;
@@ -394,6 +437,36 @@ function LessonDetailSheet({ slot, onClose }: { slot: MergedSlot; onClose: () =>
               </div>
             </>
           )}
+
+          {/* Replacement card (cancelled original + active substitute) */}
+          {slot.replacement && (
+            <>
+              <div style={{ height: 1, background: 'var(--app-border)', opacity: 0.4, margin: '16px 0' }} />
+              <div className="flex items-center gap-1.5 mb-3">
+                <ArrowLeftRight size={14} color={subjectColor(slot.replacement.subjectName) || 'var(--orange)'} />
+                <p className="text-sm font-semibold" style={{ color: 'var(--app-text-secondary)' }}>Ersatz</p>
+              </div>
+              <div
+                className="rounded-xl p-4"
+                style={{
+                  background: 'var(--app-card)',
+                  border: `1px solid color-mix(in srgb, ${subjectColor(slot.replacement.subjectName) || 'var(--orange)'} 30%, transparent)`,
+                }}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: subjectColor(slot.replacement.subjectName) || 'var(--orange)' }} />
+                  <p className="text-[16px] font-bold" style={{ color: 'var(--app-text-primary)' }}>
+                    {slot.replacement.subjectLong || slot.replacement.subjectName || slot.replacement.note || '?'}
+                  </p>
+                </div>
+                {slot.replacement.teacherName && <SheetRow label="Lehrer" value={slot.replacement.teacherName} small />}
+                {slot.replacement.roomName    && <SheetRow label="Raum"   value={slot.replacement.roomName}    small />}
+                {slot.replacement.note && (
+                  <p className="text-xs mt-2" style={{ color: 'var(--app-text-secondary)' }}>{slot.replacement.note}</p>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </motion.div>
     </motion.div>
@@ -451,7 +524,9 @@ function LessonCell({ slot, onClick }: { slot: MergedSlot; onClick: () => void }
 
   // Status icon
   let StatusIcon: React.ReactNode = null;
-  if (display.isCancelled) {
+  if (display.isCancelled && slot.replacement) {
+    StatusIcon = <ArrowLeftRight size={9} color={subjectColor(slot.replacement.subjectName) || 'var(--orange)'} />;
+  } else if (display.isCancelled) {
     StatusIcon = <X size={9} color="var(--danger)" />;
   } else if (display.isExam) {
     StatusIcon = <FileText size={9} color="var(--warning)" />;
@@ -581,11 +656,11 @@ function WeekendColumn({ height }: { height: number }) {
   );
 }
 
-function DayStatusColumn({ height, kind }: { height: number; kind: 'cancelled' | 'replacement' }) {
+function DayStatusColumn({ height, kind, onClick }: { height: number; kind: 'cancelled' | 'replacement'; onClick?: () => void }) {
   const color = kind === 'cancelled' ? 'var(--danger)' : 'var(--accent)';
   const label = kind === 'cancelled' ? 'Entfall' : 'Vertretung';
   const Icon  = kind === 'cancelled' ? X : ArrowLeftRight;
-  return (
+  const inner = (
     <div className="rounded-lg flex flex-col items-center pt-3"
       style={{ height, background: `color-mix(in srgb, ${color} 8%, transparent)`, border: `1px solid color-mix(in srgb, ${color} 28%, transparent)` }}>
       <div className="w-7 h-7 rounded-full flex items-center justify-center"
@@ -595,6 +670,10 @@ function DayStatusColumn({ height, kind }: { height: number; kind: 'cancelled' |
       <p className="text-[10px] font-bold mt-1" style={{ color }}>{label}</p>
     </div>
   );
+  if (onClick) {
+    return <button className="w-full press-scale" style={{ display: 'block' }} onClick={onClick}>{inner}</button>;
+  }
+  return inner;
 }
 
 function EventColumn({ height, label }: { height: number; label: string }) {
@@ -786,9 +865,23 @@ export default function TimetablePage() {
   const isHolidayWeek   = !loading && !error && entries.length === 0;
   const dayEntries      = weekDates.map(date => entriesForDay(date));
   const anyDayHasEntries = dayEntries.some(de => de.length > 0);
+  const daySlotsMap     = weekDates.map((_, di) => buildSlots(dayEntries[di]));
   const dayKinds: DayKind[] = dayEntries.map((de, i) => {
     if (i === 5 && de.length === 0) return 'weekend';
-    return getDayKind(de, anyDayHasEntries);
+    const base = getDayKind(de, anyDayHasEntries);
+    if (base === 'normal') {
+      const slots = daySlotsMap[i];
+      if (slots.length > 0 && slots.every(s => s.kind === 'replacement')) {
+        const firstRepl = slots[0].replacement;
+        const isExactSame = slots.every(s => 
+          s.replacement?.subjectName === firstRepl?.subjectName && 
+          s.replacement?.note === firstRepl?.note &&
+          s.replacement?.teacherName === firstRepl?.teacherName
+        );
+        if (isExactSame) return 'allReplacement';
+      }
+    }
+    return base;
   });
 
   const allStartMins  = [...new Set(entries.map(e => toMins(e.startTime)))].sort((a, b) => a - b);
@@ -797,7 +890,6 @@ export default function TimetablePage() {
   const maxMins       = allEndMins[allEndMins.length - 1] ?? 960;
   const totalGridHeight = Math.max(400, (maxMins - minMins) * PX_PER_MIN);
   const timeLabels    = allStartMins;
-  const daySlotsMap   = weekDates.map((_, di) => buildSlots(dayEntries[di]));
 
   function weekNumber(date: Date): number {
     const startOfYear = new Date(date.getFullYear(), 0, 1);
@@ -810,6 +902,7 @@ export default function TimetablePage() {
     if (kind === 'holiday')         return 'var(--orange)';
     if (kind === 'weekend')         return 'var(--success-mid)';
     if (kind === 'allCancelled')    return 'var(--danger)';
+    if (kind === 'allReplacement')  return 'var(--orange)';
     return 'var(--app-text-primary)';
   }
 
@@ -920,14 +1013,31 @@ export default function TimetablePage() {
               /* ── Normal week grid ── */
               <div className="flex gap-1">
                 {/* Time labels */}
-                <div className="flex-shrink-0 relative" style={{ width: 36, height: totalGridHeight }}>
-                  {timeLabels.map(m => {
-                    const top = (m - minMins) * PX_PER_MIN;
+                <div className="flex-shrink-0 relative" style={{ width: 34, height: totalGridHeight }}>
+                  {PERIODS.filter(p => p.e > minMins && p.s < maxMins).map((p, i, arr) => {
+                    const topStart = (p.s - minMins) * PX_PER_MIN;
+                    const topEnd = (p.e - minMins) * PX_PER_MIN;
+                    const nextP = PERIODS.find(nx => nx.num === p.num + 1);
+                    const showEnd = !nextP || nextP.s !== p.e;
+                    
                     return (
-                      <div key={m} className="absolute left-0 right-0" style={{ top }}>
-                        <p className="text-[10px] text-right pr-1" style={{ color: 'var(--app-text-tertiary)' }}>
-                          {Math.floor(m / 60).toString().padStart(2, '0')}:{(m % 60).toString().padStart(2, '0')}
+                      <div key={p.num}>
+                        <p className="absolute left-0 right-2 text-[11px] text-right font-medium tracking-tight leading-none" 
+                           style={{ top: topStart - 6, color: 'var(--app-text-secondary)' }}>
+                          {Math.floor(p.s / 60).toString().padStart(2, '0')}:{(p.s % 60).toString().padStart(2, '0')}
                         </p>
+                        
+                        <p className="absolute left-0 right-2 text-[10px] text-right leading-none" 
+                           style={{ top: (topStart + topEnd) / 2 - 6, color: 'var(--app-text-tertiary)', opacity: 0.8 }}>
+                          {p.num}.
+                        </p>
+
+                        {showEnd && (
+                          <p className="absolute left-0 right-2 text-[11px] text-right font-medium tracking-tight leading-none" 
+                             style={{ top: topEnd - 6, color: 'var(--app-text-secondary)' }}>
+                            {Math.floor(p.e / 60).toString().padStart(2, '0')}:{(p.e % 60).toString().padStart(2, '0')}
+                          </p>
+                        )}
                       </div>
                     );
                   })}
@@ -943,25 +1053,54 @@ export default function TimetablePage() {
                     <div key={di} className="flex-1 relative"
                       style={{ height: totalGridHeight, background: 'transparent', borderRadius: 6 }}>
 
-                      {kind === 'holiday'        && <HolidayColumn    height={totalGridHeight - 4} />}
-                      {kind === 'weekend'        && <WeekendColumn    height={totalGridHeight - 4} />}
-                      {kind === 'allCancelled'   && <DayStatusColumn  height={totalGridHeight - 4} kind="cancelled" />}
-                      {kind === 'fullDayEvent'   && dayEntries[di][0] && (
+                      {kind === 'holiday'          && <HolidayColumn    height={totalGridHeight - 4} />}
+                      {kind === 'weekend'          && <WeekendColumn    height={totalGridHeight - 4} />}
+                      {kind === 'allCancelled'     && <DayStatusColumn  height={totalGridHeight - 4} kind="cancelled" />}
+                      {kind === 'allReplacement'   && <DayStatusColumn  height={totalGridHeight - 4} kind="replacement" onClick={() => { const first = daySlotsMap[di][0]; if (first) setActiveSlot(first); }} />}
+                      {kind === 'fullDayEvent'     && dayEntries[di][0] && (
                         <EventColumn height={totalGridHeight - 4} label={dayEntries[di][0].note ?? ''} />
                       )}
 
                       {/* Lesson cells */}
-                      {kind === 'normal' && slots.map((slot, si) => {
-                        const top    = (toMins(slot.display.startTime) - minMins) * PX_PER_MIN;
-                        const height = Math.max(
-                          (toMins(slot.display.endTime) - minMins) * PX_PER_MIN - top - 2,
-                          30,
-                        );
-                        return (
-                          <div key={`${slot.display.id}-${si}`} className="absolute left-0.5 right-0.5" style={{ top, height }}>
-                            <LessonCell slot={slot} onClick={() => setActiveSlot(slot)} />
-                          </div>
-                        );
+                      {kind === 'normal' && slots.flatMap((slot, si) => {
+                        const startMins = slot.replacement
+                          ? Math.max(toMins(slot.display.startTime), toMins(slot.replacement.startTime))
+                          : toMins(slot.display.startTime);
+                        const endMins = slot.replacement
+                          ? Math.min(toMins(slot.display.endTime), toMins(slot.replacement.endTime))
+                          : toMins(slot.display.endTime);
+
+                        const breaks = [
+                          { s: 620, e: 630 }, // 10:20 - 10:30
+                          { s: 895, e: 905 }, // 14:55 - 15:05
+                        ];
+
+                        let segments = [{ s: startMins, e: endMins }];
+                        for (const b of breaks) {
+                          const nextSegments: {s: number, e: number}[] = [];
+                          for (const seg of segments) {
+                            if (seg.s < b.s && seg.e > b.e) {
+                              nextSegments.push({ s: seg.s, e: b.s });
+                              nextSegments.push({ s: b.e, e: seg.e });
+                            } else {
+                              nextSegments.push(seg);
+                            }
+                          }
+                          segments = nextSegments;
+                        }
+
+                        return segments.map((seg, partIdx) => {
+                          const top    = (seg.s - minMins) * PX_PER_MIN;
+                          const height = Math.max(
+                            (seg.e - minMins) * PX_PER_MIN - top - 2,
+                            30,
+                          );
+                          return (
+                            <div key={`${slot.display.id}-${si}-${partIdx}`} className="absolute left-0.5 right-0.5" style={{ top, height }}>
+                              <LessonCell slot={slot} onClick={() => setActiveSlot(slot)} />
+                            </div>
+                          );
+                        });
                       })}
 
                       {/* Current-time indicator */}
