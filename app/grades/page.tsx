@@ -59,7 +59,26 @@ export default function GradesPage() {
   const [hoverSparkIndex, setHoverSparkIndex] = useState<number | null>(null);
   const [hoverDonutGrade, setHoverDonutGrade] = useState<number | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>('name');
+  const [isSortOpen, setIsSortOpen] = useState(false);
   const cacheRef = useRef<SubjectGrades[] | null>(null);
+  const sortRef = useRef<HTMLDivElement>(null);
+
+  const SORT_OPTIONS: { value: SortMode; label: string }[] = [
+    { value: 'name', label: 'Name' },
+    { value: 'avg-desc', label: 'Bester ⌀' },
+    { value: 'avg-asc', label: 'Schlechtester ⌀' },
+    { value: 'recent', label: 'Letzte Note' },
+  ];
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sortRef.current && !sortRef.current.contains(event.target as Node)) {
+        setIsSortOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const load = useCallback(async () => {
     if (cacheRef.current) {
@@ -543,17 +562,37 @@ export default function GradesPage() {
               <div className="timeline-head">
                 <div className="timeline-head-title">Fächer</div>
                 <div className="sort-wrap">
-                  <select
-                    className="sort-select"
-                    value={sortMode}
-                    onChange={(e) => setSortMode(e.currentTarget.value as SortMode)}
-                    aria-label="Sortierung"
-                  >
-                    <option value="name">Name</option>
-                    <option value="avg-desc">Bester ⌀</option>
-                    <option value="avg-asc">Schlechtester ⌀</option>
-                    <option value="recent">Letzte Note</option>
-                  </select>
+                  <div className="custom-select-container" ref={sortRef}>
+                    <button
+                      className={`sort-select ${isSortOpen ? 'open' : ''}`}
+                      onClick={() => setIsSortOpen(!isSortOpen)}
+                      type="button"
+                      aria-haspopup="listbox"
+                      aria-expanded={isSortOpen}
+                    >
+                      {SORT_OPTIONS.find((o) => o.value === sortMode)?.label}
+                      <ChevronDown size={14} className="sort-arrow" style={{ transform: isSortOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                    </button>
+                    
+                    {isSortOpen && (
+                      <ul className="custom-select-dropdown fade-in" role="listbox">
+                        {SORT_OPTIONS.map((opt) => (
+                          <li
+                            key={opt.value}
+                            role="option"
+                            aria-selected={sortMode === opt.value}
+                            className={`custom-select-item ${sortMode === opt.value ? 'selected' : ''}`}
+                            onClick={() => {
+                              setSortMode(opt.value);
+                              setIsSortOpen(false);
+                            }}
+                          >
+                            {opt.label}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                   <button className="expand-all" onClick={toggleAllRows} type="button">
                     {allExpanded ? 'Einklappen' : 'Alle aufklappen'}
                   </button>
@@ -585,7 +624,7 @@ export default function GradesPage() {
                           </div>
                           <span className="timeline-right">
                             <span className={`timeline-avg ${avgClass}`}>{fmtNum(subjectAvg, 2)}</span>
-                            <ChevronDown className={`timeline-chevron ${isExpanded ? 'open' : ''}`} size={18} strokeWidth={2.2} />
+                            <ChevronDown className="timeline-chevron" size={18} strokeWidth={2.2} style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
                           </span>
                         </button>
 
@@ -919,31 +958,69 @@ export default function GradesPage() {
         }
 
         .sort-select {
-          appearance: none;
-          -webkit-appearance: none;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          width: 145px;
           font-family: inherit;
-          font-size: 12.5px;
-          font-weight: 600;
+          font-size: 13px;
+          font-weight: 500;
           color: var(--g-ink);
-          background: var(--g-bg);
+          background: var(--g-surface);
           border: 1px solid var(--g-line);
-          border-radius: 9px;
-          padding: 6px 28px 6px 10px;
+          border-radius: 8px;
+          padding: 6px 12px;
           cursor: pointer;
-          background-image: linear-gradient(45deg, transparent 50%, var(--g-muted) 50%), linear-gradient(135deg, var(--g-muted) 50%, transparent 50%);
-          background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%;
-          background-size: 5px 5px, 5px 5px;
-          background-repeat: no-repeat;
-          transition: border-color 0.15s;
+          transition: border-color 0.15s, background-color 0.15s;
         }
 
         .sort-select:hover {
+          background: color-mix(in srgb, var(--g-bg) 50%, transparent);
           border-color: var(--g-line-2);
         }
 
-        .sort-select:focus {
+        .sort-select:focus, .sort-select.open {
           outline: none;
           border-color: var(--g-line-2);
+        }
+        
+        .custom-select-container {
+          position: relative;
+        }
+        
+        .custom-select-dropdown {
+          position: absolute;
+          top: calc(100% + 6px);
+          right: 0;
+          width: 145px;
+          background: var(--g-surface);
+          border: 1px solid var(--g-line-2);
+          border-radius: 10px;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+          z-index: 50;
+          padding: 6px;
+          list-style: none;
+          margin: 0;
+        }
+        
+        .custom-select-item {
+          padding: 8px 12px;
+          font-size: 13px;
+          font-weight: 500;
+          color: var(--g-ink);
+          border-radius: 6px;
+          cursor: pointer;
+          transition: background 0.15s, color 0.15s;
+        }
+        
+        .custom-select-item:hover {
+          background: var(--g-bg);
+        }
+        
+        .custom-select-item.selected {
+          background: var(--accent);
+          color: #fff;
+          font-weight: 600;
         }
 
         .expand-all {
@@ -971,6 +1048,10 @@ export default function GradesPage() {
           border-bottom: 1px solid var(--g-line);
         }
 
+        .timeline-item:nth-child(odd) {
+          background-color: color-mix(in srgb, var(--g-bg) 40%, transparent);
+        }
+
         .timeline-item:last-child {
           border-bottom: 0;
         }
@@ -989,7 +1070,7 @@ export default function GradesPage() {
         }
 
         .timeline-row:hover {
-          background: color-mix(in srgb, var(--g-bg) 45%, transparent);
+          background: color-mix(in srgb, var(--g-bg) 75%, transparent);
         }
 
         .timeline-left {
