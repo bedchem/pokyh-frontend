@@ -157,12 +157,12 @@ export default function LoginForm() {
 
   // ── Shared input border style ──────────────────────────────────────────────
   const inputBorder = (focused: boolean) => ({
-    border: `1.5px solid ${focused ? 'rgba(139,92,246,0.6)' : 'rgba(255,255,255,0.09)'}`,
-    background: focused ? 'rgba(139,92,246,0.07)' : 'rgba(255,255,255,0.05)',
+    border: `1.5px solid ${focused ? 'rgba(139,92,246,0.6)' : 'var(--app-border)'}`,
+    background: focused ? 'rgba(139,92,246,0.07)' : 'var(--app-card)',
   });
 
   const iconColor = (focused: boolean) =>
-    focused ? 'rgba(167,139,250,1)' : 'rgba(255,255,255,0.28)';
+    focused ? 'rgba(139,92,246,1)' : 'var(--app-text-tertiary)';
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
