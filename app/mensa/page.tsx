@@ -11,8 +11,7 @@ import EmptyView from '@/components/ui/EmptyView';
 import { fetchMensa } from '@/lib/api';
 import type { Dish } from '@/lib/types';
 import { useFirebase } from '@/providers/FirebaseProvider';
-import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { api, type DishRatingsData } from '@/lib/api-client';
 
 // -- helpers --
 
@@ -277,28 +276,36 @@ function DishDetail({
   onClose: () => void;
   onRated: (dishId: string, ratings: Record<string, number>) => void;
 }) {
-  const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [ratingsData, setRatingsData] = useState<DishRatingsData>({ ratings: {}, myRating: null });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const ref = doc(db!, 'dish_ratings', dish.id);
-    const unsub = onSnapshot(ref, (snap) => {
-      const data = snap.exists() ? (snap.data() as Record<string, number>) : {};
-      setRatings(data);
-      onRated(dish.id, data);
+    // Fetch initial ratings
+    api.dishRatings.get(dish.id)
+      .then((data) => {
+        setRatingsData(data);
+        onRated(dish.id, data.ratings);
+      })
+      .catch(() => {});
+
+    // Subscribe to SSE for live updates
+    const unsub = api.dishRatings.subscribe(dish.id, (data) => {
+      setRatingsData(data);
+      onRated(dish.id, data.ratings);
     });
+
     return () => unsub();
   }, [dish.id, onRated]);
 
-  const avg = avgRating(ratings);
-  const myRating = stableUid ? (ratings[stableUid] ?? 0) : 0;
-  const ratingCount = Object.keys(ratings).length;
+  const avg = avgRating(ratingsData.ratings);
+  const myRating = ratingsData.myRating ?? 0;
+  const ratingCount = Object.keys(ratingsData.ratings).length;
 
   async function rate(stars: number) {
     if (!stableUid || saving) return;
     setSaving(true);
     try {
-      await setDoc(doc(db!, 'dish_ratings', dish.id), { [stableUid]: stars }, { merge: true });
+      await api.dishRatings.rate(dish.id, stars);
     } catch (e) {
       console.error('[mensa] rate error:', e);
     } finally {
@@ -453,22 +460,24 @@ export default function MensaPage() {
 
   useEffect(() => { loadMenu(); }, [loadMenu]);
 
-  // Fetch ratings once BOTH the menu is loaded AND stableUid is available.
-  // stableUid is only set after FirebaseProvider.init() completes (signInAnonymously done),
-  // guaranteeing Firestore auth is established before we read.
+  // Fetch ratings in batch once BOTH the menu is loaded AND stableUid is available.
   useEffect(() => {
     if (!stableUid || groups.length === 0 || ratingsFetched.current) return;
     ratingsFetched.current = true;
     const allDishes = groups.flatMap((g) => g.dishes);
-    Promise.all(allDishes.map((d) => getDoc(doc(db!, 'dish_ratings', d.id))))
-      .then((snaps) => {
+    const dishIds = allDishes.map((d) => d.id);
+
+    api.dishRatings.getBatch(dishIds)
+      .then((batchResult) => {
         const ratings: Record<string, Record<string, number>> = {};
-        snaps.forEach((snap, i) => {
-          if (snap.exists()) ratings[allDishes[i].id] = snap.data() as Record<string, number>;
-        });
+        for (const [dishId, data] of Object.entries(batchResult)) {
+          if (Object.keys(data.ratings).length > 0) {
+            ratings[dishId] = data.ratings;
+          }
+        }
         setAllRatings(ratings);
       })
-      .catch((e) => console.error('[mensa] ratings fetch error:', e));
+      .catch((e) => console.error('[mensa] ratings batch fetch error:', e));
   }, [stableUid, groups]);
 
   const handleRated = useCallback((dishId: string, ratings: Record<string, number>) => {

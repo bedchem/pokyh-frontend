@@ -134,6 +134,44 @@ export async function POST(req: NextRequest) {
       httpOnly: false, // Client JS needs to read this
     });
 
+    // Register/login user with the Node.js backend
+    try {
+      const backendRes = await fetch(`${process.env.API_BACKEND_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Server-Key': process.env.API_SERVER_KEY ?? '',
+          'X-API-Key': process.env.API_BACKEND_KEY ?? '',
+        },
+        body: JSON.stringify({ username, klasseId, klasseName }),
+        signal: AbortSignal.timeout(10000),
+      });
+
+      if (backendRes.ok) {
+        const backendData = await backendRes.json() as { token: string; refreshToken: string };
+        const isSecure = process.env.NODE_ENV === 'production';
+
+        res.cookies.set('pockyh_api_token', backendData.token, {
+          httpOnly: false, // Must be readable by client JS
+          secure: isSecure,
+          sameSite: 'strict',
+          path: '/',
+          maxAge: 8 * 60 * 60, // 8 hours
+        });
+
+        res.cookies.set('pockyh_api_refresh', backendData.refreshToken, {
+          httpOnly: true,
+          secure: isSecure,
+          sameSite: 'strict',
+          path: '/',
+          maxAge: 30 * 24 * 60 * 60, // 30 days
+        });
+      }
+    } catch (backendErr) {
+      // Non-fatal: WebUntis session still works, backend sync failed
+      console.error('[login] Backend sync error:', backendErr);
+    }
+
     return res;
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Netzwerkfehler';

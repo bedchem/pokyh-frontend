@@ -4,24 +4,12 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Plus, Bell, Trash2, BellOff, Users, LogIn, Calendar } from 'lucide-react';
 import DateTimePicker from '@/components/ui/DateTimePicker';
-import {
-  collection,
-  onSnapshot,
-  addDoc,
-  deleteDoc,
-  doc,
-  getDoc,
-  serverTimestamp,
-  query,
-  orderBy,
-  Timestamp,
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
 import EmptyView from '@/components/ui/EmptyView';
 import { useFirebase } from '@/providers/FirebaseProvider';
 import { useSession } from '@/providers/SessionProvider';
+import { api, type ApiReminder } from '@/lib/api-client';
 
 interface Reminder {
   id: string;
@@ -35,7 +23,7 @@ interface Reminder {
 }
 
 interface ClassMember {
-  uid: string;
+  stableUid: string;
   username: string;
 }
 
@@ -55,6 +43,19 @@ function timeUntil(date: Date): string {
   return 'Gleich';
 }
 
+function apiReminderToReminder(r: ApiReminder): Reminder {
+  return {
+    id: r.id,
+    classId: r.classId,
+    title: r.title,
+    body: r.body,
+    remindAt: new Date(r.remindAt),
+    createdByUid: r.createdBy,
+    createdByName: r.createdByName,
+    createdByUsername: r.createdByUsername,
+  };
+}
+
 export default function RemindersPage() {
   const router = useRouter();
   const { user, logout } = useSession();
@@ -72,47 +73,52 @@ export default function RemindersPage() {
   const [addError, setAddError] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
 
+  // Fetch user profile (isAdmin flag)
   useEffect(() => {
     if (!ready || !user) return;
-    getDoc(doc(db!, 'users', user.username)).then((snap) => {
-      if (snap.exists()) setIsAdmin((snap.data()?.isAdmin as boolean) === true);
-    });
+    api.users.get(user.username)
+      .then((u) => setIsAdmin(u.isAdmin))
+      .catch(() => {});
   }, [ready, user]);
 
+  // Load class members when classId is available
+  useEffect(() => {
+    if (!ready || !classId) return;
+    api.classes.get(classId)
+      .then((cls) => {
+        setMembers(cls.members.map((m) => ({ stableUid: m.stableUid, username: m.username })));
+      })
+      .catch(() => {});
+  }, [classId, ready]);
+
+  // Subscribe to reminders SSE
   useEffect(() => {
     if (!ready) return;
     if (!classId) { setLoading(false); return; }
 
-    // Fetch class members
-    getDoc(doc(db!, 'classes', classId)).then((snap) => {
-      if (snap.exists()) {
-        const mn = (snap.data()?.memberNames ?? {}) as Record<string, string>;
-        setMembers(Object.entries(mn).map(([uid, username]) => ({ uid, username })));
-      }
-    });
+    const cutoff = Date.now() - 25 * 3600 * 1000;
 
-    const q = query(
-      collection(db!, 'classes', classId, 'reminders'),
-      orderBy('remindAt', 'asc')
-    );
-    const unsub = onSnapshot(q, (snap) => {
-      const cutoff = Date.now() - 25 * 3600 * 1000;
+    // Subscribe to SSE
+    const unsub = api.reminders.subscribe(classId, (apiReminders) => {
       setReminders(
-        snap.docs
-          .map((d) => ({
-            id: d.id,
-            classId: classId,
-            title: d.data().title ?? '',
-            body: d.data().body ?? '',
-            remindAt: (d.data().remindAt as Timestamp)?.toDate() ?? new Date(),
-            createdByUid: d.data().createdBy ?? '',
-            createdByName: d.data().createdByName ?? 'Unbekannt',
-            createdByUsername: d.data().createdByUsername ?? '',
-          }))
+        apiReminders
+          .map(apiReminderToReminder)
           .filter((r) => r.remindAt.getTime() > cutoff)
       );
       setLoading(false);
-    }, () => setLoading(false));
+    });
+
+    // Fetch immediately
+    api.reminders.list(classId)
+      .then((apiReminders) => {
+        setReminders(
+          apiReminders
+            .map(apiReminderToReminder)
+            .filter((r) => r.remindAt.getTime() > cutoff)
+        );
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
 
     return () => unsub();
   }, [classId, ready]);
@@ -122,18 +128,14 @@ export default function RemindersPage() {
     setSaving(true);
     setAddError('');
     try {
-      await addDoc(collection(db!, 'classes', classId, 'reminders'), {
+      await api.reminders.create(classId, {
         title: title.trim(),
         body: body.trim(),
-        remindAt: Timestamp.fromDate(new Date(due)),
-        createdBy: stableUid,
-        createdByName: user.username,
-        createdByUsername: user.username,
-        createdAt: serverTimestamp(),
+        remindAt: new Date(due).toISOString(),
       });
       setTitle(''); setBody(''); setDue(''); setShowAdd(false);
     } catch (e: unknown) {
-      console.error('[reminders] addDoc error:', e);
+      console.error('[reminders] create error:', e);
       setAddError(e instanceof Error ? e.message : 'Fehler beim Speichern. Bitte erneut versuchen.');
     } finally {
       setSaving(false);
@@ -142,7 +144,7 @@ export default function RemindersPage() {
 
   async function deleteReminder(reminder: Reminder) {
     if (!classId) return;
-    await deleteDoc(doc(db!, 'classes', classId, 'reminders', reminder.id));
+    await api.reminders.delete(classId, reminder.id);
   }
 
   const upcoming = reminders.filter((r) => r.remindAt >= new Date(Date.now() - 1000));
@@ -374,7 +376,7 @@ export default function RemindersPage() {
                 <div className="flex flex-col gap-2">
                   {members.map((m) => (
                     <div
-                      key={m.uid}
+                      key={m.stableUid}
                       className="flex items-center gap-3 px-4 py-3 rounded-xl"
                       style={{ background: 'var(--app-card)' }}
                     >
@@ -387,7 +389,7 @@ export default function RemindersPage() {
                       <p className="font-medium text-[15px]" style={{ color: 'var(--app-text-primary)' }}>
                         {m.username}
                       </p>
-                      {m.uid === stableUid && (
+                      {m.stableUid === stableUid && (
                         <span className="ml-auto text-xs font-medium px-2 py-0.5 rounded-full"
                           style={{ background: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent)' }}>
                           Du

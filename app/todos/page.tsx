@@ -3,25 +3,13 @@
 import { useEffect, useState } from 'react';
 import { Plus, Check, Trash2, CheckSquare, Clock, AlignLeft, X, Calendar } from 'lucide-react';
 import DateTimePicker from '@/components/ui/DateTimePicker';
-import {
-  collection,
-  onSnapshot,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  serverTimestamp,
-  query,
-  orderBy,
-  Timestamp,
-} from 'firebase/firestore';
 import { AnimatePresence, motion } from 'framer-motion';
-import { db } from '@/lib/firebase';
 import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
 import EmptyView from '@/components/ui/EmptyView';
 import { useFirebase } from '@/providers/FirebaseProvider';
 import { useSession } from '@/providers/SessionProvider';
+import { api, type ApiTodo } from '@/lib/api-client';
 
 interface Todo {
   id: string;
@@ -34,6 +22,18 @@ interface Todo {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+function apiTodoToTodo(t: ApiTodo): Todo {
+  return {
+    id: t.id,
+    title: t.title,
+    details: t.details,
+    dueAt: t.dueAt ? new Date(t.dueAt) : null,
+    done: t.done,
+    doneAt: t.doneAt ? new Date(t.doneAt) : null,
+    createdAt: new Date(t.createdAt),
+  };
+}
 
 export default function TodosPage() {
   const { user } = useSession();
@@ -50,27 +50,31 @@ export default function TodosPage() {
 
   useEffect(() => {
     if (!ready || !user) return;
-    const q = query(
-      collection(db!, 'users', user.username, 'todos'),
-      orderBy('createdAt', 'asc')
-    );
-    const unsub = onSnapshot(q, (snap) => {
+
+    // Subscribe to SSE for real-time updates
+    const unsub = api.todos.subscribe(user.username, (apiTodos) => {
       const now = Date.now();
       setTodos(
-        snap.docs
-          .map((d) => ({
-            id: d.id,
-            title: d.data().title ?? '',
-            details: d.data().details ?? '',
-            dueAt: (d.data().dueAt as Timestamp)?.toDate() ?? null,
-            done: d.data().done ?? false,
-            doneAt: (d.data().doneAt as Timestamp)?.toDate() ?? null,
-            createdAt: (d.data().createdAt as Timestamp)?.toDate() ?? new Date(),
-          }))
+        apiTodos
+          .map(apiTodoToTodo)
           .filter((t) => !t.done || !t.doneAt || now - t.doneAt.getTime() < DAY_MS)
       );
       setLoading(false);
-    }, () => setLoading(false));
+    });
+
+    // Also fetch immediately in case SSE hasn't fired yet
+    api.todos.list(user.username)
+      .then((apiTodos) => {
+        const now = Date.now();
+        setTodos(
+          apiTodos
+            .map(apiTodoToTodo)
+            .filter((t) => !t.done || !t.doneAt || now - t.doneAt.getTime() < DAY_MS)
+        );
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+
     return () => unsub();
   }, [ready, user]);
 
@@ -79,17 +83,14 @@ export default function TodosPage() {
     setSaving(true);
     setAddError('');
     try {
-      await addDoc(collection(db!, 'users', user.username, 'todos'), {
+      await api.todos.create(user.username, {
         title: title.trim(),
         details: details.trim(),
-        dueAt: dueAt ? Timestamp.fromDate(new Date(dueAt)) : null,
-        done: false,
-        doneAt: null,
-        createdAt: serverTimestamp(),
+        dueAt: dueAt ? new Date(dueAt).toISOString() : null,
       });
       setTitle(''); setDetails(''); setDueAt(''); setShowAdd(false);
     } catch (e: unknown) {
-      console.error('[todos] addDoc error:', e);
+      console.error('[todos] create error:', e);
       setAddError(e instanceof Error ? e.message : 'Fehler beim Speichern. Bitte erneut versuchen.');
     } finally {
       setSaving(false);
@@ -99,15 +100,15 @@ export default function TodosPage() {
   async function toggle(todo: Todo) {
     if (!user) return;
     const nowDone = !todo.done;
-    await updateDoc(doc(db!, 'users', user.username, 'todos', todo.id), {
+    await api.todos.update(user.username, todo.id, {
       done: nowDone,
-      doneAt: nowDone ? serverTimestamp() : null,
+      doneAt: nowDone ? new Date().toISOString() : null,
     });
   }
 
   async function remove(id: string) {
     if (!user) return;
-    await deleteDoc(doc(db!, 'users', user.username, 'todos', id));
+    await api.todos.delete(user.username, id);
   }
 
   const active = todos.filter((t) => !t.done);
