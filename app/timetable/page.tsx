@@ -15,7 +15,7 @@ import type { TimetableEntry } from '@/lib/types';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const DAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr'];
+const DAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 const ROW_H = 78;          // px per time slot row (matches Flutter _rowMinHeight)
 const GAP_NORMAL = 5;
 const GAP_BREAK = 8;
@@ -26,7 +26,7 @@ const PX_PER_MIN = 1.35;
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type SlotKind = 'normal' | 'cancelled' | 'replacement' | 'exam' | 'event';
-type DayKind = 'normal' | 'holiday' | 'allCancelled' | 'allReplacement' | 'fullDayEvent';
+type DayKind = 'normal' | 'holiday' | 'allCancelled' | 'allReplacement' | 'fullDayEvent' | 'weekend';
 
 interface MergedSlot {
   display: TimetableEntry;
@@ -71,21 +71,45 @@ function parseTimetable(json: unknown): TimetableEntry[] {
         const teacherRefs = refs.filter((r) => r.type === 2);
         const roomRefs    = refs.filter((r) => r.type === 4);
 
-        // Split ABSENT (original) vs active elements — mirrors Flutter elState logic
-        const activeSubRef  = subjectRefs.find((r) => r.state !== 'ABSENT');
-        const absentSubRef  = subjectRefs.find((r) => r.state === 'ABSENT');
-        const activeRoomRef = roomRefs.find((r) => r.state !== 'ABSENT');
+        const isAbsentState = (s: unknown) => s === 'ABSENT' || s === 'REMOVED';
+
+        // Split ABSENT/REMOVED (original) vs active elements — mirrors Flutter elState logic
+        const activeSubRef  = subjectRefs.find((r) => !isAbsentState(r.state));
+        const absentSubRef  = subjectRefs.find((r) =>  isAbsentState(r.state));
 
         // Active teacher(s): may be multiple
         const activeTeacherNames = teacherRefs
-          .filter((r) => r.state !== 'ABSENT')
+          .filter((r) => !isAbsentState(r.state))
           .map((r) => teacherMap[r.id as number])
           .filter(Boolean) as string[];
         // Absent (original) teacher(s): may be multiple
         const absentTeacherNames = teacherRefs
-          .filter((r) => r.state === 'ABSENT')
+          .filter((r) =>  isAbsentState(r.state))
           .map((r) => teacherMap[r.id as number])
           .filter(Boolean) as string[];
+
+        // Rooms — when a SUBSTITUTION room is present alongside REGULAR ones,
+        // the REGULAR rooms are effectively the "original" being replaced for this period.
+        const activeRoomRefs   = roomRefs.filter((r) => !isAbsentState(r.state));
+        const removedRoomRefs  = roomRefs.filter((r) =>  isAbsentState(r.state));
+        const subRoomRefs      = activeRoomRefs.filter((r) => r.state === 'SUBSTITUTION');
+        const nonSubActiveRefs = activeRoomRefs.filter((r) => r.state !== 'SUBSTITUTION');
+
+        let activeRoomNames: string[];
+        let originalRoomNames: string[];
+        if (subRoomRefs.length > 0) {
+          activeRoomNames = subRoomRefs
+            .map((r) => roomMap[r.id as number]).filter(Boolean) as string[];
+          originalRoomNames = [
+            ...nonSubActiveRefs.map((r) => roomMap[r.id as number]).filter(Boolean) as string[],
+            ...removedRoomRefs.map((r) => roomMap[r.id as number]).filter(Boolean) as string[],
+          ];
+        } else {
+          activeRoomNames = activeRoomRefs
+            .map((r) => roomMap[r.id as number]).filter(Boolean) as string[];
+          originalRoomNames = removedRoomRefs
+            .map((r) => roomMap[r.id as number]).filter(Boolean) as string[];
+        }
 
         let subjectName = subjectMap[activeSubRef?.id as number]?.name ?? '';
         let subjectLong = subjectMap[activeSubRef?.id as number]?.longName ?? '';
@@ -100,7 +124,8 @@ function parseTimetable(json: unknown): TimetableEntry[] {
 
         const teacherName     = activeTeacherNames.join(', ');
         const originalTeacher = absentTeacherNames.join(', ');
-        const roomName        = roomMap[activeRoomRef?.id as number] ?? '';
+        const roomName        = activeRoomNames.join(', ');
+        const originalRoom    = originalRoomNames.join(', ');
 
         const cellState  = (p.cellState as string) ?? 'STANDARD';
         const isInfo     = p.is as Record<string, unknown> | undefined;
@@ -127,6 +152,7 @@ function parseTimetable(json: unknown): TimetableEntry[] {
           originalSubject,
           originalSubjectLong,
           originalTeacher,
+          originalRoom,
           note: (p.lessonText as string) || undefined,
         });
       }
@@ -198,6 +224,21 @@ function buildSlots(dayEntries: TimetableEntry[]): MergedSlot[] {
   return slots;
 }
 
+// ── Connection detection (port of Flutter _slotsMergeable) ───────────────────
+
+function slotsConnected(a: MergedSlot, b: MergedSlot): boolean {
+  if (a.kind !== b.kind) return false;
+  const gapMins = toMins(b.display.startTime) - toMins(a.display.endTime);
+  if (gapMins > 5) return false;
+  if (a.display.subjectName !== b.display.subjectName) return false;
+  if (a.display.teacherName !== b.display.teacherName) return false;
+  if (a.kind === 'replacement') {
+    return a.replacement?.subjectName === b.replacement?.subjectName
+      && a.replacement?.teacherName === b.replacement?.teacherName;
+  }
+  return true;
+}
+
 // ── Day state detection (port of Flutter _isDayAllCancelled / _isDayAllReplacement) ──
 
 function getDayKind(dayEntries: TimetableEntry[], hasOtherDayEntries: boolean): DayKind {
@@ -223,6 +264,28 @@ function getDayKind(dayEntries: TimetableEntry[], hasOtherDayEntries: boolean): 
   return 'normal';
 }
 
+// ── Detail entity types ───────────────────────────────────────────────────────
+
+interface DetailEntity {
+  longName?: string;
+  shortName?: string;
+  displayName?: string;
+  status?: string;
+}
+
+interface DetailLessonData {
+  absentTeachers: string[];
+  activeTeachers: string[];
+  absentRooms:    string[];
+  activeRooms:    string[];
+}
+
+function entityName(p: DetailEntity): string {
+  return p.longName || p.shortName || p.displayName || '';
+}
+
+const isAbsentStatus = (s?: string) => s === 'REMOVED' || s === 'ABSENT';
+
 // ── Detail Sheet ──────────────────────────────────────────────────────────────
 
 function LessonDetailSheet({
@@ -233,6 +296,33 @@ function LessonDetailSheet({
   onClose: () => void;
 }) {
   const { display, replacement, kind } = slot;
+  const [detailData, setDetailData] = useState<DetailLessonData | null>(null);
+
+  useEffect(() => {
+    setDetailData(null);
+    fetch(`/api/webuntis/lesson-detail?lessonId=${display.lessonId}&date=${display.date}&startTime=${display.startTime}&endTime=${display.endTime}`)
+      .then((r) => r.json())
+      .then((data: unknown) => {
+        const root = data as { calendarEntries?: Array<{ teachers?: DetailEntity[]; rooms?: DetailEntity[] }> };
+        const entry = root?.calendarEntries?.[0];
+        if (!entry) return;
+        const teachers = Array.isArray(entry.teachers) ? entry.teachers : [];
+        const rooms    = Array.isArray(entry.rooms)    ? entry.rooms    : [];
+        const subRooms = rooms.filter((r) => r.status === 'SUBSTITUTION');
+        setDetailData({
+          absentTeachers: teachers.filter((t) =>  isAbsentStatus(t.status)).map(entityName).filter(Boolean),
+          activeTeachers: teachers.filter((t) => !isAbsentStatus(t.status)).map(entityName).filter(Boolean),
+          // When a SUBSTITUTION room exists, REGULAR rooms become "original" (replaced for this period).
+          absentRooms: subRooms.length > 0
+            ? rooms.filter((r) => isAbsentStatus(r.status) || r.status === 'REGULAR').map(entityName).filter(Boolean)
+            : rooms.filter((r) => isAbsentStatus(r.status)).map(entityName).filter(Boolean),
+          activeRooms: subRooms.length > 0
+            ? subRooms.map(entityName).filter(Boolean)
+            : rooms.filter((r) => !isAbsentStatus(r.status)).map(entityName).filter(Boolean),
+        });
+      })
+      .catch(() => {});
+  }, [display.lessonId, display.date, display.startTime, display.endTime]);
 
   const hasInlineOriginal =
     !replacement &&
@@ -343,26 +433,71 @@ function LessonDetailSheet({
           {/* Time */}
           <SheetRow label="Zeit" value={`${parseTime(display.startTime)} – ${parseTime(display.endTime)}`} />
 
-          {/* Teacher — only show if not hasInlineOriginal */}
-          {display.teacherName && !hasInlineOriginal && (
-            <SheetRow
-              label={display.isSubstitution && !display.isAdditional ? 'Vertretung' : 'Lehrer'}
-              value={display.teacherName}
-              valueStyle={{ color: display.isSubstitution && !display.isAdditional ? 'var(--orange)' : undefined }}
-            />
-          )}
-          {/* Original teacher (struck through) — only if single teacher */}
-          {display.originalTeacher && !display.teacherName.includes(',') && !hasInlineOriginal && (
-            <SheetRow
-              label="Fehlt"
-              value={display.originalTeacher}
-              valueStyle={{ textDecoration: 'line-through', color: 'color-mix(in srgb, var(--danger) 70%, transparent)' }}
-            />
-          )}
+          {/* Teacher rows — uses detail API data when loaded, falls back to weekly parse */}
+          {!hasInlineOriginal && (() => {
+            const active = detailData
+              ? detailData.activeTeachers
+              : (display.teacherName ? display.teacherName.split(', ').filter(Boolean) : []);
+            const absent = detailData
+              ? detailData.absentTeachers
+              : (display.originalTeacher ? display.originalTeacher.split(', ').filter(Boolean) : []);
 
-          {display.roomName && !hasInlineOriginal && (
-            <SheetRow label="Raum" value={display.roomName} />
-          )}
+            if (active.length === 0 && absent.length === 0) return null;
+            return (
+              <div className="flex items-start gap-2 mb-2">
+                <p className="text-sm flex-shrink-0" style={{ color: 'var(--app-text-tertiary)', minWidth: 52 }}>Lehrer</p>
+                <div className="flex-1 min-w-0">
+                  {absent.map((t, i) => (
+                    <p key={`a${i}`} className="text-sm font-medium"
+                      style={{ textDecoration: 'line-through', textDecorationColor: 'var(--danger)', textDecorationThickness: '1.5px', color: 'color-mix(in srgb, var(--danger) 70%, transparent)' }}>
+                      {t}
+                    </p>
+                  ))}
+                  {active.map((t, i) => (
+                    <p key={`t${i}`} className="text-sm font-medium"
+                      style={{ color: absent.length > 0 ? 'var(--orange)' : 'var(--app-text-secondary)' }}>
+                      {t}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Room row — shows substitution as original (struck) → new */}
+          {!hasInlineOriginal && (() => {
+            let active: string[];
+            let absent: string[];
+            if (detailData && (detailData.activeRooms.length > 0 || detailData.absentRooms.length > 0)) {
+              active = detailData.activeRooms;
+              absent = detailData.absentRooms;
+            } else {
+              active = display.roomName ? display.roomName.split(', ').filter(Boolean) : [];
+              absent = display.originalRoom ? display.originalRoom.split(', ').filter(Boolean) : [];
+            }
+            // Drop any "absent" entries that are identical to active ones
+            absent = absent.filter((r) => !active.includes(r));
+            if (active.length === 0 && absent.length === 0) return null;
+            return (
+              <div className="flex items-start gap-2 mb-2">
+                <p className="text-sm flex-shrink-0" style={{ color: 'var(--app-text-tertiary)', minWidth: 52 }}>Raum</p>
+                <div className="flex-1 min-w-0">
+                  {absent.map((r, i) => (
+                    <p key={`ra${i}`} className="text-sm font-medium"
+                      style={{ textDecoration: 'line-through', textDecorationColor: 'var(--danger)', textDecorationThickness: '1.5px', color: 'color-mix(in srgb, var(--danger) 70%, transparent)' }}>
+                      {r}
+                    </p>
+                  ))}
+                  {active.map((r, i) => (
+                    <p key={`r${i}`} className="text-sm font-medium"
+                      style={{ color: absent.length > 0 ? 'var(--orange)' : 'var(--app-text-secondary)' }}>
+                      {r}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Note */}
           {display.note && (
@@ -486,8 +621,18 @@ function SheetRow({
 
 // ── Lesson Cell (port of Flutter _SlotContent) ────────────────────────────────
 
-function LessonCell({ slot, onClick }: { slot: MergedSlot; onClick: () => void }) {
+function LessonCell({
+  slot,
+  detailCache,
+  onClick,
+}: {
+  slot: MergedSlot;
+  detailCache: Record<string, DetailLessonData>;
+  onClick: () => void;
+}) {
   const { display, replacement, kind } = slot;
+  const detailKey = `${display.lessonId}-${display.date}-${display.startTime}`;
+  const detail = detailCache[detailKey];
 
   const isCancelledReplacement = display.isCancelled && !!replacement;
   const isReplaced = !isCancelledReplacement && (display.isCancelled || !!replacement);
@@ -571,42 +716,38 @@ function LessonCell({ slot, onClick }: { slot: MergedSlot; onClick: () => void }
   }
 
   function TeacherLabel() {
-    // Original teacher struck through — only if exactly ONE absent teacher
-    const hasOriginalTeacher = !!display.originalTeacher && !display.originalTeacher.includes(',');
-    const showOriginalStrike =
-      hasOriginalTeacher &&
-      !hasInlineOriginal &&
-      (isCancelledReplacement || isReplaced);
+    if (hasInlineOriginal) return null;
+    if (replacement && !isCancelledReplacement) return null;
 
-    if (showOriginalStrike) {
-      return (
-        <>
-          <p className="text-[10px] leading-tight truncate"
+    const active = detail?.activeTeachers ?? (display.teacherName ? display.teacherName.split(', ').filter(Boolean) : []);
+    const absent = detail?.absentTeachers ?? (display.originalTeacher ? display.originalTeacher.split(', ').filter(Boolean) : []);
+    const showAbsent = absent.length > 0;
+
+    if (active.length === 0 && !showAbsent) return null;
+
+    const activeColor = isCancelledReplacement
+      ? 'color-mix(in srgb, var(--danger) 80%, transparent)'
+      : (isPureSubstitution || absent.length > 0)
+      ? 'color-mix(in srgb, var(--orange) 75%, transparent)'
+      : isPureAdditional
+      ? 'color-mix(in srgb, var(--accent) 80%, transparent)'
+      : 'var(--app-text-secondary)';
+
+    return (
+      <>
+        {showAbsent && absent.map((t, i) => (
+          <p key={`a${i}`} className="text-[10px] leading-tight truncate"
             style={{ color: 'color-mix(in srgb, var(--danger) 65%, transparent)', textDecoration: 'line-through', textDecorationColor: 'var(--danger)', textDecorationThickness: '1.2px' }}>
-            {display.originalTeacher}
+            {t}
           </p>
-        </>
-      );
-    }
-
-    if (isPureSubstitution || isPureAdditional) {
-      return (
-        <p className="text-[10px] leading-tight truncate"
-          style={{ color: isPureSubstitution ? 'color-mix(in srgb, var(--orange) 75%, transparent)' : 'color-mix(in srgb, var(--accent) 80%, transparent)' }}>
-          {display.teacherName}
-        </p>
-      );
-    }
-
-    if (display.teacherName && !hasInlineOriginal && (!replacement || isCancelledReplacement)) {
-      return (
-        <p className="text-[10px] leading-tight truncate"
-          style={{ color: isCancelledReplacement ? 'color-mix(in srgb, var(--danger) 80%, transparent)' : 'var(--app-text-secondary)' }}>
-          {display.teacherName}
-        </p>
-      );
-    }
-    return null;
+        ))}
+        {active.map((t, i) => (
+          <p key={`t${i}`} className="text-[10px] leading-tight truncate" style={{ color: activeColor }}>
+            {t}
+          </p>
+        ))}
+      </>
+    );
   }
 
   function ReplacementBlock() {
@@ -625,6 +766,31 @@ function LessonCell({ slot, onClick }: { slot: MergedSlot; onClick: () => void }
     );
   }
 
+  function RoomChangeLabel() {
+    if (hasInlineOriginal) return null;
+    if (replacement && !isCancelledReplacement) return null;
+    const roomAbsent = detail?.absentRooms?.[0] ?? display.originalRoom ?? '';
+    const roomActive = detail?.activeRooms?.[0] ?? display.roomName ?? '';
+    if (!roomAbsent || roomAbsent === roomActive) return null;
+    return (
+      <div className="flex items-center gap-0.5 leading-tight mt-0.5 min-w-0">
+        <span className="text-[10px] truncate"
+          style={{
+            color: 'color-mix(in srgb, var(--danger) 65%, transparent)',
+            textDecoration: 'line-through',
+            textDecorationColor: 'var(--danger)',
+            textDecorationThickness: '1.2px',
+          }}>
+          {roomAbsent}
+        </span>
+        <span className="text-[9px] flex-shrink-0 px-0.5" style={{ color: 'var(--app-text-tertiary)' }}>→</span>
+        <span className="text-[10px] truncate font-semibold" style={{ color: 'var(--orange)' }}>
+          {roomActive || '–'}
+        </span>
+      </div>
+    );
+  }
+
   return (
     <button
       onClick={onClick}
@@ -636,9 +802,10 @@ function LessonCell({ slot, onClick }: { slot: MergedSlot; onClick: () => void }
       }}
     >
       <div className="w-[3px] flex-shrink-0 h-full" style={{ background: leftColor }} />
-      <div className="flex-1 min-w-0 px-1 py-1 flex flex-col justify-center relative">
+      <div className="flex-1 min-w-0 px-1 py-1 flex flex-col justify-start relative">
         <SubjectLabel />
         <TeacherLabel />
+        <RoomChangeLabel />
         <ReplacementBlock />
         {/* Status icon bottom-right */}
         {StatusIcon && (
@@ -663,6 +830,22 @@ function HolidayColumn({ height }: { height: number }) {
     >
       <span style={{ fontSize: 18 }}>🏖️</span>
       <p className="text-[10px] font-bold mt-1" style={{ color: 'var(--orange)' }}>Ferien</p>
+    </div>
+  );
+}
+
+function WeekendColumn({ height }: { height: number }) {
+  return (
+    <div
+      className="rounded-lg flex flex-col items-center pt-3"
+      style={{
+        height,
+        background: 'color-mix(in srgb, var(--success-mid) 10%, transparent)',
+        border: '1px solid color-mix(in srgb, var(--success-mid) 28%, transparent)',
+      }}
+    >
+      <span style={{ fontSize: 18 }}>🌿</span>
+      <p className="text-[10px] font-bold mt-1" style={{ color: 'var(--success-mid)' }}>Wochenende</p>
     </div>
   );
 }
@@ -747,6 +930,10 @@ export default function TimetablePage() {
   // Active slot for detail sheet
   const [activeSlot, setActiveSlot] = useState<MergedSlot | null>(null);
 
+  // Cached detail-API data for substitution cells (background-fetched after load)
+  const [detailCache, setDetailCache] = useState<Record<string, DetailLessonData>>({});
+  const detailFetchedRef = useRef<Set<string>>(new Set());
+
   const swipeHostRef = useRef<HTMLDivElement | null>(null);
   const cacheRef     = useRef<Record<number, TimetableEntry[]>>({});
   const preloadRef   = useRef<Record<number, boolean>>({});
@@ -758,7 +945,7 @@ export default function TimetablePage() {
   const dragXRef            = useRef(0);
 
   const monday = startOfWeek(addDays(new Date(), weekOffset * 7), { weekStartsOn: 1 });
-  const weekDates  = Array.from({ length: 5 }, (_, i) => addDays(monday, i));
+  const weekDates  = Array.from({ length: 6 }, (_, i) => addDays(monday, i));
   const todayStr   = format(new Date(), 'yyyyMMdd');
   const isCurrentWeek = weekOffset === 0;
 
@@ -809,6 +996,41 @@ export default function TimetablePage() {
     });
   }, [weekOffset]);
 
+  // Background-fetch detail API for substitution entries — weekly API omits removed teachers
+  useEffect(() => {
+    if (entries.length === 0) return;
+    const subEntries = entries.filter((e) => e.isSubstitution && !e.isCancelled);
+    subEntries.forEach(async (entry) => {
+      const key = `${entry.lessonId}-${entry.date}-${entry.startTime}`;
+      if (detailFetchedRef.current.has(key)) return;
+      detailFetchedRef.current.add(key);
+      try {
+        const data = await fetch(
+          `/api/webuntis/lesson-detail?lessonId=${entry.lessonId}&date=${entry.date}&startTime=${entry.startTime}&endTime=${entry.endTime}`
+        ).then((r) => r.json());
+        const root = data as { calendarEntries?: Array<{ teachers?: DetailEntity[]; rooms?: DetailEntity[] }> };
+        const calEntry = root?.calendarEntries?.[0];
+        if (!calEntry) return;
+        const teachers = Array.isArray(calEntry.teachers) ? calEntry.teachers : [];
+        const rooms    = Array.isArray(calEntry.rooms)    ? calEntry.rooms    : [];
+        const subRooms = rooms.filter((r) => r.status === 'SUBSTITUTION');
+        const detail: DetailLessonData = {
+          absentTeachers: teachers.filter((t) =>  isAbsentStatus(t.status)).map(entityName).filter(Boolean),
+          activeTeachers: teachers.filter((t) => !isAbsentStatus(t.status)).map(entityName).filter(Boolean),
+          absentRooms: subRooms.length > 0
+            ? rooms.filter((r) => isAbsentStatus(r.status) || r.status === 'REGULAR').map(entityName).filter(Boolean)
+            : rooms.filter((r) =>  isAbsentStatus(r.status)).map(entityName).filter(Boolean),
+          activeRooms: subRooms.length > 0
+            ? subRooms.map(entityName).filter(Boolean)
+            : rooms.filter((r) => !isAbsentStatus(r.status)).map(entityName).filter(Boolean),
+        };
+        if (detail.absentTeachers.length > 0 || detail.absentRooms.length > 0) {
+          setDetailCache((prev) => ({ ...prev, [key]: detail }));
+        }
+      } catch { /* best-effort */ }
+    });
+  }, [entries]);
+
   useEffect(() => () => { if (dragFrameRef.current !== null) cancelAnimationFrame(dragFrameRef.current); }, []);
 
   // ── Swipe gestures ──────────────────────────────────────────────────────────
@@ -819,7 +1041,7 @@ export default function TimetablePage() {
     const nowTs = performance.now();
     swipeRef.current = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, endX: e.clientX, endY: e.clientY, lastX: e.clientX, lastTs: nowTs, velocityX: 0, horizontalIntent: false, active: true };
     setIsDraggingSwipe(false);
-    e.currentTarget.setPointerCapture(e.pointerId);
+    // Capture only once horizontal intent is confirmed in handlePointerMove
   }
 
   function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
@@ -830,6 +1052,7 @@ export default function TimetablePage() {
     if (!swipeRef.current.horizontalIntent) {
       if (Math.abs(deltaX) > SWIPE_INTENT_THR || Math.abs(deltaY) > SWIPE_INTENT_THR) {
         swipeRef.current.horizontalIntent = Math.abs(deltaX) > Math.abs(deltaY);
+        if (swipeRef.current.horizontalIntent) e.currentTarget.setPointerCapture(e.pointerId);
       }
     }
     if (!swipeRef.current.horizontalIntent) return;
@@ -893,7 +1116,10 @@ export default function TimetablePage() {
 
   const dayEntries  = weekDates.map((date) => entriesForDay(date));
   const anyDayHasEntries = dayEntries.some((de) => de.length > 0);
-  const dayKinds: DayKind[] = dayEntries.map((de) => getDayKind(de, anyDayHasEntries));
+  const dayKinds: DayKind[] = dayEntries.map((de, i) => {
+    if (i === 5 && de.length === 0) return 'weekend';
+    return getDayKind(de, anyDayHasEntries);
+  });
 
   // Sorted unique start times across all entries
   const allStartMins = [...new Set(entries.map((e) => toMins(e.startTime)))].sort((a, b) => a - b);
@@ -919,6 +1145,7 @@ export default function TimetablePage() {
   function dayHeaderColor(kind: DayKind, isToday: boolean): string {
     if (isToday) return 'var(--accent)';
     if (kind === 'holiday')        return 'var(--orange)';
+    if (kind === 'weekend')        return 'var(--success-mid)';
     if (kind === 'allCancelled')   return 'var(--danger)';
     if (kind === 'allReplacement') return 'var(--accent)';
     return 'var(--app-text-primary)';
@@ -948,7 +1175,7 @@ export default function TimetablePage() {
             </button>
             <div className="text-center">
               <p className="text-[15px] font-medium" style={{ color: 'var(--app-text-secondary)' }}>
-                {format(monday, 'd. MMM', { locale: de })} – {format(addDays(monday, 4), 'd. MMM yyyy', { locale: de })}
+                {format(monday, 'd. MMM', { locale: de })} – {format(addDays(monday, 5), 'd. MMM yyyy', { locale: de })}
               </p>
               <p className="text-[12px]" style={{ color: 'var(--app-text-tertiary)' }}>
                 KW {weekNumber(monday)}
@@ -1069,6 +1296,9 @@ export default function TimetablePage() {
                       {kind === 'holiday' && (
                         <HolidayColumn height={totalGridHeight - 4} />
                       )}
+                      {kind === 'weekend' && (
+                        <WeekendColumn height={totalGridHeight - 4} />
+                      )}
                       {kind === 'allCancelled' && (
                         <DayStatusColumn height={totalGridHeight - 4} kind="cancelled" />
                       )}
@@ -1082,23 +1312,38 @@ export default function TimetablePage() {
                         />
                       )}
 
-                      {/* Normal lesson cells */}
-                      {kind === 'normal' && slots.map((slot, si) => {
-                        const top    = (toMins(slot.display.startTime) - minMins) * PX_PER_MIN;
-                        const height = Math.max(
-                          (toMins(slot.display.endTime) - toMins(slot.display.startTime)) * PX_PER_MIN - 2,
-                          30,
-                        );
-                        return (
-                          <div
-                            key={`${slot.display.id}-${si}`}
-                            className="absolute left-0.5 right-0.5"
-                            style={{ top, height }}
-                          >
-                            <LessonCell slot={slot} onClick={() => setActiveSlot(slot)} />
-                          </div>
-                        );
-                      })}
+                      {/* Normal lesson cells — grouped by connection */}
+                      {kind === 'normal' && (() => {
+                        const groups: MergedSlot[][] = [];
+                        let gi = 0;
+                        while (gi < slots.length) {
+                          const group: MergedSlot[] = [slots[gi]];
+                          while (gi < slots.length - 1 && slotsConnected(slots[gi], slots[gi + 1])) {
+                            gi++;
+                            group.push(slots[gi]);
+                          }
+                          groups.push(group);
+                          gi++;
+                        }
+                        return groups.map((group, groupIdx) => {
+                          const first = group[0];
+                          const last  = group[group.length - 1];
+                          const top    = (toMins(first.display.startTime) - minMins) * PX_PER_MIN;
+                          const height = Math.max(
+                            (toMins(last.display.endTime) - minMins) * PX_PER_MIN - top - 2,
+                            30,
+                          );
+                          return (
+                            <div
+                              key={`${first.display.id}-${groupIdx}`}
+                              className="absolute left-0.5 right-0.5"
+                              style={{ top, height }}
+                            >
+                              <LessonCell slot={first} detailCache={detailCache} onClick={() => setActiveSlot(first)} />
+                            </div>
+                          );
+                        });
+                      })()}
 
                       {/* Current-time red line */}
                       {isToday && isCurrentWeek && nowMinutes >= minMins && nowMinutes <= maxMins && (
