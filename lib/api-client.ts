@@ -1,6 +1,10 @@
 'use client';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.pokyh.com';
+// In production, always use the real API URL regardless of what NEXT_PUBLIC_API_URL is set to.
+// This prevents localhost:4000 from being baked into the production Vercel bundle.
+const API_BASE = process.env.NODE_ENV === 'development'
+  ? (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000')
+  : 'https://api.pokyh.com';
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY ?? '';
 
 if (typeof window !== 'undefined' && !API_KEY) {
