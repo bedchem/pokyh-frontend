@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   ChevronLeft,
   ChevronRight,
@@ -10,11 +10,8 @@ import {
   ArrowLeftRight,
   CalendarDays,
   CalendarClock,
-  Copy,
-  Check,
   MapPin,
   User,
-  StickyNote,
 } from 'lucide-react';
 import { addDays, format, startOfWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -118,8 +115,10 @@ function parseTimetable(json: unknown): TimetableEntry[] {
         const pos2 = ge.position2 ?? [];
         const pos3 = ge.position3 ?? [];
 
-        const activeTeachers  = pos1.filter(p => p.current).map(p => p.current!.displayName).filter(Boolean);
-        const removedTeachers = pos1.filter(p => p.removed).map(p => p.removed!.displayName).filter(Boolean);
+        const activeTeachers      = pos1.filter(p => p.current).map(p => p.current!.displayName).filter(Boolean);
+        const activeTeachersLong  = pos1.filter(p => p.current).map(p => p.current!.longName || p.current!.displayName).filter(Boolean);
+        const removedTeachers     = pos1.filter(p => p.removed).map(p => p.removed!.displayName).filter(Boolean);
+        const removedTeachersLong = pos1.filter(p => p.removed).map(p => p.removed!.longName || p.removed!.displayName).filter(Boolean);
 
         const activeSub  = pos2.find(p => p.current)?.current ?? null;
         const removedSub = pos2.find(p => p.removed)?.removed ?? null;
@@ -141,6 +140,7 @@ function parseTimetable(json: unknown): TimetableEntry[] {
           subjectName:      activeSub?.shortName  ?? removedSub?.shortName  ?? '',
           subjectLong:      activeSub?.longName   ?? removedSub?.longName   ?? '',
           teacherName:      activeTeachers.join(', '),
+          teacherLongName:  activeTeachersLong.join(', ') || undefined,
           roomName:         activeRooms.join(', '),
           cellState:        isCancelled ? 'CANCEL' : isChanged ? 'SUBSTITUTION' : 'STANDARD',
           isExam,
@@ -149,7 +149,8 @@ function parseTimetable(json: unknown): TimetableEntry[] {
           isAdditional:     ge.type === 'ADDITIONAL',
           originalSubject:     removedSub?.shortName ?? '',
           originalSubjectLong: removedSub?.longName  ?? '',
-          originalTeacher:  removedTeachers.join(', '),
+          originalTeacher:     removedTeachers.join(', '),
+          originalTeacherLong: removedTeachersLong.join(', ') || undefined,
           originalRoom:     removedRooms.join(', '),
           note:             ge.lessonInfo || ge.lessonText || undefined,
         });
@@ -267,86 +268,6 @@ function getDayKind(dayEntries: TimetableEntry[], hasOtherDayEntries: boolean): 
 
 // ── Detail Sheet ──────────────────────────────────────────────────────────────
 
-function CopyableField({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  const [copied, setCopied] = useState(false);
-  const onCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1400);
-    } catch {/* noop */}
-  };
-  return (
-    <button type="button" className="sheet-field" onClick={onCopy} aria-label={`${label} kopieren`}>
-      <span className="sheet-field-ico">{icon}</span>
-      <span className="sheet-field-body">
-        <span className="sheet-field-label">{label}</span>
-        <span className="sheet-field-value">{value}</span>
-      </span>
-      <span className="sheet-field-copy" aria-hidden="true">
-        {copied ? <Check size={14} /> : <Copy size={13} />}
-      </span>
-      <style jsx>{`
-        .sheet-field {
-          display: grid;
-          grid-template-columns: 28px 1fr auto;
-          align-items: center;
-          gap: 12px;
-          width: 100%;
-          padding: 11px 12px;
-          background: var(--app-card);
-          border: 1px solid var(--app-border);
-          border-radius: 12px;
-          text-align: left;
-          cursor: pointer;
-          transition: border-color 0.16s, background 0.16s;
-          font-family: inherit;
-        }
-        .sheet-field:hover {
-          border-color: color-mix(in srgb, var(--app-border) 50%, var(--app-text-tertiary));
-        }
-        .sheet-field-ico {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 28px;
-          height: 28px;
-          border-radius: 8px;
-          background: color-mix(in srgb, var(--accent) 12%, transparent);
-          color: var(--accent);
-        }
-        .sheet-field-body {
-          min-width: 0;
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-        }
-        .sheet-field-label {
-          font-size: 11px;
-          font-weight: 600;
-          letter-spacing: 0.04em;
-          text-transform: uppercase;
-          color: var(--app-text-tertiary);
-        }
-        .sheet-field-value {
-          font-size: 14px;
-          font-weight: 600;
-          color: var(--app-text-primary);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .sheet-field-copy {
-          color: var(--app-text-tertiary);
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-        }
-      `}</style>
-    </button>
-  );
-}
-
 function LessonDetailSheet({ slot, onClose }: { slot: MergedSlot; onClose: () => void }) {
   const { display } = slot;
   const hasReplacement = !!slot.replacement;
@@ -357,421 +278,282 @@ function LessonDetailSheet({ slot, onClose }: { slot: MergedSlot; onClose: () =>
     !!display.originalSubject &&
     display.originalSubject !== display.subjectName;
 
+  const hasCancelledWithReplacement = display.isCancelled && !!slot.replacement;
+
   const accentColor =
-    display.isCancelled ? 'var(--danger)'
+    hasCancelledWithReplacement ? subjectColor(slot.replacement!.subjectName) || 'var(--orange)'
+    : display.isCancelled ? 'var(--danger)'
     : display.isExam    ? 'var(--warning)'
     : hasInlineOriginal ? subjectColor(display.originalSubject ?? '')
     : subjectColor(display.subjectName);
 
-  const headerName = hasInlineOriginal
-    ? (display.originalSubjectLong || display.originalSubject || '')
-    : (display.subjectLong || display.subjectName || display.note || '');
+  const headerName = hasCancelledWithReplacement
+    ? (slot.replacement!.subjectLong || slot.replacement!.subjectName || slot.replacement!.note || '')
+    : hasInlineOriginal
+      ? (display.originalSubjectLong || display.originalSubject || '')
+      : (display.subjectLong || display.subjectName || display.note || '');
 
-  const activeTeachers = display.teacherName ? display.teacherName.split(', ').filter(Boolean) : [];
-  const absentTeachers = display.originalTeacher ? display.originalTeacher.split(', ').filter(Boolean) : [];
+  const activeTeachers = (display.teacherLongName || display.teacherName) ? (display.teacherLongName || display.teacherName).split(', ').filter(Boolean) : [];
+  const absentTeachers = (display.originalTeacherLong || display.originalTeacher) ? (display.originalTeacherLong || display.originalTeacher)!.split(', ').filter(Boolean) : [];
   const activeRooms = display.roomName ? display.roomName.split(', ').filter(Boolean) : [];
   const absentRooms = display.originalRoom
     ? display.originalRoom.split(', ').filter(Boolean).filter(r => !activeRooms.includes(r))
     : [];
 
+  const replTeachers = (slot.replacement?.teacherLongName || slot.replacement?.teacherName)?.split(', ').filter(Boolean) ?? [];
+  const replRooms    = slot.replacement?.roomName?.split(', ').filter(Boolean) ?? [];
+
+  const showMeta     = !hasCancelledWithReplacement && !hasInlineOriginal && (activeTeachers.length > 0 || absentTeachers.length > 0 || activeRooms.length > 0 || absentRooms.length > 0);
+  const showReplMeta = hasCancelledWithReplacement && (replTeachers.length > 0 || replRooms.length > 0);
+
   return (
-    <motion.div
-      className="sheet-backdrop"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.18 }}
-      onClick={() => {
-        console.log('[timetable] sheet backdrop click');
-        onClose();
-      }}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8"
+      style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}
     >
-      <motion.div
-        className="sheet-panel"
-        initial={{ y: '100%' }}
-        animate={{ y: 0 }}
-        exit={{ y: '100%' }}
-        transition={{ duration: 0.28, ease: [0.25, 0.46, 0.45, 0.94] }}
-        onClick={e => e.stopPropagation()}
+      <div
+        className="w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-[28px] fade-in"
+        style={{ background: 'var(--app-surface)', animationDuration: '0.25s' }}
+        onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
       >
-        <div className="sheet-handle" />
-
-        <div className="sheet-content">
-          <div className="sheet-head" style={{ ['--lesson-color' as string]: accentColor }}>
-            <div className="sheet-tile">
-              {headerName.slice(0, 1).toUpperCase() || '?'}
-            </div>
-            <div className="sheet-head-text">
-              <p
-                className={`sheet-title ${hasInlineOriginal ? 'is-struck' : ''}`}
-              >
-                {headerName}
-              </p>
-              {display.subjectLong && display.subjectLong !== display.subjectName && !hasInlineOriginal && (
-                <p className="sheet-subtitle">{display.subjectLong}</p>
-              )}
-              <div className="sheet-time">
-                <CalendarClock size={13} />
-                <span>{parseTime(display.startTime)} – {parseTime(display.endTime)}</span>
-              </div>
-            </div>
-
-            <div className="sheet-badges">
-              {display.isCancelled && (
-                <span className="sheet-badge danger"><X size={11} />Entfall</span>
-              )}
-              {display.isExam && (
-                <span className="sheet-badge warning"><FileText size={11} />Prüfung</span>
-              )}
-              {display.isSubstitution && !display.isCancelled && (
-                <span className="sheet-badge orange"><ArrowLeftRight size={11} />Vertretung</span>
-              )}
-            </div>
-
-            <button
-              className="sheet-close"
-              onClick={() => {
-                console.log('[timetable] sheet close button');
-                onClose();
-              }}
-              aria-label="Schließen"
-            >
-              <X size={18} />
-            </button>
+        {/* Colored header */}
+        <div className="relative" style={{ height: 180 }}>
+          <div
+            className="w-full h-full"
+            style={{
+              background: `linear-gradient(135deg, color-mix(in srgb, ${accentColor} 32%, var(--app-surface)), color-mix(in srgb, ${accentColor} 14%, var(--app-surface)))`,
+            }}
+          />
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
+            <span style={{ fontSize: 96, fontWeight: 800, color: accentColor, opacity: 0.15, lineHeight: 1, letterSpacing: '-0.04em' }}>
+              {(headerName || '?').slice(0, 2).toUpperCase()}
+            </span>
           </div>
+          <div
+            className="absolute inset-0"
+            style={{ background: 'linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.25) 100%)' }}
+          />
+          <div className="absolute bottom-4 left-5 flex gap-1.5 flex-wrap">
+            {display.isCancelled && !hasCancelledWithReplacement && (
+              <span className="lesson-popup-badge danger"><X size={10} />Entfall</span>
+            )}
+            {hasCancelledWithReplacement && (
+              <span className="lesson-popup-badge orange"><ArrowLeftRight size={10} />Vertretung</span>
+            )}
+            {display.isExam && (
+              <span className="lesson-popup-badge warning"><FileText size={10} />Prüfung</span>
+            )}
+            {display.isSubstitution && !display.isCancelled && (
+              <span className="lesson-popup-badge orange"><ArrowLeftRight size={10} />Vertretung</span>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Schließen"
+            className="absolute top-5 right-5 flex items-center justify-center rounded-full press-scale transition-colors duration-200 text-white hover:text-[#D97777]"
+            style={{ width: 32, height: 32, background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.35)', boxShadow: '0 1px 10px rgba(0,0,0,0.18)' }}
+          >
+            <X size={18} strokeWidth={2} />
+          </button>
+        </div>
 
-          {!hasInlineOriginal && (activeTeachers.length > 0 || absentTeachers.length > 0 || activeRooms.length > 0 || absentRooms.length > 0) && (
-            <div className="sheet-grid">
-              {activeTeachers.length > 0 && (
-                <CopyableField icon={<User size={14} />} label="Lehrer" value={activeTeachers.join(', ')} />
-              )}
-              {absentTeachers.length > 0 && activeTeachers.length === 0 && (
-                <CopyableField icon={<User size={14} />} label="Lehrer (abwesend)" value={absentTeachers.join(', ')} />
-              )}
-              {activeRooms.length > 0 && (
-                <CopyableField
-                  icon={<MapPin size={14} />}
-                  label={absentRooms.length > 0 ? `Raum (statt ${absentRooms.join(', ')})` : 'Raum'}
-                  value={activeRooms.join(', ')}
-                />
-              )}
-              {absentRooms.length > 0 && activeRooms.length === 0 && (
-                <CopyableField icon={<MapPin size={14} />} label="Raum (entfällt)" value={absentRooms.join(', ')} />
-              )}
+        <div className="p-5">
+          <div className="flex items-start justify-between gap-3 mb-1">
+            <h2
+              className="text-xl font-bold flex-1"
+              style={{ color: 'var(--app-text-primary)', ...(hasInlineOriginal ? { textDecoration: 'line-through', opacity: 0.55 } : {}) }}
+            >
+              {headerName || '—'}
+            </h2>
+          </div>
+          {!hasCancelledWithReplacement && display.subjectLong && display.subjectLong !== display.subjectName && !hasInlineOriginal && (
+            <p className="text-sm mb-1" style={{ color: 'var(--app-text-secondary)' }}>{display.subjectLong}</p>
+          )}
+          {hasCancelledWithReplacement && slot.replacement!.subjectLong && slot.replacement!.subjectLong !== slot.replacement!.subjectName && (
+            <p className="text-sm mb-1" style={{ color: 'var(--app-text-secondary)' }}>{slot.replacement!.subjectLong}</p>
+          )}
+          <p className="text-sm mb-4 flex items-center gap-1.5" style={{ color: 'var(--app-text-secondary)' }}>
+            <CalendarClock size={13} />
+            {parseTime(display.startTime)} – {parseTime(display.endTime)}
+          </p>
+
+          {showMeta && (
+            <div className="rounded-xl p-4 mb-4" style={{ background: 'var(--app-card)' }}>
+              <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--app-text-secondary)' }}>Details</p>
+              <div className="flex flex-col gap-2">
+                {absentTeachers.length > 0 && activeTeachers.length > 0 ? (
+                  <div className="flex items-start gap-3 px-1 py-0.5">
+                    <div className="flex items-center justify-center rounded-lg flex-shrink-0" style={{ width: 28, height: 28, background: 'color-mix(in srgb, var(--accent) 12%, transparent)', color: 'var(--accent)' }}>
+                      <User size={14} />
+                    </div>
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--app-text-tertiary)' }}>Lehrer</span>
+                      <span className="text-sm" style={{ color: 'var(--danger)', textDecoration: 'line-through' }}>{absentTeachers.join(', ')}</span>
+                      <span className="text-sm font-semibold flex items-center gap-1.5" style={{ color: 'var(--app-text-secondary)' }}>
+                        <ArrowLeftRight size={12} style={{ color: 'var(--orange)', flexShrink: 0 }} />
+                        <span style={{ color: 'var(--orange)' }}>{activeTeachers.join(', ')}</span>
+                      </span>
+                    </div>
+                  </div>
+                ) : (activeTeachers.length > 0 || absentTeachers.length > 0) ? (
+                  <div className="flex items-center gap-3 px-1 py-0.5">
+                    <div className="flex items-center justify-center rounded-lg flex-shrink-0" style={{ width: 28, height: 28, background: 'color-mix(in srgb, var(--accent) 12%, transparent)', color: 'var(--accent)' }}>
+                      <User size={14} />
+                    </div>
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--app-text-tertiary)' }}>{absentTeachers.length > 0 ? 'Lehrer (abwesend)' : 'Lehrer'}</span>
+                      <span className="text-sm font-semibold" style={{ color: 'var(--app-text-primary)' }}>{activeTeachers.length > 0 ? activeTeachers.join(', ') : absentTeachers.join(', ')}</span>
+                    </div>
+                  </div>
+                ) : null}
+                {(activeRooms.length > 0 || (absentRooms.length > 0 && activeRooms.length === 0)) && (
+                  <div className="flex items-center gap-3 px-1 py-0.5">
+                    <div className="flex items-center justify-center rounded-lg flex-shrink-0" style={{ width: 28, height: 28, background: 'color-mix(in srgb, var(--accent) 12%, transparent)', color: 'var(--accent)' }}>
+                      <MapPin size={14} />
+                    </div>
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--app-text-tertiary)' }}>{absentRooms.length > 0 ? `Raum (statt ${absentRooms.join(', ')})` : 'Raum'}</span>
+                      <span className="text-sm font-semibold" style={{ color: 'var(--app-text-primary)' }}>{activeRooms.length > 0 ? activeRooms.join(', ') : absentRooms.join(', ')}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
           {display.note && (
-            <div className="sheet-note">
-              <div className="sheet-note-head">
-                <StickyNote size={13} />
-                <span>Notiz</span>
-              </div>
-              <p>{display.note}</p>
+            <div className="rounded-xl p-4 mb-4" style={{ background: 'var(--app-card)' }}>
+              <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--app-text-secondary)' }}>Notiz</p>
+              <p className="text-sm" style={{ color: 'var(--app-text-primary)', lineHeight: '1.45', whiteSpace: 'pre-wrap' }}>{display.note}</p>
             </div>
           )}
 
           {hasInlineOriginal && (
-            <div className="sheet-replacement">
-              <div className="sheet-replacement-head">
-                <ArrowLeftRight size={13} color={subjectColor(display.subjectName)} />
-                <span>Vertretung statt</span>
-                <strong>{display.originalSubjectLong || display.originalSubject}</strong>
+            <div className="rounded-xl p-4 mb-4" style={{ background: 'var(--app-card)' }}>
+              <div className="flex items-center gap-2 mb-2">
+                <ArrowLeftRight size={13} style={{ color: subjectColor(display.subjectName) || 'var(--orange)', flexShrink: 0 }} />
+                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--app-text-secondary)' }}>
+                  Vertretung statt <strong style={{ color: 'var(--app-text-primary)' }}>{display.originalSubjectLong || display.originalSubject}</strong>
+                </p>
               </div>
-              <div
-                className="sheet-replacement-card"
-                style={{ ['--lesson-color' as string]: subjectColor(display.subjectName) }}
-              >
-                <div className="sheet-replacement-bar" />
-                <div className="sheet-replacement-body">
-                  <p className="sheet-replacement-name">
-                    {display.subjectLong || display.subjectName}
-                  </p>
-                  {display.teacherName && <p className="sheet-replacement-meta"><User size={12} />{display.teacherName}</p>}
-                  {display.roomName    && <p className="sheet-replacement-meta"><MapPin size={12} />{display.roomName}</p>}
+              <p className="text-sm font-bold mb-1" style={{ color: 'var(--app-text-primary)' }}>{display.subjectLong || display.subjectName}</p>
+              {(display.teacherLongName || display.teacherName) && (
+                <div className="flex items-center gap-2 mt-1">
+                  <User size={12} style={{ color: 'var(--app-text-tertiary)', flexShrink: 0 }} />
+                  <span className="text-sm" style={{ color: 'var(--app-text-secondary)' }}>{display.teacherLongName || display.teacherName}</span>
                 </div>
+              )}
+              {display.roomName && (
+                <div className="flex items-center gap-2 mt-1">
+                  <MapPin size={12} style={{ color: 'var(--app-text-tertiary)', flexShrink: 0 }} />
+                  <span className="text-sm" style={{ color: 'var(--app-text-secondary)' }}>{display.roomName}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {showReplMeta && (
+            <div className="rounded-xl p-4 mb-4" style={{ background: 'var(--app-card)' }}>
+              <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--app-text-secondary)' }}>Details</p>
+              <div className="flex flex-col gap-2">
+                {replTeachers.length > 0 && (
+                  <div className="flex items-center gap-3 px-1 py-0.5">
+                    <div className="flex items-center justify-center rounded-lg flex-shrink-0" style={{ width: 28, height: 28, background: 'color-mix(in srgb, var(--accent) 12%, transparent)', color: 'var(--accent)' }}>
+                      <User size={14} />
+                    </div>
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--app-text-tertiary)' }}>Lehrer</span>
+                      <span className="text-sm font-semibold" style={{ color: 'var(--app-text-primary)' }}>{replTeachers.join(', ')}</span>
+                    </div>
+                  </div>
+                )}
+                {replRooms.length > 0 && (
+                  <div className="flex items-center gap-3 px-1 py-0.5">
+                    <div className="flex items-center justify-center rounded-lg flex-shrink-0" style={{ width: 28, height: 28, background: 'color-mix(in srgb, var(--accent) 12%, transparent)', color: 'var(--accent)' }}>
+                      <MapPin size={14} />
+                    </div>
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--app-text-tertiary)' }}>Raum</span>
+                      <span className="text-sm font-semibold" style={{ color: 'var(--app-text-primary)' }}>{replRooms.join(', ')}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          {slot.replacement && (
-            <div className="sheet-replacement">
-              <div className="sheet-replacement-head">
-                <ArrowLeftRight size={13} color={subjectColor(slot.replacement.subjectName) || 'var(--orange)'} />
-                <span>Ersatz</span>
-              </div>
-              <div
-                className="sheet-replacement-card"
-                style={{ ['--lesson-color' as string]: subjectColor(slot.replacement.subjectName) || 'var(--orange)' }}
-              >
-                <div className="sheet-replacement-bar" />
-                <div className="sheet-replacement-body">
-                  <p className="sheet-replacement-name">
-                    {slot.replacement.subjectLong || slot.replacement.subjectName || slot.replacement.note || '?'}
-                  </p>
-                  {slot.replacement.teacherName && <p className="sheet-replacement-meta"><User size={12} />{slot.replacement.teacherName}</p>}
-                  {slot.replacement.roomName    && <p className="sheet-replacement-meta"><MapPin size={12} />{slot.replacement.roomName}</p>}
-                  {slot.replacement.note        && <p className="sheet-replacement-note">{slot.replacement.note}</p>}
+          {hasCancelledWithReplacement && (display.subjectName || display.teacherName) && (
+            <div className="rounded-xl p-4 mb-4" style={{ background: 'var(--app-card)' }}>
+              <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--app-text-secondary)' }}>Statt</p>
+              <p className="text-sm font-bold" style={{ color: 'var(--app-text-tertiary)', textDecoration: 'line-through' }}>
+                {display.subjectLong || display.subjectName || '—'}
+              </p>
+              {(display.teacherLongName || display.teacherName) && (
+                <div className="flex items-center gap-2 mt-1.5">
+                  <User size={12} style={{ color: 'var(--app-text-tertiary)', flexShrink: 0 }} />
+                  <span className="text-sm" style={{ color: 'var(--app-text-tertiary)', textDecoration: 'line-through' }}>{display.teacherLongName || display.teacherName}</span>
                 </div>
-              </div>
+              )}
             </div>
           )}
+
+          {slot.replacement && !hasCancelledWithReplacement && (
+            <div className="rounded-xl p-4 mb-4" style={{ background: 'var(--app-card)' }}>
+              <div className="flex items-center gap-2 mb-2">
+                <ArrowLeftRight size={13} style={{ color: subjectColor(slot.replacement.subjectName) || 'var(--orange)', flexShrink: 0 }} />
+                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--app-text-secondary)' }}>Ersatz</p>
+              </div>
+              <p className="text-sm font-bold mb-1" style={{ color: 'var(--app-text-primary)' }}>{slot.replacement.subjectLong || slot.replacement.subjectName || slot.replacement.note || '?'}</p>
+              {slot.replacement.teacherName && (
+                <div className="flex items-center gap-2 mt-1">
+                  <User size={12} style={{ color: 'var(--app-text-tertiary)', flexShrink: 0 }} />
+                  <span className="text-sm" style={{ color: 'var(--app-text-secondary)' }}>{slot.replacement.teacherName}</span>
+                </div>
+              )}
+              {slot.replacement.roomName && (
+                <div className="flex items-center gap-2 mt-1">
+                  <MapPin size={12} style={{ color: 'var(--app-text-tertiary)', flexShrink: 0 }} />
+                  <span className="text-sm" style={{ color: 'var(--app-text-secondary)' }}>{slot.replacement.roomName}</span>
+                </div>
+              )}
+              {slot.replacement.note && (
+                <p className="text-xs mt-2" style={{ color: 'var(--app-text-secondary)' }}>{slot.replacement.note}</p>
+              )}
+            </div>
+          )}
+
+          <div className="h-4" />
         </div>
-      </motion.div>
 
-      <style jsx>{`
-        .sheet-backdrop {
-          position: fixed;
-          inset: 0;
-          z-index: 50;
-          display: flex;
-          align-items: flex-end;
-          justify-content: center;
-          background: color-mix(in srgb, #000 55%, transparent);
-          backdrop-filter: blur(2px);
-        }
-        .sheet-panel {
-          width: 100%;
-          max-width: 560px;
-          max-height: 88dvh;
-          overflow-y: auto;
-          background: var(--app-surface);
-          border-top-left-radius: 22px;
-          border-top-right-radius: 22px;
-          border: 1px solid var(--app-border);
-          border-bottom: 0;
-          box-shadow: 0 -16px 40px rgba(0, 0, 0, 0.18);
-        }
-        @media (min-width: 720px) {
-          .sheet-backdrop {
+        <style jsx>{`
+          .lesson-popup-badge {
+            display: inline-flex;
             align-items: center;
-            padding: 24px;
+            gap: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 999px;
+            letter-spacing: 0.01em;
           }
-          .sheet-panel {
-            border-radius: 22px;
-            border-bottom: 1px solid var(--app-border);
-            max-height: 78dvh;
+          .lesson-popup-badge.danger {
+            background: color-mix(in srgb, var(--danger) 22%, rgba(0,0,0,0.3));
+            color: #fff;
           }
-        }
-        .sheet-handle {
-          width: 38px;
-          height: 4px;
-          border-radius: 999px;
-          background: var(--app-border);
-          margin: 10px auto 0;
-        }
-        .sheet-content {
-          padding: 18px 20px 28px;
-          display: flex;
-          flex-direction: column;
-          gap: 14px;
-        }
-        .sheet-head {
-          display: grid;
-          grid-template-columns: auto 1fr auto;
-          grid-template-rows: auto auto;
-          gap: 12px 14px;
-          padding: 14px;
-          background: var(--app-card);
-          border: 1px solid var(--app-border);
-          border-radius: 16px;
-          position: relative;
-        }
-        .sheet-head::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          border-radius: 16px;
-          padding: 1px;
-          background: linear-gradient(135deg, color-mix(in srgb, var(--lesson-color) 36%, transparent), transparent 60%);
-          -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-          -webkit-mask-composite: xor;
-          mask-composite: exclude;
-          pointer-events: none;
-        }
-        .sheet-tile {
-          width: 46px;
-          height: 46px;
-          border-radius: 12px;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 19px;
-          font-weight: 700;
-          background: color-mix(in srgb, var(--lesson-color) 16%, transparent);
-          color: var(--lesson-color);
-          grid-row: span 2;
-        }
-        .sheet-head-text {
-          min-width: 0;
-          align-self: center;
-        }
-        .sheet-title {
-          font-size: 19px;
-          font-weight: 700;
-          letter-spacing: -0.012em;
-          color: var(--app-text-primary);
-          margin: 0;
-          line-height: 1.18;
-        }
-        .sheet-title.is-struck {
-          color: color-mix(in srgb, var(--danger) 75%, transparent);
-          text-decoration: line-through;
-        }
-        .sheet-subtitle {
-          margin-top: 1px;
-          font-size: 12.5px;
-          color: var(--app-text-secondary);
-        }
-        .sheet-time {
-          margin-top: 6px;
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 12.5px;
-          font-weight: 500;
-          color: var(--app-text-secondary);
-          font-variant-numeric: tabular-nums;
-        }
-        .sheet-time :global(svg) {
-          color: var(--app-text-tertiary);
-        }
-        .sheet-badges {
-          display: inline-flex;
-          gap: 6px;
-          flex-wrap: wrap;
-          align-self: flex-start;
-          grid-column: 3;
-          grid-row: 1;
-        }
-        .sheet-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          font-size: 11px;
-          font-weight: 700;
-          padding: 4px 8px;
-          border-radius: 999px;
-          letter-spacing: 0.01em;
-        }
-        .sheet-badge.danger {
-          background: color-mix(in srgb, var(--danger) 14%, transparent);
-          color: var(--danger);
-        }
-        .sheet-badge.warning {
-          background: color-mix(in srgb, var(--warning) 16%, transparent);
-          color: var(--warning);
-        }
-        .sheet-badge.orange {
-          background: color-mix(in srgb, var(--orange) 16%, transparent);
-          color: var(--orange);
-        }
-        .sheet-close {
-          position: absolute;
-          top: 10px;
-          right: 10px;
-          width: 30px;
-          height: 30px;
-          border-radius: 999px;
-          background: transparent;
-          border: 0;
-          color: var(--app-text-tertiary);
-          cursor: pointer;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .sheet-close:hover {
-          background: var(--app-card-alt);
-          color: var(--app-text-primary);
-        }
-        .sheet-grid {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 8px;
-        }
-        @media (min-width: 480px) {
-          .sheet-grid {
-            grid-template-columns: 1fr 1fr;
+          .lesson-popup-badge.warning {
+            background: color-mix(in srgb, var(--warning) 22%, rgba(0,0,0,0.3));
+            color: #fff;
           }
-        }
-        .sheet-note {
-          background: var(--app-card);
-          border: 1px solid var(--app-border);
-          border-radius: 14px;
-          padding: 12px 14px;
-        }
-        .sheet-note-head {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 11px;
-          font-weight: 700;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          color: var(--app-text-tertiary);
-          margin-bottom: 6px;
-        }
-        .sheet-note p {
-          font-size: 13.5px;
-          line-height: 1.45;
-          color: var(--app-text-primary);
-          margin: 0;
-          white-space: pre-wrap;
-        }
-        .sheet-replacement-head {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 12px;
-          color: var(--app-text-secondary);
-          margin-bottom: 8px;
-        }
-        .sheet-replacement-head strong {
-          color: var(--app-text-primary);
-          font-weight: 600;
-        }
-        .sheet-replacement-card {
-          display: flex;
-          background: var(--app-card);
-          border: 1px solid color-mix(in srgb, var(--lesson-color) 32%, var(--app-border));
-          border-radius: 14px;
-          overflow: hidden;
-        }
-        .sheet-replacement-bar {
-          width: 4px;
-          background: var(--lesson-color);
-        }
-        .sheet-replacement-body {
-          flex: 1;
-          padding: 12px 14px;
-        }
-        .sheet-replacement-name {
-          font-size: 14px;
-          font-weight: 700;
-          color: var(--app-text-primary);
-          margin: 0 0 4px;
-        }
-        .sheet-replacement-meta {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 12.5px;
-          color: var(--app-text-secondary);
-          margin: 2px 0;
-        }
-        .sheet-replacement-meta :global(svg) {
-          color: var(--app-text-tertiary);
-        }
-        .sheet-replacement-note {
-          margin-top: 6px;
-          font-size: 12px;
-          color: var(--app-text-secondary);
-        }
-      `}</style>
-    </motion.div>
+          .lesson-popup-badge.orange {
+            background: color-mix(in srgb, var(--orange) 22%, rgba(0,0,0,0.3));
+            color: #fff;
+          }
+        `}</style>
+      </div>
+    </div>
   );
 }
 
@@ -805,7 +587,7 @@ function LessonCell({ slot, onClick, compact }: { slot: MergedSlot; onClick: () 
 
   let StatusIcon: React.ReactNode = null;
   if (display.isCancelled && slot.replacement) {
-    StatusIcon = <ArrowLeftRight size={11} />;
+    StatusIcon = <ArrowLeftRight size={11} style={{ color: subjectColor(slot.replacement.subjectName) || 'var(--orange)' }} />;
   } else if (display.isCancelled) {
     StatusIcon = <X size={11} />;
   } else if (display.isExam) {
@@ -838,7 +620,6 @@ function LessonCell({ slot, onClick, compact }: { slot: MergedSlot; onClick: () 
           <span className={`lesson-subject ${display.isCancelled ? 'is-struck' : ''}`}>
             {subjectText || '—'}
           </span>
-          {StatusIcon && <span className="lesson-icon">{StatusIcon}</span>}
         </div>
         {!compact && (
           <div className="lesson-meta">
@@ -848,7 +629,7 @@ function LessonCell({ slot, onClick, compact }: { slot: MergedSlot; onClick: () 
             {teacherAbsent.length > 0 && teacherActive.length > 0 && (
               <>
                 <span className="lesson-strike">{teacherAbsent.join(', ')}</span>
-                <span className="lesson-arrow">→</span>
+                <span className="lesson-arrow">»</span>
               </>
             )}
             {teacherActive.length > 0 && (
@@ -863,7 +644,7 @@ function LessonCell({ slot, onClick, compact }: { slot: MergedSlot; onClick: () 
             {roomChanged && (
               <>
                 <span className="lesson-strike">{roomAbsent}</span>
-                <span className="lesson-arrow">→</span>
+                <span className="lesson-arrow">»</span>
                 <span className="lesson-emph">{roomActive || '–'}</span>
               </>
             )}
@@ -871,6 +652,7 @@ function LessonCell({ slot, onClick, compact }: { slot: MergedSlot; onClick: () 
           </div>
         )}
       </div>
+      {StatusIcon && <span className="lesson-icon">{StatusIcon}</span>}
 
       <style jsx>{`
         .lesson-cell {
@@ -942,10 +724,13 @@ function LessonCell({ slot, onClick, compact }: { slot: MergedSlot; onClick: () 
           flex-shrink: 0;
         }
         .lesson-icon {
-          flex-shrink: 0;
+          position: absolute;
+          bottom: 4px;
+          right: 5px;
           color: var(--lesson-color);
           display: inline-flex;
           align-items: center;
+          pointer-events: none;
         }
         .lesson-meta {
           display: flex;
@@ -1650,15 +1435,12 @@ export default function TimetablePage() {
           </main>
         </div>
 
-        <AnimatePresence>
-          {activeSlot && (
-            <LessonDetailSheet
-              key={activeSlot.display.id}
-              slot={activeSlot}
-              onClose={() => setActiveSlot(null)}
-            />
-          )}
-        </AnimatePresence>
+        {activeSlot && (
+          <LessonDetailSheet
+            slot={activeSlot}
+            onClose={() => setActiveSlot(null)}
+          />
+        )}
 
         <div className="tt-legend fade-in">
           <span className="tt-legend-item"><span className="tt-legend-dot" style={{ background: 'var(--orange)' }} />Vertretung</span>

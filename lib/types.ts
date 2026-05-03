@@ -17,6 +17,7 @@ export interface TimetableEntry {
   subjectName: string;
   subjectLong: string;
   teacherName: string;
+  teacherLongName?: string;
   roomName: string;
   cellState: 'STANDARD' | 'CANCEL' | 'SUBSTITUTION' | 'ADDITIONAL' | 'FREE';
   isExam: boolean;
@@ -28,6 +29,7 @@ export interface TimetableEntry {
   originalSubjectLong?: string;
   originalSubjectDisplayName?: string;
   originalTeacher?: string;
+  originalTeacherLong?: string;
   originalRoom?: string;
   homeworkText?: string;
   note?: string;
