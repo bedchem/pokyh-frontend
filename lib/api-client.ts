@@ -1,11 +1,7 @@
 'use client';
 
-const API_BASE = 'https://api.pokyh.com';
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY ?? '';
-
-if (typeof window !== 'undefined' && !API_KEY) {
-  console.warn('[api-client] NEXT_PUBLIC_API_KEY is not set — set it in .env.local (see .env.example).');
-}
+const API_BASE = (process.env.NEXT_PUBLIC_API_BACKEND_URL ?? 'https://api.pokyh.com').replace(/\/$/, '');
+const API_KEY = process.env.NEXT_PUBLIC_API_BACKEND_KEY ?? '';
 
 // ─── Token storage ────────────────────────────────────────────────────────────
 
@@ -55,10 +51,7 @@ async function refreshAccessToken(): Promise<boolean> {
   try {
     const res = await fetch(`${API_BASE}/auth/refresh`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': API_KEY,
-      },
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
       body: JSON.stringify({ refreshToken: rt }),
     });
 
@@ -84,9 +77,7 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
     ...(options.headers as Record<string, string> ?? {}),
   };
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
+  if (token) headers['Authorization'] = `Bearer ${token}`;
 
   let res = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -191,7 +182,6 @@ export interface CreateReminderData {
 
 function openSse(path: string): EventSource {
   const token = getToken();
-  // EventSource doesn't support custom headers — pass token as query param
   const url = `${API_BASE}${path}?token=${encodeURIComponent(token ?? '')}&apiKey=${encodeURIComponent(API_KEY)}`;
   return new EventSource(url);
 }
@@ -303,8 +293,9 @@ export const api = {
       const token = getToken();
       if (!token) return () => {};
 
-      // Use SSE — we need auth. Pass token as query param since EventSource can't set headers.
-      const url = `${API_BASE}/sse/todos?apiKey=${encodeURIComponent(API_KEY)}&token=${encodeURIComponent(token)}`;
+      // Use SSE — pass token as query param (EventSource can't set headers).
+      // The proxy route injects the API key server-side.
+      const url = `${API_BASE}/sse/todos?token=${encodeURIComponent(token)}&apiKey=${encodeURIComponent(API_KEY)}`;
       const es = new EventSource(url);
 
       es.addEventListener('todos', (e: MessageEvent) => {
@@ -365,7 +356,7 @@ export const api = {
       const token = getToken();
       if (!token || !classId) return () => {};
 
-      const url = `${API_BASE}/sse/reminders/${classId}?apiKey=${encodeURIComponent(API_KEY)}&token=${encodeURIComponent(token)}`;
+      const url = `${API_BASE}/sse/reminders/${classId}?token=${encodeURIComponent(token)}&apiKey=${encodeURIComponent(API_KEY)}`;
       const es = new EventSource(url);
 
       es.addEventListener('reminders', (e: MessageEvent) => {
@@ -408,7 +399,7 @@ export const api = {
       const token = getToken();
       if (!token || !dishId) return () => {};
 
-      const url = `${API_BASE}/sse/dish-ratings/${encodeURIComponent(dishId)}?apiKey=${encodeURIComponent(API_KEY)}&token=${encodeURIComponent(token)}`;
+      const url = `${API_BASE}/sse/dish-ratings/${encodeURIComponent(dishId)}?token=${encodeURIComponent(token)}&apiKey=${encodeURIComponent(API_KEY)}`;
       const es = new EventSource(url);
 
       es.addEventListener('dishRatings', (e: MessageEvent) => {

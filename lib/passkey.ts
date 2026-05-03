@@ -59,7 +59,7 @@ export async function getPasswordCredential(): Promise<{ username: string; passw
   try {
     const cred = await navigator.credentials.get({
       password: true,
-      mediation: 'optional',
+      mediation: 'silent',
     } as CredentialRequestOptions);
     if (!cred || !('password' in cred)) return null;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

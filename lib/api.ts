@@ -4,6 +4,7 @@
 // No credentials are ever sent from the client.
 
 import { cacheGet, cacheSet, cacheIsStale, cacheClear, cacheDel } from './cache';
+import { pcGetStale, pcIsStale, pcSet, pcDel, pcClear } from './persist-cache';
 
 const DEBUG = process.env.NEXT_PUBLIC_DEBUG_API === 'true';
 
@@ -11,13 +12,13 @@ function log(...args: unknown[]) {
   if (DEBUG) console.log('[api]', ...args);
 }
 
-// Prevent multiple simultaneous 401s from each triggering a logout call
 let _logoutInFlight = false;
 async function clearSessionOnce() {
   if (_logoutInFlight) return;
   _logoutInFlight = true;
   await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
   cacheClear();
+  pcClear();
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('pockyh-session-expired'));
   }
@@ -39,9 +40,8 @@ function schoolYearStart(): string {
 
 function schoolYearEnd(): string {
   const now = new Date();
-  // End year is always the year AFTER the start year
   const endYear = now.getMonth() >= 8 ? now.getFullYear() + 1 : now.getFullYear();
-  return `${endYear}0630`; // June 30 — covers all possible school year end dates
+  return `${endYear}0630`;
 }
 
 async function apiFetch(url: string, opts?: RequestInit) {
@@ -57,7 +57,6 @@ async function apiFetch(url: string, opts?: RequestInit) {
   if (!res.ok) {
     const ct = res.headers.get('content-type') ?? '';
     if (ct.includes('text/html')) {
-      // Next.js error page — server error, not session expiry
       throw new Error(`HTTP ${res.status}`);
     }
     const data = await res.json().catch(() => ({}));
@@ -80,17 +79,45 @@ async function apiFetch(url: string, opts?: RequestInit) {
   return json;
 }
 
+// In-memory + localStorage cache. Returns stale from memory, fetches fresh,
+// and persists to localStorage so subsequent page loads render without a spinner.
 async function apiFetchCached(url: string, opts?: RequestInit): Promise<unknown> {
-  const cached = cacheGet<unknown>(url);
-  if (cached !== undefined && !cacheIsStale(url)) {
-    log('cache hit', url);
-    return cached;
+  const inMem = cacheGet<unknown>(url);
+  if (inMem !== undefined && !cacheIsStale(url)) {
+    log('mem-hit', url);
+    return inMem;
   }
   const data = await apiFetch(url, opts);
   cacheSet(url, data);
-  // Background revalidation when stale: return fresh data, already cached
+  pcSet(url, data);
   return data;
 }
+
+// ─── Stale-data getters (instant render from localStorage) ───────────────────
+
+export function getTimetableStale(date?: string): unknown | undefined {
+  return pcGetStale(`/api/webuntis/timetable?date=${date ?? todayFormatted()}`);
+}
+
+export function getGradesStale(): unknown | undefined {
+  return pcGetStale('/api/webuntis/grades');
+}
+
+export function getMessagesStale(): unknown | undefined {
+  return pcGetStale('/api/webuntis/messages');
+}
+
+export function getAbsencesStale(): unknown | undefined {
+  const start = schoolYearStart();
+  const end = schoolYearEnd();
+  return pcGetStale(`/api/webuntis/absences?startDate=${start}&endDate=${end}`);
+}
+
+export function isTimetableStale(date?: string): boolean {
+  return pcIsStale(`/api/webuntis/timetable?date=${date ?? todayFormatted()}`);
+}
+
+// ─── Exported fetch functions ─────────────────────────────────────────────────
 
 export function fetchTimetable(date?: string) {
   const d = date ?? todayFormatted();
@@ -103,8 +130,6 @@ export function fetchGrades() {
 
 export function fetchAbsences() {
   const start = schoolYearStart();
-  // Use school year end (not today) — WebUntis treats endDate as exclusive, so
-  // using today misses the current day's absences. School year end is always future.
   const end = schoolYearEnd();
   return apiFetchCached(`/api/webuntis/absences?startDate=${start}&endDate=${end}`);
 }
@@ -131,8 +156,8 @@ export async function markMessageRead(id: number) {
 export async function markAllMessagesRead(ids: number[]): Promise<void> {
   if (!ids.length) return;
   await Promise.allSettled(ids.map((id) => markMessageRead(id)));
-  // Invalidate messages cache so next load reflects the updated read status
   cacheDel('/api/webuntis/messages');
+  pcDel('/api/webuntis/messages');
 }
 
 export function fetchHomework() {
@@ -144,7 +169,7 @@ export function fetchHomework() {
 }
 
 export function fetchMensa() {
-  return apiFetch('/api/mensa');
+  return apiFetchCached('/api/mensa');
 }
 
 export function getAttachmentUrl(messageId: number, storageId: string, name: string, attachmentId?: number): string {

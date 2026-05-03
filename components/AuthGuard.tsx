@@ -1,19 +1,17 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { useSession } from '@/providers/SessionProvider';
 import Spinner from '@/components/ui/Spinner';
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useSession();
-  const router = useRouter();
 
   useEffect(() => {
     if (!isLoading && !user) {
-      router.replace('/login');
+      window.location.replace('/login');
     }
-  }, [isLoading, user, router]);
+  }, [isLoading, user]);
 
   if (isLoading) {
     return (
@@ -23,11 +21,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!user) {
-    // Redirect fires from the useEffect above; render nothing in the meantime
-    // so we don't show a stuck spinner while the navigation completes.
-    return null;
-  }
+  if (!user) return null;
 
   return <>{children}</>;
 }

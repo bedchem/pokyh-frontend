@@ -62,6 +62,7 @@ export default function RemindersPage() {
   const { classId, stableUid, ready, retryInit } = useFirebase();
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
@@ -118,7 +119,10 @@ export default function RemindersPage() {
         );
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((e: unknown) => {
+        setError(e instanceof Error ? e.message : 'Fehler beim Laden der Erinnerungen.');
+        setLoading(false);
+      });
 
     return () => unsub();
   }, [classId, ready]);
@@ -201,6 +205,21 @@ export default function RemindersPage() {
         <div className="flex-1 px-4 pb-6 overflow-auto">
           {!ready || loading ? (
             <div className="flex justify-center py-16"><Spinner size={28} /></div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-center px-8">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'color-mix(in srgb, var(--danger) 12%, transparent)' }}>
+                <Bell size={28} color="var(--danger)" />
+              </div>
+              <p className="text-base font-semibold" style={{ color: 'var(--app-text-primary)' }}>Fehler beim Laden</p>
+              <p className="text-sm" style={{ color: 'var(--app-text-secondary)' }}>{error}</p>
+              <button
+                onClick={() => { setError(null); setLoading(true); if (classId) api.reminders.list(classId).then((r) => { const cutoff = Date.now() - 25 * 3600 * 1000; setReminders(r.map(apiReminderToReminder).filter((x) => x.remindAt.getTime() > cutoff)); setLoading(false); }).catch((e: unknown) => { setError(e instanceof Error ? e.message : 'Fehler'); setLoading(false); }); }}
+                className="px-5 py-2.5 rounded-xl font-semibold text-sm text-white press-scale"
+                style={{ background: 'var(--accent)' }}
+              >
+                Erneut versuchen
+              </button>
+            </div>
           ) : !classId ? (
             <div className="flex flex-col items-center justify-center gap-4 py-16 text-center px-8">
               <div

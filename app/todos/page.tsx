@@ -40,6 +40,7 @@ export default function TodosPage() {
   const { ready } = useFirebase();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [title, setTitle] = useState('');
@@ -73,7 +74,10 @@ export default function TodosPage() {
         );
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((e: unknown) => {
+        setError(e instanceof Error ? e.message : 'Fehler beim Laden der Todos.');
+        setLoading(false);
+      });
 
     return () => unsub();
   }, [ready, user]);
@@ -137,6 +141,21 @@ export default function TodosPage() {
         <div className="flex-1 px-4 pb-10 overflow-auto">
           {!ready || loading ? (
             <div className="flex justify-center py-16"><Spinner size={28} /></div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-center px-8">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'color-mix(in srgb, var(--danger) 12%, transparent)' }}>
+                <CheckSquare size={28} color="var(--danger)" />
+              </div>
+              <p className="text-base font-semibold" style={{ color: 'var(--app-text-primary)' }}>Fehler beim Laden</p>
+              <p className="text-sm" style={{ color: 'var(--app-text-secondary)' }}>{error}</p>
+              <button
+                onClick={() => { setError(null); setLoading(true); if (user) api.todos.list(user.username).then((t) => { setTodos(t.map(apiTodoToTodo)); setLoading(false); }).catch((e: unknown) => { setError(e instanceof Error ? e.message : 'Fehler'); setLoading(false); }); }}
+                className="px-5 py-2.5 rounded-xl font-semibold text-sm text-white press-scale"
+                style={{ background: 'var(--accent)' }}
+              >
+                Erneut versuchen
+              </button>
+            </div>
           ) : todos.length === 0 ? (
             <EmptyView
               icon={<CheckSquare size={56} color="var(--app-text-primary)" />}

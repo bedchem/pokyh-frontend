@@ -1,7 +1,6 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { logout as apiLogout } from '@/lib/api';
 import { clearSessionCredentials } from '@/lib/passkey';
 
@@ -40,38 +39,26 @@ function readUserCookie(): UserInfo | null {
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
 
   const refreshUser = useCallback(() => {
-    const info = readUserCookie();
-    setUser(info);
+    setUser(readUserCookie());
     setIsLoading(false);
   }, []);
 
-  useEffect(() => {
-    refreshUser();
-  }, [refreshUser]);
+  useEffect(() => { refreshUser(); }, [refreshUser]);
 
-  // Clear React state immediately when any API call detects session expiry
   useEffect(() => {
-    const handler = () => {
-      setUser(null);
-      setIsLoading(false);
-    };
+    const handler = () => { setUser(null); setIsLoading(false); };
     window.addEventListener('pockyh-session-expired', handler);
     return () => window.removeEventListener('pockyh-session-expired', handler);
   }, []);
 
   const logout = useCallback(async () => {
-    try {
-      await apiLogout();
-    } catch {
-      /* best effort */
-    }
+    try { await apiLogout(); } catch { /* best effort */ }
     clearSessionCredentials();
     setUser(null);
-    router.replace('/login');
-  }, [router]);
+    window.location.replace('/login');
+  }, []);
 
   return (
     <Ctx.Provider value={{ user, isLoading, logout, refreshUser }}>
