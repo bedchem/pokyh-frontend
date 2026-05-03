@@ -1,7 +1,14 @@
 'use client';
 
-const API_BASE = (process.env.NEXT_PUBLIC_API_BACKEND_URL ?? 'https://api.pokyh.com').replace(/\/$/, '');
-const API_KEY = process.env.NEXT_PUBLIC_API_BACKEND_KEY ?? '';
+const API_BASE = (
+  process.env.NEXT_PUBLIC_API_BACKEND_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
+  'https://api.pokyh.com'
+).replace(/\/$/, '');
+const API_KEY =
+  process.env.NEXT_PUBLIC_API_BACKEND_KEY ??
+  process.env.NEXT_PUBLIC_API_KEY ??
+  '';
 
 // ─── Token storage ────────────────────────────────────────────────────────────
 
@@ -96,11 +103,12 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
       if (newToken) headers['Authorization'] = `Bearer ${newToken}`;
       res = await fetch(`${API_BASE}${path}`, { ...options, headers });
     } else {
-      // Session expired — signal the app
-      if (typeof window !== 'undefined') {
-        clearTokens();
-        window.dispatchEvent(new CustomEvent('pockyh-session-expired'));
-      }
+      // Backend bearer-token auth failed. Clear bearer tokens but DON'T fire
+      // pockyh-session-expired — that event tears down the WebUntis session,
+      // which is independent of this token. A backend hiccup (missing API key,
+      // unreachable backend, expired bearer with no refresh token) must not
+      // log the user out and bounce them to /login.
+      if (typeof window !== 'undefined') clearTokens();
     }
   }
 
