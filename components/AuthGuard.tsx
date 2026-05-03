@@ -15,12 +15,18 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [isLoading, user, router]);
 
-  if (isLoading || !user) {
+  if (isLoading) {
     return (
       <div className="h-full flex items-center justify-center" style={{ background: 'var(--app-bg)' }}>
         <Spinner size={32} />
       </div>
     );
+  }
+
+  if (!user) {
+    // Redirect fires from the useEffect above; render nothing in the meantime
+    // so we don't show a stuck spinner while the navigation completes.
+    return null;
   }
 
   return <>{children}</>;

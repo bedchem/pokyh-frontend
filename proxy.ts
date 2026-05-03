@@ -20,7 +20,7 @@ const PUBLIC_PREFIXES = [
   '/og-image',
 ];
 
-const SESSION_MAX_MS = 30 * 60 * 1000; // 30 minutes
+const SESSION_MAX_MS = 4 * 60 * 60 * 1000; // 4 hours — must match COOKIE_OPTS.maxAge in login/route.ts
 
 async function hasValidSession(request: NextRequest): Promise<boolean> {
   const cookie = request.cookies.get('pockyh_session')?.value;

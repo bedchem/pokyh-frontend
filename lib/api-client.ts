@@ -1,10 +1,10 @@
 'use client';
 
-const API_BASE = 'https://api.pokyh.com';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.pokyh.com';
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY ?? '';
 
 if (typeof window !== 'undefined' && !API_KEY) {
-  console.error('[api-client] NEXT_PUBLIC_API_KEY is not set — all backend API calls will return 401. Set it in your Vercel environment variables.');
+  console.warn('[api-client] NEXT_PUBLIC_API_KEY is not set — set it in .env.local (see .env.example).');
 }
 
 // ─── Token storage ────────────────────────────────────────────────────────────

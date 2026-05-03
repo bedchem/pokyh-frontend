@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Cookie, Info } from 'lucide-react';
 import { signInAnonymously } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -56,7 +56,6 @@ function GradCapIcon() {
 
 // ── Component ────────────────────────────────────────────────────────────────
 export default function LoginForm() {
-  const router = useRouter();
   const params = useSearchParams();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -147,7 +146,11 @@ export default function LoginForm() {
 
       const raw = params.get('next') ?? '';
       const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/home';
-      router.replace(next);
+      // Hard navigation: forces a full page reload so SessionProvider remounts and
+      // reads the fresh pockyh_user cookie. Client-side router.replace() would
+      // skip the remount and leave user: null in context, causing AuthGuard to
+      // immediately redirect back to /login.
+      window.location.replace(next);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Netzwerkfehler.');
       setLoading(false);
