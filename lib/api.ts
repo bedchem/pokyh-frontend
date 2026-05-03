@@ -48,43 +48,31 @@ async function apiFetch(url: string, opts?: RequestInit) {
   log('fetch', url);
   const res = await fetch(url, { credentials: 'same-origin', ...opts });
 
-  // If we got redirected to /login (HTML page), the session is expired
-  if (res.redirected && res.url.includes('/login')) {
-    log('redirected to login, session expired — clearing session');
-    await clearSessionOnce();
-    throw new Error('session_expired');
-  }
-
-  const contentType = res.headers.get('content-type') ?? '';
-
   if (res.status === 401) {
-    log('401 response from', url, '— clearing session');
+    log('401 from', url, '— clearing session');
     await clearSessionOnce();
     throw new Error('session_expired');
   }
 
   if (!res.ok) {
-    // Try to parse JSON error, but handle HTML responses (login redirect)
-    if (contentType.includes('text/html')) {
-      console.error('[api] Got HTML response for', url, '(session likely expired)');
-      throw new Error('session_expired');
+    const ct = res.headers.get('content-type') ?? '';
+    if (ct.includes('text/html')) {
+      // Next.js error page — server error, not session expiry
+      throw new Error(`HTTP ${res.status}`);
     }
     const data = await res.json().catch(() => ({}));
     const errMsg = (data as { error?: string }).error ?? `HTTP ${res.status}`;
-    log('error response from', url, ':', errMsg);
-    if (errMsg === 'session_expired') throw new Error('session_expired');
+    log('error from', url, ':', errMsg);
+    if (errMsg === 'session_expired') {
+      await clearSessionOnce();
+      throw new Error('session_expired');
+    }
     throw new Error(errMsg);
   }
 
-  // Guard against HTML responses (login page redirect) even on 200
-  if (contentType.includes('text/html')) {
-    console.error('[api] Got HTML 200 for', url, '(session likely expired)');
-    throw new Error('session_expired');
-  }
-
   const json = await res.json();
-  // Check if the JSON body itself signals session_expired
   if ((json as { error?: string })?.error === 'session_expired') {
+    await clearSessionOnce();
     throw new Error('session_expired');
   }
 
