@@ -1,6 +1,6 @@
 'use client';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.pokyh.com';
+const API_BASE = 'https://api.pokyh.com';
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY ?? '';
 
 if (typeof window !== 'undefined' && !API_KEY) {
