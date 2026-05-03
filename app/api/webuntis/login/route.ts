@@ -136,7 +136,8 @@ export async function POST(req: NextRequest) {
 
     // Register/login user with the Node.js backend
     try {
-      const backendRes = await fetch(`${process.env.API_BACKEND_URL}/auth/login`, {
+      const backendUrl = process.env.API_BACKEND_URL ?? 'https://api.pokyh.com';
+      const backendRes = await fetch(`${backendUrl}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
