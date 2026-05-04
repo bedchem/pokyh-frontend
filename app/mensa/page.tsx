@@ -64,11 +64,13 @@ function groupDishes(dishes: Dish[]): GroupedDishes[] {
   });
 
   const today = startOfDay(new Date());
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - ((today.getDay() + 6) % 7)); // Monday of current week
   const result: GroupedDishes[] = [];
 
   map.forEach((dayDishes, key) => {
     const date = parseISO(key);
-    if (date < today) return;
+    if (date < weekStart) return;
     const todayFlag = isToday(date);
     const tomorrowFlag = isTomorrow(date);
     const label = todayFlag
