@@ -1,0 +1,213 @@
+/// <reference lib="webworker" />
+
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let renderer: THREE.WebGLRenderer | null = null;
+let scene: THREE.Scene | null = null;
+let camera: THREE.PerspectiveCamera | null = null;
+let phone: THREE.Group | null = null;
+let ambLight: THREE.AmbientLight | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let timerObj: any = null;
+let rafId: number | null = null;
+let smoothP = 0;
+let progressValue = 0;
+let noMotion = false;
+
+// requestAnimationFrame is available in dedicated workers in modern browsers.
+// Fall back to setTimeout for older engines.
+const rAF: (cb: FrameRequestCallback) => number =
+  typeof requestAnimationFrame !== 'undefined'
+    ? (cb) => requestAnimationFrame(cb)
+    : (cb) => self.setTimeout(cb, 16) as unknown as number;
+const cAF: (id: number) => void =
+  typeof cancelAnimationFrame !== 'undefined'
+    ? (id) => cancelAnimationFrame(id)
+    : (id) => self.clearTimeout(id);
+
+// ── Message handler ───────────────────────────────────────────────────────────
+self.onmessage = (e: MessageEvent) => {
+  const { type } = e.data as { type: string };
+  if (type === 'init')     { initScene(e.data); return; }
+  if (type === 'progress') { progressValue = (e.data as { value: number }).value; return; }
+  if (type === 'theme')    { applyTheme((e.data as { dark: boolean }).dark); return; }
+  if (type === 'resize')   { handleResize(e.data as { width: number; height: number; dpr: number }); return; }
+  if (type === 'dispose')  { cleanup(); return; }
+};
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+function initScene(data: {
+  canvas: OffscreenCanvas;
+  screenBitmap: ImageBitmap;
+  dark: boolean;
+  noReducedMotion: boolean;
+  width: number;
+  height: number;
+  dpr: number;
+}) {
+  noMotion = !data.noReducedMotion;
+
+  // OffscreenCanvas → THREE requires an `any` cast since Three.js types expect HTMLCanvasElement
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  renderer = new THREE.WebGLRenderer({
+    canvas: data.canvas as unknown as HTMLCanvasElement,
+    alpha: true,
+    antialias: true,
+    powerPreference: 'high-performance',
+  });
+  renderer.setPixelRatio(Math.min(data.dpr, 2));
+  renderer.setSize(data.width, data.height, false);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = data.dark ? 0.88 : 0.78;
+  renderer.setClearColor(0x000000, 0);
+
+  camera = new THREE.PerspectiveCamera(26, data.width / (data.height || 1), 0.1, 100);
+  camera.position.set(0, -0.17, 7.0);
+  camera.lookAt(0, 0, 0);
+
+  scene = new THREE.Scene();
+
+  // Environment map
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  pmrem.dispose();
+
+  // Lights (identical to original IPhoneScene)
+  ambLight = new THREE.AmbientLight(0xffffff, data.dark ? 0.85 : 1);
+  const fillLight  = new THREE.DirectionalLight(0xccd8ff, 1);   fillLight.position.set(-5, 0, 2);
+  const rimLight   = new THREE.DirectionalLight(0x8899bb, 1);   rimLight.position.set(-2, -6, 0);
+  const backLight  = new THREE.DirectionalLight(0xfff4d8, 1);   backLight.position.set(4, 3, -3);
+  const frontLight = new THREE.DirectionalLight(0xffffff, 0.85); frontLight.position.set(-1.5, 1.8, 4);
+  const topLight   = new THREE.DirectionalLight(0xffffff, 0.55); topLight.position.set(0, 5, 2);
+  scene.add(ambLight, fillLight, rimLight, backLight, frontLight, topLight);
+
+  // Screen texture from ImageBitmap (built on main thread, transferred here)
+  const screenTex = new THREE.Texture(data.screenBitmap as unknown as HTMLImageElement);
+  screenTex.needsUpdate = true;
+  screenTex.minFilter = THREE.LinearFilter;
+  screenTex.colorSpace = THREE.SRGBColorSpace;
+
+  let customTex: THREE.Texture | null = null;
+  let loadedModel: THREE.Group | null = null;
+
+  function applyScreenTex() {
+    const tex = customTex ?? screenTex;
+    if (!loadedModel) return;
+    loadedModel.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return;
+      const mat = child.material as THREE.MeshStandardMaterial;
+      const nm  = (child.name + (mat?.name ?? '')).toLowerCase();
+      const isNamedScreen =
+        nm.includes('screen') || nm.includes('display') ||
+        nm.includes('glass_fr') || nm.includes('front_gl') ||
+        nm.includes('oled')    || nm.includes('lcd');
+      const img = mat?.map?.image as unknown as { width: number; height: number } | undefined;
+      const isPortrait = img && img.width > 0 && img.height > img.width * 1.6;
+      if (isNamedScreen || isPortrait) {
+        child.material = new THREE.MeshBasicMaterial({ map: tex });
+      }
+    });
+  }
+
+  // Load the hi-res screen texture (fetch works in workers)
+  new THREE.TextureLoader().load('/models/screen.jpeg', (tex) => {
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.flipY      = false;
+    customTex = tex;
+    applyScreenTex();
+  });
+
+  // Load the GLB model
+  const draco = new DRACOLoader();
+  draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+  const gltfLoader = new GLTFLoader();
+  gltfLoader.setDRACOLoader(draco);
+
+  gltfLoader.load(
+    '/models/iphone.glb',
+    (gltf) => {
+      const model = gltf.scene;
+      const box    = new THREE.Box3().setFromObject(model);
+      const size   = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const sf     = 1.9 / maxDim;
+
+      model.position.set(-center.x, -center.y, -center.z);
+      model.scale.setScalar(sf);
+
+      const pivot = new THREE.Group();
+      pivot.add(model);
+      pivot.scale.setScalar(0.92);
+      scene!.add(pivot);
+      phone = pivot;
+      loadedModel = model;
+      applyScreenTex();
+
+      model.traverse((child) => {
+        if (!(child instanceof THREE.Mesh)) return;
+        const mat = child.material as THREE.MeshStandardMaterial;
+        if (mat?.isMeshStandardMaterial) {
+          mat.envMapIntensity = 0.30;
+          mat.needsUpdate = true;
+        }
+      });
+    },
+    undefined,
+    (err) => console.error('[IPhoneWorker] GLB load error', err),
+  );
+
+  // Timer (THREE.Timer works in workers)
+  timerObj = new THREE.Timer();
+
+  // Render loop — off the main thread entirely
+  function frame() {
+    rafId = rAF(frame);
+    timerObj.update();
+
+    if (phone) {
+      const rawP = Math.max(0, Math.min(1, progressValue));
+      smoothP += (rawP - smoothP) * (noMotion ? 1 : 0.04);
+
+      const ROT_START = 0.20, ROT_END = 0.82;
+      const rotFraction = Math.min(1, Math.max(0, (smoothP - ROT_START) / (ROT_END - ROT_START)));
+      phone.rotation.y  = rotFraction * Math.PI * 2;
+      phone.rotation.x  = Math.sin(rotFraction * Math.PI * 2) * 0.055;
+
+      const entry = Math.min(1, smoothP / 0.30);
+      phone.scale.setScalar(0.92 + entry * 0.18);
+
+      const t = timerObj.getElapsed();
+      phone.position.y = 0.32 + Math.sin(t * 0.75) * 0.026 * entry;
+    }
+
+    renderer!.render(scene!, camera!);
+  }
+  frame();
+}
+
+// ── Resize ────────────────────────────────────────────────────────────────────
+function handleResize({ width, height, dpr }: { width: number; height: number; dpr: number }) {
+  if (!renderer || !camera || !width || !height) return;
+  renderer.setPixelRatio(Math.min(dpr, 2));
+  renderer.setSize(width, height, false);
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+}
+
+// ── Theme ─────────────────────────────────────────────────────────────────────
+function applyTheme(dark: boolean) {
+  if (ambLight)  ambLight.intensity           = dark ? 0.55 : 0.85;
+  if (renderer)  renderer.toneMappingExposure = dark ? 0.88 : 0.78;
+}
+
+// ── Cleanup ───────────────────────────────────────────────────────────────────
+function cleanup() {
+  if (rafId !== null) cAF(rafId);
+  renderer?.dispose();
+  timerObj?.dispose();
+}

@@ -1,15 +1,8 @@
 'use client';
 
 import { useRef, useEffect, RefObject } from 'react';
-import * as THREE from 'three';
-import { GLTFLoader }  from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
-import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
-/* ════════════════════════════════════════════════
-   SCREEN CANVAS TEXTURE — shown on iPhone screen
-   ════════════════════════════════════════════════ */
-
+// ── Screen texture (needs DOM canvas API — must stay on main thread) ──────────
 function rrect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   g.beginPath();
   g.moveTo(x + r, y);
@@ -24,14 +17,13 @@ function rrect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: 
   g.closePath();
 }
 
-function buildScreenTexture(): THREE.CanvasTexture {
+function buildScreenCanvas(): HTMLCanvasElement {
   const W = 600, H = 1300;
   const cv = document.createElement('canvas');
   cv.width = W; cv.height = H;
   const g = cv.getContext('2d')!;
 
   g.fillStyle = '#050506'; g.fillRect(0, 0, W, H);
-
   g.fillStyle = '#000';
   rrect(g, (W - 168) / 2, 24, 168, 42, 21); g.fill();
 
@@ -110,15 +102,10 @@ function buildScreenTexture(): THREE.CanvasTexture {
     g.fillText(l.room, 134, ly + 53);
   });
 
-  const tex = new THREE.CanvasTexture(cv);
-  tex.minFilter = THREE.LinearFilter;
-  return tex;
+  return cv;
 }
 
-/* ════════════════════════════════════════════════
-   REACT COMPONENT
-   ════════════════════════════════════════════════ */
-
+// ── Component ─────────────────────────────────────────────────────────────────
 export default function IPhoneScene({
   progressRef,
   className,
@@ -132,197 +119,85 @@ export default function IPhoneScene({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const renderer = new THREE.WebGLRenderer({
-      canvas,
-      alpha: true,
-      antialias: true,
-      powerPreference: 'high-performance',
-    });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.toneMapping         = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.88;
-    renderer.setClearColor(0x000000, 0);
+    // ── OffscreenCanvas path (Chrome 69+, Firefox 105+, Safari 16.4+) ────────
+    if (typeof (canvas as HTMLCanvasElement & { transferControlToOffscreen?: () => OffscreenCanvas }).transferControlToOffscreen === 'function') {
 
-    const camera = new THREE.PerspectiveCamera(26, 1, 0.1, 100);
-    camera.position.set(0, -0.17, 7.0);
-    camera.lookAt(0, 0, 0);
+      // Build screen texture on main thread (needs DOM), then transfer as ImageBitmap
+      const screenCanvas = buildScreenCanvas();
+      createImageBitmap(screenCanvas).then((screenBitmap) => {
+        if (!canvasRef.current) return; // component unmounted
 
-    const scene = new THREE.Scene();
+        const offscreen = (canvasRef.current as HTMLCanvasElement & { transferControlToOffscreen: () => OffscreenCanvas })
+          .transferControlToOffscreen();
 
-    /* ── Environment map ── */
-    const pmrem  = new THREE.PMREMGenerator(renderer);
-const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-scene.environment = null;
-    pmrem.dispose();
+        const worker = new Worker(
+          new URL('../workers/iphone-scene.worker.ts', import.meta.url),
+          { type: 'module' },
+        );
 
-    /* ── Lights (weiter nach hinten versetzt) ── */
-    const isDarkInit = document.documentElement.classList.contains('dark');
-    
-    // Ambient bleibt gleich
-    const ambLight  = new THREE.AmbientLight(0xffffff, isDarkInit ? 0.85 : 1);
-    
-    // fillLight weiter nach hinten (von -3,0,2 auf -5,0,3)
-    const fillLight = new THREE.DirectionalLight(0xccd8ff, 1);
-    fillLight.position.set(-5, 0, 2);
-    
-    // rimLight weiter nach hinten (von -1,-4,-3 auf -2,-6,-5)
-    const rimLight  = new THREE.DirectionalLight(0x8899bb, 1);
-    rimLight.position.set(-2, -6, 0);
-    
-    // diagonales Hintergrundlicht von hinten rechts oben
-    const backLight = new THREE.DirectionalLight(0xfff4d8, 1);
-    backLight.position.set(4, 3, -3);
-    backLight.target.position.set(0, 0, 0);
-    
-    // zusätzliches Vorderlicht von vorne links
-    const frontLight = new THREE.DirectionalLight(0xffffff, 0.85);
-    frontLight.position.set(-1.5, 1.8, 4);
-    frontLight.target.position.set(0, 0, 0);
+        const dark           = document.documentElement.classList.contains('dark');
+        const noReducedMotion = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const { clientWidth: width, clientHeight: height } = canvasRef.current!;
 
-    // Oberlicht von oben
-    const topLight = new THREE.DirectionalLight(0xffffff, 0.55);
-    topLight.position.set(0, 5, 2);
-    topLight.target.position.set(0, 0, 0);
+        // Transfer offscreen canvas + screen bitmap (both are transferable)
+        worker.postMessage(
+          { type: 'init', canvas: offscreen, screenBitmap, dark, noReducedMotion, width, height, dpr: window.devicePixelRatio },
+          [offscreen, screenBitmap],
+        );
 
-    scene.add(ambLight, fillLight, rimLight, backLight, frontLight, topLight);
-
-    const screenTex = buildScreenTexture();
-
-    let customTex: THREE.Texture | null = null;
-    let loadedModel: THREE.Group | null = null;
-
-    function applyScreenTex() {
-      const tex = customTex ?? screenTex;
-      if (!loadedModel) return;
-      loadedModel.traverse((child) => {
-        if (!(child instanceof THREE.Mesh)) return;
-        const mat = child.material as THREE.MeshStandardMaterial;
-        const nm  = (child.name + (mat?.name ?? '')).toLowerCase();
-        const isNamedScreen =
-          nm.includes('screen') || nm.includes('display') ||
-          nm.includes('glass_fr') || nm.includes('front_gl') ||
-          nm.includes('oled')    || nm.includes('lcd');
-        const img = mat?.map?.image as (ImageBitmap | HTMLImageElement | null) | undefined;
-        const isPortrait = img && (img as ImageBitmap).width > 0 &&
-          (img as ImageBitmap).height > (img as ImageBitmap).width * 1.6;
-        if (isNamedScreen || isPortrait) {
-          child.material = new THREE.MeshBasicMaterial({ map: tex });
+        // Forward scroll progress every frame — very lightweight on main thread
+        let rafId: number;
+        function syncProgress() {
+          worker.postMessage({ type: 'progress', value: progressRef.current ?? 0 });
+          rafId = requestAnimationFrame(syncProgress);
         }
-      });
-    }
+        rafId = requestAnimationFrame(syncProgress);
 
-    new THREE.TextureLoader().load('/models/screen.jpeg', (tex) => {
-      tex.colorSpace = THREE.SRGBColorSpace;
-      tex.flipY      = false;
-      customTex      = tex;
-      applyScreenTex();
-    });
-
-    const draco = new DRACOLoader();
-    draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
-    const gltfLoader = new GLTFLoader();
-    gltfLoader.setDRACOLoader(draco);
-
-    let phone: THREE.Group | null = null;
-
-    gltfLoader.load(
-      '/models/iphone.glb',
-      (gltf) => {
-        const model = gltf.scene;
-
-        const box    = new THREE.Box3().setFromObject(model);
-        const size   = box.getSize(new THREE.Vector3());
-        const center = box.getCenter(new THREE.Vector3());
-        const maxDim = Math.max(size.x, size.y, size.z);
-        const sf     = 1.9 / maxDim;
-
-        model.position.set(-center.x, -center.y, -center.z);
-        model.scale.setScalar(sf);
-
-        const pivot = new THREE.Group();
-        pivot.add(model);
-        pivot.scale.setScalar(0.92);
-        scene.add(pivot);
-        phone       = pivot;
-        loadedModel = model;
-
-        applyScreenTex();
-
-        model.traverse((child) => {
-          if (!(child instanceof THREE.Mesh)) return;
-          const mat = child.material as THREE.MeshStandardMaterial;
-          if (mat && mat.isMeshStandardMaterial) {
-            mat.envMapIntensity = 0.30;
-            mat.needsUpdate = true;
-          }
+        // Forward resize
+        const ro = new ResizeObserver(() => {
+          if (!canvasRef.current) return;
+          worker.postMessage({
+            type: 'resize',
+            width:  canvasRef.current.clientWidth,
+            height: canvasRef.current.clientHeight,
+            dpr:    window.devicePixelRatio,
+          });
         });
-      },
-      undefined,
-      (err) => console.error('[IPhoneScene] GLB load error', err),
-    );
+        ro.observe(canvasRef.current!);
 
-    function syncSize() {
-      const el = canvasRef.current;
-      if (!el) return;
-      const w = el.clientWidth, h = el.clientHeight;
-      if (!w || !h) return;
-      renderer.setSize(w, h, false);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
+        // Forward theme changes
+        const moObs = new MutationObserver(() => {
+          worker.postMessage({ type: 'theme', dark: document.documentElement.classList.contains('dark') });
+        });
+        moObs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+        // Store refs for cleanup
+        (canvas as HTMLCanvasElement & { __workerCleanup?: () => void }).__workerCleanup = () => {
+          cancelAnimationFrame(rafId);
+          ro.disconnect();
+          moObs.disconnect();
+          worker.postMessage({ type: 'dispose' });
+          worker.terminate();
+        };
+      });
+
+      return () => {
+        (canvas as HTMLCanvasElement & { __workerCleanup?: () => void }).__workerCleanup?.();
+      };
     }
-    syncSize();
-    const ro = new ResizeObserver(syncSize);
-    ro.observe(canvas);
 
-    let currentDark = isDarkInit;
-    const moObs = new MutationObserver(() => {
-      const dark = document.documentElement.classList.contains('dark');
-      if (dark === currentDark) return;
-      currentDark = dark;
-      ambLight.intensity  = dark ? 0.55 : 0.85;
-      renderer.toneMappingExposure = dark ? 0.88 : 0.78;
+    // ── Fallback: inline Three.js (older browsers without OffscreenCanvas) ───
+    // Dynamically import to avoid loading Three.js in the main bundle
+    let active = true;
+    import('../lib/iphone-scene-inline').then(({ startScene }) => {
+      if (!active || !canvasRef.current) return;
+      const stop = startScene(canvasRef.current, progressRef);
+      (canvas as HTMLCanvasElement & { __fallbackStop?: () => void }).__fallbackStop = stop;
     });
-    moObs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-
-    let rafId: number;
-    const timer    = new THREE.Timer();
-    const noMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    let smoothP    = 0;
-
-    function frame() {
-      rafId = requestAnimationFrame(frame);
-      timer.update();
-      syncSize();
-
-      if (phone) {
-        const rawP = Math.max(0, Math.min(1, progressRef.current ?? 0));
-        smoothP += (rawP - smoothP) * (noMotion ? 1 : 0.04);
-
-        const ROT_START = 0.20, ROT_END = 0.82;
-        const rotFraction = Math.min(1, Math.max(0, (smoothP - ROT_START) / (ROT_END - ROT_START)));
-        phone.rotation.y  = rotFraction * Math.PI * 2;
-        phone.rotation.x  = Math.sin(rotFraction * Math.PI * 2) * 0.055;
-
-        const entry = Math.min(1, smoothP / 0.30);
-        phone.scale.setScalar(0.92 + entry * 0.18);
-
-        const t = timer.getElapsed();
-        phone.position.y = 0.32 + Math.sin(t * 0.75) * 0.026 * entry;
-      }
-
-      renderer.render(scene, camera);
-    }
-    frame();
 
     return () => {
-      cancelAnimationFrame(rafId);
-      ro.disconnect();
-      moObs.disconnect();
-      renderer.dispose();
-      screenTex.dispose();
-      envTex.dispose();
-      draco.dispose();
-      timer.dispose();
+      active = false;
+      (canvas as HTMLCanvasElement & { __fallbackStop?: () => void }).__fallbackStop?.();
     };
   }, []);
 

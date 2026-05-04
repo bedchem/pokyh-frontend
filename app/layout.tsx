@@ -27,13 +27,15 @@ export const metadata: Metadata = {
     template: '%s | POKYH',
   },
   description:
-    'POKYH ist die kostenlose Web-App für LBS Brixen Schüler. Stundenplan, Noten, Mensa, Abwesenheiten und Nachrichten – alles über deinen WebUntis-Account.',
+    'POKYH ist die kostenlose Web-App für LBS Brixen Schüler. Stundenplan, Noten, Mensa, Abwesenheiten und Nachrichten – alles übersichtlich an einem Ort.',
   keywords: [
-    'POKYH', 'LBS Brixen', 'Schulapp', 'WebUntis LBS Brixen',
-    'Stundenplan LBS Brixen', 'Noten LBS Brixen', 'Mensa LBS Brixen',
-    'Schule App Südtirol', 'LBS Brixen online', 'Berufsschule Brixen',
+    'POKYH', 'LBS Brixen', 'Schulapp', 'Schulapp LBS Brixen',
+    'WebUntis LBS Brixen', 'WebUntis Alternative', 'WebUntis App besser',
+    'WebUntis auf Steroid', 'Stundenplan LBS Brixen', 'Noten LBS Brixen',
+    'Mensa LBS Brixen', 'Schule App Südtirol', 'LBS Brixen online', 'Berufsschule Brixen',
     'Landesberufsschule Brixen', 'LBS Brixen App', 'Abwesenheiten LBS Brixen',
-    'Schulapp kostenlos Südtirol', 'WebUntis App Brixen',
+    'Schulapp kostenlos Südtirol', 'BFZ Tschuggmall', 'Schulportal Brixen',
+    'Stundenplan Berufsschule Südtirol', 'Schüler App Brixen', 'WebUntis Brixen',
   ],
   authors: [{ name: 'Felix Plattner', url: 'https://github.com/bedchem/POKYH' }],
   creator: 'Felix Plattner',
@@ -57,19 +59,20 @@ export const metadata: Metadata = {
     url: SITE_URL,
     siteName: 'POKYH',
     title: 'POKYH – Schulapp LBS Brixen',
-    description: 'Kostenlose Web-App für LBS Brixen Schüler: Stundenplan, Noten, Mensa, Abwesenheiten und Nachrichten über WebUntis.',
-    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'POKYH – Schulapp für LBS Brixen Schüler' }],
+    description: 'Kostenlose Web-App für LBS Brixen Schüler: Stundenplan, Noten, Mensa, Abwesenheiten und Nachrichten – schnell, modern, gratis.',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'POKYH – Schulapp LBS Brixen',
     description: 'Kostenlose Web-App für LBS Brixen Schüler: Stundenplan, Noten, Mensa und mehr.',
-    images: [{ url: '/og-image.png', alt: 'POKYH – Schulapp LBS Brixen' }],
   },
   manifest: '/manifest.json',
   icons: {
-    icon: '/favicon.ico',
-    apple: '/apple-icon.png',
+    icon: [
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [{ url: '/icon-192.png', sizes: '192x192', type: 'image/png' }],
   },
   robots: {
     index: true,
@@ -95,53 +98,76 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-const structuredData = {
-  '@context': 'https://schema.org',
-  '@type': 'WebApplication',
-  name: 'POKYH',
-  alternateName: 'POKYH Schulapp LBS Brixen',
-  url: SITE_URL,
-  description:
-    'Kostenlose Web-App für Schülerinnen und Schüler der LBS Brixen mit Stundenplan, Noten, Mensa, Abwesenheiten, Nachrichten und Klassen-Erinnerungen über WebUntis.',
-  applicationCategory: 'EducationalApplication',
-  operatingSystem: 'Web',
-  browserRequirements: 'Requires JavaScript. Requires a modern browser.',
-  inLanguage: ['de', 'it'],
-  softwareVersion: '1.0',
-  featureList: [
-    'Stundenplan (Wochenansicht, Prüfungen, Vertretungen)',
-    'Noten & Notensimulator',
-    'Mensa-Speiseplan mit Nährwerten',
-    'Nachrichten-Inbox mit Anhängen',
-    'Abwesenheiten & Fehlstunden',
-    'Klassen-Erinnerungen & Hausaufgaben',
-    'Persönliche Todo-Liste',
-    'Dunkelmodus',
-  ],
-  offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
-  author: {
-    '@type': 'Person',
-    name: 'Felix Plattner',
-    url: 'https://github.com/bedchem',
-    sameAs: ['https://github.com/bedchem'],
-  },
-  maintainer: {
-    '@type': 'Person',
-    name: 'Felix Plattner',
-    url: 'https://github.com/bedchem',
-  },
-  sameAs: ['https://github.com/bedchem/POKYH', 'https://github.com/bedchem/pocky-web'],
-  educationalUse: 'Student information system',
-  audience: {
-    '@type': 'EducationalAudience',
-    educationalRole: 'student',
-    educationalAlignment: {
-      '@type': 'AlignmentObject',
-      alignmentType: 'educationalSubject',
-      targetName: 'Landesberufsschule Brixen',
+const structuredData = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    name: 'POKYH',
+    alternateName: ['POKYH Schulapp', 'POKYH LBS Brixen', 'Schulapp LBS Brixen'],
+    url: SITE_URL,
+    description:
+      'Kostenlose Web-App für Schülerinnen und Schüler der LBS Brixen (Landesberufsschule Brixen, Südtirol). Stundenplan, Noten, Mensa, Abwesenheiten, Nachrichten und Klassen-Erinnerungen – alles übersichtlich an einem Ort.',
+    applicationCategory: 'EducationalApplication',
+    operatingSystem: 'Web',
+    browserRequirements: 'Requires JavaScript. Requires a modern browser.',
+    inLanguage: ['de', 'it'],
+    softwareVersion: '1.0',
+    featureList: [
+      'Stundenplan (Tages- und Wochenansicht)',
+      'Prüfungen und Vertretungen im Stundenplan',
+      'Noten nach Fach mit automatischem Gesamtschnitt',
+      'Mensa-Speiseplan mit Nährwerten und Bewertungen',
+      'Nachrichten-Inbox mit Anhängen',
+      'Abwesenheiten & Fehlstunden mit Jahresübersicht',
+      'Klassenweite Erinnerungen für Prüfungen',
+      'Persönliche Todo-Liste',
+      'Dunkelmodus & Mobile-First Design',
+      'Kostenlos und werbefrei',
+    ],
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'EUR',
+      availability: 'https://schema.org/InStock',
+      description: 'Vollständig kostenlos und werbefrei',
     },
+    author: {
+      '@type': 'Organization',
+      name: 'bedchem',
+      url: 'https://github.com/bedchem',
+      member: [
+        { '@type': 'Person', name: 'Felix Plattner', url: 'https://github.com/plattnericus' },
+        { '@type': 'Person', name: 'Ryhox', url: 'https://github.com/ryhox' },
+      ],
+    },
+    maintainer: {
+      '@type': 'Organization',
+      name: 'bedchem',
+      url: 'https://github.com/bedchem',
+    },
+    sameAs: ['https://github.com/bedchem/POKYH', 'https://github.com/bedchem/pocky-web'],
+    educationalUse: 'Student information system',
+    audience: {
+      '@type': 'EducationalAudience',
+      educationalRole: 'student',
+      educationalAlignment: {
+        '@type': 'AlignmentObject',
+        alignmentType: 'educationalSubject',
+        targetName: 'Landesberufsschule Brixen – Berufsbildungszentrum Christian Josef Tschuggmall',
+      },
+    },
+    isAccessibleForFree: true,
+    isFamilyFriendly: true,
   },
-};
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'POKYH',
+    url: SITE_URL,
+    description: 'Die Schulapp für LBS Brixen Schüler – Stundenplan, Noten, Mensa und mehr.',
+    inLanguage: ['de', 'it'],
+  },
+];
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -154,12 +180,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData[0]) }}
         />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData[1]) }}
+        />
+        {/* Preconnect to external APIs used at auth time */}
         <link rel="preconnect" href="https://lbs-brixen.webuntis.com" />
         <link rel="preconnect" href="https://mensa.plattnericus.dev" />
         <link rel="dns-prefetch" href="https://firestore.googleapis.com" />
         <link rel="dns-prefetch" href="https://identitytoolkit.googleapis.com" />
+        {/* Draco decoder CDN — preconnect so Three.js GLTF loads faster after idle */}
+        <link rel="dns-prefetch" href="https://www.gstatic.com" />
         {GA_ID && <link rel="preconnect" href="https://www.googletagmanager.com" />}
       </head>
       {GA_ID && (

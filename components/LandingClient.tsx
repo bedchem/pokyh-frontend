@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import '@/app/landing.css';
 
-// Dynamic import — Three.js is heavy and SSR-incompatible
+// Three.js is ~700KB gzipped + 5MB GLB model — never block initial paint.
+// Only import after browser is idle (requestIdleCallback) so Core Web Vitals stay green.
 const IPhoneScene = dynamic(() => import('@/components/IPhoneScene'), { ssr: false });
 
 const WEEK_DAYS = [
@@ -120,6 +121,21 @@ export default function LandingClient() {
   const phoneStageRef = useRef<HTMLDivElement>(null);
   // Scroll progress for Three.js — updated on scroll, never triggers re-render
   const progressRef   = useRef<number>(0);
+  // Three.js scene only renders after browser is idle (after LCP is done)
+  const [sceneReady, setSceneReady] = useState(false);
+
+  /* Defer Three.js load until browser is idle — keeps LCP/FCP fast */
+  useEffect(() => {
+    const load = () => setSceneReady(true);
+    if ('requestIdleCallback' in window) {
+      const id = (window as Window & { requestIdleCallback: (cb: () => void, opts?: object) => number })
+        .requestIdleCallback(load, { timeout: 3000 });
+      return () => (window as Window & { cancelIdleCallback: (id: number) => void }).cancelIdleCallback(id);
+    }
+    // Fallback for Safari: defer 1.5s
+    const t = setTimeout(load, 1500);
+    return () => clearTimeout(t);
+  }, []);
 
   /* Scroll-driven reveal for section cards */
   useEffect(() => {
@@ -189,11 +205,11 @@ export default function LandingClient() {
           </h1>
           <p className="lp-hero-sub lp-reveal" {...reveal(160)}>
             Stundenplan, Noten, Mensa und mehr — für alle Schüler der LBS Brixen.{' '}
-            <strong>Anmeldung mit deinem WebUntis‑Account.</strong>
+            <strong>Anmeldung mit deinem WebUntis‑Account. Kein Passwort gespeichert.</strong>
           </p>
           <div className="lp-hero-actions lp-reveal" {...reveal(240)}>
-            <Link href="/login"    className="lp-alink">Mit WebUntis anmelden</Link>
-            <a    href="#login-info" className="lp-alink">So funktioniert's</a>
+            <Link href="/login"    className="lp-alink">Jetzt anmelden</Link>
+            <a    href="#funktionen" className="lp-alink">Alle Funktionen</a>
           </div>
           {/* Scroll cue */}
           <div className="lp-scroll-hint" aria-hidden="true">
@@ -206,9 +222,20 @@ export default function LandingClient() {
         {/* Atmospheric glow — sits behind the phone */}
         <div className="lp-hero-glow" aria-hidden="true" />
 
-        {/* Three.js iPhone — full 3-D model, scroll-driven animation */}
+        {/* Three.js iPhone — only rendered after browser idle, never blocks LCP */}
         <div className="lp-phone-stage" ref={phoneStageRef}>
-          <IPhoneScene progressRef={progressRef} className="lp-phone-canvas" />
+          {sceneReady ? (
+            <IPhoneScene progressRef={progressRef} className="lp-phone-canvas" />
+          ) : (
+            <div
+              className="lp-phone-canvas"
+              aria-hidden="true"
+              style={{
+                background: 'radial-gradient(ellipse at 50% 60%, rgba(10,132,255,0.07) 0%, transparent 70%)',
+                borderRadius: 40,
+              }}
+            />
+          )}
         </div>
       </header>
 
@@ -543,7 +570,15 @@ export default function LandingClient() {
       </section>
 
       {/* ── COMPARE ── */}
-      <section className="lp-compare">
+      <section className="lp-compare" aria-label="Funktionsübersicht">
+        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <h2 className="lp-h2 lp-reveal" style={{ fontSize: 'clamp(1.5rem, 4vw, 2.2rem)' }}>
+            Alles. An einem Ort.
+          </h2>
+          <p className="lp-lead lp-reveal" style={{ maxWidth: 520, margin: '12px auto 0', transitionDelay: '80ms' }}>
+            Alle Schulinformationen, die du täglich brauchst – schneller und übersichtlicher als je zuvor.
+          </p>
+        </div>
         <div className="lp-compare-grid">
           {COMPARE.map(({ title, sub, icon, rd }) => (
             <div className="lp-compare-cell lp-reveal" style={{ transitionDelay: `${rd}ms` }} key={title}>
@@ -561,7 +596,7 @@ export default function LandingClient() {
           <div className="lp-eyebrow lp-reveal" style={{ marginBottom: 8 }}>Anmeldung</div>
           <h2 className="lp-h2 lp-reveal" {...reveal(80)}>In 30&nbsp;Sekunden eingeloggt.</h2>
           <p className="lp-lead lp-reveal" style={{ maxWidth: 560, margin: '18px auto 0', transitionDelay: '160ms' }}>
-            POKYH benutzt deinen{' '}
+            POKYH nutzt deinen{' '}
             <strong style={{ color: 'var(--app-text-primary)', fontWeight: 500 }}>WebUntis‑Account</strong>
             {' '}— denselben, mit dem du dich auch in der WebUntis‑App anmeldest. Kein neues Passwort, keine Registrierung.
           </p>
@@ -569,7 +604,7 @@ export default function LandingClient() {
         <div className="lp-steps-grid">
           {[
             { num:'01', title:'BFS Tschuggmall',   body: <><strong>Momentan</strong> wird nur das Berufsbildungszentrum <strong>„Christian Josef Tschuggmall“</strong> unterstützt.</>,                                    rd:0   },
-            { num:'02', title:'WebUntis‑Login',  body: <>Gib deinen <strong>WebUntis‑Benutzernamen</strong> und dein Passwort ein — wie in der WebUntis‑App.</>, rd:100 },
+            { num:'02', title:'WebUntis‑Login',  body: <>Gib deinen <strong>WebUntis‑Benutzernamen</strong> und dein Passwort ein — wie in der WebUntis‑App. Dein Passwort wird <strong>niemals gespeichert</strong>.</>, rd:100 },
             { num:'03', title:'Loslegen',        body: <>Stundenplan, Noten und Mensa werden <strong>automatisch geladen</strong>.</>,                          rd:200 },
           ].map(({ num, title, body, rd }) => (
             <div className="lp-step lp-reveal" style={{ transitionDelay: `${rd}ms` }} key={num}>
@@ -614,11 +649,69 @@ export default function LandingClient() {
         </div>
       </section>
 
+      {/* ── SEO TEXT SECTION ── */}
+      <section className="lp-steps" style={{ paddingTop: 0 }} aria-label="Über POKYH">
+        <div className="lp-steps-head" style={{ marginBottom: 0 }}>
+          <div className="lp-eyebrow lp-reveal" style={{ marginBottom: 8 }}>Über die App</div>
+          <h2 className="lp-h2 lp-reveal" {...reveal(80)}>Was ist POKYH?</h2>
+          <div style={{ maxWidth: 720, margin: '0 auto', textAlign: 'left' }}>
+            <p className="lp-lead lp-reveal" style={{ margin: '24px auto 0', transitionDelay: '120ms' }}>
+              <strong style={{ color: 'var(--app-text-primary)', fontWeight: 600 }}>POKYH</strong> ist die moderne, kostenlose Web-App für Schülerinnen und Schüler der{' '}
+              <strong style={{ color: 'var(--app-text-primary)', fontWeight: 600 }}>LBS Brixen</strong>{' '}
+              (Landesberufsschule Brixen, Südtirol). Die App bündelt alle wichtigen Schulinformationen in einer übersichtlichen, schnellen Oberfläche.
+            </p>
+            <div className="lp-steps-grid" style={{ marginTop: 32 }}>
+              {[
+                {
+                  num: '📅',
+                  title: 'Stundenplan & Prüfungen',
+                  body: 'Dein persönlicher Stundenplan der LBS Brixen – immer aktuell, mit Vertretungen, Entfällen und kommenden Prüfungen auf einen Blick.',
+                  rd: 0,
+                },
+                {
+                  num: '📊',
+                  title: 'Noten & Gesamtschnitt',
+                  body: 'Alle deine Noten nach Fach, automatischer Gesamtdurchschnitt auf zwei Dezimalstellen. Behalte deinen Lernfortschritt im Blick.',
+                  rd: 80,
+                },
+                {
+                  num: '🍽️',
+                  title: 'Mensa & Speiseplan',
+                  body: 'Täglich aktueller Speiseplan der Schulkantine mit Nährwerten, Allergenen und Bewertungen von Mitschülern.',
+                  rd: 160,
+                },
+                {
+                  num: '💬',
+                  title: 'Nachrichten & Erinnerungen',
+                  body: 'Schulnachrichten mit Anhängen, klassenweite Erinnerungen für Prüfungen und eine persönliche Todo-Liste – alles in einer App.',
+                  rd: 240,
+                },
+              ].map(({ num, title, body, rd }) => (
+                <div className="lp-step lp-reveal" style={{ transitionDelay: `${rd}ms` }} key={title}>
+                  <div className="lp-step-num" style={{ fontSize: 28, background: 'transparent', border: '1px solid var(--lp-card-border)' }}>{num}</div>
+                  <div className="lp-step-title">{title}</div>
+                  <div className="lp-step-body">{body}</div>
+                </div>
+              ))}
+            </div>
+            <p className="lp-lead lp-reveal" style={{ margin: '32px auto 0', transitionDelay: '280ms', fontSize: '0.95rem' }}>
+              POKYH wurde von{' '}
+              <strong style={{ color: 'var(--app-text-primary)', fontWeight: 600 }}>Schülern für Schüler</strong>{' '}
+              des Berufsbildungszentrums Christian Josef Tschuggmall entwickelt. Die App ist{' '}
+              <strong style={{ color: 'var(--app-text-primary)', fontWeight: 600 }}>Open Source, vollständig kostenlos und werbefrei</strong>.{' '}
+              Die Anmeldung erfolgt mit deinem <strong style={{ color: 'var(--app-text-primary)', fontWeight: 600 }}>WebUntis‑Account</strong> — dein Passwort wird dabei{' '}
+              <strong style={{ color: 'var(--app-text-primary)', fontWeight: 600 }}>niemals gespeichert</strong>, nur dein Benutzername wird intern verwendet.
+              POKYH ist kein offizielles Produkt der Schule — es ist ein unabhängiges Schülerprojekt.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* ── CTA ── */}
       <section className="lp-cta" id="login">
-        <h2 className="lp-h2 lp-reveal">Bereit?</h2>
+        <h2 className="lp-h2 lp-reveal">Bereit loszulegen?</h2>
         <p className="lp-lead lp-reveal" {...reveal(80)}>
-          Kostenlos. Ohne Registrierung. Mit deinem WebUntis‑Account.
+          Kostenlos. Werbefrei. Anmeldung mit WebUntis‑Account — kein Passwort wird gespeichert.
         </p>
         <div className="lp-reveal" style={{ transitionDelay: '160ms', marginTop: 32, display: 'inline-flex', gap: 22, alignItems: 'center', flexWrap: 'wrap' }}>
           <Link href="/login"    className="lp-btn">Mit WebUntis anmelden</Link>

@@ -6,13 +6,18 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.app';
 export const metadata: Metadata = {
   title: 'POKYH – Die Schulapp für LBS Brixen Schüler',
   description:
-    'POKYH ist die kostenlose Web-App für Schülerinnen und Schüler der LBS Brixen. Stundenplan, Noten, Mensa, Abwesenheiten, Nachrichten und Klassen-Erinnerungen – alles über WebUntis.',
+    'POKYH ist die kostenlose Web-App für Schülerinnen und Schüler der LBS Brixen. Stundenplan, Noten, Mensa, Abwesenheiten, Nachrichten und Klassen-Erinnerungen – alles übersichtlich an einem Ort.',
   keywords: [
     'POKYH', 'LBS Brixen', 'LBS Brixen App', 'Schulapp LBS Brixen',
-    'WebUntis LBS Brixen', 'Stundenplan LBS Brixen', 'Noten LBS Brixen',
+    'WebUntis LBS Brixen', 'WebUntis Alternative', 'WebUntis App Brixen',
+    'WebUntis auf Steroid', 'WebUntis besser', 'WebUntis Stundenplan',
+    'Stundenplan LBS Brixen', 'Noten LBS Brixen',
     'Mensa LBS Brixen', 'Abwesenheiten LBS Brixen', 'Landesberufsschule Brixen',
     'Berufsschule Brixen Südtirol', 'Schule App Südtirol', 'LBS Brixen online',
     'LBS Brixen Stundenplan online', 'Schulapp Südtirol kostenlos',
+    'BFZ Tschuggmall', 'Schulportal LBS Brixen', 'Schüler App Brixen',
+    'Schulapp gratis', 'Schulinformationssystem Brixen',
+    'WebUntis Noten', 'WebUntis Abwesenheiten', 'WebUntis Nachrichten',
   ],
   alternates: {
     canonical: SITE_URL,
@@ -25,14 +30,12 @@ export const metadata: Metadata = {
     url: SITE_URL,
     siteName: 'POKYH',
     title: 'POKYH – Die Schulapp für LBS Brixen Schüler',
-    description: 'Kostenlose Web-App für LBS Brixen Schüler: Stundenplan, Noten, Mensa, Abwesenheiten und Nachrichten – direkt über WebUntis.',
-    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'POKYH – Schulapp LBS Brixen' }],
+    description: 'Kostenlose Web-App für LBS Brixen Schüler: Stundenplan, Noten, Mensa, Abwesenheiten und Nachrichten – schnell, modern, gratis.',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'POKYH – Die Schulapp für LBS Brixen',
     description: 'Kostenlose Web-App für LBS Brixen Schüler: Stundenplan, Noten, Mensa und mehr.',
-    images: [{ url: '/og-image.png', alt: 'POKYH – Schulapp LBS Brixen' }],
   },
   robots: {
     index: true, follow: true,
@@ -49,7 +52,7 @@ const faqStructuredData = {
       name: 'Was ist POKYH?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'POKYH ist eine kostenlose Web-App für Schülerinnen und Schüler der LBS Brixen (Landesberufsschule Brixen, Südtirol). Sie bündelt WebUntis-Daten wie Stundenplan, Noten, Abwesenheiten und Nachrichten in einer modernen Oberfläche.',
+        text: 'POKYH ist eine kostenlose Web-App für Schülerinnen und Schüler der LBS Brixen (Landesberufsschule Brixen, Südtirol). Sie bündelt alle wichtigen Schulinformationen – Stundenplan, Noten, Abwesenheiten, Nachrichten und Mensa – in einer modernen, übersichtlichen Oberfläche.',
       },
     },
     {
@@ -57,7 +60,7 @@ const faqStructuredData = {
       name: 'Wer kann POKYH nutzen?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'POKYH steht ausschließlich Schülerinnen und Schülern der LBS Brixen zur Verfügung, die einen aktiven WebUntis-Account haben.',
+        text: 'POKYH steht ausschließlich Schülerinnen und Schülern des Berufsbildungszentrums Christian Josef Tschuggmall (LBS Brixen) zur Verfügung, die einen aktiven Schulaccount haben.',
       },
     },
     {
@@ -65,7 +68,7 @@ const faqStructuredData = {
       name: 'Ist POKYH kostenlos?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Ja, POKYH ist vollständig kostenlos und werbefrei. Die App ist ein nicht-kommerzielles, von Schülern entwickeltes Open-Source-Projekt.',
+        text: 'Ja, POKYH ist vollständig kostenlos und werbefrei. Die App ist ein nicht-kommerzielles, von Schülern entwickeltes Open-Source-Projekt ohne Abo-Kosten.',
       },
     },
     {
@@ -73,7 +76,7 @@ const faqStructuredData = {
       name: 'Welche Funktionen bietet POKYH?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'POKYH bietet: Stundenplan (Wochenansicht mit Prüfungen und Vertretungen), Notenübersicht mit Notensimulator, Mensa-Speiseplan mit Nährwerten, Nachrichten-Inbox, Abwesenheits-Tracking, Klassen-Erinnerungen und eine persönliche Todo-Liste.',
+        text: 'POKYH bietet: Stundenplan (Tages- und Wochenansicht mit Prüfungen und Vertretungen), Notenübersicht mit automatischem Gesamtschnitt, Mensa-Speiseplan mit Nährwerten und Bewertungen, Nachrichten-Inbox mit Anhängen, Abwesenheits-Tracking mit Jahresübersicht, klassenweite Erinnerungen für Prüfungen und eine persönliche Todo-Liste.',
       },
     },
     {
@@ -81,7 +84,7 @@ const faqStructuredData = {
       name: 'Wie melde ich mich bei POKYH an?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Die Anmeldung erfolgt mit deinen WebUntis-Zugangsdaten (Benutzername und Passwort). Dein Passwort wird niemals gespeichert – nur ein verschlüsseltes Session-Token.',
+        text: 'Die Anmeldung bei POKYH erfolgt mit deinen Schulzugangsdaten (Benutzername und Passwort). Dein Passwort wird niemals gespeichert – nur ein verschlüsseltes Session-Token.',
       },
     },
     {
@@ -89,9 +92,65 @@ const faqStructuredData = {
       name: 'Ist POKYH sicher?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Ja. POKYH speichert keine Passwörter. Das WebUntis-Session-Token wird serverseitig AES-GCM-verschlüsselt in einem httpOnly-Cookie gespeichert, auf das JavaScript keinen Zugriff hat. Alle API-Aufrufe erfolgen serverseitig.',
+        text: 'Ja. POKYH speichert keine Passwörter. Das Session-Token wird serverseitig AES-GCM-verschlüsselt in einem httpOnly-Cookie gespeichert, auf das JavaScript keinen Zugriff hat. Alle API-Aufrufe erfolgen serverseitig.',
       },
     },
+    {
+      '@type': 'Question',
+      name: 'Wo befindet sich die LBS Brixen?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Die LBS Brixen (Landesberufsschule, auch Berufsbildungszentrum Christian Josef Tschuggmall) befindet sich in Brixen, Südtirol, Italien. POKYH ist speziell für Schülerinnen und Schüler dieser Schule entwickelt worden.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Kann ich den Stundenplan von LBS Brixen online einsehen?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Ja! Mit POKYH kannst du deinen persönlichen Stundenplan der LBS Brixen jederzeit online einsehen – inklusive Vertretungen, Prüfungen und Entfälle, alles in einer übersichtlichen Wochenansicht.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Zeigt POKYH auch Vertretungen und Stundenplanänderungen an?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Ja. POKYH zeigt alle Stundenplanänderungen in Echtzeit an – Vertretungen, Entfälle und zusätzliche Stunden sind farblich klar gekennzeichnet.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Funktioniert POKYH auf dem Smartphone?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Ja, POKYH ist vollständig für Mobile optimiert und funktioniert auf iPhone, Android und allen modernen Smartphones. Die App kann auch als PWA (Progressive Web App) zum Homescreen hinzugefügt werden.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Was ist der Unterschied zwischen POKYH und WebUntis?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'POKYH verwendet die WebUntis-API, um dieselben Schuldaten – Stundenplan, Noten, Abwesenheiten und Nachrichten – in einer modernen, schnellen und übersichtlicheren Oberfläche darzustellen. POKYH ist ein inoffizielles, von Schülern entwickeltes Open-Source-Projekt und steht in keiner offiziellen Verbindung zur WebUntis GmbH. Die Anmeldung erfolgt mit demselben WebUntis-Benutzernamen und Passwort – das Passwort wird dabei niemals gespeichert.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Speichert POKYH mein WebUntis-Passwort?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Nein. POKYH speichert dein Passwort niemals. Das WebUntis-Session-Token wird serverseitig AES-GCM-verschlüsselt in einem httpOnly-Cookie gespeichert, das für JavaScript nicht zugänglich ist. Nur dein Benutzername wird intern für Klassen-Funktionen verwendet.',
+      },
+    },
+  ],
+};
+
+const breadcrumbData = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'POKYH', item: SITE_URL },
   ],
 };
 
@@ -101,6 +160,10 @@ export default function LandingPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqStructuredData) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }}
       />
       <LandingClient />
     </>

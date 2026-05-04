@@ -2,52 +2,60 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import LoginForm from './LoginForm';
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.app';
+
 export const metadata: Metadata = {
   title: 'Anmelden – POKYH | Schulapp LBS Brixen',
   description:
-    'POKYH ist die moderne Web-App für LBS Brixen Schüler. Stundenplan, Noten, Mensa und Nachrichten – direkt über deinen WebUntis-Account erreichbar.',
+    'Melde dich bei POKYH an – der Schulapp für LBS Brixen Schüler. Stundenplan, Noten, Mensa und Nachrichten – schnell und sicher mit deinem Schulaccount.',
   keywords: [
     'POKYH',
     'LBS Brixen',
     'Schulapp LBS Brixen',
-    'WebUntis LBS Brixen',
+    'LBS Brixen Anmeldung',
     'Stundenplan LBS Brixen',
     'Noten LBS Brixen',
     'Mensa LBS Brixen',
     'Schule Brixen App',
-    'LBS Brixen Anmeldung',
     'LBS Brixen Stundenplan online',
+    'BFZ Tschuggmall App',
   ],
   openGraph: {
-    title: 'POKYH – Schulapp für LBS Brixen Schüler',
+    title: 'Anmelden – POKYH Schulapp LBS Brixen',
     description:
-      'Stundenplan, Noten, Mensa, Abwesenheiten und Nachrichten – alles an einem Ort für LBS Brixen.',
+      'Melde dich bei POKYH an: Stundenplan, Noten, Mensa, Abwesenheiten und Nachrichten – die Schulapp für LBS Brixen.',
     type: 'website',
     locale: 'de_IT',
     siteName: 'POKYH',
-    images: [
-      {
-        url: '/og-image.png',
-        width: 1200,
-        height: 630,
-        alt: 'POKYH – Schulapp LBS Brixen',
-      },
-    ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'POKYH – Schulapp LBS Brixen',
+    title: 'POKYH Anmelden – Schulapp LBS Brixen',
     description: 'Stundenplan, Noten, Mensa und mehr für LBS Brixen Schüler.',
-    images: ['/og-image.png'],
   },
   robots: { index: true, follow: true, googleBot: { index: true, follow: true } },
-  alternates: { canonical: '/login' },
+  alternates: { canonical: `${SITE_URL}/login` },
+};
+
+const breadcrumbData = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'POKYH', item: SITE_URL },
+    { '@type': 'ListItem', position: 2, name: 'Anmelden', item: `${SITE_URL}/login` },
+  ],
 };
 
 export default function LoginPage() {
   return (
-    <Suspense>
-      <LoginForm />
-    </Suspense>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }}
+      />
+      <Suspense>
+        <LoginForm />
+      </Suspense>
+    </>
   );
 }
