@@ -255,11 +255,6 @@ function DishCard({
                 <TagBadge key={tag} tag={tag} />
               ))}
             </div>
-            {dish.price != null && (
-              <p className="text-sm font-bold flex-shrink-0" style={{ color: 'var(--accent)' }}>
-                €{dish.price.toFixed(2)}
-              </p>
-            )}
           </div>
         </div>
       </div>
@@ -359,15 +354,10 @@ function DishDetail({
         </div>
 
         <div className="p-5">
-          <div className="flex items-start justify-between gap-3 mb-2">
-            <h2 className="text-xl font-bold flex-1" style={{ color: 'var(--app-text-primary)' }}>
+          <div className="mb-2">
+            <h2 className="text-xl font-bold" style={{ color: 'var(--app-text-primary)' }}>
               {resolveName(dish.name)}
             </h2>
-            {dish.price != null && (
-              <span className="text-lg font-bold flex-shrink-0" style={{ color: 'var(--accent)' }}>
-                €{dish.price.toFixed(2)}
-              </span>
-            )}
           </div>
 
           {dish.description && (
