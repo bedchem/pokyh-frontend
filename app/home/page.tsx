@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { ChevronRight, Clock, TrendingUp, BookOpen, MessageCircle, FileText } from 'lucide-react';
+import { ChevronRight, Clock, TrendingUp, BookOpen, MessageCircle, FileText, Star } from 'lucide-react';
 import { useSession } from '@/providers/SessionProvider';
+import { useFirebase } from '@/providers/FirebaseProvider';
+import { api } from '@/lib/api-client';
 import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
 import {
@@ -62,48 +64,73 @@ function formatMessageDate(dateStr: string): string {
 
 function parseTimetableResult(json: unknown): TimetableEntry[] {
   try {
-    const root = json as Record<string, unknown>;
-    const wData = ((root?.data as Record<string, unknown>)?.result as Record<string, unknown>)?.data as Record<string, unknown>;
-    const elementPeriods = wData?.elementPeriods as Record<string, unknown[]>;
-    const elements = wData?.elements as Array<Record<string, unknown>>;
-    if (!elementPeriods || !elements) return [];
-
-    const subjectMap: Record<number, { name: string; longName: string }> = {};
-    const teacherMap: Record<number, string> = {};
-    const roomMap: Record<number, string> = {};
-
-    elements.forEach((el) => {
-      if (el.type === 3) subjectMap[el.id as number] = { name: el.name as string, longName: (el.displayname as string) ?? (el.longName as string) ?? (el.name as string) };
-      if (el.type === 2) teacherMap[el.id as number] = el.name as string;
-      if (el.type === 4) roomMap[el.id as number] = el.name as string;
-    });
+    const root = json as { days?: any[] };
+    if (!root.days) return [];
 
     const entries: TimetableEntry[] = [];
-    Object.values(elementPeriods).flat().forEach((period: unknown) => {
-      const p = period as Record<string, unknown>;
-      const refs = (p.elements as Array<Record<string, unknown>>) ?? [];
-      const subRef = refs.find((r) => r.type === 3);
-      const teaRef = refs.find((r) => r.type === 2);
-      const roomRef = refs.find((r) => r.type === 4);
-      const cellState = (p.cellState as string) ?? 'STANDARD';
-      const isInfo = p.is as Record<string, unknown> | undefined;
-      const isCancelled = cellState === 'CANCEL' || (isInfo?.cancelled as boolean) === true;
-      entries.push({
-        id: p.id as number, lessonId: p.lessonId as number,
-        date: p.date as number, startTime: p.startTime as number, endTime: p.endTime as number,
-        subjectName: subjectMap[subRef?.id as number]?.name ?? '',
-        subjectLong: subjectMap[subRef?.id as number]?.longName ?? '',
-        teacherName: teacherMap[teaRef?.id as number] ?? '',
-        roomName: roomMap[roomRef?.id as number] ?? '',
-        cellState: cellState as TimetableEntry['cellState'],
-        isExam: (isInfo?.exam as boolean) === true,
-        isCancelled,
-        isSubstitution: cellState === 'SUBSTITUTION',
-        isAdditional: cellState === 'ADDITIONAL',
-      });
-    });
-    return entries.sort((a, b) => a.date - b.date || a.startTime - b.startTime);
-  } catch { return []; }
+
+    for (const day of root.days) {
+      if (!day.gridEntries?.length) continue;
+      const dateNum = parseInt(day.date.replace(/-/g, ''), 10);
+
+      for (const ge of day.gridEntries) {
+        const [startH, startM] = ge.duration.start.split('T')[1].split(':').map(Number);
+        const [endH, endM]     = ge.duration.end.split('T')[1].split(':').map(Number);
+        const startTime = startH * 100 + startM;
+        const endTime   = endH   * 100 + endM;
+
+        const pos1 = ge.position1 ?? [];
+        const pos2 = ge.position2 ?? [];
+        const pos3 = ge.position3 ?? [];
+
+        const activeTeachers      = pos1.filter((p: any) => p.current).map((p: any) => p.current!.displayName).filter(Boolean);
+        const activeTeachersLong  = pos1.filter((p: any) => p.current).map((p: any) => p.current!.longName || p.current!.displayName).filter(Boolean);
+        const removedTeachers     = pos1.filter((p: any) => p.removed).map((p: any) => p.removed!.displayName).filter(Boolean);
+        const removedTeachersLong = pos1.filter((p: any) => p.removed).map((p: any) => p.removed!.longName || p.removed!.displayName).filter(Boolean);
+
+        const activeSub  = pos2.find((p: any) => p.current)?.current ?? null;
+        const removedSub = pos2.find((p: any) => p.removed)?.removed ?? null;
+
+        const activeRooms  = pos3.filter((p: any) => p.current).map((p: any) => p.current!.displayName).filter(Boolean);
+        const removedRooms = pos3.filter((p: any) => p.removed).map((p: any) => p.removed!.displayName).filter(Boolean);
+
+        const isExam         = ge.type === 'EXAM';
+        const isCancelled    = ge.status === 'CANCELLED';
+        const isChanged      = ge.status === 'CHANGED';
+        const isSubstitution = isChanged && removedTeachers.length > 0;
+
+        entries.push({
+          id:               ge.ids[0],
+          lessonId:         ge.ids[0],
+          date:             dateNum,
+          startTime,
+          endTime,
+          subjectName:      activeSub?.shortName  ?? removedSub?.shortName  ?? '',
+          subjectLong:      activeSub?.longName   ?? removedSub?.longName   ?? '',
+          teacherName:      activeTeachers.join(', '),
+          teacherLongName:  activeTeachersLong.join(', ') || undefined,
+          roomName:         activeRooms.join(', '),
+          cellState:        isCancelled ? 'CANCEL' : isChanged ? 'SUBSTITUTION' : 'STANDARD',
+          isExam,
+          isCancelled,
+          isSubstitution,
+          isAdditional:     ge.type === 'ADDITIONAL',
+          originalSubject:     removedSub?.shortName ?? '',
+          originalSubjectLong: removedSub?.longName  ?? '',
+          originalTeacher:     removedTeachers.join(', '),
+          originalTeacherLong: removedTeachersLong.join(', ') || undefined,
+          originalRoom:     removedRooms.join(', '),
+          note:             ge.lessonInfo || ge.lessonText || undefined,
+        });
+      }
+    }
+
+    return entries.sort((a, b) =>
+      a.date !== b.date ? a.date - b.date : a.startTime - b.startTime,
+    );
+  } catch {
+    return [];
+  }
 }
 
 function parseGradesResult(json: unknown): { avg: number | null; subjectCount: number; recentGrades: RecentGrade[] } {
@@ -152,6 +179,81 @@ function daysUntilLabel(d: number): string {
   return `in ${diff} Tagen`;
 }
 
+function resolveName(raw: unknown): string {
+  if (!raw) return '';
+  if (typeof raw === 'string') return raw;
+  const obj = raw as Record<string, string>;
+  return obj.de ?? obj.it ?? obj.en ?? String(raw);
+}
+
+const CATEGORY_GRADIENTS: Record<string, string> = {
+  suppe:   'linear-gradient(135deg, #FF9F43 0%, #EE5A24 100%)',
+  pasta:   'linear-gradient(135deg, #F8C291 0%, #E55039 100%)',
+  fleisch: 'linear-gradient(135deg, #B8860B 0%, #8B4513 100%)',
+  fisch:   'linear-gradient(135deg, #0066CC 0%, #003366 100%)',
+  salat:   'linear-gradient(135deg, #2ecc71 0%, #27ae60 100%)',
+  dessert: 'linear-gradient(135deg, #e84393 0%, #c0392b 100%)',
+  vegan:   'linear-gradient(135deg, #00b894 0%, #00cec9 100%)',
+  default: 'linear-gradient(135deg, #636e72 0%, #2d3436 100%)',
+};
+
+function dishPlaceholderBg(dish: Dish): string {
+  const cat = (dish.category ?? '').toLowerCase();
+  for (const key of Object.keys(CATEGORY_GRADIENTS)) {
+    if (cat.includes(key)) return CATEGORY_GRADIENTS[key];
+  }
+  if (dish.tags?.some((t) => t.toLowerCase().includes('vegan'))) return CATEGORY_GRADIENTS.vegan;
+  return CATEGORY_GRADIENTS.default;
+}
+
+const TAG_COLORS: Record<string, { bg: string; fg: string }> = {
+  vegan:       { bg: 'color-mix(in srgb, #30D158 18%, transparent)', fg: '#30D158' },
+  vegetarisch: { bg: 'color-mix(in srgb, #4ED87A 18%, transparent)', fg: '#4ED87A' },
+  vegetarian:  { bg: 'color-mix(in srgb, #4ED87A 18%, transparent)', fg: '#4ED87A' },
+  glutenfrei:  { bg: 'color-mix(in srgb, #FFD60A 18%, transparent)', fg: '#B8950A' },
+  halal:       { bg: 'color-mix(in srgb, #0A84FF 18%, transparent)', fg: '#0A84FF' },
+};
+
+function MensaTagBadge({ tag }: { tag: string }) {
+  const colors = TAG_COLORS[tag.toLowerCase()] ?? {
+    bg: 'color-mix(in srgb, var(--app-text-secondary) 15%, transparent)',
+    fg: 'var(--app-text-secondary)',
+  };
+  return (
+    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: colors.bg, color: colors.fg }}>
+      {tag}
+    </span>
+  );
+}
+
+function MiniStars({ value, count }: { value: number; count: number }) {
+  return (
+    <div className="flex items-center gap-1">
+      <div className="flex gap-0.5">
+        {[1, 2, 3, 4, 5].map((s) => {
+          const fill = Math.min(1, Math.max(0, value - (s - 1)));
+          return (
+            <div key={s} className="relative" style={{ width: 11, height: 11 }}>
+              <Star size={11} fill="none" color="var(--app-text-tertiary)" />
+              {fill > 0 && (
+                <div className="absolute inset-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
+                  <Star size={11} fill="#FFD60A" color="#FFD60A" />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <span className="text-[11px] font-semibold" style={{ color: 'var(--app-text-secondary)' }}>
+        {value.toFixed(1)}
+      </span>
+      <span className="text-[10px]" style={{ color: 'var(--app-text-tertiary)' }}>
+        ({count})
+      </span>
+    </div>
+  );
+}
+
 function SectionHeader({ title, href }: { title: string; href?: string }) {
   return (
     <div className="flex items-center justify-between mb-3">
@@ -184,6 +286,7 @@ function StatCard({ label, value, sub, color, icon: Icon, href }: { label: strin
 
 export default function HomePage() {
   const { user } = useSession();
+  const { stableUid } = useFirebase();
   const [allEntries, setAllEntries] = useState<TimetableEntry[]>([]);
   const [nextExam, setNextExam] = useState<TimetableEntry | null>(null);
   const [overallAvg, setOverallAvg] = useState<number | null>(null);
@@ -191,7 +294,9 @@ export default function HomePage() {
   const [recentGrades, setRecentGrades] = useState<RecentGrade[]>([]);
   const [messages, setMessages] = useState<MessagePreview[]>([]);
   const [dishes, setDishes] = useState<Dish[]>([]);
+  const [dishRatings, setDishRatings] = useState<Record<string, { value: number; count: number }>>({});
   const [loading, setLoading] = useState(true);
+  const ratingsFetched = useRef(false);
 
   const load = useCallback(async () => {
     // Phase 0: render instantly from localStorage cache (no spinner if data exists)
@@ -266,8 +371,45 @@ export default function HomePage() {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    if (!stableUid || dishes.length === 0 || ratingsFetched.current) return;
+    ratingsFetched.current = true;
+
+    const dishIds = dishes.map((dish) => dish.id);
+    api.dishRatings.getBatch(dishIds)
+      .then((batch) => {
+        const ratings: Record<string, { value: number; count: number }> = {};
+        for (const [dishId, data] of Object.entries(batch)) {
+          const values = Object.values(data.ratings);
+          ratings[dishId] = {
+            value: values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0,
+            count: values.length,
+          };
+        }
+        setDishRatings(ratings);
+      })
+      .catch((e) => console.error('[home] mensa ratings fetch error:', e));
+  }, [stableUid, dishes]);
+
   const todayDateNum = parseInt(format(new Date(), 'yyyyMMdd'));
-  const todayEntries = allEntries.filter((e) => e.date === todayDateNum).sort((a, b) => a.startTime - b.startTime);
+  const todayEntriesRaw = allEntries.filter((e) => e.date === todayDateNum);
+
+  // Group entries sharing the same startTime to count "hours" correctly
+  // (mirrors logic from timetable/page.tsx's buildSlots)
+  const timeGroups = new Map<number, TimetableEntry[]>();
+  todayEntriesRaw.forEach(e => {
+    if (!timeGroups.has(e.startTime)) timeGroups.set(e.startTime, []);
+    timeGroups.get(e.startTime)!.push(e);
+  });
+  
+  // Create one slot per unique start time (prioritize active entries)
+  const todayEntries = Array.from(timeGroups.entries())
+    .map(([, group]) => {
+      const active = group.find(e => !e.isCancelled);
+      return active ?? group[0]; // fallback to cancelled if no active
+    })
+    .sort((a, b) => a.startTime - b.startTime);
+
   const activeTodayEntries = todayEntries.filter((e) => !e.isCancelled);
   const firstActive = activeTodayEntries[0] ?? null;
   const lastActive = activeTodayEntries[activeTodayEntries.length - 1] ?? null;
@@ -295,16 +437,82 @@ export default function HomePage() {
             ) : (
               <div className="flex flex-col gap-6">
 
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 fade-in delay-1">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 fade-in">
                   <StatCard label="Unterrichtsende" value={lastActive ? parseTime(lastActive.endTime) : '–'} sub={firstActive ? `Start: ${parseTime(firstActive.startTime)}` : 'Kein Unterricht'} color="var(--accent)" icon={Clock} />
                   <StatCard label="Notenschnitt" value={overallAvg != null ? overallAvg.toFixed(2) : '–'} sub={`${subjectCount} ${subjectCount === 1 ? 'Fach' : 'Fächer'}`} color={overallAvg != null ? averageColor(overallAvg) : 'var(--app-text-secondary)'} icon={TrendingUp} href="/grades" />
                   <StatCard label="Stunden heute" value={String(todayEntries.length)} sub={activeTodayEntries.length !== todayEntries.length ? `${activeTodayEntries.length} aktiv` : undefined} color="var(--tint)" icon={BookOpen} href="/timetable" />
                   <StatCard label="Nachrichten" value={String(messages.length)} sub={unreadCount > 0 ? `${unreadCount} ungelesen` : 'Alle gelesen'} color={unreadCount > 0 ? 'var(--danger)' : 'var(--app-text-secondary)'} icon={MessageCircle} href="/messages" />
                 </div>
 
+                {dishes.length > 0 && (
+                  <section className="fade-in">
+                    <SectionHeader title="Mensa heute" href="/mensa" />
+                    <div className="flex flex-col gap-2.5">
+                      {dishes.map((dish) => {
+                        const name = resolveName(dish.name);
+                        const desc = dish.description ? resolveName(dish.description) : null;
+                        const rating = dishRatings[dish.id] ?? { value: 0, count: 0 };
+                        return (
+                          <Link
+                            key={dish.id}
+                            href="/mensa"
+                            className="w-full rounded-2xl overflow-hidden press-scale flex"
+                            style={{ background: 'var(--app-surface)', border: '1px solid var(--app-border)' }}
+                          >
+                            <div className="relative flex-shrink-0" style={{ width: 100, height: 110 }}>
+                              {dish.imageUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={dish.imageUrl} alt={name} className="w-full h-full object-cover" loading="lazy" />
+                              ) : (
+                                <div className="w-full h-full" style={{ background: dishPlaceholderBg(dish) }} />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0 px-3.5 py-3 flex flex-col justify-between" style={{ minHeight: 110 }}>
+                              <div>
+                                <p className="text-[14px] font-semibold leading-snug line-clamp-2" style={{ color: 'var(--app-text-primary)' }}>
+                                  {name}
+                                </p>
+                                {desc && (
+                                  <p className="text-xs mt-0.5 line-clamp-1" style={{ color: 'var(--app-text-secondary)' }}>
+                                    {desc}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="mt-2 flex flex-col gap-1.5">
+                                {rating.count > 0 ? (
+                                  <MiniStars value={rating.value} count={rating.count} />
+                                ) : (
+                                  <div className="flex gap-0.5 items-center">
+                                    {[1, 2, 3, 4, 5].map((s) => (
+                                      <Star key={s} size={11} fill="none" color="var(--app-text-tertiary)" />
+                                    ))}
+                                    <span className="text-[10px] ml-1" style={{ color: 'var(--app-text-tertiary)' }}>
+                                      Noch keine Bewertung
+                                    </span>
+                                  </div>
+                                )}
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex flex-wrap gap-1">
+                                    {dish.tags?.slice(0, 2).map((tag) => <MensaTagBadge key={tag} tag={tag} />)}
+                                  </div>
+                                  {dish.price != null && (
+                                    <p className="text-sm font-bold flex-shrink-0" style={{ color: 'var(--accent)' }}>
+                                      €{dish.price.toFixed(2)}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </section>
+                )}
+
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                  <section className="fade-in delay-2">
+                  <section className="fade-in">
                     <SectionHeader title={`Heute · ${format(new Date(), 'd. MMMM', { locale: de })}`} href="/timetable" />
                     <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--app-surface)', border: '1px solid var(--app-border)' }}>
                       {todayEntries.length === 0 ? (
@@ -340,7 +548,7 @@ export default function HomePage() {
                   <div className="flex flex-col gap-6">
 
                     {nextExam && (
-                      <section className="fade-in delay-2">
+                      <section className="fade-in">
                         <SectionHeader title="Nächste Prüfung" href="/timetable" />
                         <div className="rounded-2xl p-4" style={{ background: 'var(--app-surface)', border: '1px solid color-mix(in srgb, var(--warning) 35%, var(--app-border))' }}>
                           <div className="flex items-center gap-3">
@@ -362,7 +570,7 @@ export default function HomePage() {
                     )}
 
                     {recentGrades.length > 0 && (
-                      <section className="fade-in delay-3">
+                      <section className="fade-in">
                         <SectionHeader title="Letzte Noten" href="/grades" />
                         <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--app-surface)', border: '1px solid var(--app-border)' }}>
                           {recentGrades.map((g, i) => (
@@ -381,7 +589,7 @@ export default function HomePage() {
                     )}
 
                     {messages.length > 0 && (
-                      <section className="fade-in delay-4">
+                      <section className="fade-in">
                         <SectionHeader title="Nachrichten" href="/messages" />
                         <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--app-surface)', border: '1px solid var(--app-border)' }}>
                           {messages.slice(0, 3).map((msg, i) => (
@@ -404,29 +612,6 @@ export default function HomePage() {
                     )}
                   </div>
                 </div>
-
-                {dishes.length > 0 && (
-                  <section className="fade-in delay-5">
-                    <SectionHeader title="Mensa heute" href="/mensa" />
-                    <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--app-surface)', border: '1px solid var(--app-border)' }}>
-                      {dishes.map((dish, i) => (
-                        <div key={dish.id} className="px-4 py-3 flex items-center gap-3" style={{ borderTop: i > 0 ? '1px solid var(--app-separator)' : 'none' }}>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm truncate" style={{ color: 'var(--app-text-primary)' }}>
-                              {typeof dish.name === 'object' ? ((dish.name as Record<string, string>).de ?? String(dish.name)) : dish.name}
-                            </p>
-                            {dish.price != null && <p className="text-xs mt-0.5" style={{ color: 'var(--app-text-secondary)' }}>€{dish.price.toFixed(2)}</p>}
-                          </div>
-                          {dish.tags && dish.tags.length > 0 && (
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: 'color-mix(in srgb, var(--tint) 15%, transparent)', color: 'var(--tint)' }}>
-                              {dish.tags[0]}
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                )}
               </div>
             )}
           </div>

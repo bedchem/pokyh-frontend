@@ -1413,7 +1413,6 @@ export default function TimetablePage() {
                               });
                             })}
 
-                            {/* Current-time indicator */}
                             {isToday && isCurrentWeek && nowMinutes >= minMins && nowMinutes <= maxMins && (
                               <div className="tt-now" style={{ top: (nowMinutes - minMins) * pxPerMin }}>
                                 <span className="tt-now-time">
@@ -1426,6 +1425,13 @@ export default function TimetablePage() {
                           </div>
                         );
                       })}
+
+                      {/* Global Current-Time Indicator line (spans all columns) */}
+                      {isCurrentWeek && nowMinutes >= minMins && nowMinutes <= maxMins && (
+                        <div className="tt-global-now" style={{ top: (nowMinutes - minMins) * pxPerMin, pointerEvents: 'none' }}>
+                          <div className="tt-now-line-global" />
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1665,10 +1671,10 @@ export default function TimetablePage() {
           @media (min-width: 768px) {
             .tt-day-num { font-size: 20px; min-width: 32px; height: 32px; }
           }
-          .tt-day-chip.is-today .tt-day-name { color: var(--accent); }
+          .tt-day-chip.is-today .tt-day-name { color: var(--app-text-primary); }
           .tt-day-chip.is-today .tt-day-num {
-            background: var(--accent);
-            color: #fff;
+            background: transparent;
+            color: var(--app-text-primary);
           }
           .tt-day-chip[data-state='holiday'] .tt-day-num,
           .tt-day-chip[data-state='weekend'] .tt-day-num,
@@ -1816,8 +1822,8 @@ export default function TimetablePage() {
             transition: background 0.15s;
           }
           .tt-col.is-today {
-            background: color-mix(in srgb, var(--accent) 4%, transparent);
-            box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent);
+            background: transparent;
+            box-shadow: none;
           }
 
           .tt-cell-slot {
@@ -1867,6 +1873,21 @@ export default function TimetablePage() {
             height: 1.5px;
             background: var(--accent);
             opacity: 0.85;
+          }
+
+          .tt-global-now {
+            position: absolute;
+            left: 0;
+            right: 0;
+            z-index: 9;
+            transform: translateY(-50%);
+          }
+          .tt-now-line-global {
+            width: 100%;
+            height: 1.5px;
+            background: var(--accent);
+            opacity: 0.4;
+            box-shadow: 0 0 4px color-mix(in srgb, var(--accent) 50%, transparent);
           }
 
           /* ── Legend ── */
