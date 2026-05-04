@@ -169,7 +169,7 @@ export function fetchHomework() {
 }
 
 export function fetchMensa() {
-  return apiFetchCached('/api/mensa');
+  return apiFetch('/api/mensa');
 }
 
 export function getAttachmentUrl(messageId: number, storageId: string, name: string, attachmentId?: number): string {
