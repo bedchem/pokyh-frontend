@@ -186,6 +186,28 @@ function resolveName(raw: unknown): string {
   return obj.de ?? obj.it ?? obj.en ?? String(raw);
 }
 
+function prioritizedDishTags(tags?: string[]): string[] {
+  if (!tags?.length) return [];
+  const vegan: string[] = [];
+  const vegetarian: string[] = [];
+  const other: string[] = [];
+
+  for (const tag of tags) {
+    const normalized = tag.toLowerCase();
+    if (normalized.includes('vegan')) {
+      vegan.push(tag);
+      continue;
+    }
+    if (normalized.includes('vegetar')) {
+      vegetarian.push(tag);
+      continue;
+    }
+    other.push(tag);
+  }
+
+  return [...vegan, ...vegetarian, ...other];
+}
+
 const CATEGORY_GRADIENTS: Record<string, string> = {
   suppe:   'linear-gradient(135deg, #FF9F43 0%, #EE5A24 100%)',
   pasta:   'linear-gradient(135deg, #F8C291 0%, #E55039 100%)',
@@ -493,7 +515,7 @@ export default function HomePage() {
                                 )}
                                 <div className="flex items-center justify-between gap-2">
                                   <div className="flex flex-wrap gap-1">
-                                    {dish.tags?.slice(0, 2).map((tag) => <MensaTagBadge key={tag} tag={tag} />)}
+                                    {prioritizedDishTags(dish.tags).slice(0, 2).map((tag) => <MensaTagBadge key={tag} tag={tag} />)}
                                   </div>
                                 </div>
                               </div>
