@@ -106,8 +106,8 @@ export interface HomeworkEntry {
 
 export interface Dish {
   id: string;
-  name: string;
-  description?: string;
+  name: string | { de?: string; it?: string; en?: string };
+  description?: string | { de?: string; it?: string; en?: string };
   category: string;
   date: string; // ISO date
   imageUrl?: string;

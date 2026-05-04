@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 
-const MENSA_URL = 'https://mensa.plattnericus.dev/mensa.json';
+const BACKEND_URL = process.env.API_BACKEND_URL ?? 'http://localhost:4000';
 
-export const revalidate = 3600; // revalidate hourly
+export const revalidate = 3600;
 
 export async function GET() {
   try {
-    const res = await fetch(MENSA_URL, {
-      headers: { Accept: 'application/json', 'User-Agent': 'ClassByte/1.0' },
+    const res = await fetch(`${BACKEND_URL}/dishes`, {
+      headers: { Accept: 'application/json' },
       next: { revalidate: 3600 },
     });
 
