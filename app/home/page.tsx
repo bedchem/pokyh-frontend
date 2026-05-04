@@ -495,11 +495,6 @@ export default function HomePage() {
                                   <div className="flex flex-wrap gap-1">
                                     {dish.tags?.slice(0, 2).map((tag) => <MensaTagBadge key={tag} tag={tag} />)}
                                   </div>
-                                  {dish.price != null && (
-                                    <p className="text-sm font-bold flex-shrink-0" style={{ color: 'var(--accent)' }}>
-                                      €{dish.price.toFixed(2)}
-                                    </p>
-                                  )}
                                 </div>
                               </div>
                             </div>
