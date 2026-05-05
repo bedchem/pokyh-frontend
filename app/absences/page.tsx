@@ -7,7 +7,7 @@ import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
 import EmptyView from '@/components/ui/EmptyView';
-import { fetchAbsences } from '@/lib/api';
+import { fetchAbsences, fetchTimetable } from '@/lib/api';
 import type { AbsenceEntry } from '@/lib/types';
 
 // ─── Time helpers ─────────────────────────────────────────────────────────────
@@ -30,6 +30,116 @@ function formatTime(t: number): string {
   const h = Math.floor(mins / 60);
   const m = mins % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function formatMinutes(m: number): string {
+  const h = Math.floor(m / 60);
+  const min = m % 60;
+  return min === 0 ? `${h}h` : `${h}h ${min}m`;
+}
+
+// ─── Timetable helpers for exact absence minutes ───────────────────────────────
+
+type DaySlot = { startMins: number; endMins: number };
+
+// Build a map of dateNum → deduplicated lesson slots from a timetable API response.
+// Only counts non-cancelled entries that have an actual subject (no breaks/free periods).
+function mergeTimetableIntoMap(
+  target: Map<number, Map<number, DaySlot>>,
+  json: unknown,
+): void {
+  try {
+    const root = json as { days?: any[] };
+    if (!root.days) return;
+    for (const day of root.days) {
+      if (!day.gridEntries?.length) continue;
+      const dateNum = parseInt(day.date.replace(/-/g, ''), 10);
+      if (!target.has(dateNum)) target.set(dateNum, new Map());
+      const timeMap = target.get(dateNum)!;
+      for (const ge of day.gridEntries) {
+        if (ge.status === 'CANCELLED') continue;
+        // Skip entries without any subject in position2 (e.g. breaks)
+        const pos2: any[] = ge.position2 ?? [];
+        const hasSub = pos2.some((p: any) => p.current || p.removed);
+        if (!hasSub) continue;
+        const timePart = ge.duration?.start?.split('T')[1];
+        const endPart  = ge.duration?.end?.split('T')[1];
+        if (!timePart || !endPart) continue;
+        const [startH, startM] = timePart.split(':').map(Number);
+        const [endH, endM]     = endPart.split(':').map(Number);
+        const startMins = startH * 60 + startM;
+        const endMins   = endH   * 60 + endM;
+        // Deduplicate by startMins so parallel subjects count as one period
+        if (!timeMap.has(startMins)) {
+          timeMap.set(startMins, { startMins, endMins });
+        }
+      }
+    }
+  } catch { /* ignore malformed responses */ }
+}
+
+// Returns one Monday date-string per calendar week that overlaps with any absence.
+function getWeeksForAbsences(absences: AbsenceEntry[]): string[] {
+  const mondays = new Set<string>();
+  function addWeekOf(d: Date) {
+    const dow = d.getDay();
+    const mon = new Date(d);
+    mon.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
+    mondays.add(
+      `${mon.getFullYear()}-${String(mon.getMonth() + 1).padStart(2, '0')}-${String(mon.getDate()).padStart(2, '0')}`,
+    );
+  }
+  for (const entry of absences) {
+    const s = entry.startDate.toString();
+    const e = entry.endDate.toString();
+    const start = new Date(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8));
+    const end   = new Date(+e.slice(0, 4), +e.slice(4, 6) - 1, +e.slice(6, 8));
+    const d = new Date(start);
+    while (d <= end) {
+      addWeekOf(d);
+      d.setDate(d.getDate() + 1);
+    }
+  }
+  return Array.from(mondays);
+}
+
+// Returns the exact lesson minutes for one absence entry by looking up the timetable.
+function calcAbsenceMinutes(
+  entry: AbsenceEntry,
+  dateMap: Map<number, DaySlot[]>,
+): number {
+  let total = 0;
+  const s = entry.startDate.toString();
+  const e = entry.endDate.toString();
+  const start = new Date(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8));
+  const end   = new Date(+e.slice(0, 4), +e.slice(4, 6) - 1, +e.slice(6, 8));
+  const isMultiDay  = entry.startDate !== entry.endDate;
+  const absStartMin = toMinutes(entry.startTime);
+  const absEndMin   = toMinutes(entry.endTime);
+
+  const d = new Date(start);
+  while (d <= end) {
+    const dow = d.getDay();
+    if (dow !== 0 && dow !== 6) {
+      const dateNum = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+      const slots = dateMap.get(dateNum) ?? [];
+      for (const slot of slots) {
+        // Clip the counted duration to the absence window
+        let countStart = slot.startMins;
+        let countEnd   = slot.endMins;
+        if (isMultiDay) {
+          if (absStartMin > 0 && dateNum === entry.startDate) countStart = Math.max(countStart, absStartMin);
+          if (absEndMin   > 0 && dateNum === entry.endDate)   countEnd   = Math.min(countEnd,   absEndMin);
+        } else {
+          if (absStartMin > 0) countStart = Math.max(countStart, absStartMin);
+          if (absEndMin   > 0) countEnd   = Math.min(countEnd,   absEndMin);
+        }
+        if (countEnd > countStart) total += countEnd - countStart;
+      }
+    }
+    d.setDate(d.getDate() + 1);
+  }
+  return total;
 }
 
 // ─── Parser ───────────────────────────────────────────────────────────────────
@@ -56,7 +166,7 @@ function parseAbsences(json: unknown): AbsenceEntry[] {
       const startTime = (item.startTime as number) ?? 0;
       const endTime = (item.endTime as number) ?? 0;
 
-      // Prefer the server-provided hours value; only calculate as fallback
+      // Prefer server-provided hours; fallback to single-day estimate
       const rawHours =
         (item.hours as number | null | undefined) ??
         (item.lessonHours as number | null | undefined) ??
@@ -67,7 +177,7 @@ function parseAbsences(json: unknown): AbsenceEntry[] {
         hours = rawHours;
       } else {
         const startMins = toMinutes(startTime);
-        const endMins = toMinutes(endTime);
+        const endMins   = toMinutes(endTime);
         hours = endMins > startMins
           ? Math.max(1, Math.round((endMins - startMins) / 50))
           : 1;
@@ -115,8 +225,9 @@ function formatDate(d: number): string {
 }
 
 function groupByMonth(
-  entries: AbsenceEntry[]
-): Array<{ key: string; label: string; entries: AbsenceEntry[]; hours: number }> {
+  entries: AbsenceEntry[],
+  minutesMap: Map<number, number>,
+): Array<{ key: string; label: string; entries: AbsenceEntry[]; totalMinutes: number }> {
   const map = new Map<string, AbsenceEntry[]>();
   entries.forEach((e) => {
     const s = e.startDate.toString();
@@ -133,14 +244,14 @@ function groupByMonth(
     key: string;
     label: string;
     entries: AbsenceEntry[];
-    hours: number;
+    totalMinutes: number;
   }> = [];
 
   map.forEach((es, key) => {
     const [year, month] = key.split('-');
     const label = `${MONTHS[parseInt(month) - 1]} ${year}`;
-    const hours = es.reduce((a, e) => a + e.hours, 0);
-    result.push({ key, label, entries: es, hours });
+    const totalMinutes = es.reduce((a, e) => a + (minutesMap.get(e.id) ?? e.hours * 60), 0);
+    result.push({ key, label, entries: es, totalMinutes });
   });
 
   return result.sort((a, b) => b.key.localeCompare(a.key));
@@ -151,6 +262,7 @@ function groupByMonth(
 export default function AbsencesPage() {
   const router = useRouter();
   const [absences, setAbsences] = useState<AbsenceEntry[]>([]);
+  const [minutesMap, setMinutesMap] = useState<Map<number, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -159,7 +271,29 @@ export default function AbsencesPage() {
     setError('');
     try {
       const res = await fetchAbsences();
-      setAbsences(parseAbsences(res));
+      const parsed = parseAbsences(res);
+      setAbsences(parsed);
+
+      // Fetch timetable for every week that overlaps with an absence
+      const weekDates = getWeeksForAbsences(parsed);
+      const weekResults = await Promise.allSettled(weekDates.map((d) => fetchTimetable(d)));
+
+      // Merge all weeks into a single date → slots map
+      const rawMap = new Map<number, Map<number, DaySlot>>();
+      weekResults.forEach((r) => {
+        if (r.status === 'fulfilled') mergeTimetableIntoMap(rawMap, r.value);
+      });
+      const dateMap = new Map<number, DaySlot[]>();
+      for (const [date, timeMap] of rawMap.entries()) {
+        dateMap.set(date, Array.from(timeMap.values()));
+      }
+
+      // Calculate exact lesson minutes per absence entry
+      const mins = new Map<number, number>();
+      for (const entry of parsed) {
+        mins.set(entry.id, calcAbsenceMinutes(entry, dateMap));
+      }
+      setMinutesMap(mins);
     } catch (e: unknown) {
       if (e instanceof Error && e.message === 'session_expired') {
         router.replace('/login');
@@ -175,31 +309,25 @@ export default function AbsencesPage() {
     load();
   }, [load]);
 
-  const totalHours = absences.reduce((a, e) => a + e.hours, 0);
-  const excused = absences
-    .filter((e) => e.isExcused)
-    .reduce((a, e) => a + e.hours, 0);
-  const unexcused = totalHours - excused;
+  const getMin = (e: AbsenceEntry) => minutesMap.get(e.id) ?? e.hours * 60;
+
+  const totalMinutes    = absences.reduce((a, e) => a + getMin(e), 0);
+  const excusedMinutes  = absences.filter((e) => e.isExcused).reduce((a, e) => a + getMin(e), 0);
+  const unexcusedMinutes = totalMinutes - excusedMinutes;
 
   // Absence rate estimate
   const now = new Date();
   const sep = new Date(
     now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1,
     8,
-    1
-  );
-  const elapsedDays = Math.floor(
-    (now.getTime() - sep.getTime()) / 86400000
-  );
-  const totalPossible = Math.max(
     1,
-    Math.floor((elapsedDays * 5) / 7) * 8
   );
-  const rate = Math.min((totalHours / totalPossible) * 100, 100);
-  const rateColor =
-    rate < 5 ? 'var(--tint)' : rate < 15 ? 'var(--warning)' : 'var(--danger)';
+  const elapsedDays = Math.floor((now.getTime() - sep.getTime()) / 86400000);
+  const totalPossibleMinutes = Math.max(1, Math.floor((elapsedDays * 5) / 7) * 8 * 60);
+  const rate      = Math.min((totalMinutes / totalPossibleMinutes) * 100, 100);
+  const rateColor = rate < 5 ? 'var(--tint)' : rate < 15 ? 'var(--warning)' : 'var(--danger)';
 
-  const groups = groupByMonth(absences);
+  const groups = groupByMonth(absences, minutesMap);
 
   return (
     <AuthGuard>
@@ -250,7 +378,7 @@ export default function AbsencesPage() {
                       className="text-3xl font-bold"
                       style={{ color: 'var(--app-text-primary)' }}
                     >
-                      {totalHours}
+                      {formatMinutes(totalMinutes)}
                     </p>
                   </div>
                   <div className="flex gap-5">
@@ -259,7 +387,7 @@ export default function AbsencesPage() {
                         className="text-xl font-bold"
                         style={{ color: 'var(--tint)' }}
                       >
-                        {excused}
+                        {formatMinutes(excusedMinutes)}
                       </p>
                       <p
                         className="text-xs"
@@ -273,7 +401,7 @@ export default function AbsencesPage() {
                         className="text-xl font-bold"
                         style={{ color: 'var(--danger)' }}
                       >
-                        {unexcused}
+                        {formatMinutes(unexcusedMinutes)}
                       </p>
                       <p
                         className="text-xs"
@@ -338,7 +466,7 @@ export default function AbsencesPage() {
                           className="text-sm"
                           style={{ color: 'var(--app-text-secondary)' }}
                         >
-                          {group.hours} Std.
+                          {formatMinutes(group.totalMinutes)}
                         </p>
                       </div>
                       <div className="flex flex-col gap-2">
@@ -378,7 +506,7 @@ export default function AbsencesPage() {
                                   className="text-sm font-semibold"
                                   style={{ color: 'var(--app-text-secondary)' }}
                                 >
-                                  {entry.hours}h
+                                  {formatMinutes(getMin(entry))}
                                 </span>
                                 {entry.isExcused ? (
                                   <CheckCircle size={18} color="var(--tint)" />

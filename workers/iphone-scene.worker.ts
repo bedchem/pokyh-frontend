@@ -154,25 +154,39 @@ function initScene(data: {
   // Timer (THREE.Timer works in workers)
   timerObj = new THREE.Timer();
 
+  const easeInOutCubic = (t: number) =>
+    t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
   // Render loop — off the main thread entirely
   function frame() {
     rafId = rAF(frame);
     timerObj.update();
+    const dt = Math.min(timerObj.getDelta(), 0.05);
 
     if (phone) {
       const rawP = Math.max(0, Math.min(1, progressValue));
-      smoothP += (rawP - smoothP) * (noMotion ? 1 : 0.04);
+      const k = noMotion ? 1 : 1 - Math.exp(-2.4 * dt);
+      smoothP += (rawP - smoothP) * k;
 
-      const ROT_START = 0.20, ROT_END = 0.82;
-      const rotFraction = Math.min(1, Math.max(0, (smoothP - ROT_START) / (ROT_END - ROT_START)));
-      phone.rotation.y  = rotFraction * Math.PI * 2;
-      phone.rotation.x  = Math.sin(rotFraction * Math.PI * 2) * 0.055;
+      const ROT_START = 0.15, ROT_END = 0.85;
+      const rotRaw   = Math.min(1, Math.max(0, (smoothP - ROT_START) / (ROT_END - ROT_START)));
+      const rotEased = easeInOutCubic(rotRaw);
 
-      const entry = Math.min(1, smoothP / 0.30);
-      phone.scale.setScalar(0.92 + entry * 0.18);
+      const ROT_AMOUNT = Math.PI * 0.85;
+      const inv = 1 - rotEased;
+      phone.rotation.y = inv * ROT_AMOUNT;
+      phone.rotation.x = inv * 0.20 + Math.sin(rotEased * Math.PI) * 0.04;
+      phone.rotation.z = inv * -0.16 + Math.sin(rotEased * Math.PI) * -0.03;
+
+      const entry = easeOutCubic(Math.min(1, smoothP / 0.34));
+      phone.scale.setScalar(0.74 + entry * 0.36);
 
       const t = timerObj.getElapsed();
-      phone.position.y = 0.32 + Math.sin(t * 0.75) * 0.026 * entry;
+      phone.position.y = 0.32 - inv * 0.10 +
+        (Math.sin(t * 0.55) * 0.022 + Math.sin(t * 0.27 + 1.2) * 0.011) * entry;
+      phone.position.x = inv * 0.06 +
+        (Math.sin(t * 0.42) * 0.010 + Math.sin(t * 0.18 + 0.8) * 0.005) * entry;
     }
 
     renderer!.render(scene!, camera!);
