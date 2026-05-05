@@ -130,7 +130,7 @@ export default function LandingClient() {
      Lighthouse never idles long enough to trigger this → zero impact on scores. */
   useEffect(() => {
     // Also preload the JS chunk so Three.js is parsed before first scroll
-    IPhoneScene.preload?.();
+    (IPhoneScene as any).preload?.();
 
     const prefetchAssets = () => {
       const assets = [
