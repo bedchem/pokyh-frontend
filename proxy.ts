@@ -48,11 +48,8 @@ export async function proxy(request: NextRequest) {
 
   const authenticated = await hasValidSession(request);
 
-  // Root → authenticated users go to dashboard, others see the landing page
+  // Root → everyone sees the landing page, no auto-redirect
   if (pathname === '/') {
-    if (authenticated) {
-      return NextResponse.redirect(new URL('/home', request.url));
-    }
     return NextResponse.next();
   }
 
