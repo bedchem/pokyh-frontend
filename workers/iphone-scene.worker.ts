@@ -91,11 +91,9 @@ function initScene(data: {
   screenTex.minFilter = THREE.LinearFilter;
   screenTex.colorSpace = THREE.SRGBColorSpace;
 
-  let customTex: THREE.Texture | null = null;
   let loadedModel: THREE.Group | null = null;
 
   function applyScreenTex() {
-    const tex = customTex ?? screenTex;
     if (!loadedModel) return;
     loadedModel.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) return;
@@ -108,22 +106,14 @@ function initScene(data: {
       const img = mat?.map?.image as unknown as { width: number; height: number } | undefined;
       const isPortrait = img && img.width > 0 && img.height > img.width * 1.6;
       if (isNamedScreen || isPortrait) {
-        child.material = new THREE.MeshBasicMaterial({ map: tex });
+        child.material = new THREE.MeshBasicMaterial({ map: screenTex });
       }
     });
   }
 
-  // Load the hi-res screen texture (fetch works in workers)
-  new THREE.TextureLoader().load('/models/screen.jpeg', (tex) => {
-    tex.colorSpace = THREE.SRGBColorSpace;
-    tex.flipY      = false;
-    customTex = tex;
-    applyScreenTex();
-  });
-
   // Load the GLB model
   const draco = new DRACOLoader();
-  draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+  draco.setDecoderPath('/draco/gltf/');
   const gltfLoader = new GLTFLoader();
   gltfLoader.setDRACOLoader(draco);
 

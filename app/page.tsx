@@ -4,20 +4,22 @@ import LandingClient from '@/components/LandingClient';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.app';
 
 export const metadata: Metadata = {
-  title: 'POKYH – Die Schulapp für LBS Brixen Schüler',
+  title: 'POKYH – WebUntis App für LBS Brixen | Schulapp Brixen',
   description:
-    'POKYH ist die kostenlose Web-App für Schülerinnen und Schüler der LBS Brixen. Stundenplan, Noten, Mensa, Abwesenheiten, Nachrichten und Klassen-Erinnerungen – alles übersichtlich an einem Ort.',
+    'POKYH: Die kostenlose WebUntis Alternative für LBS Brixen. Stundenplan, Noten, Mensa und mehr – Anmeldung mit deinem WebUntis Brixen Account. Kostenlos, werbefrei, von Schülern für Schüler.',
   keywords: [
-    'POKYH', 'LBS Brixen', 'LBS Brixen App', 'Schulapp LBS Brixen',
-    'WebUntis LBS Brixen', 'WebUntis Alternative', 'WebUntis App Brixen',
-    'WebUntis auf Steroid', 'WebUntis besser', 'WebUntis Stundenplan',
-    'Stundenplan LBS Brixen', 'Noten LBS Brixen',
-    'Mensa LBS Brixen', 'Abwesenheiten LBS Brixen', 'Landesberufsschule Brixen',
+    'POKYH', 'WebUntis Brixen', 'WebUntis LBS Brixen', 'WebUntis Alternative',
+    'WebUntis App Brixen', 'WebUntis auf Steroid', 'WebUntis besser', 'WebUntis',
+    'Untis Brixen', 'Untis LBS Brixen', 'Brixen Untis', 'LBS Brixen', 'LBS Brixen App',
+    'Schulapp LBS Brixen', 'WebUntis Stundenplan', 'Stundenplan LBS Brixen',
+    'Stundenplan Brixen', 'Noten LBS Brixen', 'Mensa LBS Brixen',
+    'Abwesenheiten LBS Brixen', 'Landesberufsschule Brixen',
     'Berufsschule Brixen Südtirol', 'Schule App Südtirol', 'LBS Brixen online',
-    'LBS Brixen Stundenplan online', 'Schulapp Südtirol kostenlos',
-    'BFZ Tschuggmall', 'Schulportal LBS Brixen', 'Schüler App Brixen',
-    'Schulapp gratis', 'Schulinformationssystem Brixen',
-    'WebUntis Noten', 'WebUntis Abwesenheiten', 'WebUntis Nachrichten',
+    'Schulapp Südtirol kostenlos', 'BFZ Tschuggmall', 'Tschuggmall Untis',
+    'Tschuggmall WebUntis', 'BFZ Tschuggmall App', 'Untis Tschuggmall',
+    'Berufsbildungszentrum Tschuggmall', 'Schulportal LBS Brixen',
+    'Schüler App Brixen', 'WebUntis Noten', 'WebUntis Abwesenheiten',
+    'WebUntis Nachrichten', 'WebUntis Südtirol', 'Untis Südtirol',
   ],
   alternates: {
     canonical: SITE_URL,
@@ -29,13 +31,13 @@ export const metadata: Metadata = {
     alternateLocale: ['it_IT', 'de_DE'],
     url: SITE_URL,
     siteName: 'POKYH',
-    title: 'POKYH – Die Schulapp für LBS Brixen Schüler',
-    description: 'Kostenlose Web-App für LBS Brixen Schüler: Stundenplan, Noten, Mensa, Abwesenheiten und Nachrichten – schnell, modern, gratis.',
+    title: 'POKYH – WebUntis App für LBS Brixen',
+    description: 'Die kostenlose WebUntis Alternative für LBS Brixen: Stundenplan, Noten, Mensa, Abwesenheiten und Nachrichten – schnell, modern, gratis.',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'POKYH – Die Schulapp für LBS Brixen',
-    description: 'Kostenlose Web-App für LBS Brixen Schüler: Stundenplan, Noten, Mensa und mehr.',
+    title: 'POKYH – WebUntis App für LBS Brixen',
+    description: 'Die kostenlose WebUntis Alternative für LBS Brixen: Stundenplan, Noten, Mensa und mehr.',
   },
   robots: {
     index: true, follow: true,

@@ -94,8 +94,8 @@ export const viewport: Viewport = {
   ],
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
+  userScalable: true,
 };
 
 const structuredData = [
@@ -191,8 +191,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://mensa.plattnericus.dev" />
         <link rel="dns-prefetch" href="https://firestore.googleapis.com" />
         <link rel="dns-prefetch" href="https://identitytoolkit.googleapis.com" />
-        {/* Draco decoder CDN — preconnect so Three.js GLTF loads faster after idle */}
-        <link rel="dns-prefetch" href="https://www.gstatic.com" />
+        {/* Draco decoder CDN — full preconnect (TLS handshake included) */}
+        <link rel="preconnect" href="https://www.gstatic.com" crossOrigin="anonymous" />
         {GA_ID && <link rel="preconnect" href="https://www.googletagmanager.com" />}
       </head>
       {GA_ID && (

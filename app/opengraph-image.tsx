@@ -1,10 +1,10 @@
 import { ImageResponse } from 'next/og';
 
-export const alt = 'POKYH – Die Schulapp für LBS Brixen Schüler';
+export const alt = 'POKYH – WebUntis App für LBS Brixen';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
-export default function Image() {
+export default async function Image() {
   const features = ['Stundenplan', 'Noten', 'Mensa', 'Nachrichten', 'Abwesenheiten'];
 
   return new ImageResponse(
@@ -23,46 +23,28 @@ export default function Image() {
         }}
       >
         {/* Logo + Name */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 28, marginBottom: 36 }}>
-          <div
-            style={{
-              width: 96,
-              height: 96,
-              borderRadius: 24,
-              background: 'linear-gradient(135deg, #0A84FF 0%, #5E5CE6 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 56,
-              fontWeight: 900,
-              color: 'white',
-              letterSpacing: -2,
-            }}
-          >
-            P
-          </div>
-          <span
-            style={{
-              fontSize: 80,
-              fontWeight: 900,
-              color: 'white',
-              letterSpacing: -4,
-            }}
-          >
-            POKYH
-          </span>
-        </div>
+        <span
+          style={{
+            fontSize: 80,
+            fontWeight: 900,
+            color: 'white',
+            letterSpacing: -4,
+            marginBottom: 36,
+          }}
+        >
+          POKYH
+        </span>
 
         {/* Tagline */}
         <p
           style={{
             fontSize: 32,
             color: '#8b8fa8',
-            margin: '0 0 12px 0',
+            margin: '0 0 8px 0',
             textAlign: 'center',
           }}
         >
-          Die Schulapp für LBS Brixen
+          WebUntis App für LBS Brixen
         </p>
         <p
           style={{
@@ -81,11 +63,11 @@ export default function Image() {
             <div
               key={f}
               style={{
-                background: 'rgba(10, 132, 255, 0.12)',
-                border: '1px solid rgba(10, 132, 255, 0.25)',
+                background: 'rgba(99, 102, 241, 0.15)',
+                border: '1px solid rgba(99, 102, 241, 0.3)',
                 borderRadius: 14,
                 padding: '10px 22px',
-                color: '#4da3ff',
+                color: '#a5b4fc',
                 fontSize: 22,
                 fontWeight: 600,
               }}

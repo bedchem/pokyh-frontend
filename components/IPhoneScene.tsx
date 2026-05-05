@@ -122,10 +122,12 @@ export default function IPhoneScene({
     // ── OffscreenCanvas path (Chrome 69+, Firefox 105+, Safari 16.4+) ────────
     if (typeof (canvas as HTMLCanvasElement & { transferControlToOffscreen?: () => OffscreenCanvas }).transferControlToOffscreen === 'function') {
 
+      let active = true; // guards against React Strict Mode double-effect / unmount-before-promise
+
       // Build screen texture on main thread (needs DOM), then transfer as ImageBitmap
       const screenCanvas = buildScreenCanvas();
       createImageBitmap(screenCanvas).then((screenBitmap) => {
-        if (!canvasRef.current) return; // component unmounted
+        if (!active || !canvasRef.current) return; // effect was cleaned up before promise resolved
 
         const offscreen = (canvasRef.current as HTMLCanvasElement & { transferControlToOffscreen: () => OffscreenCanvas })
           .transferControlToOffscreen();
@@ -182,6 +184,7 @@ export default function IPhoneScene({
       });
 
       return () => {
+        active = false;
         (canvas as HTMLCanvasElement & { __workerCleanup?: () => void }).__workerCleanup?.();
       };
     }

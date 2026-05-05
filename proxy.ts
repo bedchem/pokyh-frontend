@@ -13,10 +13,12 @@ const PUBLIC_PREFIXES = [
   '/icons',
   '/icon',
   '/apple-icon',
+  '/POKYH_Logo',
   '/api/webuntis/login',
   '/api/mensa',
   '/legal',
   '/models',
+  '/draco',
   '/og-image',
 ];
 
@@ -91,6 +93,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon\\.ico|icons|apple-icon|manifest\\.json|manifest\\.webmanifest|robots\\.txt|sitemap\\.xml).*)',
+    '/((?!_next/static|_next/image|favicon\\.ico|POKYH_Logo\\.png|icon-.*\\.png|icons|apple-icon|manifest\\.(?:json|webmanifest)|robots\\.txt|sitemap\\.xml|\\.well-known|draco).*)',
   ],
 };

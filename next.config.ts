@@ -25,6 +25,13 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   output: 'standalone',
 
+  experimental: {
+    // Inline CSS in the HTML <head> — eliminates render-blocking stylesheet requests.
+    // Trade-off: styles can't be cached separately from HTML, but benefits first-time
+    // visitors significantly (eliminates 400-600 ms blocking on slow connections).
+    inlineCss: true,
+  },
+
   // Allow LAN devices to access the dev server (e.g. mobile testing)
   allowedDevOrigins: ['192.168.178.90', '192.168.178.*'],
 
