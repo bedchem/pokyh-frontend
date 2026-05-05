@@ -186,19 +186,20 @@ export default function LoginForm() {
         <div style={{ position: 'absolute', width: 260, height: 260, borderRadius: '50%', background: 'rgba(255,255,255,0.07)', bottom: 200, left: -80, pointerEvents: 'none' }} />
 
         {/* Logo */}
-        <div className="flex items-center gap-2.5 relative z-10">
+        <Link href="/" className="flex items-center gap-3 relative z-10 transition-opacity hover:opacity-80">
           <div style={{
-            width: 36, height: 36, borderRadius: 10,
+            width: 48, height: 48, borderRadius: 12,
             background: 'rgba(255,255,255,0.2)',
             backdropFilter: 'blur(8px)',
-            border: '1px solid rgba(255,255,255,0.25)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 14, fontWeight: 800, color: '#fff',
-          }}>P</div>
-          <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.95)' }}>
+            overflow: 'hidden'
+          }}>
+            <img src="/POKYH_Logo.png" alt="POKYH Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          </div>
+          <span style={{ fontSize: 24, fontWeight: 800, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.95)' }}>
             POKYH
           </span>
-        </div>
+        </Link>
 
         {/* Middle — headline */}
         <div className="relative z-10">
