@@ -123,8 +123,8 @@ export async function POST(req: NextRequest) {
     const sessionData = { sessionId, bearerToken, studentId, klasseId, klasseName, username, loginAt: Date.now() };
     const encrypted = await encryptSession(sessionData);
 
-    // 5. Non-sensitive user data for client
-    const userPublic = JSON.stringify({ username, studentId, klasseId, klasseName });
+    // 5. Non-sensitive user data for client (loginAt lets the client set a proactive expiry timer)
+    const userPublic = JSON.stringify({ username, studentId, klasseId, klasseName, loginAt: Date.now() });
 
     const res = NextResponse.json({ ok: true, username, studentId, klasseId, klasseName });
 

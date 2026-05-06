@@ -9,6 +9,7 @@ export interface UserInfo {
   studentId: number;
   klasseId: number;
   klasseName: string;
+  loginAt?: number;
 }
 
 interface SessionCtx {
@@ -48,7 +49,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { refreshUser(); }, [refreshUser]);
 
   useEffect(() => {
-    const handler = () => { setUser(null); setIsLoading(false); };
+    const handler = () => {
+      setUser(null);
+      setIsLoading(false);
+      const p = window.location.pathname;
+      if (p !== '/' && p !== '/login') {
+        window.location.replace('/login');
+      }
+    };
     window.addEventListener('pockyh-session-expired', handler);
     return () => window.removeEventListener('pockyh-session-expired', handler);
   }, []);
@@ -59,6 +67,19 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     window.location.replace('/login');
   }, []);
+
+  // Proactive timer: fire logout when the 4 h POKYH session is about to expire
+  useEffect(() => {
+    if (!user?.loginAt) return;
+    const SESSION_MS = 4 * 60 * 60 * 1000;
+    const remaining = user.loginAt + SESSION_MS - Date.now();
+    if (remaining <= 0) {
+      const t = setTimeout(() => logout(), 0);
+      return () => clearTimeout(t);
+    }
+    const t = setTimeout(() => logout(), remaining);
+    return () => clearTimeout(t);
+  }, [user, logout]);
 
   return (
     <Ctx.Provider value={{ user, isLoading, logout, refreshUser }}>
