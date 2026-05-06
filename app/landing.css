@@ -217,7 +217,7 @@ html:not(.dark) .lp-hero-glow {
    so the compositor stays smooth even while the IPhoneScene worker boots up. */
 
 /* Lock body scroll while the loader is up */
-html.lp-loading,
+html.lp-loading { overflow-y: scroll !important; }
 html.lp-loading body { overflow: hidden !important; touch-action: none; }
 
 .lp-page-loader {

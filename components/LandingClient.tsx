@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Image from 'next/image';
+import LoadingCover from '@/components/LoadingCover';
 import '@/app/landing.css';
 
 // Three.js worker bundle + 5MB GLB — never block initial paint.
@@ -126,33 +127,9 @@ export default function LandingClient() {
   const [sceneReady, setSceneReady] = useState(false);
   // Metamask-style page loader — visible from first paint, dismissed when the
   // 3D scene's first frame with the model has rendered (or after a hard 2.5s cap).
-  const [pageLoading, setPageLoading]             = useState(true);
-  const [pageLoaderExiting, setPageLoaderExiting] = useState(false);
-  const [sceneFirstFrame, setSceneFirstFrame]     = useState(false);
-  const loaderStartRef                            = useRef<number>(0);
+  const [pageLoading, setPageLoading]         = useState(true);
+  const [sceneFirstFrame, setSceneFirstFrame] = useState(false);
 
-  /* Drive the loader exit:
-       - prefer the worker's "ready" message (real users → exits the moment the
-         iPhone is actually rendered)
-       - cap at 2.5s so slow connections / Lighthouse don't see a perma-loader
-       - guarantee a 1.1s minimum so the fold-in animation always lands cleanly */
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (!loaderStartRef.current) loaderStartRef.current = Date.now();
-
-    const MIN_MS = 1200;
-    const MAX_MS = 3000;
-    const EXIT_DURATION_MS = 600;
-
-    const elapsed = Date.now() - loaderStartRef.current;
-    const wait = sceneFirstFrame
-      ? Math.max(0, MIN_MS - elapsed)
-      : Math.max(0, MAX_MS - elapsed);
-
-    const exitT   = window.setTimeout(() => setPageLoaderExiting(true), wait);
-    const removeT = window.setTimeout(() => setPageLoading(false),       wait + EXIT_DURATION_MS);
-    return () => { clearTimeout(exitT); clearTimeout(removeT); };
-  }, [sceneFirstFrame]);
 
   /* Kick off chunk + asset prefetch immediately, but **delay** mounting the 3D
      scene until after the unfold-in animation has played. Mounting earlier causes
@@ -226,19 +203,12 @@ export default function LandingClient() {
   return (
     <div className="lp-root">
 
-      {/* ── PAGE LOADER ── (overlay, exits when 3D scene's first frame is rendered) */}
+      {/* ── PAGE LOADER ── tile-cover animation; exits when iPhone first frame renders */}
       {pageLoading && (
-        <div className={`lp-page-loader${pageLoaderExiting ? ' is-exiting' : ''}`} role="status" aria-label="POKYH lädt">
-          <div className="lp-page-loader-name" aria-hidden="true">
-            {['P','O','K','Y','H'].map((c, i) => {
-              // Distance from center letter — drives the inside-out unfold stagger
-              const d = Math.abs(i - 2);
-              return (
-                <span key={i} style={{ ['--d' as string]: d } as React.CSSProperties}>{c}</span>
-              );
-            })}
-          </div>
-        </div>
+        <LoadingCover
+          sceneReady={sceneFirstFrame}
+          onDone={() => setPageLoading(false)}
+        />
       )}
 
       {/* ── NAV ── */}
