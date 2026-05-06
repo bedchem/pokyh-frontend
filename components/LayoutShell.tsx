@@ -9,7 +9,8 @@ const DashboardTopbar = dynamic(() => import('./DashboardTopbar'));
 export default function LayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  if (pathname === '/' || pathname === '/login' || pathname === '/legal') {
+  const LANDING = ['/', '/login', '/legal', '/howto', '/about', '/faq', '/vergleich'];
+  if (LANDING.includes(pathname)) {
     return <>{children}</>;
   }
 

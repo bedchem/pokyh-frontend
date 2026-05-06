@@ -89,18 +89,12 @@ export default function Sidebar() {
       <Link
         href="/home"
         onClick={closeMobile}
-        className={`flex items-center gap-3 px-4 mb-6 flex-shrink-0 ${collapsed ? 'justify-center' : ''}`}
+        className={`flex items-center px-4 mb-6 flex-shrink-0 press-scale ${collapsed ? 'justify-center' : ''}`}
       >
-        <div
-          className="w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold text-white flex-shrink-0 press-scale"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-soft))' }}
-        >
-          P
-        </div>
-        {!collapsed && (
-          <span className="text-base font-bold tracking-tight" style={{ color: 'var(--app-text-primary)' }}>
-            POKYH
-          </span>
+        {collapsed ? (
+          <img src="/pokyh_ion.png" alt="POKYH" className="h-8 w-8 object-contain" />
+        ) : (
+          <img src="/POKYH_Logo.png" alt="POKYH" className="h-8 w-auto object-contain" />
         )}
       </Link>
 

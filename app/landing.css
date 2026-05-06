@@ -847,6 +847,295 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
   display: block; object-fit: contain; flex-shrink: 0;
 }
 
+/* ── Nav: Dropdown ── */
+.lp-nav-drop-wrap { position: relative; }
+.lp-nav-drop-btn {
+  background: none; border: none; cursor: pointer; padding: 0;
+  display: flex; align-items: center; gap: 3px;
+  font-size: 14px; color: var(--app-text-primary);
+  opacity: 0.75; transition: opacity 0.16s;
+  font-weight: 500; font-family: inherit;
+}
+.lp-nav-drop-btn:hover { opacity: 1; }
+.lp-nav-drop-btn svg { transition: transform 0.18s; }
+.lp-nav-drop-wrap:hover .lp-nav-drop-btn svg,
+.lp-nav-drop-wrap:focus-within .lp-nav-drop-btn svg { transform: rotate(180deg); }
+.lp-nav-drop-menu {
+  position: absolute; top: calc(100% + 10px); left: 50%;
+  transform: translateX(-50%) translateY(-6px);
+  background: var(--lp-nav-bg);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid var(--lp-nav-border);
+  border-radius: 14px; padding: 6px; min-width: 190px;
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity 0.18s, transform 0.18s, visibility 0.18s;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.14);
+  z-index: 200;
+}
+.lp-nav-drop-wrap:hover .lp-nav-drop-menu,
+.lp-nav-drop-wrap:focus-within .lp-nav-drop-menu {
+  opacity: 1; visibility: visible; pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+.lp-nav-drop-item {
+  display: block; padding: 9px 14px; border-radius: 9px;
+  font-size: 14px; color: var(--app-text-primary);
+  text-decoration: none; transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+.lp-nav-drop-item:hover {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  color: var(--accent);
+}
+
+/* ── Nav: GET POKYH button ── */
+.lp-nav-get {
+  display: inline-flex; align-items: center;
+  padding: 8px 18px; border-radius: 100px;
+  background: var(--app-text-primary); color: var(--app-bg) !important;
+  font-size: 14px; font-weight: 700; text-decoration: none;
+  letter-spacing: -0.01em; transition: opacity 0.16s, transform 0.16s;
+  white-space: nowrap;
+}
+.lp-nav-get:hover { opacity: 0.82; transform: translateY(-1px); }
+
+/* ── Nav: Mobile hamburger ── */
+.lp-nav-ham {
+  display: none;
+  align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 9px;
+  background: none; border: none; cursor: pointer;
+  color: var(--app-text-primary);
+}
+@media (max-width: 720px) {
+  .lp-nav-drop-wrap { display: none; }
+  .lp-nav-link      { display: none !important; }
+  .lp-nav-get       { font-size: 13px; padding: 7px 14px; }
+  .lp-nav-ham       { display: flex; }
+  .lp-nav-links     { gap: 10px; }
+}
+/* Mobile nav drawer */
+.lp-mobile-nav-overlay {
+  display: none; position: fixed; inset: 0; z-index: 90;
+  background: rgba(0,0,0,0.4); backdrop-filter: blur(4px);
+}
+.lp-mobile-nav-drawer {
+  display: none; position: fixed; top: 60px; left: 0; right: 0; z-index: 91;
+  background: var(--lp-nav-bg); border-bottom: 1px solid var(--lp-nav-border);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  padding: 12px; flex-direction: column; gap: 2px;
+}
+.lp-mobile-nav-overlay.open,
+.lp-mobile-nav-drawer.open { display: flex; }
+.lp-mobile-nav-item {
+  display: block; padding: 12px 14px; border-radius: 11px;
+  font-size: 16px; font-weight: 500; color: var(--app-text-primary);
+  text-decoration: none; transition: background 0.12s;
+}
+.lp-mobile-nav-item:hover, .lp-mobile-nav-item:active {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+.lp-mobile-nav-section {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--app-text-tertiary); padding: 8px 14px 4px; margin-top: 4px;
+}
+.lp-mobile-nav-sep { height: 0.5px; background: var(--lp-nav-border); margin: 6px 8px; }
+
+/* ── Inner page layout ── */
+.lp-page { background: var(--app-bg); min-height: 100vh; }
+.lp-page-hero {
+  padding: 80px 22px 56px; text-align: center;
+  max-width: 820px; margin: 0 auto;
+}
+.lp-page-hero-eyebrow {
+  font-size: 13px; font-weight: 700; color: #6366F1;
+  letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 14px;
+}
+.lp-page-hero-h1 {
+  font-size: clamp(36px,6vw,72px); font-weight: 600; line-height: 1.06;
+  letter-spacing: -0.025em; color: var(--app-text-primary); margin-bottom: 18px;
+}
+.lp-page-hero-sub {
+  font-size: clamp(17px,1.5vw,21px); color: var(--app-text-secondary);
+  line-height: 1.45; max-width: 600px; margin: 0 auto;
+}
+.lp-page-content { max-width: 960px; margin: 0 auto; padding: 0 22px 80px; }
+.lp-page-section { padding: 60px 0; border-top: 0.5px solid var(--app-border); }
+.lp-page-section-title {
+  font-size: clamp(24px,3vw,38px); font-weight: 600; letter-spacing: -0.02em;
+  color: var(--app-text-primary); margin-bottom: 10px;
+}
+.lp-page-section-sub {
+  font-size: 17px; color: var(--app-text-secondary); line-height: 1.5; margin-bottom: 32px;
+}
+
+/* ── Howto: option cards ── */
+.lp-howto-options { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 0; }
+.lp-howto-card {
+  background: var(--lp-tile-a); border-radius: 24px; padding: 36px 32px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.lp-howto-card-badge {
+  display: inline-flex; align-items: center; gap: 6px; width: fit-content;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  color: #6366F1; padding: 4px 10px; border-radius: 99px;
+  background: rgba(99,102,241,0.1);
+}
+.lp-howto-card-title { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; color: var(--app-text-primary); }
+.lp-howto-card-sub { font-size: 15px; color: var(--app-text-secondary); line-height: 1.55; flex: 1; }
+.lp-howto-card-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 14px; font-weight: 600; color: #6366F1; text-decoration: none;
+  transition: gap 0.16s; margin-top: 4px;
+}
+.lp-howto-card-link:hover { gap: 10px; }
+/* Howto steps */
+.lp-howto-steps { display: flex; flex-direction: column; gap: 12px; }
+.lp-howto-step {
+  background: var(--lp-tile-a); border-radius: 18px; padding: 24px 28px;
+  display: grid; grid-template-columns: 32px 1fr; gap: 12px; align-items: start;
+}
+.lp-howto-step-num {
+  font-size: 12px; font-weight: 700; color: #6366F1;
+  font-variant-numeric: tabular-nums; padding-top: 3px;
+}
+.lp-howto-step-title { font-size: 16px; font-weight: 600; color: var(--app-text-primary); margin-bottom: 6px; }
+.lp-howto-step-body  { font-size: 14px; color: var(--app-text-secondary); line-height: 1.5; }
+.lp-code {
+  display: block;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+  font-size: 12.5px; background: var(--lp-card-bg); border: 0.5px solid var(--lp-card-border);
+  border-radius: 10px; padding: 12px 16px; margin-top: 10px;
+  color: var(--app-text-primary); white-space: pre; overflow-x: auto; line-height: 1.65;
+}
+
+/* ── FAQ accordion ── */
+.lp-faq-list { display: flex; flex-direction: column; gap: 8px; }
+.lp-faq-item { background: var(--lp-tile-a); border-radius: 16px; overflow: hidden; }
+.lp-faq-q {
+  width: 100%; background: none; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 20px 22px; text-align: left; font-family: inherit;
+}
+.lp-faq-q-text {
+  font-size: 16px; font-weight: 600; color: var(--app-text-primary);
+  letter-spacing: -0.01em; line-height: 1.4;
+}
+.lp-faq-q-icon {
+  flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent); transition: transform 0.22s, background 0.16s;
+}
+.lp-faq-item.open .lp-faq-q-icon { transform: rotate(180deg); background: var(--accent); color: #fff; }
+.lp-faq-a { max-height: 0; overflow: hidden; transition: max-height 0.32s ease; }
+.lp-faq-item.open .lp-faq-a { max-height: 600px; }
+.lp-faq-a-inner {
+  padding: 16px 22px 20px;
+  font-size: 15px; color: var(--app-text-secondary); line-height: 1.65;
+  border-top: 0.5px solid var(--app-border);
+}
+
+/* ── Vergleich: comparison table ── */
+.lp-cmp-note {
+  background: color-mix(in srgb, var(--accent) 6%, var(--lp-card-bg));
+  border: 1px solid color-mix(in srgb, var(--accent) 16%, transparent);
+  border-radius: 16px; padding: 16px 20px;
+  font-size: 14px; color: var(--app-text-secondary); line-height: 1.55;
+  margin-bottom: 32px; display: flex; align-items: flex-start; gap: 12px;
+}
+.lp-cmp-note-icon { flex-shrink: 0; color: var(--accent); margin-top: 1px; }
+.lp-cmp-table {
+  background: var(--lp-card-bg); border: 0.5px solid var(--lp-card-border);
+  border-radius: 22px; overflow: hidden; width: 100%;
+}
+.lp-cmp-head {
+  display: grid; grid-template-columns: 2fr 1fr 1fr;
+  background: var(--lp-tile-a); padding: 14px 22px; gap: 12px;
+  border-bottom: 0.5px solid var(--lp-card-border);
+}
+.lp-cmp-head-cell {
+  font-size: 13px; font-weight: 700; letter-spacing: -0.01em;
+  color: var(--app-text-secondary); text-align: center;
+}
+.lp-cmp-head-cell:first-child { text-align: left; }
+.lp-cmp-row {
+  display: grid; grid-template-columns: 2fr 1fr 1fr;
+  padding: 13px 22px; gap: 12px; align-items: center;
+  border-top: 0.5px solid var(--lp-card-border);
+}
+.lp-cmp-row:first-of-type { border-top: none; }
+.lp-cmp-feat { font-size: 14px; color: var(--app-text-primary); font-weight: 500; }
+.lp-cmp-cell { display: flex; align-items: center; justify-content: center; }
+.lp-cmp-yes {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: rgba(16,185,129,0.15); color: #10b981;
+  display: flex; align-items: center; justify-content: center;
+}
+.lp-cmp-no {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: rgba(128,128,128,0.08); color: var(--app-text-tertiary);
+  display: flex; align-items: center; justify-content: center;
+}
+.lp-cmp-partial {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: rgba(255,159,10,0.12); color: #FF9F0A;
+  display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800;
+}
+.lp-cmp-section-hd {
+  padding: 10px 22px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--app-text-tertiary);
+  background: var(--lp-tile-a); border-top: 0.5px solid var(--lp-card-border);
+}
+
+/* ── About: feature grid ── */
+.lp-about-features { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
+.lp-about-feat {
+  background: var(--lp-tile-a); border-radius: 18px; padding: 24px 20px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.lp-about-feat-icon {
+  width: 40px; height: 40px; border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent); display: flex; align-items: center; justify-content: center;
+}
+.lp-about-feat-title { font-size: 15px; font-weight: 600; color: var(--app-text-primary); }
+.lp-about-feat-sub   { font-size: 13px; color: var(--app-text-secondary); line-height: 1.45; }
+
+/* ── Tech stack grid (2×2) ── */
+.lp-tech-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.lp-tech-card {
+  background: var(--lp-tile-a); border-radius: 18px; padding: 28px 24px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.lp-tech-card-name { font-size: 18px; font-weight: 700; color: #6366F1; letter-spacing: -0.02em; }
+.lp-tech-card-role { font-size: 14px; font-weight: 600; color: var(--app-text-primary); }
+.lp-tech-card-desc { font-size: 13px; color: var(--app-text-secondary); line-height: 1.5; }
+
+/* ── New pages responsive ── */
+@media (max-width: 880px) {
+  .lp-about-features { grid-template-columns: repeat(2,1fr); }
+  .lp-howto-options   { grid-template-columns: 1fr; }
+}
+@media (max-width: 680px) {
+  .lp-page-hero         { padding: 60px 18px 40px; }
+  .lp-page-content      { padding: 0 16px 60px; }
+  .lp-page-section      { padding: 40px 0; }
+  .lp-howto-card        { padding: 28px 22px; }
+  .lp-howto-step        { grid-template-columns: 1fr; gap: 4px; padding: 20px 20px; }
+  .lp-howto-step-num    { padding-top: 0; }
+  .lp-cmp-head,
+  .lp-cmp-row           { padding: 12px 14px; }
+  .lp-cmp-feat          { font-size: 13px; }
+  .lp-tech-grid         { grid-template-columns: 1fr; }
+  .lp-faq-q             { padding: 16px 18px; }
+  .lp-faq-a-inner       { padding: 14px 18px 18px; }
+}
+@media (max-width: 400px) {
+  .lp-about-features { grid-template-columns: 1fr; }
+}
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {

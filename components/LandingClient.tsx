@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import Image from 'next/image';
 import LoadingCover from '@/components/LoadingCover';
-import '@/app/landing.css';
+import LandingNav from '@/components/LandingNav';
+import LandingFooter from '@/components/LandingFooter';
 
 // Three.js worker bundle + 5MB GLB — never block initial paint.
 // Chunk is preloaded on idle; GLB is prefetched via fetch() before user scrolls.
@@ -212,21 +212,7 @@ export default function LandingClient() {
       )}
 
       {/* ── NAV ── */}
-      <nav className="lp-nav">
-        <div className="lp-nav-inner">
-          <Link href="/" className="lp-nav-brand">
-            <span className="lp-nav-logo" style={{ padding: 0, overflow: 'hidden' }}>
-              <Image src="/POKYH_Logo.png" alt="" aria-hidden width={28} height={28} style={{ display: 'block', objectFit: 'contain' }} />
-            </span>
-            POKYH
-          </Link>
-          <div className="lp-nav-links">
-            <a href="#funktionen" className="lp-nav-link">Funktionen</a>
-            <a href="#login-info"  className="lp-nav-link">Login</a>
-            <Link href="/login"   className="lp-nav-cta">Anmelden</Link>
-          </div>
-        </div>
-      </nav>
+      <LandingNav />
 
       {/* ── HERO ── */}
       <header className="lp-hero">
@@ -690,28 +676,7 @@ export default function LandingClient() {
       </section>
 
       {/* ── FOOTER ── */}
-      <footer className="lp-footer">
-        <div className="lp-footer-inner">
-          <div className="lp-footer-disclaimer">
-            POKYH ist ein eigenständiges Schülerprojekt und steht in keiner offiziellen Verbindung zur LBS Brixen, zum Berufsbildungszentrum Christian Josef Tschuggmall oder zu WebUntis / Untis GmbH. Die Anmeldung erfolgt über die WebUntis-Schnittstelle der LBS Brixen. Marken und Logos sind Eigentum ihrer jeweiligen Inhaber.
-          </div>
-          <div className="lp-footer-bar">
-            <div>
-              © 2026{' '}
-              <a href="https://github.com/bedchem" target="_blank" rel="noopener noreferrer">bedchem</a>
-              {' '}· POKYH · Made by{' '}
-              <a href="https://github.com/plattnericus" target="_blank" rel="noopener noreferrer">Plattnericus</a>
-              {' '}&amp;{' '}
-              <a href="https://github.com/ryhox" target="_blank" rel="noopener noreferrer">Ryhox</a>
-            </div>
-            <div className="lp-footer-links">
-              <Link href="/login">Anmelden</Link>
-              <Link href="/legal">Impressum</Link>
-              <Link href="/legal#datenschutz">Datenschutz</Link>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <LandingFooter />
 
     </div>
   );
