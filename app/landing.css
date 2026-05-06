@@ -1222,3 +1222,261 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
   .lp-reveal  { opacity: 1 !important; transform: none !important; transition: none !important; }
   .lp-scroll-hint { animation: none !important; opacity: 0.35; }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   GET page — download / install page
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.get-wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 56px 24px 120px;
+  position: relative;
+}
+
+/* Sliding segmented toggle */
+.get-toggle {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  position: relative;
+  padding: 4px;
+  background: var(--app-card);
+  border: 1.5px solid var(--app-border);
+  border-radius: 100px;
+  margin-bottom: 52px;
+  z-index: 1;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+html:not(.dark) .get-toggle {
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);
+}
+
+/* Sliding pill — the animated background indicator */
+.get-toggle-pill {
+  position: absolute;
+  top: 4px; bottom: 4px; left: 4px;
+  width: calc(50% - 4px);
+  border-radius: 100px;
+  background: var(--accent);
+  pointer-events: none;
+  z-index: 0;
+  transition: transform 0.30s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.get-toggle-pill.right {
+  transform: translateX(100%);
+}
+
+.get-toggle-btn {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 20px;
+  border-radius: 100px;
+  font-size: 15px;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  transition: color 0.22s;
+  line-height: 1;
+  white-space: nowrap;
+  min-width: 130px;
+}
+.get-toggle-btn.active {
+  color: #fff;
+}
+.get-toggle-btn:not(.active):hover {
+  color: var(--app-text-primary);
+}
+
+/* Hero content block */
+.get-hero {
+  position: relative;
+  z-index: 1;
+}
+.get-eyebrow {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 14px;
+}
+.get-h1 {
+  font-size: clamp(34px, 5vw, 58px);
+  font-weight: 600;
+  line-height: 1.06;
+  letter-spacing: -0.03em;
+  color: var(--app-text-primary);
+  margin: 0 0 20px;
+}
+.get-sub {
+  font-size: 18px;
+  line-height: 1.55;
+  color: var(--app-text-secondary);
+  margin: 0 0 40px;
+  max-width: 540px;
+}
+.get-sub strong { color: var(--app-text-primary); font-weight: 500; }
+
+/* CTA button row */
+.get-actions { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.get-cta-btn {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 28px !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+}
+.get-note {
+  margin-top: 20px;
+  font-size: 13px;
+  color: var(--app-text-tertiary);
+}
+
+/* Platform cards (App tab) */
+.get-platforms {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 540px;
+}
+.get-platform-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 22px;
+  border-radius: 20px;
+  background: var(--app-surface);
+  border: 1.5px solid var(--app-border);
+  text-decoration: none;
+  color: var(--app-text-primary);
+  transition: background 0.18s, border-color 0.18s, transform 0.18s, box-shadow 0.18s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+html:not(.dark) .get-platform-card {
+  box-shadow: 0 1px 6px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04);
+}
+.get-platform-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 5%, var(--app-surface));
+  transform: translateY(-2px);
+  box-shadow: 0 10px 36px rgba(99,102,241,0.12);
+}
+/* Brand icon images — no background box */
+.get-platform-img {
+  flex-shrink: 0;
+  object-fit: contain;
+  width: 36px;
+  height: 36px;
+}
+/* Apple SVG is black — invert to white in dark mode */
+.dark .get-platform-img-apple {
+  filter: invert(1);
+}
+.get-platform-info { flex: 1; }
+.get-platform-name {
+  font-size: 17px; font-weight: 600;
+  color: var(--app-text-primary); letter-spacing: -0.015em;
+}
+.get-platform-hint {
+  font-size: 13px; color: var(--app-text-secondary); margin-top: 4px;
+}
+.get-platform-arrow {
+  color: var(--app-text-tertiary);
+  transition: transform 0.18s, color 0.18s;
+  flex-shrink: 0;
+}
+.get-platform-card:hover .get-platform-arrow {
+  transform: translateX(3px);
+  color: var(--accent);
+}
+
+/* Back link (install pages) */
+.get-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px; font-weight: 500;
+  color: var(--app-text-secondary);
+  text-decoration: none;
+  margin-bottom: 24px;
+  transition: color 0.15s;
+}
+.get-back-link:hover { color: var(--app-text-primary); }
+
+/* Install steps (iOS / Android pages) */
+.get-install-steps {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 40px;
+}
+.get-install-step {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  position: relative;
+}
+.get-install-step:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 35px; top: 64px; bottom: -24px;
+  width: 2px;
+  background: var(--app-border);
+  z-index: 0;
+}
+.get-install-step-icon {
+  width: 52px; height: 52px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--accent) 11%, var(--app-card));
+  border: 1.5px solid color-mix(in srgb, var(--accent) 22%, var(--app-border));
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent);
+  flex-shrink: 0;
+  margin-top: 4px;
+  position: relative; z-index: 1;
+}
+.get-install-step-content { padding: 0 0 40px 20px; }
+.get-install-step-num {
+  font-size: 12px; font-weight: 700;
+  color: var(--accent); letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+.get-install-step-title {
+  font-size: 20px; font-weight: 600;
+  color: var(--app-text-primary); letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+.get-install-step-body {
+  font-size: 15px; color: var(--app-text-secondary); line-height: 1.55;
+}
+.get-install-step-body strong { color: var(--app-text-primary); font-weight: 500; }
+
+/* Info note */
+.get-install-note {
+  display: flex; gap: 14px; align-items: flex-start;
+  padding: 18px 22px;
+  background: color-mix(in srgb, var(--accent) 7%, var(--app-card));
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+  border-radius: 16px;
+  font-size: 14px; color: var(--app-text-secondary); line-height: 1.55;
+  margin-bottom: 8px;
+}
+.get-install-note svg { flex-shrink: 0; color: var(--accent); margin-top: 1px; }
+.get-install-note strong { color: var(--app-text-primary); font-weight: 500; }
+
+/* Responsive */
+@media (max-width: 500px) {
+  .get-wrap { padding: 36px 18px 80px; }
+  .get-tabs { margin-bottom: 36px; }
+  .get-tab-btn { padding: 9px 16px; font-size: 14px; }
+  .get-h1 { font-size: 30px; }
+  .get-install-step { grid-template-columns: 56px 1fr; }
+  .get-install-step-icon { width: 44px; height: 44px; }
+  .get-install-step:not(:last-child)::before { left: 27px; }
+}

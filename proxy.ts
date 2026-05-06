@@ -22,6 +22,7 @@ const PUBLIC_PREFIXES = [
   '/faq',
   '/vergleich',
   '/howto',
+  '/get',
   '/models',
   '/draco',
   '/og-image',

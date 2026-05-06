@@ -17,10 +17,28 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.9,
     },
     {
+      url: `${SITE_URL}/get`,
+      lastModified: new Date('2026-05-06'),
+      changeFrequency: 'monthly',
+      priority: 0.90,
+    },
+    {
+      url: `${SITE_URL}/get/ios`,
+      lastModified: new Date('2026-05-06'),
+      changeFrequency: 'monthly',
+      priority: 0.75,
+    },
+    {
+      url: `${SITE_URL}/get/android`,
+      lastModified: new Date('2026-05-06'),
+      changeFrequency: 'monthly',
+      priority: 0.75,
+    },
+    {
       url: `${SITE_URL}/howto`,
       lastModified: new Date('2026-05-06'),
       changeFrequency: 'monthly',
-      priority: 0.85,
+      priority: 0.55,
     },
     {
       url: `${SITE_URL}/about`,

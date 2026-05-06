@@ -35,7 +35,7 @@ export default function LandingNav() {
           {/* Right: Anmelden + CTA */}
           <div className="lp-nav-right">
             <Link href="/login" className="lp-nav-link">Anmelden</Link>
-            <Link href="/howto" className="lp-nav-get">GET POKYH</Link>
+            <Link href="/get" className="lp-nav-get">GET POKYH</Link>
           </div>
 
           {/* Mobile hamburger */}
@@ -67,7 +67,7 @@ export default function LandingNav() {
             <Link href="/login" className="lp-mobile-nav-item" onClick={close}>
               Anmelden
             </Link>
-            <Link href="/howto" className="lp-mobile-nav-item" style={{ color: '#6366F1', fontWeight: 700 }} onClick={close}>
+            <Link href="/get" className="lp-mobile-nav-item" style={{ color: '#6366F1', fontWeight: 700 }} onClick={close}>
               GET POKYH →
             </Link>
           </div>
