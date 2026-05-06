@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, ChevronRight, Plus, Bell, Trash2, BellOff, Users, LogIn, Calendar } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Bell, Trash2, BellOff, Users, LogIn, Calendar, X } from 'lucide-react';
 import DateTimePicker from '@/components/ui/DateTimePicker';
 import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
@@ -283,23 +283,41 @@ export default function RemindersPage() {
           )}
         </div>
 
-        {/* Add reminder sheet */}
+        {/* Add reminder modal */}
         {showAdd && (
           <div
-            className="fixed inset-0 z-50 flex items-end fade-backdrop"
+            className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8"
             style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
-            onClick={() => setShowAdd(false)}
+            onClick={() => { setShowAdd(false); setShowDatePicker(false); }}
           >
             <div
-              className="w-full rounded-t-2xl p-6 pb-12 slide-up"
-              style={{ background: 'var(--app-surface)' }}
+              className="w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-[28px] fade-in"
+              style={{ background: 'var(--app-surface)', animationDuration: '0.25s' }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: 'var(--app-border)' }} />
-              <h3 className="text-[18px] font-bold mb-5" style={{ color: 'var(--app-text-primary)' }}>
-                Erinnerung hinzufügen
-              </h3>
-              <div className="flex flex-col gap-3">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 pt-6 pb-2">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: 'color-mix(in srgb, var(--orange) 15%, transparent)' }}
+                  >
+                    <Bell size={20} color="var(--orange)" />
+                  </div>
+                  <h3 className="text-[18px] font-bold" style={{ color: 'var(--app-text-primary)' }}>
+                    Erinnerung hinzufügen
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setShowAdd(false)}
+                  className="w-8 h-8 flex items-center justify-center rounded-full press-scale flex-shrink-0"
+                  style={{ background: 'var(--app-card)', color: 'var(--app-text-secondary)' }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="px-6 pb-8 flex flex-col gap-3 mt-4">
                 <input
                   placeholder="Titel *"
                   value={title}
@@ -343,7 +361,7 @@ export default function RemindersPage() {
                 <button
                   onClick={addReminder}
                   disabled={!title.trim() || !due || saving}
-                  className="h-12 rounded-xl font-semibold text-white press-scale disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="h-12 rounded-xl font-semibold text-white press-scale disabled:opacity-50 flex items-center justify-center gap-2 mt-1"
                   style={{ background: 'var(--accent)' }}
                 >
                   {saving ? <Spinner size={18} /> : 'Hinzufügen'}
@@ -353,12 +371,11 @@ export default function RemindersPage() {
           </div>
         )}
 
-        {showDatePicker && (
+        {showAdd && showDatePicker && (
           <DateTimePicker
             value={due}
             onChange={(v) => setDue(v)}
-            onClose={() => setShowDatePicker(false)}
-            title="Erinnerungszeitpunkt"
+            onBack={() => setShowDatePicker(false)}
           />
         )}
 

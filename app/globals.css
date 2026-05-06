@@ -76,9 +76,12 @@ body {
 /* Thin custom scrollbar */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--app-border); border-radius: 9999px; }
-::-webkit-scrollbar-thumb:hover { background: var(--app-text-tertiary); }
-* { scrollbar-width: thin; scrollbar-color: var(--app-border) transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.38); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.55); }
+.dark::-webkit-scrollbar-thumb { background: rgba(160,165,200,0.4); }
+.dark::-webkit-scrollbar-thumb:hover { background: rgba(160,165,200,0.6); }
+* { scrollbar-width: thin; scrollbar-color: rgba(0,0,0,0.38) transparent; }
+.dark { scrollbar-color: rgba(160,165,200,0.4) transparent; }
 
 /* Tap highlight */
 * { -webkit-tap-highlight-color: transparent; }

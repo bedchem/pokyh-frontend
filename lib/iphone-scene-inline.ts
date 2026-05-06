@@ -80,22 +80,43 @@ export function startScene(canvas: HTMLCanvasElement, progressRef: RefObject<num
   const topLight  = new THREE.DirectionalLight(0xffffff, 0.55); topLight.position.set(0, 5, 2);
   scene.add(ambLight, fillLight, rimLight, backLight, frontLight, topLight);
   const screenTex = buildScreenTexture();
-  let customTex: THREE.Texture | null = null;
+  let lightTex: THREE.Texture | null = null;
+  let darkTex: THREE.Texture | null = null;
+  let screenMeshMats: THREE.MeshBasicMaterial[] = [];
   let loadedModel: THREE.Group | null = null;
   let phone: THREE.Group | null = null;
+  let curDark = isDark;
   function applyScreen() {
-    const tex = customTex ?? screenTex;
     if (!loadedModel) return;
+    const tex = (curDark ? darkTex : lightTex) ?? screenTex;
+    screenMeshMats = [];
     loadedModel.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) return;
       const mat = child.material as THREE.MeshStandardMaterial;
       const nm = (child.name + (mat?.name ?? '')).toLowerCase();
-      if (nm.includes('screen') || nm.includes('display') || nm.includes('glass_fr') || nm.includes('oled')) {
-        child.material = new THREE.MeshBasicMaterial({ map: tex });
+      const isNamedScreen = nm.includes('screen') || nm.includes('display') || nm.includes('glass_fr') || nm.includes('oled') || (mat?.name ?? '') === 'BsXHDwLKqtDOfrW';
+      const img = mat?.map?.image as unknown as { width: number; height: number } | undefined;
+      const isPortrait = img && img.width > 0 && img.height > img.width * 1.6;
+      if (isNamedScreen || isPortrait) {
+        const m = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
+        child.material = m;
+        screenMeshMats.push(m);
       }
     });
   }
-  new THREE.TextureLoader().load('/models/screen.jpeg', (tex) => { tex.colorSpace = THREE.SRGBColorSpace; tex.flipY = false; customTex = tex; applyScreen(); });
+  const loader = new THREE.TextureLoader();
+  function sharpTex(tex: THREE.Texture) {
+    tex.colorSpace = THREE.SRGBColorSpace;
+    // Trilinear + anisotropy preserves thin text when the screen bitmap is
+    // downsampled. Anisotropy needs mipmaps to actually work.
+    tex.generateMipmaps = true;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    tex.needsUpdate = true;
+  }
+  loader.load('/models/whitemode_screen.webp', (tex) => { sharpTex(tex); lightTex = tex; applyScreen(); });
+  loader.load('/models/darkmode_screen.webp',  (tex) => { sharpTex(tex); darkTex  = tex; applyScreen(); });
   const draco = new DRACOLoader(); draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
   const gltf = new GLTFLoader(); gltf.setDRACOLoader(draco);
   gltf.load('/models/iphone.glb', (g) => {
@@ -109,8 +130,15 @@ export function startScene(canvas: HTMLCanvasElement, progressRef: RefObject<num
   });
   function syncSize() { const w = canvas.clientWidth, h = canvas.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
   syncSize(); const ro = new ResizeObserver(syncSize); ro.observe(canvas);
-  let curDark = isDark;
-  const moObs = new MutationObserver(() => { const dark = document.documentElement.classList.contains('dark'); if (dark === curDark) return; curDark = dark; ambLight.intensity = dark ? 0.55 : 0.85; renderer.toneMappingExposure = dark ? 0.88 : 0.78; });
+  const moObs = new MutationObserver(() => {
+    const dark = document.documentElement.classList.contains('dark');
+    if (dark === curDark) return;
+    curDark = dark;
+    ambLight.intensity = dark ? 0.55 : 0.85;
+    renderer.toneMappingExposure = dark ? 0.88 : 0.78;
+    const tex = (dark ? darkTex : lightTex) ?? screenTex;
+    for (const m of screenMeshMats) { m.map = tex; m.needsUpdate = true; }
+  });
   moObs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
   let rafId: number; const timer = new THREE.Timer(); const noMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches; let smoothP = 0; let firstFrameReported = false;
   function frame() {

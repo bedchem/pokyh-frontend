@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
 import {
   ChevronLeft,
   ChevronRight,
@@ -929,34 +928,12 @@ function SpecialDayColumn({
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
-const SWIPE_THRESHOLD  = 60;
-const SWIPE_MAX_DRAG   = 180;
-const SWIPE_INTENT_THR = 8;
-const SWIPE_PHASE_DUR  = 0.2;
-const SWIPE_RESET_DUR  = 0.14;
-const SWIPE_EXCLUDE_SELECTOR = '[data-no-swipe="true"]';
-
-function clamp(n: number, lo: number, hi: number) {
-  return Math.max(lo, Math.min(hi, n));
-}
-
-function isSwipeExcluded(target: EventTarget | null): boolean {
-  if (!(target instanceof Element)) return false;
-  return !!target.closest(SWIPE_EXCLUDE_SELECTOR);
-}
-
 export default function TimetablePage() {
   const router = useRouter();
   const [weekOffset, setWeekOffset] = useState(0);
   const [entries,    setEntries]    = useState<TimetableEntry[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState('');
-
-  const [panelX,             setPanelX]             = useState(0);
-  const [isDraggingSwipe,    setIsDraggingSwipe]    = useState(false);
-  const [isAnimatingSwipe,   setIsAnimatingSwipe]   = useState(false);
-  const [isPanelSnap,        setIsPanelSnap]        = useState(false);
-  const [panelTweenDuration, setPanelTweenDuration] = useState(0.2);
 
   const [nowMinutes, setNowMinutes] = useState<number>(() => {
     const n = new Date(); return n.getHours() * 60 + n.getMinutes();
@@ -965,15 +942,9 @@ export default function TimetablePage() {
   const [activeSlot, setActiveSlot] = useState<MergedSlot | null>(null);
   const [pxPerMin, setPxPerMin] = useState<number>(1.5);
 
-  const swipeHostRef = useRef<HTMLDivElement | null>(null);
   const cacheRef     = useRef<Record<number, TimetableEntry[]>>({});
   const preloadRef   = useRef<Record<number, boolean>>({});
   const timeRef      = useRef<ReturnType<typeof setInterval> | null>(null);
-  const swipeRef     = useRef({ pointerId: -1, startX: 0, startY: 0, endX: 0, endY: 0, lastX: 0, lastTs: 0, velocityX: 0, horizontalIntent: false, active: false });
-  const pendingWeekDeltaRef = useRef<0 | 1 | -1>(0);
-  const swipeStageRef       = useRef<'idle' | 'exiting' | 'entering'>('idle');
-  const dragFrameRef        = useRef<number | null>(null);
-  const dragXRef            = useRef(0);
 
   const monday      = startOfWeek(addDays(new Date(), weekOffset * 7), { weekStartsOn: 1 });
   const weekDates   = Array.from({ length: 6 }, (_, i) => addDays(monday, i));
@@ -1060,78 +1031,6 @@ export default function TimetablePage() {
     });
   }, [weekOffset]);
 
-  useEffect(() => () => { if (dragFrameRef.current !== null) cancelAnimationFrame(dragFrameRef.current); }, []);
-
-  // ── Swipe gestures ──────────────────────────────────────────────────────────
-
-  function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    if (isSwipeExcluded(e.target)) return;
-    if (isAnimatingSwipe) return;
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
-    const nowTs = performance.now();
-    swipeRef.current = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, endX: e.clientX, endY: e.clientY, lastX: e.clientX, lastTs: nowTs, velocityX: 0, horizontalIntent: false, active: true };
-    setIsDraggingSwipe(false);
-  }
-
-  function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (!swipeRef.current.active || swipeRef.current.pointerId !== e.pointerId) return;
-    swipeRef.current.endX = e.clientX; swipeRef.current.endY = e.clientY;
-    const deltaX = e.clientX - swipeRef.current.startX;
-    const deltaY = e.clientY - swipeRef.current.startY;
-    if (!swipeRef.current.horizontalIntent) {
-      if (Math.abs(deltaX) > SWIPE_INTENT_THR || Math.abs(deltaY) > SWIPE_INTENT_THR) {
-        swipeRef.current.horizontalIntent = Math.abs(deltaX) > Math.abs(deltaY);
-        if (swipeRef.current.horizontalIntent) e.currentTarget.setPointerCapture(e.pointerId);
-      }
-    }
-    if (!swipeRef.current.horizontalIntent) return;
-    const nowTs = performance.now();
-    const dt = Math.max(1, nowTs - swipeRef.current.lastTs);
-    swipeRef.current.velocityX = swipeRef.current.velocityX * 0.72 + ((e.clientX - swipeRef.current.lastX) / dt) * 0.28;
-    swipeRef.current.lastX = e.clientX; swipeRef.current.lastTs = nowTs;
-    const limit = Math.max(SWIPE_MAX_DRAG, (swipeHostRef.current?.clientWidth ?? 360) * 0.5);
-    let targetX = deltaX;
-    if (Math.abs(targetX) > limit) { const ov = Math.abs(targetX) - limit; targetX = Math.sign(targetX) * (limit + ov * 0.18); }
-    dragXRef.current = targetX;
-    if (!isDraggingSwipe) setIsDraggingSwipe(true);
-    if (dragFrameRef.current !== null) return;
-    dragFrameRef.current = requestAnimationFrame(() => { setPanelX(dragXRef.current); dragFrameRef.current = null; });
-  }
-
-  function finishSwipe(e: React.PointerEvent<HTMLDivElement>) {
-    if (!swipeRef.current.active || swipeRef.current.pointerId !== e.pointerId) return;
-    const deltaX = swipeRef.current.endX - swipeRef.current.startX;
-    const deltaY = swipeRef.current.endY - swipeRef.current.startY;
-    swipeRef.current.active = false; setIsDraggingSwipe(false);
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
-    if (!swipeRef.current.horizontalIntent || Math.abs(deltaX) <= Math.abs(deltaY)) { setPanelTweenDuration(SWIPE_RESET_DUR); setPanelX(0); return; }
-    const containerW = swipeHostRef.current?.clientWidth ?? 360;
-    const absVelocity = Math.abs(swipeRef.current.velocityX);
-    const distanceTrigger = Math.max(SWIPE_THRESHOLD, containerW * 0.18);
-    if (Math.abs(deltaX) < distanceTrigger && absVelocity < 0.55) { setPanelTweenDuration(clamp(0.1 + Math.abs(deltaX) / 900, 0.1, 0.18)); setPanelX(0); return; }
-    const weekDelta  = deltaX < 0 ? 1 : -1;
-    const slideOut   = containerW + 36;
-    const slideTarget = weekDelta === 1 ? -slideOut : slideOut;
-    const estimatedSpeed = Math.max(900, absVelocity * 1800);
-    setPanelTweenDuration(clamp(Math.max(12, Math.abs(slideTarget - panelX)) / estimatedSpeed, 0.12, 0.24));
-    pendingWeekDeltaRef.current = weekDelta; swipeStageRef.current = 'exiting'; setIsAnimatingSwipe(true); setPanelX(slideTarget);
-  }
-
-  function handlePanelAnimationComplete() {
-    if (!isAnimatingSwipe) return;
-    if (swipeStageRef.current === 'exiting') {
-      const weekDelta = pendingWeekDeltaRef.current; if (!weekDelta) return;
-      pendingWeekDeltaRef.current = 0;
-      setWeekOffset((o) => o + weekDelta);
-      swipeStageRef.current = 'entering'; setIsPanelSnap(true);
-      const slideOut = (swipeHostRef.current?.clientWidth ?? 360) + 36;
-      setPanelX(weekDelta === 1 ? slideOut : -slideOut);
-      requestAnimationFrame(() => requestAnimationFrame(() => { setIsPanelSnap(false); setPanelTweenDuration(SWIPE_PHASE_DUR); setPanelX(0); }));
-      return;
-    }
-    if (swipeStageRef.current === 'entering') { swipeStageRef.current = 'idle'; setIsAnimatingSwipe(false); }
-  }
-
   // ── Derived data ────────────────────────────────────────────────────────────
 
   function entriesForDay(date: Date): TimetableEntry[] {
@@ -1169,7 +1068,10 @@ export default function TimetablePage() {
 
   const weekStats = useMemo(() => {
     const todayDateNum = parseInt(todayStr, 10);
-    const todayLessons = entries.filter(e => e.date === todayDateNum && !e.isCancelled).length;
+    const todayActive = entries.filter(e => e.date === todayDateNum && !e.isCancelled);
+    const todayLessons = PERIODS.filter(p =>
+      todayActive.some(e => toMins(e.startTime) <= p.s && toMins(e.endTime) >= p.e)
+    ).length;
     const cancellations = entries.filter(e => e.isCancelled).length;
     const exams = entries.filter(e => e.isExam).length;
     const substitutions = entries.filter(e => e.isSubstitution && !e.isCancelled).length;
@@ -1190,15 +1092,7 @@ export default function TimetablePage() {
   return (
     <AuthGuard>
       <div className="tt-wrap">
-        <div
-          ref={swipeHostRef}
-          className="tt-host"
-          style={{ touchAction: 'pan-y' }}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={finishSwipe}
-          onPointerCancel={finishSwipe}
-        >
+        <div className="tt-host">
           <main className="tt-page">
             <header className="tt-head fade-in">
               <div className="tt-head-text">
@@ -1214,7 +1108,6 @@ export default function TimetablePage() {
                     <button
                       type="button"
                       className="tt-today"
-                      onPointerDown={e => e.stopPropagation()}
                       onClick={() => setWeekOffset(0)}
                     >
                       Heute
@@ -1251,21 +1144,11 @@ export default function TimetablePage() {
               </div>
             </header>
 
-            <motion.div
-              className="tt-card"
-              animate={{ x: panelX }}
-              transition={
-                isPanelSnap || isDraggingSwipe
-                  ? { duration: 0 }
-                  : { type: 'tween', duration: panelTweenDuration, ease: [0.22, 0.61, 0.36, 1] }
-              }
-              onAnimationComplete={handlePanelAnimationComplete}
-            >
+            <div className="tt-card">
               <div className="tt-days">
                 <button
                   type="button"
                   className="tt-nav-btn"
-                  onPointerDown={e => e.stopPropagation()}
                   onClick={() => setWeekOffset(o => o - 1)}
                   aria-label="Vorherige Woche"
                 >
@@ -1288,7 +1171,6 @@ export default function TimetablePage() {
                 <button
                   type="button"
                   className="tt-nav-btn"
-                  onPointerDown={e => e.stopPropagation()}
                   onClick={() => setWeekOffset(o => o + 1)}
                   aria-label="Nächste Woche"
                 >
@@ -1436,7 +1318,7 @@ export default function TimetablePage() {
                   </div>
                 )}
               </div>
-            </motion.div>
+            </div>
 
           </main>
         </div>
@@ -1473,9 +1355,7 @@ export default function TimetablePage() {
             touch-action: pan-y;
           }
           .tt-page {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 22px 16px 64px;
+            padding: 22px 8px 64px;
             display: flex;
             flex-direction: column;
             gap: 14px;
@@ -1612,8 +1492,6 @@ export default function TimetablePage() {
 
           /* ── Main card ── */
           .tt-card {
-            background: var(--app-surface);
-            border: 1px solid var(--app-border);
             border-radius: 16px;
             overflow: hidden;
             position: relative;
@@ -1722,14 +1600,14 @@ export default function TimetablePage() {
 
           .tt-grid {
             display: grid;
-            grid-template-columns: 38px 1fr 38px;
+            grid-template-columns: 38px 1fr;
             position: relative;
-            padding: 4px;
+            padding: 4px 2px;
           }
           @media (min-width: 768px) {
             .tt-grid {
-              grid-template-columns: 44px 1fr 44px;
-              padding: 8px;
+              grid-template-columns: 44px 1fr;
+              padding: 6px 8px 8px;
             }
           }
 

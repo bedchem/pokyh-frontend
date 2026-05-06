@@ -745,7 +745,8 @@ export default function SubjectDetailPage({
           --g-negative: var(--orange);
 
           height: 100%;
-          overflow: auto;
+          overflow-x: hidden;
+          overflow-y: auto;
           background: var(--g-bg);
           color: var(--g-ink);
           font-family: var(--font-inter, 'Inter'), -apple-system, BlinkMacSystemFont, sans-serif;
@@ -835,6 +836,7 @@ export default function SubjectDetailPage({
           display: grid;
           gap: 14px;
           grid-template-columns: repeat(3, minmax(0, 1fr));
+          min-width: 0;
         }
 
         .card {
@@ -1222,8 +1224,9 @@ export default function SubjectDetailPage({
 
         .grid-section {
           display: grid;
-          grid-template-columns: 1.4fr 1fr;
+          grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
           gap: 14px;
+          min-width: 0;
         }
 
         .list-card,

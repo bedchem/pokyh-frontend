@@ -18,6 +18,10 @@ let smoothP = 0;
 let progressValue = 0;
 let noMotion = false;
 let firstFrameRendered = false;
+let lightScreenTex: THREE.Texture | null = null;
+let darkScreenTex: THREE.Texture | null = null;
+let screenMaterials: THREE.MeshBasicMaterial[] = [];
+let currentDark = false;
 
 // requestAnimationFrame is available in dedicated workers in modern browsers.
 // Fall back to setTimeout for older engines.
@@ -43,7 +47,8 @@ self.onmessage = (e: MessageEvent) => {
 // ── Init ──────────────────────────────────────────────────────────────────────
 function initScene(data: {
   canvas: OffscreenCanvas;
-  screenBitmap: ImageBitmap;
+  lightScreenBitmap: ImageBitmap;
+  darkScreenBitmap: ImageBitmap;
   dark: boolean;
   noReducedMotion: boolean;
   width: number;
@@ -51,6 +56,7 @@ function initScene(data: {
   dpr: number;
 }) {
   noMotion = !data.noReducedMotion;
+  currentDark = data.dark;
 
   // OffscreenCanvas → THREE requires an `any` cast since Three.js types expect HTMLCanvasElement
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -86,16 +92,29 @@ function initScene(data: {
   const topLight   = new THREE.DirectionalLight(0xffffff, 0.55); topLight.position.set(0, 5, 2);
   scene.add(ambLight, fillLight, rimLight, backLight, frontLight, topLight);
 
-  // Screen texture from ImageBitmap (built on main thread, transferred here)
-  const screenTex = new THREE.Texture(data.screenBitmap as unknown as HTMLImageElement);
-  screenTex.needsUpdate = true;
-  screenTex.minFilter = THREE.LinearFilter;
-  screenTex.colorSpace = THREE.SRGBColorSpace;
+  // Screen textures from ImageBitmaps (transferred from main thread)
+  function makeTex(bitmap: ImageBitmap): THREE.Texture {
+    const t = new THREE.Texture(bitmap as unknown as HTMLImageElement);
+    t.needsUpdate = true;
+    // Trilinear + max anisotropy keeps thin/small text legible when the
+    // hi-res screen bitmap is downsampled onto the small on-screen iPhone.
+    // Anisotropy is a no-op without mipmaps, so both must be enabled together.
+    t.generateMipmaps = true;
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.magFilter = THREE.LinearFilter;
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = renderer!.capabilities.getMaxAnisotropy();
+    return t;
+  }
+  lightScreenTex = makeTex(data.lightScreenBitmap);
+  darkScreenTex  = makeTex(data.darkScreenBitmap);
 
   let loadedModel: THREE.Group | null = null;
 
   function applyScreenTex() {
     if (!loadedModel) return;
+    const tex = currentDark ? darkScreenTex! : lightScreenTex!;
+    screenMaterials = [];
     loadedModel.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) return;
       const mat = child.material as THREE.MeshStandardMaterial;
@@ -103,11 +122,17 @@ function initScene(data: {
       const isNamedScreen =
         nm.includes('screen') || nm.includes('display') ||
         nm.includes('glass_fr') || nm.includes('front_gl') ||
-        nm.includes('oled')    || nm.includes('lcd');
+        nm.includes('oled')    || nm.includes('lcd') ||
+        (mat?.name ?? '') === 'BsXHDwLKqtDOfrW';
       const img = mat?.map?.image as unknown as { width: number; height: number } | undefined;
       const isPortrait = img && img.width > 0 && img.height > img.width * 1.6;
       if (isNamedScreen || isPortrait) {
-        child.material = new THREE.MeshBasicMaterial({ map: screenTex });
+        // toneMapped:false keeps pure-white texels at full intensity so the
+        // OLED-style contrast ("dark pixels stay dark, white pixels glow")
+        // survives ACES tone mapping applied to the rest of the scene.
+        const m = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
+        child.material = m;
+        screenMaterials.push(m);
       }
     });
   }
@@ -211,8 +236,13 @@ function handleResize({ width, height, dpr }: { width: number; height: number; d
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
 function applyTheme(dark: boolean) {
+  currentDark = dark;
   if (ambLight)  ambLight.intensity           = dark ? 0.55 : 0.85;
   if (renderer)  renderer.toneMappingExposure = dark ? 0.88 : 0.78;
+  const tex = dark ? darkScreenTex : lightScreenTex;
+  if (tex && screenMaterials.length > 0) {
+    for (const m of screenMaterials) { m.map = tex; m.needsUpdate = true; }
+  }
 }
 
 // ── Cleanup ───────────────────────────────────────────────────────────────────

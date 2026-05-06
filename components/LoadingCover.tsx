@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-const VIO = '#3730a3';
+const VIO = '#4930a3';
 
 function easeInOutCubic(t: number) {
   return t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1;
@@ -169,7 +169,7 @@ export default function LoadingCover({ sceneReady, onDone }: Props) {
         position: 'absolute', left: '50%', top: '50%',
         transform: 'translate(-50%, -50%)',
         opacity: logoOp,
-        color: '#6366F1',
+        color: '#e9e9fc',
         textAlign: 'center',
         pointerEvents: 'none',
         willChange: 'opacity',
@@ -184,15 +184,7 @@ export default function LoadingCover({ sceneReady, onDone }: Props) {
       }}>
         POKYH
       </div>
-      <div style={{
-        marginTop: 14,
-        fontSize: 11,
-        letterSpacing: '0.32em',
-        color: 'rgba(99,102,241,0.6)',
-        textTransform: 'uppercase',
-        fontFamily: 'ui-monospace, SFMono-Regular, monospace',
-      }}>
-      </div>
+
     </div>
   );
 

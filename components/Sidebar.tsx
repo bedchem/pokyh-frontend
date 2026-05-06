@@ -6,9 +6,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home, Calendar, BarChart2, MessageCircle, Utensils,
   UserX, Bell, CheckSquare, User, ChevronLeft,
-  ChevronRight, Menu, X, Scale,
+  ChevronRight, Menu, X, Scale, Moon, Sun,
 } from 'lucide-react';
 import { useSidebar } from '@/providers/SidebarProvider';
+import { useTheme } from '@/providers/ThemeProvider';
 
 const MAIN_NAV = [
   { href: '/home',      label: 'Dashboard',    Icon: Home },
@@ -81,6 +82,7 @@ function NavItem({
 
 export default function Sidebar() {
   const { collapsed, mobileOpen, toggle, closeMobile } = useSidebar();
+  const { resolved, setTheme } = useTheme();
   const pathname = usePathname();
 
   const renderSidebarContent = (isCollapsed: boolean) => (
@@ -146,6 +148,34 @@ export default function Sidebar() {
           collapsed={isCollapsed}
           onClick={closeMobile}
         />
+        <button
+          onClick={() => setTheme(resolved === 'dark' ? 'light' : 'dark')}
+          className="group relative flex items-center gap-3.5 rounded-xl px-3.5 py-3 w-full transition-all duration-150"
+          style={{
+            background: 'color-mix(in srgb, var(--app-text-primary) 8%, transparent)',
+            color: 'var(--app-text-primary)',
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'color-mix(in srgb, var(--app-text-primary) 14%, transparent)'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'color-mix(in srgb, var(--app-text-primary) 8%, transparent)'; }}
+        >
+          {resolved === 'dark'
+            ? <Moon size={20} strokeWidth={1.8} />
+            : <Sun size={20} strokeWidth={1.8} />
+          }
+          {!isCollapsed && (
+            <span className="text-sm font-medium truncate leading-none">
+              {resolved === 'dark' ? 'Dark Mode' : 'White Mode'}
+            </span>
+          )}
+          {isCollapsed && (
+            <div
+              className="pointer-events-none absolute left-full ml-2 z-50 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-medium shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)', border: '1px solid var(--app-border)' }}
+            >
+              {resolved === 'dark' ? 'Dark Mode' : 'White Mode'}
+            </div>
+          )}
+        </button>
         <NavItem
           href="/legal"
           label="Rechtliches"
