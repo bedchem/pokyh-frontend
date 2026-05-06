@@ -2,10 +2,10 @@
 
 /* ── CSS vars: light (default) ── */
 .lp-root {
-  --lp-tile-a:   #F2F2F7;
-  --lp-tile-b:   #F5F5FB;
+  --lp-tile-a:   #ffffff;
+  --lp-tile-b:   #ffffff;
   --lp-tile-c:   #FFFFFF;
-  --lp-tile-dark:#F0F0F8;
+  --lp-tile-dark:#FFFFFF;
   --lp-bg2:      #F2F2F7;
   --lp-card-bg:  #F5F5FA;
   --lp-card-border: rgba(0,0,0,0.07);
@@ -17,10 +17,10 @@
 }
 /* ── dark mode ── */
 .dark .lp-root {
-  --lp-tile-a:   #1d1d1f;
-  --lp-tile-b:   #161617;
-  --lp-tile-c:   #0e0e0f;
-  --lp-tile-dark:#050507;
+--lp-tile-a:   #1b1b22;
+--lp-tile-b:   #181820;
+--lp-tile-c:   #202028;
+--lp-tile-dark:#16161c;
   --lp-bg2:      #050508;
   --lp-card-bg:  #0a0a0c;
   --lp-card-border: rgba(255,255,255,0.08);
@@ -48,6 +48,7 @@
 .lp-nav {
   position: sticky; top: 0; z-index: 100;
   padding: 10px 16px;
+  width: 100%;
 }
 .lp-nav-inner {
   max-width: 1080px; margin: 0 auto; padding: 0 22px;
@@ -58,6 +59,29 @@
   border: 1px solid var(--lp-nav-border);
   border-radius: 20px;
   box-shadow: var(--lp-nav-shadow);
+  transition: all 0.3s ease;
+}
+@media (min-width: 1200px) {
+  .lp-nav {
+    padding: 16px 24px;
+  }
+  .lp-nav-inner {
+    max-width: 1200px;
+    height: 60px;
+    padding: 0 28px;
+    border-radius: 22px;
+  }
+}
+@media (min-width: 1600px) {
+  .lp-nav {
+    padding: 24px 32px;
+  }
+  .lp-nav-inner {
+    max-width: 1400px;
+    height: 64px;
+    padding: 0 32px;
+    border-radius: 24px;
+  }
 }
 .lp-nav-left {
   display: flex; align-items: center; gap: 0;
@@ -70,6 +94,13 @@
   font-size: 18px; font-weight: 700; letter-spacing: -0.03em;
   color: var(--app-text-primary); text-decoration: none;
   margin-right: 28px;
+  transition: all 0.3s ease;
+}
+@media (min-width: 1200px) {
+  .lp-nav-brand { font-size: 20px; }
+}
+@media (min-width: 1600px) {
+  .lp-nav-brand { font-size: 22px; margin-right: 36px; }
 }
 .lp-nav-logo {
   width: 28px; height: 28px; border-radius: 8px;
@@ -80,18 +111,45 @@
 .lp-nav-links { display: flex; align-items: center; gap: 24px; }
 .lp-nav-link {
   font-size: 14px; color: var(--app-text-primary);
-  opacity: 0.72; transition: opacity 0.16s; text-decoration: none;
+  opacity: 0.72; transition: all 0.16s ease; text-decoration: none;
   font-weight: 500;
 }
+@media (min-width: 1200px) {
+  .lp-nav-link { font-size: 15px; }
+}
+@media (min-width: 1600px) {
+  .lp-nav-link { font-size: 16px; }
+}
 .lp-nav-link:hover { opacity: 1; }
+.lp-nav-link.active {
+  opacity: 1;
+  font-weight: 600;
+  position: relative;
+}
+.lp-nav-link.active::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--app-text-primary);
+  border-radius: 2px;
+}
 .lp-nav-cta {
   display: inline-flex; align-items: center;
   padding: 8px 20px; border-radius: 100px;
   background: linear-gradient(135deg,#6366F1,#8B5CF6);
   color: #fff !important; font-size: 14px; font-weight: 600;
   text-decoration: none; letter-spacing: -0.01em;
-  transition: opacity 0.16s, transform 0.16s;
+  transition: all 0.16s ease;
   box-shadow: 0 2px 12px rgba(99,102,241,0.35);
+}
+@media (min-width: 1200px) {
+  .lp-nav-cta { padding: 10px 24px; font-size: 15px; }
+}
+@media (min-width: 1600px) {
+  .lp-nav-cta { padding: 12px 28px; font-size: 16px; }
 }
 .lp-nav-cta:hover { opacity: 0.88; transform: translateY(-1px); }
 
@@ -899,6 +957,25 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
   color: var(--accent);
 }
 
+/* ── Nav: Login button ── */
+.lp-nav-login {
+  display: inline-flex; align-items: center;
+  padding: 8px 18px; border-radius: 100px;
+  background: rgba(130, 130, 150, 0.12);
+  color: var(--app-text-primary); font-size: 14px; font-weight: 600;
+  text-decoration: none; transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.lp-nav-login:hover {
+  background: rgba(130, 130, 150, 0.22);
+}
+@media (min-width: 1200px) {
+  .lp-nav-login { font-size: 15px; padding: 9px 20px; }
+}
+@media (min-width: 1600px) {
+  .lp-nav-login { font-size: 16px; padding: 9px 22px; }
+}
+
 /* ── Nav: GET POKYH button ── */
 .lp-nav-get {
   display: inline-flex; align-items: center;
@@ -921,8 +998,8 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
 @media (max-width: 720px) {
   .lp-nav-drop-wrap  { display: none; }
   .lp-nav-links      { display: none; }
-  .lp-nav-right .lp-nav-link { display: none; }
-  .lp-nav-get        { font-size: 13px; padding: 7px 14px; }
+  .lp-nav-login      { display: none; }
+  .lp-nav-get        { display: none; }
   .lp-nav-ham        { display: flex; }
 }
 /* Mobile nav drawer */

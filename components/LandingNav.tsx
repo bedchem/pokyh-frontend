@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import '@/app/landing.css';
 
 const NAV_LINKS = [
@@ -13,6 +14,7 @@ const NAV_LINKS = [
 export default function LandingNav() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const close = () => setMobileOpen(false);
+  const pathname = usePathname();
 
   return (
     <>
@@ -26,15 +28,24 @@ export default function LandingNav() {
               POKYH
             </Link>
             <div className="lp-nav-links">
-              {NAV_LINKS.map(link => (
-                <Link key={link.href} href={link.href} className="lp-nav-link">{link.label}</Link>
-              ))}
+              {NAV_LINKS.map(link => {
+                const isActive = pathname === link.href;
+                return (
+                  <Link 
+                    key={link.href} 
+                    href={link.href} 
+                    className={`lp-nav-link ${isActive ? 'active' : ''}`}
+                  >
+                    {link.label}
+                  </Link>
+                );
+              })}
             </div>
           </div>
 
           {/* Right: Anmelden + CTA */}
           <div className="lp-nav-right">
-            <Link href="/login" className="lp-nav-link">Anmelden</Link>
+            <Link href="/login" className="lp-nav-login">Anmelden</Link>
             <Link href="/get" className="lp-nav-get">GET POKYH</Link>
           </div>
 
