@@ -72,19 +72,20 @@ export default function LoadingCover({ sceneReady, onDone }: Props) {
   const [progress, setProgress] = useState(0);
   const [logoOp,   setLogoOp]   = useState(1);
 
-  const rafRef    = useRef<number | null>(null);
-  const startRef  = useRef<number>(0);
-  const tdRef     = useRef<number>(3.5);   // target duration (seconds); shrinks when scene is ready
-  const lockedRef = useRef<boolean>(false);
-  const rdyRef    = useRef<boolean>(false);
-  const rdyTsRef  = useRef<number>(0);
-  const doneRef   = useRef<boolean>(false);
-  const exitTsRef = useRef<number>(0);
-  const tilesRef  = useRef<Tile[]>([]);
-  const dimRef    = useRef<{ W: number; H: number }>({ W: 0, H: 0 });
+  const rafRef          = useRef<number | null>(null);
+  const startRef        = useRef<number>(0);
+  const lockedRef       = useRef<boolean>(false);
+  const lockElapsedRef  = useRef<number>(0);
+  const lockProgressRef = useRef<number>(0);
+  const rdyRef          = useRef<boolean>(false);
+  const doneRef         = useRef<boolean>(false);
+  const exitTsRef       = useRef<number>(0);
+  const tilesRef        = useRef<Tile[]>([]);
+  const dimRef          = useRef<{ W: number; H: number }>({ W: 0, H: 0 });
 
-  const MIN_DUR = 1.1;
-  const HOLD    = 0.3; // seconds before tiles start absorbing (logo hold)
+  const DEFAULT_DUR  = 2.0;  // hard cap: cover closes after this many seconds regardless
+  const HOLD         = 0.3;  // logo hold before tiles start moving
+  const COMPLETE_DUR = 0.5;  // time to smoothly finish remaining tiles after scene fires
 
   // Mount: measure viewport, build tiles, start rAF loop
   useEffect(() => {
@@ -97,20 +98,26 @@ export default function LoadingCover({ sceneReady, onDone }: Props) {
       if (!startRef.current) startRef.current = ts;
       const elapsed = (ts - startRef.current) / 1000;
 
-      // When iPhone signals first frame ready → compress remaining animation.
-      // Fast device: many tiles remain → rapid burst (visually big chunks).
-      // Slow device: most tiles already gone → small final flush.
+      // When scene fires → record current progress and complete smoothly from there.
+      // This avoids the jump that happens when tdRef changes mid-animation.
       if (rdyRef.current && !lockedRef.current) {
-        lockedRef.current = true;
-        const sceneEl = (rdyTsRef.current - startRef.current) / 1000;
-        tdRef.current = Math.max(MIN_DUR, sceneEl + 0.25);
+        lockedRef.current      = true;
+        lockElapsedRef.current = elapsed;
+        const rawAtLock = clamp((elapsed - HOLD) / Math.max(DEFAULT_DUR - HOLD, 0.001), 0, 1);
+        lockProgressRef.current = easeInOutCubic(rawAtLock);
       }
 
-      const raw = clamp((elapsed - HOLD) / Math.max(tdRef.current - HOLD, 0.001), 0, 1);
-      const p   = easeInOutCubic(raw);
+      let p: number;
+      if (lockedRef.current) {
+        // Continue from the locked progress, reach 1.0 in COMPLETE_DUR seconds — no jump
+        const t = clamp((elapsed - lockElapsedRef.current) / COMPLETE_DUR, 0, 1);
+        p = lockProgressRef.current + easeInOutCubic(t) * (1 - lockProgressRef.current);
+      } else {
+        const raw = clamp((elapsed - HOLD) / Math.max(DEFAULT_DUR - HOLD, 0.001), 0, 1);
+        p = easeInOutCubic(raw);
+      }
 
       setProgress(p);
-      // Logo: fully visible during hold, fades out fast as tiles absorb
       setLogoOp(p > 0 ? Math.max(0, 1 - easeInOutCubic(clamp(p * 8, 0, 1))) : 1);
 
       if (p >= 1 && !doneRef.current) {
@@ -149,11 +156,9 @@ export default function LoadingCover({ sceneReady, onDone }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Sync sceneReady prop → ref (avoids stale closure in rAF loop)
   useEffect(() => {
     if (!sceneReady || rdyRef.current) return;
-    rdyRef.current  = true;
-    rdyTsRef.current = performance.now();
+    rdyRef.current = true;
   }, [sceneReady]);
 
   // ── Logo style (shared between static and animated render) ──────────────
