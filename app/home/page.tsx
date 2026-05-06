@@ -30,6 +30,23 @@ function parseTime(t: number): string {
   return `${s.slice(0, 2)}:${s.slice(2, 4)}`;
 }
 
+function toMins(t: number): number {
+  const s = t.toString().padStart(4, '0');
+  return parseInt(s.slice(0, 2)) * 60 + parseInt(s.slice(2, 4));
+}
+
+const SCHOOL_PERIODS = [
+  { s: 470, e: 520 }, { s: 520, e: 570 }, { s: 570, e: 620 },
+  { s: 635, e: 685 }, { s: 685, e: 735 }, { s: 735, e: 785 },
+  { s: 795, e: 845 }, { s: 845, e: 895 }, { s: 905, e: 955 }, { s: 955, e: 1005 },
+];
+
+function countPeriods(entries: TimetableEntry[]): number {
+  return SCHOOL_PERIODS.filter(p =>
+    entries.some(e => toMins(e.startTime) <= p.s && toMins(e.endTime) >= p.e)
+  ).length;
+}
+
 function formatGradeDate(d: number): string {
   const s = d.toString();
   return `${s.slice(6, 8)}.${s.slice(4, 6)}.`;
@@ -462,7 +479,7 @@ export default function HomePage() {
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 fade-in">
                   <StatCard label="Unterrichtsende" value={lastActive ? parseTime(lastActive.endTime) : '–'} sub={firstActive ? `Start: ${parseTime(firstActive.startTime)}` : 'Kein Unterricht'} color="var(--accent)" icon={Clock} />
                   <StatCard label="Notenschnitt" value={overallAvg != null ? overallAvg.toFixed(2) : '–'} sub={`${subjectCount} ${subjectCount === 1 ? 'Fach' : 'Fächer'}`} color={overallAvg != null ? averageColor(overallAvg) : 'var(--app-text-secondary)'} icon={TrendingUp} href="/grades" />
-                  <StatCard label="Stunden heute" value={String(todayEntries.length)} sub={activeTodayEntries.length !== todayEntries.length ? `${activeTodayEntries.length} aktiv` : undefined} color="var(--tint)" icon={BookOpen} href="/timetable" />
+                  <StatCard label="Stunden heute" value={String(countPeriods(activeTodayEntries))} sub={activeTodayEntries.length !== todayEntries.length ? `${activeTodayEntries.length} aktiv` : undefined} color="var(--tint)" icon={BookOpen} href="/timetable" />
                   <StatCard label="Nachrichten" value={String(messages.length)} sub={unreadCount > 0 ? `${unreadCount} ungelesen` : 'Alle gelesen'} color={unreadCount > 0 ? 'var(--danger)' : 'var(--app-text-secondary)'} icon={MessageCircle} href="/messages" />
                 </div>
 

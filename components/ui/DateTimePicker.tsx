@@ -1,194 +1,288 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Calendar, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Props {
   value: string; // "YYYY-MM-DDTHH:MM" or ""
   onChange: (val: string) => void;
-  onClose: () => void;
-  title?: string;
+  onBack: () => void;
 }
 
-const SCHOOL_TIMES = ['07:55', '08:45', '09:45', '10:35', '11:25', '12:15', '13:05', '13:55'];
-const OTHER_TIMES  = ['07:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
-const DAYS_DE      = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
-const MONTHS_DE    = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+const MONTH_NAMES = [
+  'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
+];
+const DAY_ABBR = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
-function toDs(d: Date) {
+function toDs(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function fmtDs(ds: string): string {
-  const d = new Date(ds + 'T00:00');
-  return `${DAYS_DE[d.getDay()]}, ${d.getDate()}. ${MONTHS_DE[d.getMonth()]}`;
+function dsToGerman(ds: string): string {
+  const [y, m, d] = ds.split('-');
+  return `${d}.${m}.${y}`;
 }
 
-function TimeBtn({ time, active, onClick }: { time: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="py-2.5 rounded-xl text-center press-scale"
-      style={{
-        background: active ? 'var(--accent)' : 'var(--app-card)',
-        color: active ? '#fff' : 'var(--app-text-primary)',
-      }}
-    >
-      <span className="text-[13px] font-semibold">{time}</span>
-    </button>
-  );
+function parseGermanDate(raw: string): string | null {
+  const match = raw.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/);
+  if (!match) return null;
+  let [, d, m, y] = match;
+  if (y.length === 2) y = `20${y}`;
+  const day = parseInt(d), month = parseInt(m), year = parseInt(y);
+  if (month < 1 || month > 12 || day < 1 || day > 31 || year < 2020 || year > 2099) return null;
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-export default function DateTimePicker({ value, onChange, onClose, title = 'Datum & Uhrzeit' }: Props) {
+export default function DateTimePicker({ value, onChange, onBack }: Props) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const todayDs = toDs(today);
 
-  const parsedDate = value ? value.split('T')[0] : '';
-  const parsedTime = value ? (value.split('T')[1] ?? '').slice(0, 5) : '';
+  const initDs = value ? value.split('T')[0] : '';
+  const initTime = value ? (value.split('T')[1] ?? '').slice(0, 5) : '';
+  const initD = initDs ? new Date(initDs + 'T00:00') : today;
 
-  const [selDate, setSelDate] = useState(parsedDate || toDs(today));
-  const [selTime, setSelTime] = useState(parsedTime);
-  const [customTime, setCustomTime] = useState('');
+  const [selDate, setSelDate] = useState(initDs);
+  const [viewYear, setViewYear] = useState(initD.getFullYear());
+  const [viewMonth, setViewMonth] = useState(initD.getMonth());
+  const [dateText, setDateText] = useState(initDs ? dsToGerman(initDs) : '');
+  const [dateErr, setDateErr] = useState(false);
+  const [timeText, setTimeText] = useState(initTime);
+  const [timeErr, setTimeErr] = useState(false);
 
-  const quickDates = Array.from({ length: 8 }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    return d;
-  });
+  // Calendar grid
+  const firstDow = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7;
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
 
-  const activeTime = selTime || customTime;
+  function selectDay(day: number) {
+    const ds = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    setSelDate(ds);
+    setDateText(dsToGerman(ds));
+    setDateErr(false);
+  }
+
+  function prevMonth() {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1); }
+    else setViewMonth(m => m - 1);
+  }
+  function nextMonth() {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1); }
+    else setViewMonth(m => m + 1);
+  }
+
+  function handleDateText(raw: string) {
+    setDateText(raw);
+    if (!raw) { setDateErr(false); return; }
+    const parsed = parseGermanDate(raw);
+    if (parsed) {
+      setSelDate(parsed);
+      const d = new Date(parsed + 'T00:00');
+      setViewYear(d.getFullYear());
+      setViewMonth(d.getMonth());
+      setDateErr(false);
+    } else {
+      setDateErr(raw.length >= 8);
+    }
+  }
+
+  function handleTimeText(raw: string) {
+    const val = raw.replace(/[^0-9:]/g, '').slice(0, 5);
+    setTimeText(val);
+    if (val.length === 5) {
+      const m = val.match(/^(\d{2}):(\d{2})$/);
+      setTimeErr(!m || parseInt(m[1]) > 23 || parseInt(m[2]) > 59);
+    } else {
+      setTimeErr(false);
+    }
+  }
+
+  const timeValid = /^\d{2}:\d{2}$/.test(timeText) && !timeErr;
+  const canConfirm = !!selDate && timeValid;
 
   function confirm() {
-    if (!selDate || !activeTime) return;
-    onChange(`${selDate}T${activeTime}`);
-    onClose();
+    if (!canConfirm) return;
+    onChange(`${selDate}T${timeText}`);
+    onBack();
   }
 
-  function selectTime(t: string) {
-    setSelTime(t);
-    setCustomTime('');
+  let preview = '';
+  if (selDate && timeValid) {
+    const d = new Date(`${selDate}T${timeText}`);
+    preview = d.toLocaleDateString('de', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + ', ' + timeText + ' Uhr';
   }
-
-  function handleCustomTime(t: string) {
-    setCustomTime(t);
-    setSelTime('');
-  }
-
-  const selectedLabel = activeTime
-    ? `${fmtDs(selDate)} · ${activeTime} Uhr`
-    : fmtDs(selDate);
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end"
-      style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(5px)' }}
-      onClick={onClose}
+      className="fixed inset-0 z-[60] flex items-center justify-center px-4 py-8"
+      style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)' }}
+      onClick={onBack}
     >
       <div
-        className="w-full lg:max-w-lg lg:mx-auto rounded-t-3xl slide-up"
-        style={{ background: 'var(--app-surface)', maxHeight: '90dvh', overflowY: 'auto' }}
+        className="w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-[28px] fade-in"
+        style={{ background: 'var(--app-surface)', animationDuration: '0.2s' }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Handle */}
-        <div className="w-10 h-1 rounded-full mx-auto mt-3 mb-0 flex-shrink-0" style={{ background: 'var(--app-border)' }} />
-
         {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-4 pb-2 flex-shrink-0">
-          <h3 className="text-[17px] font-bold" style={{ color: 'var(--app-text-primary)' }}>{title}</h3>
-          <button onClick={onClose} className="p-1.5 rounded-full press-scale" style={{ background: 'var(--app-card)' }}>
-            <X size={16} color="var(--app-text-secondary)" />
+        <div className="flex items-center gap-3 px-5 pt-5 pb-2">
+          <button
+            onClick={onBack}
+            className="w-9 h-9 flex items-center justify-center rounded-full press-scale flex-shrink-0"
+            style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)' }}
+            aria-label="Zurück"
+          >
+            <ChevronLeft size={18} />
           </button>
+          <h3 className="text-[17px] font-bold" style={{ color: 'var(--app-text-primary)' }}>
+            Datum & Uhrzeit
+          </h3>
         </div>
 
-        <div className="px-4 pb-10 flex flex-col gap-4">
+        <div className="px-5 pb-8 flex flex-col gap-5 mt-2">
+
           {/* Date */}
           <div>
-            <div className="flex items-center gap-1.5 mb-2 px-0.5">
-              <Calendar size={12} color="var(--app-text-tertiary)" />
-              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--app-text-tertiary)' }}>
-                Datum
-              </p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider mb-3 px-0.5" style={{ color: 'var(--app-text-tertiary)' }}>
+              Datum
+            </p>
+
+            {/* Month nav */}
+            <div className="flex items-center justify-between mb-3">
+              <button
+                onClick={prevMonth}
+                className="w-9 h-9 rounded-full flex items-center justify-center press-scale"
+                style={{ background: 'var(--app-card)', color: 'var(--app-text-secondary)' }}
+              >
+                <ChevronLeft size={17} />
+              </button>
+              <span className="text-[15px] font-semibold" style={{ color: 'var(--app-text-primary)' }}>
+                {MONTH_NAMES[viewMonth]} {viewYear}
+              </span>
+              <button
+                onClick={nextMonth}
+                className="w-9 h-9 rounded-full flex items-center justify-center press-scale"
+                style={{ background: 'var(--app-card)', color: 'var(--app-text-secondary)' }}
+              >
+                <ChevronRight size={17} />
+              </button>
             </div>
-            <div className="grid grid-cols-4 gap-1.5">
-              {quickDates.map((d, i) => {
-                const ds = toDs(d);
-                const active = ds === selDate;
-                const line1 = i === 0 ? 'Heute' : i === 1 ? 'Morgen' : i === 2 ? 'Überm.' : `${DAYS_DE[d.getDay()]} ${d.getDate()}.`;
-                const line2 = i > 2 ? MONTHS_DE[d.getMonth()] : null;
+
+            {/* Day headers */}
+            <div className="grid grid-cols-7 mb-1">
+              {DAY_ABBR.map(d => (
+                <span key={d} className="text-center text-[11px] font-medium py-1" style={{ color: 'var(--app-text-tertiary)' }}>
+                  {d}
+                </span>
+              ))}
+            </div>
+
+            {/* Day cells */}
+            <div className="grid grid-cols-7">
+              {cells.map((day, i) => {
+                if (!day) return <div key={`e${i}`} className="h-9" />;
+                const ds = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const isSel = ds === selDate;
+                const isToday = ds === todayDs;
                 return (
                   <button
                     key={ds}
-                    onClick={() => setSelDate(ds)}
-                    className="py-2 px-1 rounded-xl text-center press-scale"
-                    style={{ background: active ? 'var(--accent)' : 'var(--app-card)', color: active ? '#fff' : 'var(--app-text-primary)' }}
+                    onClick={() => selectDay(day)}
+                    className="h-9 flex items-center justify-center press-scale"
                   >
-                    <span className="text-[13px] font-semibold leading-tight block">{line1}</span>
-                    {line2 && <span className="text-[10px] block" style={{ opacity: 0.7 }}>{line2}</span>}
+                    <span
+                      style={{
+                        width: 34, height: 34,
+                        borderRadius: '50%',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 14,
+                        fontWeight: isSel ? 700 : 400,
+                        background: isSel
+                          ? 'var(--accent)'
+                          : isToday
+                          ? 'color-mix(in srgb, var(--accent) 12%, var(--app-bg))'
+                          : 'transparent',
+                        color: isSel ? '#fff' : isToday ? 'var(--accent)' : 'var(--app-text-primary)',
+                        border: isToday && !isSel ? '1.5px solid color-mix(in srgb, var(--accent) 35%, transparent)' : 'none',
+                      }}
+                    >
+                      {day}
+                    </span>
                   </button>
                 );
               })}
             </div>
-          </div>
 
-          {/* School times */}
-          <div>
-            <div className="flex items-center gap-1.5 mb-2 px-0.5">
-              <Clock size={12} color="var(--app-text-tertiary)" />
-              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--app-text-tertiary)' }}>
-                Schulzeiten
-              </p>
-            </div>
-            <div className="grid grid-cols-4 gap-1.5">
-              {SCHOOL_TIMES.map(t => (
-                <TimeBtn key={t} time={t} active={selTime === t} onClick={() => selectTime(t)} />
-              ))}
-            </div>
-          </div>
-
-          {/* Other times */}
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider mb-2 px-0.5" style={{ color: 'var(--app-text-tertiary)' }}>
-              Weitere Zeiten
-            </p>
-            <div className="grid grid-cols-4 gap-1.5">
-              {OTHER_TIMES.map(t => (
-                <TimeBtn key={t} time={t} active={selTime === t} onClick={() => selectTime(t)} />
-              ))}
+            {/* Manual date input */}
+            <div className="mt-3">
+              <input
+                type="text"
+                placeholder="TT.MM.JJJJ"
+                value={dateText}
+                onChange={e => handleDateText(e.target.value)}
+                maxLength={10}
+                className="w-full rounded-xl px-4 py-2.5 text-[14px] outline-none text-center"
+                style={{
+                  background: 'var(--app-card)',
+                  color: dateErr ? 'var(--danger)' : 'var(--app-text-primary)',
+                  border: `1.5px solid ${dateErr ? 'var(--danger)' : selDate ? 'color-mix(in srgb, var(--accent) 35%, transparent)' : 'transparent'}`,
+                }}
+              />
+              {dateErr && (
+                <p className="text-[11px] mt-1 px-1" style={{ color: 'var(--danger)' }}>Format: TT.MM.JJJJ</p>
+              )}
             </div>
           </div>
 
-          {/* Custom time */}
+          {/* Time */}
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-wider mb-2 px-0.5" style={{ color: 'var(--app-text-tertiary)' }}>
-              Freie Eingabe
+              Uhrzeit
             </p>
             <input
-              type="time"
-              value={customTime}
-              onChange={e => handleCustomTime(e.target.value)}
-              className="w-full rounded-xl px-4 py-3 text-[15px] outline-none"
+              type="text"
+              inputMode="numeric"
+              placeholder="HH:MM"
+              value={timeText}
+              onChange={e => handleTimeText(e.target.value)}
+              maxLength={5}
+              className="w-full rounded-xl px-4 py-3 text-[24px] font-bold outline-none text-center"
               style={{
+                letterSpacing: '0.15em',
                 background: 'var(--app-card)',
-                color: customTime ? 'var(--app-text-primary)' : 'var(--app-text-tertiary)',
-                border: `1.5px solid ${customTime ? 'var(--accent)' : 'transparent'}`,
+                color: timeErr ? 'var(--danger)' : 'var(--app-text-primary)',
+                border: `1.5px solid ${timeErr ? 'var(--danger)' : timeValid ? 'color-mix(in srgb, var(--accent) 35%, transparent)' : 'transparent'}`,
               }}
             />
+            {timeErr && (
+              <p className="text-[11px] mt-1 px-1" style={{ color: 'var(--danger)' }}>Format: HH:MM (z.B. 08:30)</p>
+            )}
           </div>
 
           {/* Preview */}
-          {activeTime && (
+          {preview && (
             <div
               className="rounded-2xl px-4 py-3"
-              style={{ background: 'color-mix(in srgb, var(--accent) 10%, var(--app-card))', border: '1px solid color-mix(in srgb, var(--accent) 20%, transparent)' }}
+              style={{
+                background: 'color-mix(in srgb, var(--accent) 10%, var(--app-card))',
+                border: '1px solid color-mix(in srgb, var(--accent) 22%, transparent)',
+              }}
             >
-              <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--accent)' }}>Ausgewählt</p>
-              <p className="text-[15px] font-bold" style={{ color: 'var(--app-text-primary)' }}>{selectedLabel}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--accent)' }}>
+                Ausgewählt
+              </p>
+              <p className="text-[14px] font-bold" style={{ color: 'var(--app-text-primary)' }}>
+                {preview}
+              </p>
             </div>
           )}
 
           <button
             onClick={confirm}
-            disabled={!activeTime}
+            disabled={!canConfirm}
             className="h-12 rounded-xl font-semibold text-white press-scale disabled:opacity-40 text-[15px]"
             style={{ background: 'var(--accent)' }}
           >

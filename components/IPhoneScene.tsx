@@ -128,9 +128,22 @@ export default function IPhoneScene({
 
       let active = true; // guards against React Strict Mode double-effect / unmount-before-promise
 
-      // Build screen texture on main thread (needs DOM), then transfer as ImageBitmap
-      const screenCanvas = buildScreenCanvas();
-      createImageBitmap(screenCanvas).then((screenBitmap) => {
+      // Load both screen images as ImageBitmaps; fall back to canvas-drawn screen on error
+      async function loadBitmap(url: string): Promise<ImageBitmap> {
+        try {
+          const r = await fetch(url);
+          if (!r.ok) throw new Error(`${r.status}`);
+          return createImageBitmap(await r.blob());
+        } catch (e) {
+          console.warn('[IPhoneScene] screen bitmap load failed for', url, e);
+          return createImageBitmap(buildScreenCanvas());
+        }
+      }
+
+      Promise.all([
+        loadBitmap('/models/whitemode_screen.webp'),
+        loadBitmap('/models/darkmode_screen.webp'),
+      ]).then(([lightScreenBitmap, darkScreenBitmap]) => {
         if (!active || !canvasRef.current) return; // effect was cleaned up before promise resolved
 
         const offscreen = (canvasRef.current as HTMLCanvasElement & { transferControlToOffscreen: () => OffscreenCanvas })
@@ -152,10 +165,10 @@ export default function IPhoneScene({
         const noReducedMotion = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         const { clientWidth: width, clientHeight: height } = canvasRef.current!;
 
-        // Transfer offscreen canvas + screen bitmap (both are transferable)
+        // Transfer offscreen canvas + both screen bitmaps (all transferable)
         worker.postMessage(
-          { type: 'init', canvas: offscreen, screenBitmap, dark, noReducedMotion, width, height, dpr: window.devicePixelRatio },
-          [offscreen, screenBitmap],
+          { type: 'init', canvas: offscreen, lightScreenBitmap, darkScreenBitmap, dark, noReducedMotion, width, height, dpr: window.devicePixelRatio },
+          [offscreen, lightScreenBitmap, darkScreenBitmap],
         );
 
         // Forward scroll progress every frame — very lightweight on main thread

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { ChevronLeft, CheckCircle, XCircle, UserX } from 'lucide-react';
+import { ChevronLeft, CheckCircle, XCircle, UserX, Clock, ClockArrowUp } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
@@ -36,6 +36,10 @@ function formatMinutes(m: number): string {
   const h = Math.floor(m / 60);
   const min = m % 60;
   return min === 0 ? `${h}h` : `${h}h ${min}m`;
+}
+
+function roundHours(m: number): string {
+  return `${Math.round(m / 60)}h`;
 }
 
 // ─── Timetable helpers for exact absence minutes ───────────────────────────────
@@ -265,6 +269,9 @@ export default function AbsencesPage() {
   const [minutesMap, setMinutesMap] = useState<Map<number, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [exact, setExact] = useState(false);
+
+  const fmt = (m: number) => exact ? formatMinutes(m) : roundHours(m);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -277,6 +284,15 @@ export default function AbsencesPage() {
       // Fetch timetable for every week that overlaps with an absence
       const weekDates = getWeeksForAbsences(parsed);
       const weekResults = await Promise.allSettled(weekDates.map((d) => fetchTimetable(d)));
+
+      // If any timetable fetch was rejected due to session expiry, redirect now.
+      const sessionExpired = weekResults.some(
+        (r) => r.status === 'rejected' && r.reason instanceof Error && r.reason.message === 'session_expired',
+      );
+      if (sessionExpired) {
+        window.location.replace('/login');
+        return;
+      }
 
       // Merge all weeks into a single date → slots map
       const rawMap = new Map<number, Map<number, DaySlot>>();
@@ -296,7 +312,7 @@ export default function AbsencesPage() {
       setMinutesMap(mins);
     } catch (e: unknown) {
       if (e instanceof Error && e.message === 'session_expired') {
-        router.replace('/login');
+        window.location.replace('/login');
       } else {
         setError(e instanceof Error ? e.message : 'Fehler');
       }
@@ -350,6 +366,21 @@ export default function AbsencesPage() {
           >
             Abwesenheiten
           </h1>
+          <button
+            onClick={() => setExact((v) => !v)}
+            className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium press-scale"
+            style={{
+              background: exact ? 'var(--tint)' : 'transparent',
+              color: exact ? '#fff' : 'var(--tint)',
+              border: exact ? 'none' : '1.5px solid var(--tint)',
+              transition: 'background 0.2s, color 0.2s, border 0.2s',
+            }}
+          >
+            {exact
+              ? <ClockArrowUp size={15} />
+              : <Clock size={15} />}
+            {exact ? 'Exakt' : 'Gerundet'}
+          </button>
         </div>
 
         <div className="flex-1 px-4 pb-10 overflow-auto">
@@ -378,7 +409,7 @@ export default function AbsencesPage() {
                       className="text-3xl font-bold"
                       style={{ color: 'var(--app-text-primary)' }}
                     >
-                      {formatMinutes(totalMinutes)}
+                      {fmt(totalMinutes)}
                     </p>
                   </div>
                   <div className="flex gap-5">
@@ -387,7 +418,7 @@ export default function AbsencesPage() {
                         className="text-xl font-bold"
                         style={{ color: 'var(--tint)' }}
                       >
-                        {formatMinutes(excusedMinutes)}
+                        {fmt(excusedMinutes)}
                       </p>
                       <p
                         className="text-xs"
@@ -401,7 +432,7 @@ export default function AbsencesPage() {
                         className="text-xl font-bold"
                         style={{ color: 'var(--danger)' }}
                       >
-                        {formatMinutes(unexcusedMinutes)}
+                        {fmt(unexcusedMinutes)}
                       </p>
                       <p
                         className="text-xs"
@@ -466,7 +497,7 @@ export default function AbsencesPage() {
                           className="text-sm"
                           style={{ color: 'var(--app-text-secondary)' }}
                         >
-                          {formatMinutes(group.totalMinutes)}
+                          {fmt(group.totalMinutes)}
                         </p>
                       </div>
                       <div className="flex flex-col gap-2">
@@ -506,7 +537,7 @@ export default function AbsencesPage() {
                                   className="text-sm font-semibold"
                                   style={{ color: 'var(--app-text-secondary)' }}
                                 >
-                                  {formatMinutes(getMin(entry))}
+                                  {fmt(getMin(entry))}
                                 </span>
                                 {entry.isExcused ? (
                                   <CheckCircle size={18} color="var(--tint)" />

@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { Plus, Check, Trash2, CheckSquare, Clock, AlignLeft, X, Calendar } from 'lucide-react';
 import DateTimePicker from '@/components/ui/DateTimePicker';
-import { AnimatePresence, motion } from 'framer-motion';
 import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
 import EmptyView from '@/components/ui/EmptyView';
@@ -194,105 +193,103 @@ export default function TodosPage() {
           )}
         </div>
 
-        {/* Add sheet */}
-        <AnimatePresence>
-          {showAdd && (
-            <motion.div
-              className="fixed inset-0 z-50 flex items-end"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              style={{ background: 'rgba(0,0,0,0.5)' }}
-              onClick={() => setShowAdd(false)}
+        {/* Add modal */}
+        {showAdd && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8"
+            style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+            onClick={() => { setShowAdd(false); setShowDatePicker(false); }}
+          >
+            <div
+              className="w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-[28px] fade-in"
+              style={{ background: 'var(--app-surface)', animationDuration: '0.25s' }}
+              onClick={(e) => e.stopPropagation()}
             >
-              <motion.div
-                className="w-full rounded-t-2xl p-6 pb-12"
-                style={{ background: 'var(--app-surface)' }}
-                initial={{ y: '100%' }}
-                animate={{ y: 0 }}
-                exit={{ y: '100%' }}
-                transition={{ duration: 0.28, ease: [0.25, 0.46, 0.45, 0.94] }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: 'var(--app-border)' }} />
-                <div className="flex items-center justify-between mb-5">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 pt-6 pb-2">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: 'color-mix(in srgb, var(--accent) 15%, transparent)' }}
+                  >
+                    <CheckSquare size={20} color="var(--accent)" />
+                  </div>
                   <h3 className="text-[18px] font-bold" style={{ color: 'var(--app-text-primary)' }}>
                     Todo hinzufügen
                   </h3>
-                  <button
-                    onClick={() => setShowAdd(false)}
-                    className="p-1.5 rounded-lg"
-                    style={{ background: 'var(--app-card)', color: 'var(--app-text-secondary)' }}
-                  >
-                    <X size={16} />
-                  </button>
                 </div>
-                <div className="flex flex-col gap-3">
-                  <input
-                    placeholder="Titel *"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' && title.trim()) addTodo(); }}
-                    className="w-full rounded-xl px-4 py-3 text-[15px] outline-none"
-                    style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)' }}
-                    autoFocus
-                  />
-                  <div className="relative">
-                    <AlignLeft size={15} className="absolute left-3.5 top-3.5 pointer-events-none" color="var(--app-text-tertiary)" />
-                    <input
-                      placeholder="Details (optional)"
-                      value={details}
-                      onChange={(e) => setDetails(e.target.value)}
-                      className="w-full rounded-xl pl-10 pr-4 py-3 text-[15px] outline-none"
-                      style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)' }}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowDatePicker(true)}
-                    className="w-full rounded-xl px-4 py-3 text-[15px] text-left flex items-center gap-3 press-scale"
-                    style={{
-                      background: 'var(--app-card)',
-                      color: dueAt ? 'var(--app-text-primary)' : 'var(--app-text-tertiary)',
-                      border: `1.5px solid ${dueAt ? 'var(--accent)' : 'transparent'}`,
-                    }}
-                  >
-                    <Calendar size={16} color={dueAt ? 'var(--accent)' : 'var(--app-text-tertiary)'} />
-                    {dueAt
-                      ? (() => {
-                          const d = new Date(dueAt);
-                          return d.toLocaleDateString('de', { weekday: 'short', day: 'numeric', month: 'short' }) +
-                            ' · ' + d.toLocaleTimeString('de', { hour: '2-digit', minute: '2-digit' }) + ' Uhr';
-                        })()
-                      : 'Fälligkeitsdatum wählen (optional)'
-                    }
-                  </button>
-                  {addError && (
-                    <p className="text-sm px-3 py-2.5 rounded-xl" style={{ background: 'color-mix(in srgb, var(--danger) 12%, transparent)', color: 'var(--danger)' }}>
-                      {addError}
-                    </p>
-                  )}
-                  <button
-                    onClick={addTodo}
-                    disabled={!title.trim() || saving}
-                    className="h-12 rounded-xl font-semibold text-white press-scale disabled:opacity-50 flex items-center justify-center gap-2 mt-1"
-                    style={{ background: 'var(--accent)' }}
-                  >
-                    {saving ? <Spinner size={18} /> : 'Hinzufügen'}
-                  </button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                <button
+                  onClick={() => setShowAdd(false)}
+                  className="w-8 h-8 flex items-center justify-center rounded-full press-scale flex-shrink-0"
+                  style={{ background: 'var(--app-card)', color: 'var(--app-text-secondary)' }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
 
-        {showDatePicker && (
+              <div className="px-6 pb-8 flex flex-col gap-3 mt-4">
+                <input
+                  placeholder="Titel *"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && title.trim()) addTodo(); }}
+                  className="w-full rounded-xl px-4 py-3 text-[15px] outline-none"
+                  style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)' }}
+                  autoFocus
+                />
+                <div className="relative">
+                  <AlignLeft size={15} className="absolute left-3.5 top-3.5 pointer-events-none" color="var(--app-text-tertiary)" />
+                  <input
+                    placeholder="Details (optional)"
+                    value={details}
+                    onChange={(e) => setDetails(e.target.value)}
+                    className="w-full rounded-xl pl-10 pr-4 py-3 text-[15px] outline-none"
+                    style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)' }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDatePicker(true)}
+                  className="w-full rounded-xl px-4 py-3 text-[15px] text-left flex items-center gap-3 press-scale"
+                  style={{
+                    background: 'var(--app-card)',
+                    color: dueAt ? 'var(--app-text-primary)' : 'var(--app-text-tertiary)',
+                    border: `1.5px solid ${dueAt ? 'var(--accent)' : 'transparent'}`,
+                  }}
+                >
+                  <Calendar size={16} color={dueAt ? 'var(--accent)' : 'var(--app-text-tertiary)'} />
+                  {dueAt
+                    ? (() => {
+                        const d = new Date(dueAt);
+                        return d.toLocaleDateString('de', { weekday: 'short', day: 'numeric', month: 'short' }) +
+                          ' · ' + d.toLocaleTimeString('de', { hour: '2-digit', minute: '2-digit' }) + ' Uhr';
+                      })()
+                    : 'Fälligkeitsdatum wählen (optional)'
+                  }
+                </button>
+                {addError && (
+                  <p className="text-sm px-3 py-2.5 rounded-xl" style={{ background: 'color-mix(in srgb, var(--danger) 12%, transparent)', color: 'var(--danger)' }}>
+                    {addError}
+                  </p>
+                )}
+                <button
+                  onClick={addTodo}
+                  disabled={!title.trim() || saving}
+                  className="h-12 rounded-xl font-semibold text-white press-scale disabled:opacity-50 flex items-center justify-center gap-2 mt-1"
+                  style={{ background: 'var(--accent)' }}
+                >
+                  {saving ? <Spinner size={18} /> : 'Hinzufügen'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showAdd && showDatePicker && (
           <DateTimePicker
             value={dueAt}
             onChange={(v) => setDueAt(v)}
-            onClose={() => setShowDatePicker(false)}
-            title="Fälligkeitsdatum"
+            onBack={() => setShowDatePicker(false)}
           />
         )}
       </div>

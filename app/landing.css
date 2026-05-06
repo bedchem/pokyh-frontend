@@ -987,6 +987,36 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
 }
 .lp-nav-get:hover { opacity: 0.82; transform: translateY(-1px); }
 
+/* ── Nav: Theme toggle ── */
+.lp-theme-toggle-input { display: none; }
+.lp-theme-toggle {
+  width: 36px; height: 36px;
+  display: grid; border-radius: 50%;
+  position: relative; place-items: center;
+  cursor: pointer; transition: transform 0.2s ease, background 0.2s ease;
+  line-height: 1; overflow: hidden; flex-shrink: 0;
+  background: transparent;
+}
+.lp-theme-toggle:hover { background: rgba(99,102,241,0.14); }
+.lp-theme-toggle-icon {
+  grid-column: 1/1; grid-row: 1/1;
+  width: 100%; height: 100%;
+  display: grid; place-items: center;
+  z-index: 2; transform-origin: center center;
+  transition: transform 500ms ease, opacity 300ms ease;
+  pointer-events: none;
+}
+.lp-theme-toggle-icon--moon { color: #e8e8e8; background-color: transparent; border-radius: 50%; }
+.lp-theme-toggle-icon--sun  { color: #212121; background-color: transparent; border-radius: 50%; }
+.lp-theme-toggle-icon--moon,
+.lp-theme-toggle-icon--sun  { transform: rotate(0deg) scale(0); opacity: 0; }
+.lp-theme-toggle-input:not(:checked) + .lp-theme-toggle .lp-theme-toggle-icon--sun  { transform: rotate(360deg) scale(1); opacity: 1; }
+.lp-theme-toggle-input:not(:checked) + .lp-theme-toggle .lp-theme-toggle-icon--moon { transform: rotate(0deg) scale(0); opacity: 0; }
+.lp-theme-toggle-input:checked     + .lp-theme-toggle .lp-theme-toggle-icon--moon { transform: rotate(360deg) scale(1); opacity: 1; }
+.lp-theme-toggle-input:checked     + .lp-theme-toggle .lp-theme-toggle-icon--sun  { transform: rotate(0deg) scale(0); opacity: 0; }
+.lp-theme-toggle-input:active + .lp-theme-toggle { transform: scale(0.94); }
+.lp-theme-toggle-icon svg { fill: currentColor !important; }
+
 /* ── Nav: Mobile hamburger ── */
 .lp-nav-ham {
   display: none;
@@ -1001,6 +1031,7 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
   .lp-nav-login      { display: none; }
   .lp-nav-get        { display: none; }
   .lp-nav-ham        { display: flex; }
+  .lp-nav-right      { margin-left: auto; margin-right: 8px; }
 }
 /* Mobile nav drawer */
 .lp-mobile-nav-overlay {
@@ -1398,6 +1429,8 @@ html:not(.dark) .get-toggle {
   color: var(--app-text-secondary);
   margin: 0 0 40px;
   max-width: 540px;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 .get-sub strong { color: var(--app-text-primary); font-weight: 500; }
 
