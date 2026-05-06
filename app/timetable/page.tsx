@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -928,7 +928,7 @@ function SpecialDayColumn({
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
-export default function TimetablePage() {
+function TimetableContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [weekOffset, setWeekOffset] = useState(() => {
@@ -1850,5 +1850,19 @@ const [autoOpenId] = useState<number | null>(() => {
         `}</style>
       </div>
     </AuthGuard>
+  );
+}
+
+export default function TimetablePage() {
+  return (
+    <Suspense fallback={
+      <AuthGuard>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', width: '100%' }}>
+          <Spinner />
+        </div>
+      </AuthGuard>
+    }>
+      <TimetableContent />
+    </Suspense>
   );
 }
