@@ -123,48 +123,65 @@ export default function LandingClient() {
   const progressRef   = useRef<number>(0);
   // Three.js scene only renders after browser is idle (after LCP is done)
   const [sceneReady, setSceneReady] = useState(false);
+  // Metamask-style page loader — visible from first paint, dismissed when the
+  // 3D scene's first frame with the model has rendered (or after a hard 2.5s cap).
+  const [pageLoading, setPageLoading]             = useState(true);
+  const [pageLoaderExiting, setPageLoaderExiting] = useState(false);
+  const [sceneFirstFrame, setSceneFirstFrame]     = useState(false);
+  const loaderStartRef                            = useRef<number>(0);
 
-  /* Pre-warm HTTP cache for all heavy 3D assets as soon as the browser is idle.
-     fetch() shares the same cache as XHR (used by GLTFLoader in the worker), so
-     by the time the user scrolls the files are already (partially) cached.
-     Lighthouse never idles long enough to trigger this → zero impact on scores. */
+  /* Drive the loader exit:
+       - prefer the worker's "ready" message (real users → exits the moment the
+         iPhone is actually rendered)
+       - cap at 2.5s so slow connections / Lighthouse don't see a perma-loader
+       - guarantee a 1.1s minimum so the fold-in animation always lands cleanly */
   useEffect(() => {
-    // Also preload the JS chunk so Three.js is parsed before first scroll
+    if (typeof window === 'undefined') return;
+    if (!loaderStartRef.current) loaderStartRef.current = Date.now();
+
+    const MIN_MS = 1200;
+    const MAX_MS = 3000;
+    const EXIT_DURATION_MS = 600;
+
+    const elapsed = Date.now() - loaderStartRef.current;
+    const wait = sceneFirstFrame
+      ? Math.max(0, MIN_MS - elapsed)
+      : Math.max(0, MAX_MS - elapsed);
+
+    const exitT   = window.setTimeout(() => setPageLoaderExiting(true), wait);
+    const removeT = window.setTimeout(() => setPageLoading(false),       wait + EXIT_DURATION_MS);
+    return () => { clearTimeout(exitT); clearTimeout(removeT); };
+  }, [sceneFirstFrame]);
+
+  /* Kick off chunk + asset prefetch immediately, but **delay** mounting the 3D
+     scene until after the unfold-in animation has played. Mounting earlier causes
+     visible jank — buildScreenCanvas() blocks the main thread for ~30ms and the
+     worker's WebGL/PMREM init pushes GPU commands that contend with the
+     compositor running the unfold animation. */
+  useEffect(() => {
     (IPhoneScene as any).preload?.();
-
-    const prefetchAssets = () => {
-      const assets = [
-        '/models/iphone.glb',
-        '/draco/gltf/draco_wasm_wrapper.js',
-        '/draco/gltf/draco_decoder.wasm',
-      ];
-      for (const url of assets) {
-        fetch(url, { priority: 'low' } as RequestInit).catch(() => {});
-      }
-    };
-
-    if ('requestIdleCallback' in window) {
-      const id = requestIdleCallback(prefetchAssets, { timeout: 1500 });
-      return () => cancelIdleCallback(id);
+    const assets = [
+      '/models/iphone.glb',
+      '/draco/gltf/draco_wasm_wrapper.js',
+      '/draco/gltf/draco_decoder.wasm',
+    ];
+    for (const url of assets) {
+      fetch(url, { priority: 'low' } as RequestInit).catch(() => {});
     }
-    const t = setTimeout(prefetchAssets, 800);
+    // Mount the scene after the origami unfold has fully landed (~750ms).
+    const t = setTimeout(() => setSceneReady(true), 750);
     return () => clearTimeout(t);
   }, []);
 
-  /* Scroll-triggered load: Lighthouse never scrolls → GLB never loads → LCP = h1 text.
-     Real users trigger on first scroll event. */
+  /* Lock the body scroll while the loader is up. Using a class on <html> means
+     it works whether or not the loader is in the DOM yet. */
   useEffect(() => {
-    let triggered = false;
-    const trigger = () => {
-      if (triggered) return;
-      triggered = true;
-      setSceneReady(true);
-    };
-    const onScroll = () => trigger();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    if (window.scrollY > 0) trigger();
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    if (pageLoading) root.classList.add('lp-loading');
+    else             root.classList.remove('lp-loading');
+    return () => root.classList.remove('lp-loading');
+  }, [pageLoading]);
 
   /* Scroll-driven reveal for section cards */
   useEffect(() => {
@@ -207,6 +224,21 @@ export default function LandingClient() {
 
   return (
     <div className="lp-root">
+
+      {/* ── PAGE LOADER ── (overlay, exits when 3D scene's first frame is rendered) */}
+      {pageLoading && (
+        <div className={`lp-page-loader${pageLoaderExiting ? ' is-exiting' : ''}`} role="status" aria-label="POKYH lädt">
+          <div className="lp-page-loader-name" aria-hidden="true">
+            {['P','O','K','Y','H'].map((c, i) => {
+              // Distance from center letter — drives the inside-out unfold stagger
+              const d = Math.abs(i - 2);
+              return (
+                <span key={i} style={{ ['--d' as string]: d } as React.CSSProperties}>{c}</span>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── NAV ── */}
       <nav className="lp-nav">
@@ -254,10 +286,12 @@ export default function LandingClient() {
         {/* Atmospheric glow — sits behind the phone */}
         <div className="lp-hero-glow" aria-hidden="true" />
 
-        {/* Three.js iPhone — Skeleton visible immediately, swapped for real canvas on first scroll */}
+        {/* Three.js iPhone — mounted while the page loader is still on screen.
+            onReady fires after the worker renders the first frame containing the model,
+            which is the signal LandingClient uses to fade the loader out. */}
         <div className="lp-phone-stage" ref={phoneStageRef}>
           {sceneReady
-            ? <IPhoneScene progressRef={progressRef} className="lp-phone-canvas" />
+            ? <IPhoneScene progressRef={progressRef} className="lp-phone-canvas" onReady={() => setSceneFirstFrame(true)} />
             : <div className="lp-phone-canvas lp-phone-skeleton" aria-hidden="true" />
           }
         </div>

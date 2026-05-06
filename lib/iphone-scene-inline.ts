@@ -61,7 +61,7 @@ function buildScreenTexture(): THREE.CanvasTexture {
   const tex = new THREE.CanvasTexture(cv); tex.minFilter = THREE.LinearFilter; return tex;
 }
 
-export function startScene(canvas: HTMLCanvasElement, progressRef: RefObject<number>): () => void {
+export function startScene(canvas: HTMLCanvasElement, progressRef: RefObject<number>, onReady?: () => void): () => void {
   const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.88;
@@ -112,7 +112,7 @@ export function startScene(canvas: HTMLCanvasElement, progressRef: RefObject<num
   let curDark = isDark;
   const moObs = new MutationObserver(() => { const dark = document.documentElement.classList.contains('dark'); if (dark === curDark) return; curDark = dark; ambLight.intensity = dark ? 0.55 : 0.85; renderer.toneMappingExposure = dark ? 0.88 : 0.78; });
   moObs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-  let rafId: number; const timer = new THREE.Timer(); const noMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches; let smoothP = 0;
+  let rafId: number; const timer = new THREE.Timer(); const noMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches; let smoothP = 0; let firstFrameReported = false;
   function frame() {
     rafId = requestAnimationFrame(frame); timer.update(); syncSize();
     if (phone) {
@@ -123,6 +123,7 @@ export function startScene(canvas: HTMLCanvasElement, progressRef: RefObject<num
       phone.position.y = 0.32 + Math.sin(timer.getElapsed() * 0.75) * 0.026 * entry;
     }
     renderer.render(scene, camera);
+    if (phone && !firstFrameReported) { firstFrameReported = true; onReady?.(); }
   }
   frame();
   return () => { cancelAnimationFrame(rafId); ro.disconnect(); moObs.disconnect(); renderer.dispose(); screenTex.dispose(); draco.dispose(); timer.dispose(); };

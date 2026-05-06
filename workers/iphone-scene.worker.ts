@@ -17,6 +17,7 @@ let rafId: number | null = null;
 let smoothP = 0;
 let progressValue = 0;
 let noMotion = false;
+let firstFrameRendered = false;
 
 // requestAnimationFrame is available in dedicated workers in modern browsers.
 // Fall back to setTimeout for older engines.
@@ -190,6 +191,11 @@ function initScene(data: {
     }
 
     renderer!.render(scene!, camera!);
+
+    if (phone && !firstFrameRendered) {
+      firstFrameRendered = true;
+      self.postMessage({ type: 'ready' });
+    }
   }
   frame();
 }

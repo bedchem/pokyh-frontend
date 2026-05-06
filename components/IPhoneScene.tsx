@@ -109,11 +109,15 @@ function buildScreenCanvas(): HTMLCanvasElement {
 export default function IPhoneScene({
   progressRef,
   className,
+  onReady,
 }: {
   progressRef: RefObject<number>;
   className?: string;
+  onReady?: () => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -136,6 +140,13 @@ export default function IPhoneScene({
           new URL('../workers/iphone-scene.worker.ts', import.meta.url),
           { type: 'module' },
         );
+
+        // First-frame readiness signal — used by parent to time loader exit
+        worker.onmessage = (ev: MessageEvent) => {
+          if ((ev.data as { type?: string } | null)?.type === 'ready') {
+            onReadyRef.current?.();
+          }
+        };
 
         const dark           = document.documentElement.classList.contains('dark');
         const noReducedMotion = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -194,7 +205,7 @@ export default function IPhoneScene({
     let active = true;
     import('../lib/iphone-scene-inline').then(({ startScene }) => {
       if (!active || !canvasRef.current) return;
-      const stop = startScene(canvasRef.current, progressRef);
+      const stop = startScene(canvasRef.current, progressRef, () => onReadyRef.current?.());
       (canvas as HTMLCanvasElement & { __fallbackStop?: () => void }).__fallbackStop = stop;
     });
 
