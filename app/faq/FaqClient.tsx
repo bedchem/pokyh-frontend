@@ -40,7 +40,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Funktioniert POKYH auf dem Smartphone?',
-    a: 'Ja, POKYH ist vollständig für Mobile optimiert und funktioniert auf iPhone, Android und allen modernen Smartphones. Die App kann auch als PWA (Progressive Web App) zum Homescreen hinzugefügt werden.',
+    a: 'Ja, POKYH ist vollständig für Mobile optimiert und funktioniert auf iPhone, Android und allen modernen Smartphones. Pokyh bietet eine Kostenlose Open-Source App zum download an.',
   },
   {
     q: 'Zeigt POKYH auch Vertretungen und Stundenplanänderungen an?',

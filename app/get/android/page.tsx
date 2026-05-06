@@ -8,15 +8,15 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.app';
 export const metadata: Metadata = {
   title: 'POKYH auf Android installieren – Android Anleitung',
   description:
-    'In 3 einfachen Schritten POKYH als App auf deinem Android-Gerät installieren. Öffne Chrome, tippe auf Installieren und füge POKYH zum Homescreen hinzu.',
+    'Lade die aktuelle POKYH App für Android herunter — direkt von GitHub.',
   keywords: [
-    'POKYH Android', 'POKYH installieren Android', 'POKYH PWA Android',
-    'Schulapp Android LBS Brixen', 'POKYH Chrome',
+    'POKYH Android', 'POKYH installieren Android', 'POKYH App Android',
+    'Schulapp Android LBS Brixen', 'POKYH APK',
   ],
   alternates: { canonical: `${SITE_URL}/get/android` },
   openGraph: {
     title: 'POKYH auf Android installieren',
-    description: 'In 3 Schritten POKYH als App auf Android zum Homescreen hinzufügen.',
+    description: 'Lade dir die aktuelle POKYH App für Android herunter.',
     url: `${SITE_URL}/get/android`,
     type: 'website',
     siteName: 'POKYH',
@@ -28,54 +28,49 @@ export const metadata: Metadata = {
 const STEPS = [
   {
     num: '01',
-    title: 'Chrome öffnen',
+    title: 'Release öffnen',
     body: (
       <>
-        Öffne <strong>pokyh.app</strong> in <strong>Google Chrome</strong> auf deinem Android-Gerät.
-        Chrome erkennt automatisch, dass POKYH als App installiert werden kann.
+        Gehe auf <strong><a href="https://github.com/bedchem/pokyh/releases" target="_blank" rel="noopener noreferrer">https://github.com/bedchem/pokyh/releases</a></strong> in deinem Browser.
       </>
     ),
     icon: (
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="10"/>
-        <circle cx="12" cy="12" r="4"/>
-        <line x1="21.17" y1="8" x2="12" y2="8"/>
-        <line x1="3.95" y1="6.06" x2="8.54" y2="14"/>
-        <line x1="10.88" y1="21.94" x2="15.46" y2="14"/>
+        <line x1="2" y1="12" x2="22" y2="12"/>
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
       </svg>
     ),
   },
   {
     num: '02',
-    title: 'App installieren',
+    title: '.apk herunterladen',
     body: (
       <>
-        Tippe auf die <strong>drei Punkte</strong> (⋮) oben rechts im Browser-Menü.
-        Wähle <strong>„App installieren"</strong> oder <strong>„Zum Homescreen hinzufügen"</strong>.
-        Manchmal erscheint auch ein Banner am unteren Bildschirmrand.
+        Suche den neuesten Release und lade die <strong>.apk</strong> Datei (Android) herunter.
       </>
     ),
     icon: (
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="5" r="1" fill="currentColor"/>
-        <circle cx="12" cy="12" r="1" fill="currentColor"/>
-        <circle cx="12" cy="19" r="1" fill="currentColor"/>
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
       </svg>
     ),
   },
   {
     num: '03',
-    title: 'Bestätigen',
+    title: 'Installieren & Ausführen',
     body: (
       <>
-        Bestätige mit <strong>„Installieren"</strong> oder <strong>„Hinzufügen"</strong>.
-        POKYH erscheint jetzt wie eine native App auf deinem Homescreen und im App-Drawer.
+        Öffne die heruntergeladene Datei und folge den Anweisungen zur Installation (ggf. Apps aus unbekannten Quellen zulassen). Danach kannst du die POKYH App ausführen.
       </>
     ),
     icon: (
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-        <polyline points="22 4 12 14.01 9 11.01"/>
+        <rect x="3" y="3" width="18" height="18" rx="3"/>
+        <line x1="12" y1="8" x2="12" y2="16"/>
+        <line x1="8" y1="12" x2="16" y2="12"/>
       </svg>
     ),
   },
@@ -93,11 +88,10 @@ export default function AndroidInstallPage() {
           </svg>
           Zurück
         </Link>
-        <div className="lp-page-hero-eyebrow">Android · Chrome</div>
+        <div className="lp-page-hero-eyebrow">Android</div>
         <h1 className="lp-page-hero-h1">POKYH auf Android<br />installieren</h1>
         <p className="lp-page-hero-sub">
-          In 3 Schritten POKYH als App zum Homescreen hinzufügen —
-          kein Play Store, kein Download.
+          Lade dir die aktuelle POKYH App für Android herunter — direkt von GitHub.
         </p>
       </div>
 
@@ -114,25 +108,6 @@ export default function AndroidInstallPage() {
               </div>
             </div>
           ))}
-        </div>
-
-        <div className="get-install-note">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="12" y1="8" x2="12" y2="12"/>
-            <line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-          <div>
-            POKYH ist eine <strong>Progressive Web App (PWA)</strong> — kein Play Store,
-            keine APK. Alle Daten werden sicher und verschlüsselt übertragen.
-            POKYH steht in keiner offiziellen Verbindung zu WebUntis / Untis GmbH.
-          </div>
-        </div>
-
-        <div style={{ textAlign: 'center', padding: '60px 0 20px' }}>
-          <Link href="/login" className="lp-btn">
-            Jetzt anmelden →
-          </Link>
         </div>
 
       </div>

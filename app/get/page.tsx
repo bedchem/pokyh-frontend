@@ -6,10 +6,10 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.app';
 export const metadata: Metadata = {
   title: 'POKYH – Web & App | LBS Brixen',
   description:
-    'POKYH nutzen: Direkt im Browser anmelden oder als App auf iPhone und Android installieren. Kein Download nötig – als PWA immer griffbereit.',
+    'POKYH nutzen: Direkt im Browser anmelden oder als App auf iPhone und Android installieren. Einfach die .apk oder .ipa von GitHub laden.',
   keywords: [
     'POKYH App', 'POKYH installieren', 'POKYH iOS', 'POKYH Android',
-    'POKYH PWA', 'POKYH Web', 'LBS Brixen App', 'Schulapp installieren',
+    'POKYH APK', 'POKYH Web', 'LBS Brixen App', 'Schulapp installieren',
     'WebUntis App Brixen', 'POKYH herunterladen',
   ],
   alternates: { canonical: `${SITE_URL}/get` },
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'POKYH – Web & App',
-    description: 'POKYH im Browser oder als PWA auf iPhone und Android.',
+    description: 'POKYH im Browser oder als App auf iPhone und Android.',
   },
   robots: { index: true, follow: true },
 };

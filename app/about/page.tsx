@@ -87,7 +87,7 @@ export default function AboutPage() {
         <div className="lp-page-section" style={{ borderTop: 'none', paddingTop: 0 }}>
           <div className="lp-steps-grid">
             {[
-              { num: '2024', title: 'Entstanden',    body: 'POKYH entstand 2024 als Schulprojekt — mit dem Ziel, die tägliche Schul-App übersichtlicher zu machen.' },
+              { num: '2026', title: 'Entstanden',    body: 'POKYH entstand 2026 als Schulprojekt — mit dem Ziel, die tägliche Schul-App übersichtlicher zu machen.' },
               { num: 'Free', title: 'Kostenlos',     body: 'Keine Registrierung, keine Kosten, keine Werbung. Einfach mit dem WebUntis-Account der Schule anmelden.' },
               { num: 'MIT',  title: 'Open Source',   body: 'Der gesamte Quellcode ist auf GitHub verfügbar — transparent, nachvollziehbar, für alle.' },
             ].map(({ num, title, body }) => (

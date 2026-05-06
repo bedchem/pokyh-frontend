@@ -1422,14 +1422,6 @@ html:not(.dark) .get-platform-card {
   grid-template-columns: 72px 1fr;
   position: relative;
 }
-.get-install-step:not(:last-child)::before {
-  content: '';
-  position: absolute;
-  left: 35px; top: 64px; bottom: -24px;
-  width: 2px;
-  background: var(--app-border);
-  z-index: 0;
-}
 .get-install-step-icon {
   width: 52px; height: 52px;
   border-radius: 16px;
@@ -1478,5 +1470,4 @@ html:not(.dark) .get-platform-card {
   .get-h1 { font-size: 30px; }
   .get-install-step { grid-template-columns: 56px 1fr; }
   .get-install-step-icon { width: 44px; height: 44px; }
-  .get-install-step:not(:last-child)::before { left: 27px; }
 }

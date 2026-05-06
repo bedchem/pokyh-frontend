@@ -50,7 +50,7 @@ const ROWS: { feat: string; pokyh: CmpVal; webuntis: CmpVal; section: string }[]
   { feat: 'Modernes Design',     pokyh: 'yes', webuntis: 'partial', section: 'Design & UX' },
   { feat: 'Dark Mode',           pokyh: 'yes', webuntis: 'partial', section: 'Design & UX' },
   { feat: 'Mobile-First',        pokyh: 'yes', webuntis: 'partial', section: 'Design & UX' },
-  { feat: 'PWA (Homescreen-App)',pokyh: 'yes', webuntis: 'yes',     section: 'Design & UX' },
+  { feat: 'Mobile App / Download',pokyh: 'yes', webuntis: 'yes',     section: 'Design & UX' },
 
   { feat: 'Stundenplan',              pokyh: 'yes', webuntis: 'yes',     section: 'Funktionen' },
   { feat: 'Vertretungen & Entfall',   pokyh: 'yes', webuntis: 'yes',     section: 'Funktionen' },

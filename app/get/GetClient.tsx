@@ -66,11 +66,10 @@ export default function GetClient() {
             </>
           ) : (
             <>
-              <p className="get-eyebrow">Progressive Web App</p>
+              <p className="get-eyebrow">Mobile App</p>
               <h1 className="get-h1">POKYH installieren</h1>
               <p className="get-sub">
-                Füge POKYH wie eine native App zum Homescreen hinzu —
-                kein App Store, kein Download, immer die neueste Version.
+                Auf https://github.com/bedchem/pokyh kann man die mobile apk (android) und .ipa (ios) herunterladen bei Releases und dann ausführen.
               </p>
               <div className="get-platforms">
                 <Link href="/get/ios" className="get-platform-card">
@@ -83,8 +82,8 @@ export default function GetClient() {
                     aria-hidden="true"
                   />
                   <div className="get-platform-info">
-                    <div className="get-platform-name">iOS · iPadOS</div>
-                    <div className="get-platform-hint">Safari → Zum Homescreen</div>
+                    <div className="get-platform-name">iOS</div>
+                    <div className="get-platform-hint">.ipa Datei herunterladen</div>
                   </div>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="get-platform-arrow" aria-hidden="true">
                     <polyline points="9 18 15 12 9 6" />
@@ -101,14 +100,14 @@ export default function GetClient() {
                   />
                   <div className="get-platform-info">
                     <div className="get-platform-name">Android</div>
-                    <div className="get-platform-hint">Chrome → App installieren</div>
+                    <div className="get-platform-hint">.apk Datei herunterladen</div>
                   </div>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="get-platform-arrow" aria-hidden="true">
                     <polyline points="9 18 15 12 9 6" />
                   </svg>
                 </Link>
               </div>
-              <p className="get-note">Kostenlos · Kein App Store · Immer aktuell</p>
+              <p className="get-note">Kostenlos · Open Source · Immer aktuell</p>
             </>
           )}
         </div>

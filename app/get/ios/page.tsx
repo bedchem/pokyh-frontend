@@ -8,15 +8,15 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.app';
 export const metadata: Metadata = {
   title: 'POKYH auf iPhone installieren – iOS Anleitung',
   description:
-    'In 3 einfachen Schritten POKYH als App auf deinem iPhone oder iPad installieren. Öffne Safari, tippe auf Teilen und füge POKYH zum Homescreen hinzu.',
+    'Lade die aktuelle POKYH App für iOS herunter — direkt von GitHub.',
   keywords: [
     'POKYH iPhone', 'POKYH iOS', 'POKYH iPad', 'POKYH installieren iPhone',
-    'POKYH PWA iOS', 'Schulapp iPhone LBS Brixen',
+    'POKYH IPA', 'Schulapp iPhone LBS Brixen',
   ],
   alternates: { canonical: `${SITE_URL}/get/ios` },
   openGraph: {
     title: 'POKYH auf iPhone installieren',
-    description: 'In 3 Schritten POKYH als App auf iPhone oder iPad zum Homescreen hinzufügen.',
+    description: 'Lade dir die aktuelle POKYH App für iOS herunter.',
     url: `${SITE_URL}/get/ios`,
     type: 'website',
     siteName: 'POKYH',
@@ -28,45 +28,42 @@ export const metadata: Metadata = {
 const STEPS = [
   {
     num: '01',
-    title: 'Safari öffnen',
+    title: 'Release öffnen',
     body: (
       <>
-        Öffne <strong>pokyh.app</strong> in <strong>Safari</strong> auf deinem iPhone oder iPad.
-        POKYH muss in Safari geöffnet sein — andere Browser wie Chrome oder Firefox unterstützen die Installation auf iOS nicht.
+        Gehe auf <strong><a href="https://github.com/bedchem/pokyh/releases" target="_blank" rel="noopener noreferrer">https://github.com/bedchem/pokyh/releases</a></strong> in deinem Browser.
       </>
     ),
     icon: (
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="10"/>
-        <line x1="12" y1="8" x2="12" y2="12"/>
-        <line x1="12" y1="16" x2="12.01" y2="16"/>
+        <line x1="2" y1="12" x2="22" y2="12"/>
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
       </svg>
     ),
   },
   {
     num: '02',
-    title: 'Teilen-Taste tippen',
+    title: '.ipa herunterladen',
     body: (
       <>
-        Tippe auf das <strong>Teilen-Symbol</strong> (Quadrat mit Pfeil nach oben) in der unteren Symbolleiste von Safari.
-        Scrolle im Menü nach unten, bis du <strong>„Zum Homescreen"</strong> siehst.
+        Suche den neuesten Release und lade die <strong>.ipa</strong> Datei (iOS) herunter.
       </>
     ),
     icon: (
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-        <polyline points="16 6 12 2 8 6"/>
-        <line x1="12" y1="2" x2="12" y2="15"/>
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
       </svg>
     ),
   },
   {
     num: '03',
-    title: 'Zum Homescreen hinzufügen',
+    title: 'Installieren & Ausführen',
     body: (
       <>
-        Tippe auf <strong>„Zum Homescreen"</strong> und bestätige mit <strong>„Hinzufügen"</strong> oben rechts.
-        POKYH erscheint jetzt wie eine native App auf deinem Homescreen.
+        Installiere die .ipa Datei über Sideloading Tools (z.B. AltStore, Sideloadly oder TrollStore) auf deinem iPhone. Danach kannst du die POKYH App ausführen.
       </>
     ),
     icon: (
@@ -91,11 +88,10 @@ export default function IosInstallPage() {
           </svg>
           Zurück
         </Link>
-        <div className="lp-page-hero-eyebrow">iOS · iPadOS · Safari</div>
+        <div className="lp-page-hero-eyebrow">iOS</div>
         <h1 className="lp-page-hero-h1">POKYH auf iPhone<br />installieren</h1>
         <p className="lp-page-hero-sub">
-          In 3 Schritten POKYH als App zum Homescreen hinzufügen —
-          kein App Store, kein Download.
+          Lade dir die aktuelle POKYH App für iOS herunter — direkt von GitHub.
         </p>
       </div>
 
@@ -112,25 +108,6 @@ export default function IosInstallPage() {
               </div>
             </div>
           ))}
-        </div>
-
-        <div className="get-install-note">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="12" y1="8" x2="12" y2="12"/>
-            <line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-          <div>
-            POKYH ist eine <strong>Progressive Web App (PWA)</strong> — kein App Store,
-            keine Installation notwendig. Alle Daten werden sicher und verschlüsselt übertragen.
-            POKYH steht in keiner offiziellen Verbindung zu WebUntis / Untis GmbH.
-          </div>
-        </div>
-
-        <div style={{ textAlign: 'center', padding: '60px 0 20px' }}>
-          <Link href="/login" className="lp-btn">
-            Jetzt anmelden →
-          </Link>
         </div>
 
       </div>

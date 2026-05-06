@@ -126,7 +126,7 @@ const faqStructuredData = {
       name: 'Funktioniert POKYH auf dem Smartphone?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Ja, POKYH ist vollständig für Mobile optimiert und funktioniert auf iPhone, Android und allen modernen Smartphones. Die App kann auch als PWA (Progressive Web App) zum Homescreen hinzugefügt werden.',
+        text: 'Ja, POKYH ist vollständig für Mobile optimiert und funktioniert auf iPhone, Android und allen modernen Smartphones. Die App kann auch als native App heruntergeladen werden.',
       },
     },
     {
