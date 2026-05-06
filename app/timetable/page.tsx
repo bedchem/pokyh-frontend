@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { addDays, format, startOfWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
@@ -929,8 +929,21 @@ function SpecialDayColumn({
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function TimetablePage() {
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const [weekOffset, setWeekOffset] = useState(0);
+  const [weekOffset, setWeekOffset] = useState(() => {
+    
+    if (typeof window === 'undefined') return 0;
+    const params = new URLSearchParams(window.location.search);
+    const dateStr = params.get('date');
+    if (!dateStr || dateStr.length !== 8) return 0;
+    const year = parseInt(dateStr.slice(0, 4));
+    const month = parseInt(dateStr.slice(4, 6)) - 1;
+    const day = parseInt(dateStr.slice(6, 8));
+    const targetMonday = startOfWeek(new Date(year, month, day), { weekStartsOn: 1 });
+    const todayMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
+    return Math.round((targetMonday.getTime() - todayMonday.getTime()) / (7 * 24 * 60 * 60 * 1000));
+  });
   const [entries,    setEntries]    = useState<TimetableEntry[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState('');
@@ -941,6 +954,12 @@ export default function TimetablePage() {
 
   const [activeSlot, setActiveSlot] = useState<MergedSlot | null>(null);
   const [pxPerMin, setPxPerMin] = useState<number>(1.5);
+
+const [autoOpenId] = useState<number | null>(() => {
+  const openStr = searchParams.get('open');
+  return openStr ? parseInt(openStr, 10) : null;
+});
+  const autoOpenedRef = useRef(false);
 
   const cacheRef     = useRef<Record<number, TimetableEntry[]>>({});
   const preloadRef   = useRef<Record<number, boolean>>({});
@@ -1017,6 +1036,20 @@ export default function TimetablePage() {
   }, [weekOffset]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Auto-open slot from URL ?open=<lessonId>
+  useEffect(() => {
+    if (!autoOpenId || autoOpenedRef.current || loading || entries.length === 0) return;
+    const entry = entries.find(e => e.id === autoOpenId);
+    if (!entry) return;
+    const dayEntries = entries.filter(e => e.date === entry.date);
+    const slots = buildSlots(dayEntries);
+    const slot = slots.find(s => s.display.id === autoOpenId || s.replacement?.id === autoOpenId);
+    if (slot) {
+      setActiveSlot(slot);
+      autoOpenedRef.current = true;
+    }
+  }, [autoOpenId, entries, loading]);
 
   // Preload adjacent weeks
   useEffect(() => {

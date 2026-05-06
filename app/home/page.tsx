@@ -20,6 +20,7 @@ import type { TimetableEntry, MessagePreview, Dish } from '@/lib/types';
 interface RecentGrade {
   id: number;
   subjectName: string;
+  subjectLessonId: number;
   markDisplayValue: number;
   date: number;
   examType: string;
@@ -160,7 +161,7 @@ function parseGradesResult(json: unknown): { avg: number | null; subjectCount: n
         const mdv = (g.markDisplayValue as number) ?? 0;
         if (!mdv) return;
         vals.push(mdv);
-        recent.push({ id: g.id as number, subjectName: (s.subjectName as string) ?? '', markDisplayValue: mdv, date: g.date as number, examType: (g.examType as string) ?? '' });
+        recent.push({ id: g.id as number, subjectName: (s.subjectName as string) ?? '', subjectLessonId: (s.lessonId as number) ?? 0, markDisplayValue: mdv, date: g.date as number, examType: (g.examType as string) ?? '' });
       });
     });
     return { avg: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null, subjectCount: subjectsRaw.length, recentGrades: recent.sort((a, b) => b.date - a.date).slice(0, 3) };
@@ -557,7 +558,7 @@ export default function HomePage() {
                         todayEntries.map((e, i) => {
                           const accentColor = e.isCancelled ? 'var(--danger)' : e.isExam ? 'var(--warning)' : e.isSubstitution ? 'var(--orange)' : subjectColor(e.subjectName);
                           return (
-                            <div key={e.id} className="flex items-center gap-3 px-4 py-3" style={{ borderTop: i > 0 ? '1px solid var(--app-separator)' : 'none' }}>
+                            <Link key={e.id} href={`/timetable?open=${e.id}`} className="flex items-center gap-3 px-4 py-3 press-scale" style={{ borderTop: i > 0 ? '1px solid var(--app-separator)' : 'none', display: 'flex' }}>
                               <div className="w-1 self-stretch rounded-full flex-shrink-0" style={{ background: accentColor, minHeight: 32 }} />
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium truncate" style={{ color: 'var(--app-text-primary)', textDecoration: e.isCancelled ? 'line-through' : 'none', opacity: e.isCancelled ? 0.5 : 1 }}>
@@ -572,7 +573,7 @@ export default function HomePage() {
                                 {e.isCancelled && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'color-mix(in srgb, var(--danger) 15%, transparent)', color: 'var(--danger)' }}>Entfall</span>}
                                 {e.isSubstitution && !e.isCancelled && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'color-mix(in srgb, var(--orange) 20%, transparent)', color: 'var(--orange)' }}>Vertretung</span>}
                               </div>
-                            </div>
+                            </Link>
                           );
                         })
                       )}
@@ -584,7 +585,7 @@ export default function HomePage() {
                     {nextExam && (
                       <section className="fade-in">
                         <SectionHeader title="Nächste Prüfung" href="/timetable" />
-                        <div className="rounded-2xl p-4" style={{ background: 'var(--app-surface)', border: '1px solid color-mix(in srgb, var(--warning) 35%, var(--app-border))' }}>
+                        <Link href={`/timetable?open=${nextExam.id}&date=${nextExam.date}`} className="block rounded-2xl p-4 press-scale" style={{ background: 'var(--app-surface)', border: '1px solid color-mix(in srgb, var(--warning) 35%, var(--app-border))' }}>
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'color-mix(in srgb, var(--warning) 18%, transparent)' }}>
                               <FileText size={20} color="var(--warning)" />
@@ -599,7 +600,7 @@ export default function HomePage() {
                               {daysUntilLabel(nextExam.date)}
                             </span>
                           </div>
-                        </div>
+                        </Link>
                       </section>
                     )}
 
@@ -608,7 +609,7 @@ export default function HomePage() {
                         <SectionHeader title="Letzte Noten" href="/grades" />
                         <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--app-surface)', border: '1px solid var(--app-border)' }}>
                           {recentGrades.map((g, i) => (
-                            <div key={g.id} className="px-4 py-3 flex items-center gap-3" style={{ borderTop: i > 0 ? '1px solid var(--app-separator)' : 'none' }}>
+                            <Link key={g.id} href={`/grades/subject/${g.subjectLessonId}`} className="px-4 py-3 flex items-center gap-3 press-scale" style={{ borderTop: i > 0 ? '1px solid var(--app-separator)' : 'none', display: 'flex' }}>
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium truncate" style={{ color: 'var(--app-text-primary)' }}>{g.subjectName || '–'}</p>
                                 <p className="text-xs" style={{ color: 'var(--app-text-tertiary)' }}>{g.examType || 'Note'} · {formatGradeDate(g.date)}</p>
@@ -616,7 +617,7 @@ export default function HomePage() {
                               <div className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0" style={{ color: gradePillTone(g.markDisplayValue), background: `color-mix(in srgb, ${gradePillTone(g.markDisplayValue)} 14%, transparent)`, border: `1px solid color-mix(in srgb, ${gradePillTone(g.markDisplayValue)} 55%, transparent)` }}>
                                 {g.markDisplayValue}
                               </div>
-                            </div>
+                            </Link>
                           ))}
                         </div>
                       </section>
