@@ -141,8 +141,8 @@ export default function IPhoneScene({
       }
 
       Promise.all([
-        loadBitmap('/models/whitemode_screen.webp'),
-        loadBitmap('/models/darkmode_screen.webp'),
+        loadBitmap('/models/whitemode_screen_iphone.webp'),
+        loadBitmap('/models/darkmode_screen_iphone.webp'),
       ]).then(([lightScreenBitmap, darkScreenBitmap]) => {
         if (!active || !canvasRef.current) return; // effect was cleaned up before promise resolved
 

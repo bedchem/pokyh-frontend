@@ -47,6 +47,7 @@ const nextConfig: NextConfig = {
         source: '/api/mensa',
         headers: [{ key: 'Cache-Control', value: 'public, s-maxage=3600, stale-while-revalidate=7200' }],
       },
+      
       // Long-lived cache for the 3D model (immutable, content-hashed by filename)
       {
         source: '/models/:path*',
