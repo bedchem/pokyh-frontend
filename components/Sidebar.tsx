@@ -83,15 +83,15 @@ export default function Sidebar() {
   const { collapsed, mobileOpen, toggle, closeMobile } = useSidebar();
   const pathname = usePathname();
 
-  const sidebarContent = (
+  const renderSidebarContent = (isCollapsed: boolean) => (
     <div className="flex flex-col h-full py-4">
       {/* Logo — clickable, goes to root */}
       <Link
         href="/"
         onClick={closeMobile}
-        className={`flex items-center px-4 mb-6 flex-shrink-0 press-scale ${collapsed ? 'justify-center' : ''}`}
+        className={`flex items-center px-4 mb-6 flex-shrink-0 press-scale ${isCollapsed ? 'justify-center' : ''}`}
       >
-        {collapsed ? (
+        {isCollapsed ? (
           <img src="/pokyh_ion.png" alt="POKYH" className="h-8 w-8 object-contain" />
         ) : (
           <>
@@ -110,14 +110,14 @@ export default function Sidebar() {
             label={label}
             Icon={Icon}
             active={pathname === href || pathname.startsWith(href + '/')}
-            collapsed={collapsed}
+            collapsed={isCollapsed}
             onClick={closeMobile}
           />
         ))}
 
         <div className="my-2 mx-1 h-px" style={{ background: 'var(--app-border)' }} />
 
-        {!collapsed && (
+        {!isCollapsed && (
           <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--app-text-tertiary)' }}>
             Schule
           </p>
@@ -130,7 +130,7 @@ export default function Sidebar() {
             label={label}
             Icon={Icon}
             active={pathname === href}
-            collapsed={collapsed}
+            collapsed={isCollapsed}
             onClick={closeMobile}
           />
         ))}
@@ -143,7 +143,7 @@ export default function Sidebar() {
           label="Profil"
           Icon={User}
           active={pathname === '/profile'}
-          collapsed={collapsed}
+          collapsed={isCollapsed}
           onClick={closeMobile}
         />
         <NavItem
@@ -151,7 +151,7 @@ export default function Sidebar() {
           label="Rechtliches"
           Icon={Scale}
           active={pathname === '/legal'}
-          collapsed={collapsed}
+          collapsed={isCollapsed}
           onClick={closeMobile}
         />
 
@@ -163,11 +163,11 @@ export default function Sidebar() {
           onMouseEnter={e => (e.currentTarget.style.color = 'var(--app-text-secondary)')}
           onMouseLeave={e => (e.currentTarget.style.color = 'var(--app-text-tertiary)')}
         >
-          {collapsed
+          {isCollapsed
             ? <ChevronRight size={16} strokeWidth={2} />
             : <ChevronLeft size={16} strokeWidth={2} />
           }
-          {!collapsed && <span className="text-xs font-medium">Einklappen</span>}
+          {!isCollapsed && <span className="text-xs font-medium">Einklappen</span>}
         </button>
       </div>
     </div>
@@ -185,7 +185,7 @@ export default function Sidebar() {
           borderRight: '1px solid var(--app-border)',
         }}
       >
-        {sidebarContent}
+        {renderSidebarContent(collapsed)}
       </motion.aside>
 
       {/* Mobile overlay */}
@@ -219,7 +219,7 @@ export default function Sidebar() {
               >
                 <X size={18} />
               </button>
-              {sidebarContent}
+              {renderSidebarContent(false)}
             </motion.aside>
           </>
         )}
