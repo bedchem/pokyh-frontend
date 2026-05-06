@@ -85,16 +85,19 @@ export default function Sidebar() {
 
   const sidebarContent = (
     <div className="flex flex-col h-full py-4">
-      {/* Logo — clickable, goes to dashboard */}
+      {/* Logo — clickable, goes to root */}
       <Link
-        href="/home"
+        href="/"
         onClick={closeMobile}
         className={`flex items-center px-4 mb-6 flex-shrink-0 press-scale ${collapsed ? 'justify-center' : ''}`}
       >
         {collapsed ? (
           <img src="/pokyh_ion.png" alt="POKYH" className="h-8 w-8 object-contain" />
         ) : (
-          <img src="/POKYH_Logo.png" alt="POKYH" className="h-8 w-auto object-contain" />
+          <>
+            <img src="/pokyh_ion.png" alt="POKYH" className="h-8 w-8 object-contain" />
+            <span className="ml-3 font-bold text-xl tracking-wide" style={{ color: 'var(--app-text-primary)' }}>POKYH</span>
+          </>
         )}
       </Link>
 
