@@ -6,7 +6,7 @@
   --lp-tile-b:   #F5F5FB;
   --lp-tile-c:   #FFFFFF;
   --lp-tile-dark:#F0F0F8;
-  --lp-bg2:      #E8E8F0;
+  --lp-bg2:      #F2F2F7;
   --lp-card-bg:  #F5F5FA;
   --lp-card-border: rgba(0,0,0,0.07);
   --lp-nav-bg:   rgba(245,245,248,0.85);
@@ -743,10 +743,10 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
 /* ── Footer ── */
 .lp-footer {
   background: var(--lp-bg2); padding: 32px 22px 20px;
-  color: var(--app-text-tertiary); font-size: 12px; line-height: 1.33;
+  color: var(--app-text-secondary); font-size: 12px; line-height: 1.33;
   border-top: 0.5px solid var(--app-border);
 }
-.lp-footer a { color: var(--app-text-tertiary); transition: color 0.16s; text-decoration: none; }
+.lp-footer a { color: var(--app-text-secondary); transition: color 0.16s; text-decoration: none; }
 .lp-footer a:hover { color: var(--app-text-primary); text-decoration: underline; }
 .lp-footer-inner { max-width: 980px; margin: 0 auto; }
 .lp-footer-disclaimer {
@@ -847,15 +847,6 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
   display: block; object-fit: contain; flex-shrink: 0;
 }
 
-/* ── SEO blurb (keyword-rich, visually understated) ── */
-.lp-seo-blurb {
-  max-width: 820px; margin: 0 auto; padding: 0 22px 64px;
-  text-align: center;
-}
-.lp-seo-blurb p {
-  font-size: 14px; line-height: 1.7; color: var(--app-text-tertiary);
-}
-.lp-seo-blurb strong { color: var(--app-text-secondary); font-weight: 500; }
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {

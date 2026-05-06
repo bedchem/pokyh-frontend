@@ -54,7 +54,7 @@ export default function CookieBanner() {
               <Link
                 href="/legal?view=cookies"
                 className="underline underline-offset-2 transition-opacity hover:opacity-70"
-                style={{ color: 'var(--accent)' }}
+                style={{ color: '#4F46E5' }}
               >
                 Mehr erfahren
               </Link>

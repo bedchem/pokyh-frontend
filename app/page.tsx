@@ -168,6 +168,21 @@ export default function LandingPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }}
       />
       <LandingClient />
+      {/* SSR-only SEO blurb — visually hidden via sr-only, fully crawlable by Google */}
+      <section className="sr-only" aria-label="Über POKYH">
+        <p>
+          <strong>POKYH</strong> ist die kostenlose <strong>WebUntis Alternative</strong> für Schüler der{' '}
+          <strong>LBS Brixen</strong> (Landesberufsschule Brixen / Berufsbildungszentrum{' '}
+          <strong>Tschuggmall</strong>, Südtirol). Die App verbindet sich mit{' '}
+          <strong>Untis Brixen</strong> bzw. <strong>WebUntis Brixen</strong> und zeigt deinen persönlichen{' '}
+          <strong>Stundenplan LBS Brixen</strong>, Noten, Abwesenheiten und Mensa — direkt mit deinem{' '}
+          <strong>WebUntis‑Account der LBS Brixen</strong>. Kein separates Passwort, keine Registrierung.
+          Gefunden werden wir auch unter: <strong>Untis LBS Brixen</strong>,{' '}
+          <strong>Tschuggmall Untis</strong>, <strong>BFZ Tschuggmall App</strong>,{' '}
+          <strong>Brixen Untis</strong>, WebUntis Südtirol.
+          POKYH steht in keiner offiziellen Verbindung zu <strong>WebUntis&nbsp;/&nbsp;Untis GmbH</strong>.
+        </p>
+      </section>
     </>
   );
 }

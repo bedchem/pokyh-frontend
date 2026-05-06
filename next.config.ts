@@ -57,6 +57,11 @@ const nextConfig: NextConfig = {
         source: '/(icon-:size.png|favicon.ico|apple-icon.png)',
         headers: [{ key: 'Cache-Control', value: 'public, max-age=86400' }],
       },
+      // Long-lived cache for the logo (rarely changes, no content hash in filename)
+      {
+        source: '/POKYH_Logo.png',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=604800, stale-while-revalidate=2592000' }],
+      },
     ];
   },
 

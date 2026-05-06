@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import Image from 'next/image';
 import '@/app/landing.css';
 
 // Three.js worker bundle + 5MB GLB — never block initial paint.
@@ -245,8 +246,7 @@ export default function LandingClient() {
         <div className="lp-nav-inner">
           <Link href="/" className="lp-nav-brand">
             <span className="lp-nav-logo" style={{ padding: 0, overflow: 'hidden' }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/POKYH_Logo.png" alt="" aria-hidden width={28} height={28} style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain' }} />
+              <Image src="/POKYH_Logo.png" alt="" aria-hidden width={28} height={28} style={{ display: 'block', objectFit: 'contain' }} />
             </span>
             POKYH
           </Link>
@@ -717,22 +717,6 @@ export default function LandingClient() {
           <Link href="/login"    className="lp-btn">Mit WebUntis anmelden</Link>
           <a    href="#login-info" className="lp-alink">So funktioniert's</a>
         </div>
-      </section>
-
-      {/* ── SEO paragraph — visually quiet, keyword-rich for WebUntis / Brixen searches ── */}
-      <section className="lp-seo-blurb" aria-label="Über POKYH">
-        <p>
-          <strong>POKYH</strong> ist die kostenlose <strong>WebUntis Alternative</strong> für Schüler der{' '}
-          <strong>LBS Brixen</strong> (Landesberufsschule Brixen / Berufsbildungszentrum{' '}
-          <strong>Tschuggmall</strong>, Südtirol). Die App verbindet sich mit{' '}
-          <strong>Untis Brixen</strong> bzw. <strong>WebUntis Brixen</strong> und zeigt deinen persönlichen{' '}
-          <strong>Stundenplan LBS Brixen</strong>, Noten, Abwesenheiten und Mensa — direkt mit deinem{' '}
-          <strong>WebUntis‑Account der LBS Brixen</strong>. Kein separates Passwort, keine Registrierung.
-          Gefunden werden wir auch unter: <strong>Untis LBS Brixen</strong>,{' '}
-          <strong>Tschuggmall Untis</strong>, <strong>BFZ Tschuggmall App</strong>,{' '}
-          <strong>Brixen Untis</strong>, WebUntis Südtirol.
-          POKYH steht in keiner offiziellen Verbindung zu <strong>WebUntis&nbsp;/&nbsp;Untis GmbH</strong>.
-        </p>
       </section>
 
       {/* ── FOOTER ── */}

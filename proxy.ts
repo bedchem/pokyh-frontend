@@ -5,6 +5,7 @@ import { decryptSession } from '@/lib/session-crypto';
 // Public paths that never require a session
 const PUBLIC_PREFIXES = [
   '/_next',
+  '/_vercel',
   '/favicon.ico',
   '/robots.txt',
   '/sitemap.xml',
@@ -90,6 +91,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon\\.ico|POKYH_Logo\\.png|icon-.*\\.png|icons|apple-icon|manifest\\.(?:json|webmanifest)|robots\\.txt|sitemap\\.xml|\\.well-known|draco).*)',
+    '/((?!_next/static|_next/image|_vercel|favicon\\.ico|POKYH_Logo\\.png|icon-.*\\.png|icons|apple-icon|manifest\\.(?:json|webmanifest)|robots\\.txt|sitemap\\.xml|\\.well-known|draco).*)',
   ],
 };
