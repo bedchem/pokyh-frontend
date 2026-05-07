@@ -2,7 +2,7 @@
 
 Eine kostenlose Web-App für Schülerinnen und Schüler der Landesberufsschule Brixen (Südtirol). Stundenplan, Noten, Mensa, Abwesenheiten, Nachrichten, Todos und Klassen-Erinnerungen — alles an einem Ort.
 
-**Live:** [pokyh.app](https://pokyh.com)
+**Live:** [pokyh.com](https://pokyh.com)
 
 ---
 
