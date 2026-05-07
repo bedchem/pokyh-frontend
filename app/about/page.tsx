@@ -6,61 +6,18 @@ import LandingFooter from '@/components/LandingFooter';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.app';
 
 export const metadata: Metadata = {
-  title: 'Über POKYH – Die Schulapp für LBS Brixen',
-  description: 'Wer steckt hinter POKYH? Alles über das kostenlose Open-Source-Projekt von Schülern der LBS Brixen — gebaut für Schüler, von Schülern.',
-  keywords: ['POKYH About', 'POKYH Team', 'POKYH Open Source', 'LBS Brixen App', 'bedchem GitHub'],
+  title: 'Über POKYH – Die Story dahinter',
+  description: 'Wie POKYH entstanden ist — von zwei Schülern der LBS Brixen, die sich ihre eigene Schulapp gebaut haben.',
+  keywords: ['POKYH About', 'POKYH Story', 'POKYH Team', 'LBS Brixen App', 'bedchem GitHub'],
   alternates: { canonical: `${SITE_URL}/about` },
   openGraph: {
-    title: 'Über POKYH – Die Schulapp für LBS Brixen',
-    description: 'POKYH ist ein Open-Source-Projekt von Schülern der LBS Brixen — kostenlos, werbefrei, modern.',
+    title: 'Über POKYH – Die Story dahinter',
+    description: 'Wie POKYH entstanden ist — von zwei Schülern der LBS Brixen, die sich ihre eigene Schulapp gebaut haben.',
     url: `${SITE_URL}/about`,
     type: 'website',
     siteName: 'POKYH',
   },
 };
-
-const FEATURES = [
-  {
-    title: 'Stundenplan',
-    sub: 'Tages- und Wochenansicht mit Vertretungen und Prüfungen in Echtzeit.',
-    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>,
-  },
-  {
-    title: 'Noten & Schnitt',
-    sub: 'Alle Noten nach Fach — Gesamtschnitt automatisch berechnet.',
-    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>,
-  },
-  {
-    title: 'Mensa',
-    sub: 'Tagesmenü mit Bewertungen, Nährwerten und Allergenen.',
-    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M4 11h16l-1.5 9h-13z"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>,
-  },
-  {
-    title: 'Nachrichten',
-    sub: 'Direkt aus WebUntis — mit Anhängen und lesbaren Links.',
-    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M21 11.5a8.5 8.5 0 0 1-12.4 7.6L3 21l1.9-5.6A8.5 8.5 0 1 1 21 11.5z"/></svg>,
-  },
-  {
-    title: 'Abwesenheiten',
-    sub: 'Entschuldigte und unentschuldigte Fehlstunden mit Jahresübersicht.',
-    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M18 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M16 11l6 6M22 11l-6 6"/></svg>,
-  },
-  {
-    title: 'Erinnerungen',
-    sub: 'Klassenweite Erinnerungen für Prüfungen — in Echtzeit für alle.',
-    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M14 21a2 2 0 0 1-4 0"/></svg>,
-  },
-  {
-    title: 'Todos',
-    sub: 'Persönliche Todo-Liste — synchronisiert auf allen Geräten.',
-    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11"/></svg>,
-  },
-  {
-    title: 'Dunkelmodus',
-    sub: 'Vollständiger Dark Mode — automatisch oder manuell.',
-    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>,
-  },
-];
 
 const GhIcon = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
@@ -68,62 +25,191 @@ const GhIcon = () => (
   </svg>
 );
 
+const FEATURES: { title: string; why: string }[] = [
+  {
+    title: 'Stundenplan',
+    why: 'WebUntis zeigt den Stundenplan — aber für uns war er schwer lesbar. Wir wollten ihn auf einen Blick verstehen: welche Stunde, wann, welcher Lehrer, welcher Raum. Und Vertretungen sollten sofort auffallen.',
+  },
+  {
+    title: 'Noten & Schnitt',
+    why: 'Den eigenen Notenschnitt selbst ausrechnen zu müssen war nervig. Wir wollten ihn einfach sehen — automatisch, nach Fach, auf zwei Dezimalstellen.',
+  },
+  {
+    title: 'Mensa',
+    why: 'Die Mensa war in keiner App. Jeden Tag das gleiche Spiel: Webseite aufrufen, suchen, warten. Wir wollten das Menü direkt dabei haben — mit Bewertungen von Mitschülern.',
+  },
+  {
+    title: 'Nachrichten',
+    why: 'Nachrichten in WebUntis zu lesen war umständlich. Anhänge waren schwer zu öffnen, Links nicht klickbar. Wir wollten eine saubere Inbox.',
+  },
+  {
+    title: 'Abwesenheiten',
+    why: 'Wie viele Fehlstunden habe ich eigentlich? Eine Gesamtübersicht gab es nicht wirklich. Wir wollten die eigene Fehlquote auf einen Blick sehen.',
+  },
+  {
+    title: 'Klassen-Erinnerungen',
+    why: 'Morgen Schularbeit — und die Hälfte der Klasse hat es vergessen. Wir wollten Erinnerungen, die für alle gleichzeitig erscheinen, in Echtzeit.',
+  },
+  {
+    title: 'Todos',
+    why: 'Aufgaben auf Papier oder in einer separaten App. Wir wollten eine persönliche Todo-Liste direkt da, wo der Rest auch ist — und die auf allen Geräten synchron bleibt.',
+  },
+];
+
+function FeatureIcon({ title }: { title: string }) {
+  const w = '1.7';
+  if (title === 'Stundenplan') return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w}><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>;
+  if (title === 'Noten & Schnitt') return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w}><path d="M5 20V10M12 20V4M19 20v-7"/></svg>;
+  if (title === 'Mensa') return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w}><path d="M4 11h16l-1.5 9h-13z"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>;
+  if (title === 'Nachrichten') return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w}><path d="M21 11.5a8.5 8.5 0 0 1-12.4 7.6L3 21l1.9-5.6A8.5 8.5 0 1 1 21 11.5z"/></svg>;
+  if (title === 'Abwesenheiten') return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w}><path d="M18 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M16 11l6 6M22 11l-6 6"/></svg>;
+  if (title === 'Klassen-Erinnerungen') return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w}><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M14 21a2 2 0 0 1-4 0"/></svg>;
+  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w}><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11"/></svg>;
+}
+
+const STACK = [
+  { label: 'Express',         sub: 'HTTP Server'        },
+  { label: 'TypeScript',      sub: 'Typsicherheit'      },
+  { label: 'Prisma + MySQL',  sub: 'Datenbank'          },
+  { label: 'SSE',             sub: 'Echtzeit-Updates'   },
+  { label: 'JWT',             sub: 'Authentifizierung'  },
+  { label: 'Cloudflare',      sub: 'Tunnel & Hosting'   },
+];
+
 export default function AboutPage() {
   return (
     <div className="lp-root lp-page">
       <LandingNav />
 
+      {/* Hero */}
       <div className="lp-page-hero">
         <div className="lp-page-hero-eyebrow">Von Schülern, für Schüler</div>
-        <h1 className="lp-page-hero-h1">Was ist POKYH?</h1>
+        <h1 className="lp-page-hero-h1">Die Story dahinter.</h1>
         <p className="lp-page-hero-sub">
-          POKYH ist die kostenlose Web-App für Schülerinnen und Schüler der LBS Brixen — gebaut weil WebUntis besser sein kann.
+          POKYH ist kein kommerzielles Produkt. Es ist das Ergebnis davon, dass wir selbst eine bessere Schulapp wollten — und sie einfach gebaut haben.
         </p>
       </div>
 
       <div className="lp-page-content">
 
-        {/* Why */}
+        {/* Die Idee */}
         <div className="lp-page-section" style={{ borderTop: 'none', paddingTop: 0 }}>
-          <div className="lp-steps-grid">
+          <h2 className="lp-page-section-title">Wie es angefangen hat</h2>
+          <p className="lp-page-section-sub" style={{ maxWidth: 620 }}>
+            WebUntis ist die offizielle Plattform unserer Schule — und sie funktioniert gut für das, wofür sie gedacht ist. Aber im Alltag haben uns drei Dinge immer wieder gefehlt:
+          </p>
+          <div className="lp-steps-grid" style={{ marginTop: 32 }}>
             {[
-              { num: '2026', title: 'Entstanden',    body: 'POKYH entstand 2026 als Schulprojekt — mit dem Ziel, die tägliche Schul-App übersichtlicher zu machen.' },
-              { num: 'Free', title: 'Kostenlos',     body: 'Keine Registrierung, keine Kosten, keine Werbung. Einfach mit dem WebUntis-Account der Schule anmelden.' },
-              { num: 'MIT',  title: 'Open Source',   body: 'Der gesamte Quellcode ist auf GitHub verfügbar — transparent, nachvollziehbar, für alle.' },
+              {
+                num: '01',
+                title: 'Keine Mensa',
+                body: 'Das Tagesmenü war nirgends in der App. Wir haben täglich eine separate Webseite aufgerufen — das wollten wir ändern.',
+              },
+              {
+                num: '02',
+                title: 'Keine Klassen-Erinnerungen',
+                body: 'Schularbeiten, Abgaben, wichtige Termine — irgendjemand in der Klasse hat es immer vergessen. Eine klassenweite Erinnerung in Echtzeit gab es nicht.',
+              },
+              {
+                num: '03',
+                title: 'Kein sauberes UI',
+                body: 'Für den schnellen Blick auf den Stundenplan oder die Noten war die Oberfläche zu unübersichtlich. Wir wollten etwas, das direkt lesbar ist.',
+              },
             ].map(({ num, title, body }) => (
-              <div key={title} className="lp-step">
+              <div key={num} className="lp-step">
                 <div className="lp-step-num">{num}</div>
                 <div className="lp-step-title">{title}</div>
                 <div className="lp-step-body">{body}</div>
               </div>
             ))}
           </div>
+          <p style={{ marginTop: 32, color: 'var(--app-text-secondary)', fontSize: '0.95rem', lineHeight: 1.7, maxWidth: 620 }}>
+            Also haben wir angefangen zu bauen — zuerst als kleines Schulprojekt, dann immer größer. Heute ist POKYH eine vollständige Web-App mit eigenem Backend, die täglich von Schülern der LBS Brixen genutzt wird.
+          </p>
         </div>
 
-        {/* Features */}
+        {/* Features mit Warum */}
         <div className="lp-page-section">
-          <h2 className="lp-page-section-title">Was POKYH bietet</h2>
-          <p className="lp-page-section-sub">Alle Schulinformationen, die du täglich brauchst — an einem Ort.</p>
-          <div className="lp-about-features">
-            {FEATURES.map(({ title, sub, icon }) => (
-              <div key={title} className="lp-about-feat">
-                <div className="lp-about-feat-icon">{icon}</div>
-                <div className="lp-about-feat-title">{title}</div>
-                <div className="lp-about-feat-sub">{sub}</div>
+          <h2 className="lp-page-section-title">Was wir gebaut haben — und warum</h2>
+          <p className="lp-page-section-sub">Jede Funktion hat einen konkreten Grund.</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 1, marginTop: 28, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--lp-card-border)' }}>
+            {FEATURES.map(({ title, why }, i) => (
+              <div
+                key={title}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '40px 1fr',
+                  gap: '0 20px',
+                  alignItems: 'start',
+                  padding: '20px 24px',
+                  background: 'var(--lp-card-bg)',
+                  borderTop: i > 0 ? '1px solid var(--lp-card-border)' : 'none',
+                }}
+              >
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--lp-card-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: 'var(--app-text-secondary)' }}>
+                  <FeatureIcon title={title} />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--app-text-primary)', marginBottom: 4 }}>{title}</div>
+                  <div style={{ fontSize: '0.875rem', color: 'var(--app-text-secondary)', lineHeight: 1.65 }}>{why}</div>
+                </div>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Backend */}
+        <div className="lp-page-section">
+          <h2 className="lp-page-section-title">Unser eigenes Backend</h2>
+          <p className="lp-page-section-sub" style={{ maxWidth: 620 }}>
+            Die WebUntis-Daten kommen direkt über die offizielle API. Aber für alles, was darüber hinausgeht — Klassen-Erinnerungen, Todos, Echtzeit-Updates — haben wir ein eigenes Backend von Grund auf gebaut.
+          </p>
+          <p style={{ marginTop: 16, color: 'var(--app-text-secondary)', fontSize: '0.95rem', lineHeight: 1.7, maxWidth: 620 }}>
+            Das war ehrlich gesagt der technisch spannendste Teil. Erinnerungen sollen in Echtzeit bei allen Klassenmitgliedern ankommen — dafür haben wir Server-Sent Events (SSE) implementiert. Das Backend läuft als Express-Server mit TypeScript, Prisma als ORM und MySQL als Datenbank. Dazu kommt ein eigenes Admin-Panel und eine JWT-basierte Authentifizierung.
+          </p>
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 28 }}>
+            {STACK.map(({ label, sub }) => (
+              <div
+                key={label}
+                style={{
+                  padding: '10px 16px',
+                  borderRadius: 10,
+                  border: '1px solid var(--lp-card-border)',
+                  background: 'var(--lp-card-bg)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
+                }}
+              >
+                <span style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--app-text-primary)' }}>{label}</span>
+                <span style={{ fontSize: '0.78rem', color: 'var(--app-text-tertiary)' }}>{sub}</span>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: 24 }}>
+            <a
+              href="https://github.com/bedchem/pokyh"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="lp-btn"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+            >
+              <GhIcon /> Auf GitHub ansehen
+            </a>
           </div>
         </div>
 
         {/* Team */}
         <div className="lp-page-section">
           <h2 className="lp-page-section-title">Das Team</h2>
-          <p className="lp-page-section-sub">
-            POKYH wird in der Freizeit von zwei Schülern der LBS Brixen entwickelt — als Open-Source-Projekt unter der{' '}
+          <p className="lp-page-section-sub" style={{ maxWidth: 560 }}>
+            POKYH wird von zwei Schülern der LBS Brixen in der Freizeit entwickelt — als Open-Source-Projekt unter der{' '}
             <a href="https://github.com/bedchem" target="_blank" rel="noopener noreferrer" style={{ color: '#6366F1', textDecoration: 'none' }}>bedchem</a>
             {' '}Organisation auf GitHub.
           </p>
-          <div className="lp-makers-grid" style={{ maxWidth: '100%' }}>
+          <div className="lp-makers-grid" style={{ maxWidth: '100%', marginTop: 24 }}>
             <a href="https://github.com/plattnericus" target="_blank" rel="noopener noreferrer" className="lp-maker">
               <div className="lp-maker-mono">N</div>
               <div>
@@ -144,33 +230,16 @@ export default function AboutPage() {
           </div>
         </div>
 
-        {/* Open Source */}
-        <div className="lp-page-section">
-          <h2 className="lp-page-section-title">Open Source</h2>
-          <p className="lp-page-section-sub">
-            Der vollständige Quellcode ist auf GitHub unter der MIT-Lizenz verfügbar. Wir freuen uns über Beiträge, Issues und Feedback.
-          </p>
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-            <a
-              href="https://github.com/bedchem/pokyh"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="lp-btn"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
-            >
-              <GhIcon /> Auf GitHub ansehen
-            </a>
-            <Link href="/howto" className="lp-alink">Selbst hosten</Link>
-          </div>
-        </div>
-
         {/* CTA */}
         <div style={{ textAlign: 'center', padding: '60px 0' }}>
-          <h2 className="lp-h2">Bereit?</h2>
+          <h2 className="lp-h2">Selbst ausprobieren.</h2>
           <p className="lp-lead" style={{ margin: '12px auto 32px', maxWidth: 460 }}>
             Kostenlos. Ohne Registrierung. Mit deinem WebUntis-Account.
           </p>
-          <Link href="/login" className="lp-btn">Mit WebUntis anmelden</Link>
+          <div style={{ display: 'inline-flex', gap: 22, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <Link href="/login" className="lp-btn">Mit WebUntis anmelden</Link>
+            <Link href="/comparison" className="lp-alink">POKYH vs. WebUntis</Link>
+          </div>
         </div>
 
       </div>

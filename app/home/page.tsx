@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { ChevronRight, Clock, TrendingUp, BookOpen, MessageCircle, FileText, Star } from 'lucide-react';
 import { useSession } from '@/providers/SessionProvider';
-import { useFirebase } from '@/providers/FirebaseProvider';
+import { useApp } from '@/providers/AppProvider';
 import { api } from '@/lib/api-client';
 import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
@@ -326,7 +326,7 @@ function StatCard({ label, value, sub, color, icon: Icon, href }: { label: strin
 
 export default function HomePage() {
   const { user } = useSession();
-  const { stableUid } = useFirebase();
+  const { stableUid } = useApp();
   const [allEntries, setAllEntries] = useState<TimetableEntry[]>([]);
   const [nextExam, setNextExam] = useState<TimetableEntry | null>(null);
   const [overallAvg, setOverallAvg] = useState<number | null>(null);

@@ -3,9 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Cookie, Info } from 'lucide-react';
-import { signInAnonymously } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
 import Spinner from '@/components/ui/Spinner';
 import Link from 'next/link';
 import {
@@ -126,22 +123,6 @@ export default function LoginForm() {
 
       if (isPasswordCredentialSupported() && !hasDeclinedPasskey()) {
         storePasswordCredential(username.trim(), password).catch(() => {});
-      }
-
-      if (auth && db) {
-        const normalUser = username.trim().toLowerCase();
-        signInAnonymously(auth).then(async (fbResult) => {
-          const fbUid = fbResult.user.uid;
-          const userRef = doc(db!, 'users', normalUser);
-          const existing = await getDoc(userRef);
-          const stableUid = existing.exists() ? existing.data().stableUid : doc(db!, '_').id;
-          if (!existing.exists()) {
-            await setDoc(userRef, { stableUid, username: normalUser, webuntisKlasseId: data.klasseId, webuntisKlasseName: data.klasseName, createdAt: serverTimestamp() });
-          } else {
-            await setDoc(userRef, { webuntisKlasseId: data.klasseId, webuntisKlasseName: data.klasseName, updatedAt: serverTimestamp() }, { merge: true });
-          }
-          await setDoc(doc(db!, 'users', fbUid), { username: normalUser, stableUid, updatedAt: serverTimestamp() });
-        }).catch(() => {});
       }
 
       const raw = params.get('next') ?? '';

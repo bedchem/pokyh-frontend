@@ -20,7 +20,7 @@ const PUBLIC_PREFIXES = [
   '/legal',
   '/about',
   '/faq',
-  '/vergleich',
+  '/comparison',
   '/howto',
   '/get',
   '/models',

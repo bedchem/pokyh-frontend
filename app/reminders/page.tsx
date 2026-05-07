@@ -7,7 +7,7 @@ import DateTimePicker from '@/components/ui/DateTimePicker';
 import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
 import EmptyView from '@/components/ui/EmptyView';
-import { useFirebase } from '@/providers/FirebaseProvider';
+import { useApp } from '@/providers/AppProvider';
 import { useSession } from '@/providers/SessionProvider';
 import { api, type ApiReminder } from '@/lib/api-client';
 
@@ -59,7 +59,7 @@ function apiReminderToReminder(r: ApiReminder): Reminder {
 export default function RemindersPage() {
   const router = useRouter();
   const { user, logout } = useSession();
-  const { classId, stableUid, ready, retryInit } = useFirebase();
+  const { classId, stableUid, ready, retryInit } = useApp();
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

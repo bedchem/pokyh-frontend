@@ -50,7 +50,7 @@ const TECH = [
   { name: 'Next.js 16', role: 'Framework', desc: 'App Router, Server Components und optimierter Build.' },
   { name: 'TypeScript', role: 'Sprache',   desc: 'Vollständig typisiert für Wartbarkeit und weniger Bugs.' },
   { name: 'Tailwind',   role: 'Styling',   desc: 'Utility-first CSS für konsistentes, schnelles Styling.' },
-  { name: 'Firebase',   role: 'Echtzeit',  desc: 'Firestore für Erinnerungen und Todos in Echtzeit.' },
+  { name: 'POKYH Backend', role: 'API & Echtzeit', desc: 'Eigener Node.js-Server mit SSE für Todos, Erinnerungen und Klassen-Features.' },
 ];
 
 const GhIcon = () => (

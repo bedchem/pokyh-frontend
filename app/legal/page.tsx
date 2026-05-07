@@ -316,12 +316,8 @@ function DatenschutzView() {
               desc="Enthält nicht-sensible Anzeigeinformationen (Benutzername, Klasse) für die Darstellung in der App. Kein Passwort, kein Token."
             />
             <DataItem
-              label="Firebase Anonymous Auth"
-              desc="Für Klassen-Funktionen (Todos, Erinnerungen) wird eine anonyme Firebase-Anmeldung (Google LLC) durchgeführt. Keine E-Mail-Adresse oder persönliche Information wird übermittelt – nur eine anonyme UID, die intern mit dem Benutzernamen verknüpft wird."
-            />
-            <DataItem
-              label="Firestore-Daten"
-              desc="Todos und Klassen-Erinnerungen werden in Google Cloud Firestore gespeichert: Titel, Details, Zeitstempel, Benutzername. Löschung jederzeit selbst möglich."
+              label="POKYH-Backend (Todos & Erinnerungen)"
+              desc="Todos und Klassen-Erinnerungen werden auf dem eigenen POKYH-Backend gespeichert: Titel, Details, Zeitstempel, Benutzername. Löschung jederzeit selbst möglich. Es werden keine externen Cloud-Dienste für diese Funktionen genutzt."
             />
             <DataItem
               label="Google Analytics 4 (GA4)"
@@ -354,9 +350,9 @@ function DatenschutzView() {
               url="https://www.webuntis.com/privacy-policy"
             />
             <ThirdParty
-              name="Google Firebase & Firestore (Google LLC)"
-              purpose="Anonyme Authentifizierung und Datenspeicherung (Todos, Erinnerungen)"
-              url="https://firebase.google.com/support/privacy"
+              name="POKYH Backend (pokyh-backend)"
+              purpose="Eigener Server für Todos, Erinnerungen, Klassen-Features und Echtzeit-Updates"
+              url="https://github.com/bedchem/pokyh"
             />
             <ThirdParty
               name="Google Analytics 4 (Google LLC)"
@@ -386,9 +382,10 @@ function DatenschutzView() {
 
         <LegalSection title="6. Speicherdauer">
           <p>
-            Session-Cookies werden beim Logout oder nach 30 Minuten gelöscht. Firestore-Daten (Todos,
-            Erinnerungen) werden gespeichert, bis du sie selbst löschst. Abgeschlossene Todos werden nach
-            24 Stunden automatisch ausgeblendet. Google Analytics-Daten werden nach 14 Monaten gelöscht.
+            Session-Cookies werden beim Logout oder nach 30 Minuten gelöscht. Todos und Erinnerungen
+            werden auf dem POKYH-Backend gespeichert, bis du sie selbst löschst. Abgeschlossene Todos
+            werden nach 24 Stunden automatisch ausgeblendet. Google Analytics-Daten werden nach
+            14 Monaten gelöscht.
           </p>
         </LegalSection>
 

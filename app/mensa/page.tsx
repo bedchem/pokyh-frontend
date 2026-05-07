@@ -10,7 +10,7 @@ import ErrorView from '@/components/ui/ErrorView';
 import EmptyView from '@/components/ui/EmptyView';
 import { fetchMensa } from '@/lib/api';
 import type { Dish } from '@/lib/types';
-import { useFirebase } from '@/providers/FirebaseProvider';
+import { useApp } from '@/providers/AppProvider';
 import { api, type DishRatingsData } from '@/lib/api-client';
 
 // -- helpers --
@@ -442,7 +442,7 @@ function DishDetail({
 }
 
 export default function MensaPage() {
-  const { stableUid } = useFirebase();
+  const { stableUid } = useApp();
   const [groups, setGroups] = useState<GroupedDishes[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

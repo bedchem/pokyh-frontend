@@ -4,7 +4,7 @@ import Script from 'next/script';
 import './globals.css';
 import { ThemeProvider } from '@/providers/ThemeProvider';
 import { SessionProvider } from '@/providers/SessionProvider';
-import { FirebaseProvider } from '@/providers/FirebaseProvider';
+import { AppProvider } from '@/providers/AppProvider';
 import { SidebarProvider } from '@/providers/SidebarProvider';
 import LayoutShell from '@/components/LayoutShell';
 import { Analytics } from '@vercel/analytics/next';
@@ -188,8 +188,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Preconnect to external APIs used at auth time */}
         <link rel="preconnect" href="https://lbs-brixen.webuntis.com" />
         <link rel="preconnect" href="https://mensa.plattnericus.dev" />
-        <link rel="dns-prefetch" href="https://firestore.googleapis.com" />
-        <link rel="dns-prefetch" href="https://identitytoolkit.googleapis.com" />
         {/* Draco decoder CDN — full preconnect (TLS handshake included) */}
         <link rel="preconnect" href="https://www.gstatic.com" crossOrigin="anonymous" />
         {GA_ID && <link rel="preconnect" href="https://www.googletagmanager.com" />}
@@ -218,11 +216,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <ThemeProvider>
           <SessionProvider>
-            <FirebaseProvider>
+            <AppProvider>
               <SidebarProvider>
                 <LayoutShell>{children}</LayoutShell>
               </SidebarProvider>
-            </FirebaseProvider>
+            </AppProvider>
           </SessionProvider>
         </ThemeProvider>
         <Analytics />

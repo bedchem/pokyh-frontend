@@ -7,7 +7,7 @@ import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
 import { useSession } from '@/providers/SessionProvider';
 import { useTheme } from '@/providers/ThemeProvider';
-import { useFirebase } from '@/providers/FirebaseProvider';
+import { useApp } from '@/providers/AppProvider';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -101,7 +101,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const { user, logout } = useSession();
   const { theme, setTheme } = useTheme();
-  const { stableUid, classId } = useFirebase();
+  const { stableUid, classId } = useApp();
   const [loggingOut, setLoggingOut] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
 
@@ -174,7 +174,7 @@ export default function ProfilePage() {
                 <InfoRow label="Schüler-ID" value={String(user?.studentId ?? '–')} copyable />
                 <InfoRow label="Klasse" value={user?.klasseName ?? '–'} copyable />
                 <InfoRow label="Schule" value="LBS Brixen" />
-                <InfoRow label="Firebase UID" value={stableUid ?? '…'} copyable />
+                <InfoRow label="Benutzer-ID" value={stableUid ?? '…'} copyable />
                 <InfoRow label="Klassen-ID" value={classId ?? '…'} copyable separator={false} />
               </div>
             </section>

@@ -53,7 +53,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.8,
     },
     {
-      url: `${SITE_URL}/vergleich`,
+      url: `${SITE_URL}/comparison`,
       lastModified: new Date('2026-05-06'),
       changeFrequency: 'monthly',
       priority: 0.75,

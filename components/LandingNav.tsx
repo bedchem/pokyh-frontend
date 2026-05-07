@@ -9,7 +9,7 @@ import '@/app/landing.css';
 const NAV_LINKS = [
   { label: 'About',     href: '/about' },
   { label: 'FAQ',       href: '/faq' },
-  { label: 'Vergleich', href: '/vergleich' },
+  { label: 'Vergleich', href: '/comparison' },
 ];
 
 export default function LandingNav() {

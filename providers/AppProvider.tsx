@@ -10,23 +10,21 @@ import {
 import { api } from '@/lib/api-client';
 import { useSession } from '@/providers/SessionProvider';
 
-interface FirebaseCtx {
-  firebaseUid: string | null;
+interface AppCtx {
   stableUid: string | null;
   classId: string | null;
   ready: boolean;
   retryInit: () => void;
 }
 
-const Ctx = createContext<FirebaseCtx>({
-  firebaseUid: null,
+const Ctx = createContext<AppCtx>({
   stableUid: null,
   classId: null,
   ready: false,
   retryInit: () => {},
 });
 
-export function FirebaseProvider({ children }: { children: React.ReactNode }) {
+export function AppProvider({ children }: { children: React.ReactNode }) {
   const { user } = useSession();
   const [stableUid, setStableUid] = useState<string | null>(null);
   const [classId, setClassId] = useState<string | null>(null);
@@ -40,7 +38,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
         setClassId(result.classId);
       }
     } catch (e) {
-      console.error('[FirebaseProvider] init error:', e);
+      console.error('[AppProvider] init error:', e);
     } finally {
       setReady(true);
     }
@@ -59,10 +57,10 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   }, [user, init]);
 
   return (
-    <Ctx.Provider value={{ firebaseUid: null, stableUid, classId, ready, retryInit }}>
+    <Ctx.Provider value={{ stableUid, classId, ready, retryInit }}>
       {children}
     </Ctx.Provider>
   );
 }
 
-export const useFirebase = () => useContext(Ctx);
+export const useApp = () => useContext(Ctx);

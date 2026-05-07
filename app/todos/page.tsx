@@ -6,7 +6,7 @@ import DateTimePicker from '@/components/ui/DateTimePicker';
 import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
 import EmptyView from '@/components/ui/EmptyView';
-import { useFirebase } from '@/providers/FirebaseProvider';
+import { useApp } from '@/providers/AppProvider';
 import { useSession } from '@/providers/SessionProvider';
 import { api, type ApiTodo } from '@/lib/api-client';
 
@@ -36,7 +36,7 @@ function apiTodoToTodo(t: ApiTodo): Todo {
 
 export default function TodosPage() {
   const { user } = useSession();
-  const { ready } = useFirebase();
+  const { ready } = useApp();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

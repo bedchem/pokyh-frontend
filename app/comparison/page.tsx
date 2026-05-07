@@ -9,11 +9,11 @@ export const metadata: Metadata = {
   title: 'POKYH & WebUntis – Der Vergleich',
   description: 'POKYH vs. WebUntis: Was ist der Unterschied? POKYH nutzt die WebUntis-API und bietet eine modernere Oberfläche für Schüler der LBS Brixen.',
   keywords: ['POKYH vs WebUntis', 'POKYH Vergleich', 'WebUntis Alternative LBS Brixen', 'WebUntis Unterschied'],
-  alternates: { canonical: `${SITE_URL}/vergleich` },
+  alternates: { canonical: `${SITE_URL}/comparison` },
   openGraph: {
     title: 'POKYH & WebUntis – Der Vergleich',
     description: 'Was ist der Unterschied zwischen POKYH und WebUntis? Eine ehrliche Gegenüberstellung.',
-    url: `${SITE_URL}/vergleich`,
+    url: `${SITE_URL}/comparison`,
     type: 'website',
     siteName: 'POKYH',
   },
@@ -32,11 +32,6 @@ const MinusIcon = () => (
 const TildeIcon = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
     <path d="M4 14c2-4 5-4 8 0s6 4 8 0"/>
-  </svg>
-);
-const ArrowRight = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
   </svg>
 );
 
@@ -106,7 +101,7 @@ function ColumnList({ valueKey, accent }: { valueKey: 'pokyh' | 'webuntis'; acce
   );
 }
 
-export default function VergleichPage() {
+export default function ComparisonPage() {
   const stats = ROWS.reduce(
     (acc, r) => {
       acc.p[r.pokyh]++; acc.w[r.webuntis]++; return acc;
