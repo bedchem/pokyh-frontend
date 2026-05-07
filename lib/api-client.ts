@@ -64,6 +64,10 @@ async function refreshAccessToken(): Promise<boolean> {
 
     if (!res.ok) {
       clearTokens();
+      // 401 = token revoked/invalid → force re-login
+      if (res.status === 401 && typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('pockyh-session-expired'));
+      }
       return false;
     }
 
