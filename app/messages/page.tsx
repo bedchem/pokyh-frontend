@@ -45,6 +45,20 @@ function parseMessages(json: unknown): MessagePreview[] {
         (m.sentDate as string) ??
         (m.date as string) ??
         '';
+      const rawRead =
+        (m.isRead as unknown) ??
+        (m.read as unknown) ??
+        (m.isread as unknown) ??
+        (m.readFlag as unknown) ??
+        (m.readStatus as unknown);
+      const isRead =
+        typeof rawRead === 'boolean'
+          ? rawRead
+          : typeof rawRead === 'number'
+            ? rawRead === 1
+            : typeof rawRead === 'string'
+              ? rawRead.toLowerCase() === 'true' || rawRead === '1'
+              : true;
       return {
         id: m.id as number,
         subject: (m.subject as string) ?? '(Kein Betreff)',
@@ -52,7 +66,7 @@ function parseMessages(json: unknown): MessagePreview[] {
         senderName,
         senderId: (sender?.userId as number) ?? 0,
         sentDate,
-        isRead: (m.isRead as boolean) ?? true,
+        isRead,
         hasAttachments: (m.hasAttachments as boolean) ?? false,
       };
     });
@@ -108,11 +122,17 @@ export default function MessagesPage() {
   const unreadIds = messages.filter((m) => !m.isRead).map((m) => m.id);
 
   async function handleMarkAllRead() {
-    if (!unreadIds.length || markingAll) return;
+    if (markingAll || unreadIds.length === 0) return;
     setMarkingAll(true);
-    await markAllMessagesRead(unreadIds);
-    setMessages((prev) => prev.map((m) => ({ ...m, isRead: true })));
-    setMarkingAll(false);
+    try {
+      await markAllMessagesRead(unreadIds);
+      setMessages((prev) => prev.map((m) => ({ ...m, isRead: true })));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('pockyh-messages-updated', { detail: { unread: 0 } }));
+      }
+    } finally {
+      setMarkingAll(false);
+    }
   }
 
   return (
@@ -129,17 +149,15 @@ export default function MessagesPage() {
           >
             Nachrichten
           </h1>
-          {unreadIds.length > 0 && (
-            <button
-              onClick={handleMarkAllRead}
-              disabled={markingAll}
-              className="flex items-center gap-1.5 px-3 h-9 rounded-xl text-sm font-medium press-scale disabled:opacity-50"
-              style={{ background: 'var(--app-surface)', color: 'var(--accent)' }}
-            >
-              {markingAll ? <Spinner size={14} /> : <CheckCheck size={16} />}
-              {!markingAll && 'Alle lesen'}
-            </button>
-          )}
+          <button
+            onClick={handleMarkAllRead}
+            disabled={markingAll || unreadIds.length === 0}
+            className="flex items-center gap-1.5 px-3 h-9 rounded-xl text-sm font-medium press-scale disabled:opacity-50"
+            style={{ background: 'var(--app-surface)', color: 'var(--accent)' }}
+          >
+            {markingAll ? <Spinner size={14} /> : <CheckCheck size={16} />}
+            {!markingAll && 'Alle als gelesen'}
+          </button>
         </div>
 
         <div className="flex-1 overflow-auto pb-8">

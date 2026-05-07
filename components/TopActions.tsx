@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { MessageCircle } from 'lucide-react';
 import { useSession } from '@/providers/SessionProvider';
@@ -17,11 +17,22 @@ async function loadUnread(): Promise<number> {
     if (!res.ok) return _cachedUnread;
     const data = await res.json();
     const arr =
-      (data?.incomingMessages as Array<{ isRead?: boolean }>) ??
-      (data?.messages as Array<{ isRead?: boolean }>) ??
-      ((data?.data as { incomingMessages?: Array<{ isRead?: boolean }> })?.incomingMessages) ??
+      (data?.incomingMessages as Array<Record<string, unknown>>) ??
+      (data?.messages as Array<Record<string, unknown>>) ??
+      ((data?.data as { incomingMessages?: Array<Record<string, unknown>> })?.incomingMessages) ??
       [];
-    _cachedUnread = arr.filter((m) => !m.isRead).length;
+    _cachedUnread = arr.filter((m) => {
+      const rawRead =
+        (m.isRead as unknown) ??
+        (m.read as unknown) ??
+        (m.isread as unknown) ??
+        (m.readFlag as unknown) ??
+        (m.readStatus as unknown);
+      if (typeof rawRead === 'boolean') return !rawRead;
+      if (typeof rawRead === 'number') return rawRead !== 1;
+      if (typeof rawRead === 'string') return !(rawRead.toLowerCase() === 'true' || rawRead === '1');
+      return false;
+    }).length;
     _lastFetch = Date.now();
   } catch {
     /* non-fatal */
@@ -36,10 +47,22 @@ export function invalidateUnreadCache() {
 export default function TopActions() {
   const { user } = useSession();
   const [unread, setUnread] = useState(_cachedUnread);
-
-  useEffect(() => {
+  const refreshUnread = useCallback(() => {
     loadUnread().then(setUnread);
   }, []);
+
+  useEffect(() => {
+    refreshUnread();
+    function handleMessagesUpdated(e: Event) {
+      const detail = (e as CustomEvent<{ unread?: number }>).detail;
+      if (typeof detail?.unread === 'number') {
+        setUnread(detail.unread);
+      }
+      refreshUnread();
+    }
+    window.addEventListener('pockyh-messages-updated', handleMessagesUpdated);
+    return () => window.removeEventListener('pockyh-messages-updated', handleMessagesUpdated);
+  }, [refreshUnread]);
 
   const initials = user?.username.slice(0, 2).toUpperCase() ?? 'ME';
 
