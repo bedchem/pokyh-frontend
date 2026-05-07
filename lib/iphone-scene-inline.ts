@@ -115,8 +115,8 @@ export function startScene(canvas: HTMLCanvasElement, progressRef: RefObject<num
     tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
     tex.needsUpdate = true;
   }
-  loader.load('/models/whitemode_screen.webp', (tex) => { sharpTex(tex); lightTex = tex; applyScreen(); });
-  loader.load('/models/darkmode_screen.webp',  (tex) => { sharpTex(tex); darkTex  = tex; applyScreen(); });
+  loader.load('/models/white.webp', (tex) => { sharpTex(tex); lightTex = tex; applyScreen(); });
+  loader.load('/models/dark.webp',  (tex) => { sharpTex(tex); darkTex  = tex; applyScreen(); });
   const draco = new DRACOLoader(); draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
   const gltf = new GLTFLoader(); gltf.setDRACOLoader(draco);
   gltf.load('/models/iphone.glb', (g) => {

@@ -142,8 +142,8 @@ export default function LandingClient() {
       '/models/iphone.glb',
       '/draco/gltf/draco_wasm_wrapper.js',
       '/draco/gltf/draco_decoder.wasm',
-      '/models/whitemode_screen.webp',
-      '/models/darkmode_screen.webp',
+      '/models/white.webp',
+      '/models/dark.webp',
     ];
     for (const url of assets) {
       fetch(url, { priority: 'low' } as RequestInit).catch(() => {});
