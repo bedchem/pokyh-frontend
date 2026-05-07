@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft,
   ChevronRight,
@@ -19,6 +20,7 @@ import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
 import { fetchTimetable } from '@/lib/api';
+import { pcGetStale, pcSet } from '@/lib/persist-cache';
 import { subjectColor } from '@/lib/colors';
 import type { TimetableEntry } from '@/lib/types';
 
@@ -695,16 +697,17 @@ function LessonCell({ slot, onClick, compact }: { slot: MergedSlot; onClick: () 
           min-width: 0;
         }
         .lesson-subject {
-          font-size: 12.5px;
-          font-weight: 700;
-          letter-spacing: -0.01em;
+          font-size: 10px;
+          font-weight: 800;
+          letter-spacing: 0.01em;
           color: var(--lc-text);
-          line-height: 1.18;
-          flex: 1;
+          line-height: 1.15;
           min-width: 0;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
           overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
+          word-break: break-word;
         }
         .lesson-subject.is-struck {
           text-decoration: line-through;
@@ -733,10 +736,12 @@ function LessonCell({ slot, onClick, compact }: { slot: MergedSlot; onClick: () 
         }
         .lesson-meta {
           display: flex;
-          align-items: center;
-          gap: 4px;
-          font-size: 10.5px;
-          line-height: 1.18;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 1px;
+          font-size: 8.5px;
+          font-weight: 500;
+          line-height: 1.15;
           color: var(--app-text-secondary);
           min-width: 0;
           overflow: hidden;
@@ -767,7 +772,7 @@ function LessonCell({ slot, onClick, compact }: { slot: MergedSlot; onClick: () 
           padding: 3px 6px 3px 7px;
         }
         .lesson-cell.is-compact .lesson-subject {
-          font-size: 11.5px;
+          font-size: 9px;
         }
 
         .lesson-cell[data-state='cancelled'] {
@@ -944,6 +949,13 @@ function TimetableContent() {
     const todayMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
     return Math.round((targetMonday.getTime() - todayMonday.getTime()) / (7 * 24 * 60 * 60 * 1000));
   });
+  const [direction, setDirection] = useState(0);
+
+  const navigateWeek = useCallback((by: number) => {
+    setDirection(by);
+    setWeekOffset(o => o + by);
+  }, []);
+
   const [entries,    setEntries]    = useState<TimetableEntry[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState('');
@@ -998,39 +1010,56 @@ const [autoOpenId] = useState<number | null>(() => {
       if (activeSlot) return;
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        setWeekOffset(o => o - 1);
+        navigateWeek(-1);
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
-        setWeekOffset(o => o + 1);
+        navigateWeek(1);
       } else if (e.key === 't' || e.key === 'T' || e.key === 'Home') {
         e.preventDefault();
+        setDirection(weekOffset > 0 ? -1 : 1);
         setWeekOffset(0);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [activeSlot]);
+  }, [activeSlot, navigateWeek, weekOffset]);
 
   // ── Load ────────────────────────────────────────────────────────────────────
 
   const load = useCallback(async () => {
+    const cacheKey = `tt_week_${weekOffset}`;
+    
+    // Memory cache
     if (cacheRef.current[weekOffset]) {
       setEntries(cacheRef.current[weekOffset]);
       setLoading(false);
       return;
     }
-    setLoading(true); setError('');
+    
+    // Persistent Cache
+    const cachedData = pcGetStale<TimetableEntry[]>(cacheKey);
+    if (cachedData) {
+      setEntries(cachedData);
+      setLoading(false); // Instantly show cached
+    } else {
+      setLoading(true); 
+    }
+    setError('');
+
     try {
       const dateStr = format(monday, 'yyyy-MM-dd');
       const res     = await fetchTimetable(dateStr);
       const parsed  = parseTimetable(res);
       cacheRef.current[weekOffset] = parsed;
+      pcSet(cacheKey, parsed);
       setEntries(parsed);
     } catch (e: unknown) {
       if (e instanceof Error && e.message === 'session_expired') { router.replace('/login'); return; }
-      setError(e instanceof Error ? e.message : 'Fehler beim Laden des Stundenplans');
+      if (!cachedData) {
+        setError(e instanceof Error ? e.message : 'Fehler beim Laden des Stundenplans');
+      }
     } finally {
-      setLoading(false);
+      if (!cachedData) setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekOffset]);
@@ -1122,13 +1151,33 @@ const [autoOpenId] = useState<number | null>(() => {
   // Period band geometry
   const visiblePeriods = PERIODS.filter(p => p.e > minMins && p.s < maxMins);
 
+  const swipeVariants = {
+    enter: (direction: number) => ({
+      x: direction > 0 ? '100%' : '-100%',
+      opacity: 0.5,
+    }),
+    center: {
+      x: 0,
+      opacity: 1,
+    },
+    exit: (direction: number) => ({
+      x: direction < 0 ? '100%' : '-100%',
+      opacity: 0.5,
+    }),
+  };
+
+  const swipeTransition = {
+    x: { type: "spring" as const, stiffness: 450, damping: 35 },
+    opacity: { duration: 0.2 },
+  };
+
   return (
     <AuthGuard>
       <div className="tt-wrap">
         <div className="tt-host">
           <main className="tt-page">
             <header className="tt-head fade-in">
-              <div className="tt-head-text">
+              <div className="tt-head-text hidden md:block">
                 <h1 className="tt-title">
                   {format(monday, 'd. MMM', { locale: de })} – {format(addDays(monday, 5), 'd. MMM yyyy', { locale: de })}
                 </h1>
@@ -1141,7 +1190,10 @@ const [autoOpenId] = useState<number | null>(() => {
                     <button
                       type="button"
                       className="tt-today"
-                      onClick={() => setWeekOffset(0)}
+                      onClick={() => {
+                        setDirection(weekOffset > 0 ? -1 : 1);
+                        setWeekOffset(0);
+                      }}
                     >
                       Heute
                     </button>
@@ -1178,13 +1230,35 @@ const [autoOpenId] = useState<number | null>(() => {
             </header>
 
             <div className="tt-card">
-              <div className="tt-days">
-                <button
-                  type="button"
-                  className="tt-nav-btn"
-                  onClick={() => setWeekOffset(o => o - 1)}
-                  aria-label="Vorherige Woche"
+              <AnimatePresence initial={false} custom={direction} mode="popLayout">
+                <motion.div
+                  key={weekOffset}
+                  custom={direction}
+                  variants={swipeVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={swipeTransition}
+                  drag="x"
+                  dragConstraints={{ left: 0, right: 0 }}
+                  dragElastic={0.9}
+                  onDragEnd={(e, { offset, velocity }) => {
+                    const swipe = offset.x;
+                    if (swipe < -50) {
+                      navigateWeek(1);
+                    } else if (swipe > 50) {
+                      navigateWeek(-1);
+                    }
+                  }}
+                  className="tt-card-inner"
                 >
+                <div className="tt-days">
+                  <button
+                    type="button"
+                    className="tt-nav-btn"
+                    onClick={() => navigateWeek(-1)}
+                    aria-label="Vorherige Woche"
+                  >
                   <ChevronLeft size={16} />
                 </button>
                 {weekDates.map((date, i) => {
@@ -1204,7 +1278,7 @@ const [autoOpenId] = useState<number | null>(() => {
                 <button
                   type="button"
                   className="tt-nav-btn"
-                  onClick={() => setWeekOffset(o => o + 1)}
+                  onClick={() => navigateWeek(1)}
                   aria-label="Nächste Woche"
                 >
                   <ChevronRight size={16} />
@@ -1226,7 +1300,10 @@ const [autoOpenId] = useState<number | null>(() => {
                     <div className="tt-empty-emoji">🏖️</div>
                     <h2>Ferienwoche</h2>
                     <p>In dieser Woche ist kein Unterricht — KW {weekNumber(monday)}</p>
-                    <button type="button" className="tt-today is-cta" onClick={() => setWeekOffset(0)}>
+                    <button type="button" className="tt-today is-cta" onClick={() => {
+                        setDirection(weekOffset > 0 ? -1 : 1);
+                        setWeekOffset(0);
+                    }}>
                       Zurück zu Heute
                     </button>
                   </div>
@@ -1351,6 +1428,8 @@ const [autoOpenId] = useState<number | null>(() => {
                   </div>
                 )}
               </div>
+              </motion.div>
+              </AnimatePresence>
             </div>
 
           </main>
@@ -1388,7 +1467,7 @@ const [autoOpenId] = useState<number | null>(() => {
             touch-action: pan-y;
           }
           .tt-page {
-            padding: 22px 8px 64px;
+            padding: 12px 2px 64px;
             display: flex;
             flex-direction: column;
             gap: 14px;
@@ -1435,7 +1514,7 @@ const [autoOpenId] = useState<number | null>(() => {
           .tt-head-stats {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 6px;
+            gap: 4px;
             min-width: 100%;
           }
           @media (min-width: 560px) {
@@ -1445,21 +1524,27 @@ const [autoOpenId] = useState<number | null>(() => {
             display: flex;
             flex-direction: column;
             gap: 2px;
-            padding: 8px 12px;
+            padding: 8px 4px;
             background: var(--app-surface);
             border: 1px solid var(--app-border);
             border-radius: 12px;
             min-width: 0;
+            align-items: center;
+            text-align: center;
           }
           @media (min-width: 768px) {
-            .tt-stat { padding: 10px 16px; }
+            .tt-stat { padding: 10px 16px; align-items: flex-start; text-align: left; }
           }
           .tt-stat-label {
-            font-size: 10.5px;
+            font-size: 9px;
             font-weight: 600;
-            letter-spacing: 0.04em;
+            letter-spacing: 0.02em;
             text-transform: uppercase;
             color: var(--app-text-tertiary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
           }
           .tt-stat-value {
             font-size: 18px;
@@ -1484,8 +1569,8 @@ const [autoOpenId] = useState<number | null>(() => {
 
           /* ── Nav arrow buttons (inside day header) ── */
           .tt-nav-btn {
-            width: 30px;
-            height: 30px;
+            width: 25px;
+            height: 32px;
             border-radius: 8px;
             border: 1px solid var(--app-border);
             background: var(--app-bg);
@@ -1528,13 +1613,19 @@ const [autoOpenId] = useState<number | null>(() => {
             border-radius: 16px;
             overflow: hidden;
             position: relative;
+            background: transparent;
+          }
+          .tt-card-inner {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
           }
 
           .tt-days {
             display: grid;
-            grid-template-columns: 38px repeat(6, minmax(0, 1fr)) 38px;
-            gap: 4px;
-            padding: 8px 8px 6px;
+            grid-template-columns: 31px repeat(6, minmax(0, 1fr)) 25px;
+            gap: 2px;
+            padding: 8px 2px 6px;
             background: color-mix(in srgb, var(--app-bg) 50%, var(--app-surface));
             border-bottom: 1px solid var(--app-border);
           }
@@ -1542,7 +1633,7 @@ const [autoOpenId] = useState<number | null>(() => {
             .tt-days {
               grid-template-columns: 44px repeat(6, minmax(0, 1fr)) 44px;
               gap: 6px;
-              padding: 10px 12px 8px;
+              padding: 10px 8px 8px;
             }
           }
           .tt-day-chip {
@@ -1633,13 +1724,15 @@ const [autoOpenId] = useState<number | null>(() => {
 
           .tt-grid {
             display: grid;
-            grid-template-columns: 38px 1fr;
+            grid-template-columns: 31px 1fr 25px;
+            gap: 2px;
             position: relative;
             padding: 4px 2px;
           }
           @media (min-width: 768px) {
             .tt-grid {
-              grid-template-columns: 44px 1fr;
+              grid-template-columns: 44px 1fr 44px;
+              gap: 6px;
               padding: 6px 8px 8px;
             }
           }
@@ -1651,13 +1744,13 @@ const [autoOpenId] = useState<number | null>(() => {
           .tt-rail-period {
             position: absolute;
             left: 0;
-            right: 4px;
+            right: 3px;
           }
           .tt-rail-start {
             position: absolute;
             top: 1px;
             right: 0;
-            font-size: 9px;
+            font-size: 8.5px;
             font-weight: 600;
             color: var(--app-text-secondary);
             font-variant-numeric: tabular-nums;
@@ -1669,7 +1762,7 @@ const [autoOpenId] = useState<number | null>(() => {
             top: -2px;
             right: 0;
             transform: translateY(-50%);
-            font-size: 9px;
+            font-size: 8.5px;
             font-weight: 600;
             color: var(--app-text-secondary);
             font-variant-numeric: tabular-nums;
@@ -1681,7 +1774,7 @@ const [autoOpenId] = useState<number | null>(() => {
             top: 50%;
             right: 0;
             transform: translateY(-50%);
-            font-size: 9px;
+            font-size: 8.5px;
             font-weight: 500;
             color: var(--app-text-tertiary);
             font-variant-numeric: tabular-nums;
@@ -1722,7 +1815,7 @@ const [autoOpenId] = useState<number | null>(() => {
             grid-column: 2;
             display: grid;
             grid-template-columns: repeat(6, minmax(0, 1fr));
-            gap: 4px;
+            gap: 2px;
           }
           @media (min-width: 768px) {
             .tt-cols { gap: 6px; }
