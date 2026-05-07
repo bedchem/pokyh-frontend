@@ -2,7 +2,7 @@
 
 Eine kostenlose Web-App für Schülerinnen und Schüler der Landesberufsschule Brixen (Südtirol). Stundenplan, Noten, Mensa, Abwesenheiten, Nachrichten, Todos und Klassen-Erinnerungen — alles an einem Ort.
 
-**Live:** [pokyh.app](https://pokyh.app)
+**Live:** [pokyh.app](https://pokyh.com)
 
 ---
 
@@ -28,7 +28,7 @@ Eine kostenlose Web-App für Schülerinnen und Schüler der Landesberufsschule B
 | Styling | Tailwind CSS v4 |
 | Auth & Daten | [POKYH Backend](https://github.com/bedchem/pokyh-backend) (Node.js, MySQL, JWT) |
 | WebUntis-Daten | WebUntis API (via eigene Proxy-Routes) |
-| Hosting | Vercel |
+| Hosting | Selfhosting |
 
 ---
 
