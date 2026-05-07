@@ -27,9 +27,9 @@ interface Props {
   stableUid: string | null;
   isAdmin: boolean;
   loading: boolean;
-  onAdd: (body: string) => Promise<void>;
-  onEdit: (commentId: string, body: string) => Promise<void>;
-  onDelete: (commentId: string) => Promise<void>;
+  onAdd: (body: string) => Promise<unknown>;
+  onEdit: (commentId: string, body: string) => Promise<unknown>;
+  onDelete: (commentId: string) => Promise<unknown>;
 }
 
 export default function CommentSection({ comments, stableUid, isAdmin, loading, onAdd, onEdit, onDelete }: Props) {
