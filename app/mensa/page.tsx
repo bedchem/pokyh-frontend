@@ -8,10 +8,11 @@ import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
 import EmptyView from '@/components/ui/EmptyView';
+import CommentSection from '@/components/ui/CommentSection';
 import { fetchMensa } from '@/lib/api';
 import type { Dish } from '@/lib/types';
 import { useApp } from '@/providers/AppProvider';
-import { api, type DishRatingsData } from '@/lib/api-client';
+import { api, type DishRatingsData, type ApiComment } from '@/lib/api-client';
 
 // -- helpers --
 
@@ -287,16 +288,20 @@ function DishCard({
 function DishDetail({
   dish,
   stableUid,
+  isAdmin,
   onClose,
   onRated,
 }: {
   dish: Dish;
   stableUid: string | null;
+  isAdmin: boolean;
   onClose: () => void;
   onRated: (dishId: string, ratings: Record<string, number>) => void;
 }) {
   const [ratingsData, setRatingsData] = useState<DishRatingsData>({ ratings: {}, myRating: null });
   const [saving, setSaving] = useState(false);
+  const [comments, setComments] = useState<ApiComment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(true);
 
   useEffect(() => {
     // Fetch initial ratings
@@ -307,13 +312,24 @@ function DishDetail({
       })
       .catch(() => {});
 
-    // Subscribe to SSE for live updates
-    const unsub = api.dishRatings.subscribe(dish.id, (data) => {
+    // Subscribe to SSE for live rating updates
+    const unsubRatings = api.dishRatings.subscribe(dish.id, (data) => {
       setRatingsData(data);
       onRated(dish.id, data.ratings);
     });
 
-    return () => unsub();
+    // Fetch initial comments
+    api.dishComments.list(dish.id)
+      .then((c) => { setComments(c); setCommentsLoading(false); })
+      .catch(() => setCommentsLoading(false));
+
+    // Subscribe to SSE for live comment updates
+    const unsubComments = api.dishComments.subscribe(dish.id, (c) => {
+      setComments(c);
+      setCommentsLoading(false);
+    });
+
+    return () => { unsubRatings(); unsubComments(); };
   }, [dish.id, onRated]);
 
   const avg = avgRating(ratingsData.ratings);
@@ -434,6 +450,19 @@ function DishDetail({
             </div>
           )}
 
+          {/* Comments */}
+          <div className="rounded-xl p-4" style={{ background: 'var(--app-card)' }}>
+            <CommentSection
+              comments={comments}
+              stableUid={stableUid}
+              isAdmin={isAdmin}
+              loading={commentsLoading}
+              onAdd={(body) => api.dishComments.create(dish.id, body)}
+              onEdit={(commentId, body) => api.dishComments.update(dish.id, commentId, body)}
+              onDelete={(commentId) => api.dishComments.delete(dish.id, commentId)}
+            />
+          </div>
+
           <div className="h-4" />
         </div>
       </div>
@@ -443,6 +472,12 @@ function DishDetail({
 
 export default function MensaPage() {
   const { stableUid } = useApp();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!stableUid) return;
+    api.auth.me().then((u) => setIsAdmin(u.isAdmin)).catch(() => {});
+  }, [stableUid]);
   const [groups, setGroups] = useState<GroupedDishes[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -572,6 +607,7 @@ export default function MensaPage() {
           <DishDetail
             dish={selected}
             stableUid={stableUid}
+            isAdmin={isAdmin}
             onClose={() => setSelected(null)}
             onRated={handleRated}
           />

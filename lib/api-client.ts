@@ -176,6 +176,18 @@ export interface DishRatingsData {
   myRating: number | null;
 }
 
+export interface ApiComment {
+  id: string;
+  reminderId?: string;
+  dishId?: string;
+  classId?: string;
+  stableUid: string;
+  username: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CreateTodoData {
   title: string;
   details?: string;
@@ -382,6 +394,86 @@ export const api = {
         console.warn('[api-client] SSE reminders connection lost, reconnecting...');
       };
 
+      return () => es.close();
+    },
+  },
+
+  reminderComments: {
+    async list(classId: string, reminderId: string): Promise<ApiComment[]> {
+      return apiJson<ApiComment[]>(`/classes/${classId}/reminders/${reminderId}/comments`);
+    },
+
+    async create(classId: string, reminderId: string, body: string): Promise<ApiComment> {
+      return apiJson<ApiComment>(`/classes/${classId}/reminders/${reminderId}/comments`, {
+        method: 'POST',
+        body: JSON.stringify({ body }),
+      });
+    },
+
+    async update(classId: string, reminderId: string, commentId: string, body: string): Promise<ApiComment> {
+      return apiJson<ApiComment>(`/classes/${classId}/reminders/${reminderId}/comments/${commentId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ body }),
+      });
+    },
+
+    async delete(classId: string, reminderId: string, commentId: string): Promise<void> {
+      const res = await apiFetch(`/classes/${classId}/reminders/${reminderId}/comments/${commentId}`, { method: 'DELETE' });
+      if (!res.ok && res.status !== 204) {
+        const data = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+    },
+
+    subscribe(reminderId: string, callback: (comments: ApiComment[]) => void): () => void {
+      const token = getToken();
+      if (!token || !reminderId) return () => {};
+      const url = `${API_BASE}/sse/reminder-comments/${encodeURIComponent(reminderId)}?token=${encodeURIComponent(token)}&apiKey=${encodeURIComponent(API_KEY)}`;
+      const es = new EventSource(url);
+      es.addEventListener('reminderComments', (e: MessageEvent) => {
+        try { callback(JSON.parse(e.data) as ApiComment[]); } catch { /* ignore */ }
+      });
+      es.onerror = () => { /* auto-reconnects */ };
+      return () => es.close();
+    },
+  },
+
+  dishComments: {
+    async list(dishId: string): Promise<ApiComment[]> {
+      return apiJson<ApiComment[]>(`/dish-comments/${encodeURIComponent(dishId)}`);
+    },
+
+    async create(dishId: string, body: string): Promise<ApiComment> {
+      return apiJson<ApiComment>(`/dish-comments/${encodeURIComponent(dishId)}`, {
+        method: 'POST',
+        body: JSON.stringify({ body }),
+      });
+    },
+
+    async update(dishId: string, commentId: string, body: string): Promise<ApiComment> {
+      return apiJson<ApiComment>(`/dish-comments/${encodeURIComponent(dishId)}/${commentId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ body }),
+      });
+    },
+
+    async delete(dishId: string, commentId: string): Promise<void> {
+      const res = await apiFetch(`/dish-comments/${encodeURIComponent(dishId)}/${commentId}`, { method: 'DELETE' });
+      if (!res.ok && res.status !== 204) {
+        const data = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+    },
+
+    subscribe(dishId: string, callback: (comments: ApiComment[]) => void): () => void {
+      const token = getToken();
+      if (!token || !dishId) return () => {};
+      const url = `${API_BASE}/sse/dish-comments/${encodeURIComponent(dishId)}?token=${encodeURIComponent(token)}&apiKey=${encodeURIComponent(API_KEY)}`;
+      const es = new EventSource(url);
+      es.addEventListener('dishComments', (e: MessageEvent) => {
+        try { callback(JSON.parse(e.data) as ApiComment[]); } catch { /* ignore */ }
+      });
+      es.onerror = () => { /* auto-reconnects */ };
       return () => es.close();
     },
   },

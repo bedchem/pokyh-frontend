@@ -106,5 +106,3 @@ Dieses Frontend kommuniziert mit dem [POKYH Backend](https://github.com/bedchem/
 MIT — kostenlos nutzbar, keine Garantie. Nicht offiziell mit der LBS Brixen oder WebUntis verbunden.
 
 ---
-
-By Ryhox, 

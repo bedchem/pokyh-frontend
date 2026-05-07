@@ -7,9 +7,10 @@ import DateTimePicker from '@/components/ui/DateTimePicker';
 import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
 import EmptyView from '@/components/ui/EmptyView';
+import CommentSection from '@/components/ui/CommentSection';
 import { useApp } from '@/providers/AppProvider';
 import { useSession } from '@/providers/SessionProvider';
-import { api, type ApiReminder } from '@/lib/api-client';
+import { api, type ApiReminder, type ApiComment } from '@/lib/api-client';
 
 interface Reminder {
   id: string;
@@ -73,8 +74,8 @@ export default function RemindersPage() {
   const [saving, setSaving] = useState(false);
   const [addError, setAddError] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [detailReminder, setDetailReminder] = useState<Reminder | null>(null);
 
-  // Fetch user profile (isAdmin flag)
   useEffect(() => {
     if (!ready || !user) return;
     api.users.get(user.username)
@@ -82,7 +83,6 @@ export default function RemindersPage() {
       .catch(() => {});
   }, [ready, user]);
 
-  // Load class members when classId is available
   useEffect(() => {
     if (!ready || !classId) return;
     api.classes.get(classId)
@@ -92,14 +92,12 @@ export default function RemindersPage() {
       .catch(() => {});
   }, [classId, ready]);
 
-  // Subscribe to reminders SSE
   useEffect(() => {
     if (!ready) return;
     if (!classId) { setLoading(false); return; }
 
     const cutoff = Date.now() - 25 * 3600 * 1000;
 
-    // Subscribe to SSE
     const unsub = api.reminders.subscribe(classId, (apiReminders) => {
       setReminders(
         apiReminders
@@ -109,7 +107,6 @@ export default function RemindersPage() {
       setLoading(false);
     });
 
-    // Fetch immediately
     api.reminders.list(classId)
       .then((apiReminders) => {
         setReminders(
@@ -139,7 +136,6 @@ export default function RemindersPage() {
       });
       setTitle(''); setBody(''); setDue(''); setShowAdd(false);
     } catch (e: unknown) {
-      console.error('[reminders] create error:', e);
       setAddError(e instanceof Error ? e.message : 'Fehler beim Speichern. Bitte erneut versuchen.');
     } finally {
       setSaving(false);
@@ -181,7 +177,6 @@ export default function RemindersPage() {
             )}
           </div>
 
-          {/* Class chip */}
           {ready && classId && (
             <button
               onClick={() => setShowMembers(true)}
@@ -268,7 +263,15 @@ export default function RemindersPage() {
                 </p>
               )}
               {overdue.map((r) => (
-                <ReminderCard key={r.id} r={r} stableUid={stableUid} isAdmin={isAdmin} onDelete={deleteReminder} overdue />
+                <ReminderCard
+                  key={r.id}
+                  r={r}
+                  stableUid={stableUid}
+                  isAdmin={isAdmin}
+                  onDelete={deleteReminder}
+                  onOpen={() => setDetailReminder(r)}
+                  overdue
+                />
               ))}
               {upcoming.filter(r => r.remindAt >= new Date()).length > 0 && (
                 <p className="text-xs font-semibold uppercase tracking-wider px-1 mt-2"
@@ -277,11 +280,31 @@ export default function RemindersPage() {
                 </p>
               )}
               {upcoming.filter(r => r.remindAt >= new Date()).map((r) => (
-                <ReminderCard key={r.id} r={r} stableUid={stableUid} isAdmin={isAdmin} onDelete={deleteReminder} overdue={false} />
+                <ReminderCard
+                  key={r.id}
+                  r={r}
+                  stableUid={stableUid}
+                  isAdmin={isAdmin}
+                  onDelete={deleteReminder}
+                  onOpen={() => setDetailReminder(r)}
+                  overdue={false}
+                />
               ))}
             </div>
           )}
         </div>
+
+        {/* Reminder detail + comments sheet */}
+        {detailReminder && classId && (
+          <ReminderDetailSheet
+            reminder={detailReminder}
+            classId={classId}
+            stableUid={stableUid}
+            isAdmin={isAdmin}
+            onClose={() => setDetailReminder(null)}
+            onDelete={(r) => { deleteReminder(r); setDetailReminder(null); }}
+          />
+        )}
 
         {/* Add reminder modal */}
         {showAdd && (
@@ -295,7 +318,6 @@ export default function RemindersPage() {
               style={{ background: 'var(--app-surface)', animationDuration: '0.25s' }}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Header */}
               <div className="flex items-center justify-between px-6 pt-6 pb-2">
                 <div className="flex items-center gap-3">
                   <div
@@ -448,19 +470,22 @@ function ReminderCard({
   stableUid,
   isAdmin,
   onDelete,
+  onOpen,
   overdue,
 }: {
   r: Reminder;
   stableUid: string | null;
   isAdmin: boolean;
   onDelete: (r: Reminder) => void;
+  onOpen: () => void;
   overdue: boolean;
 }) {
   const isMine = stableUid != null && r.createdByUid === stableUid;
   const canDelete = isMine || isAdmin;
   return (
-    <div
-      className="rounded-2xl p-4"
+    <button
+      onClick={onOpen}
+      className="w-full rounded-2xl p-4 text-left press-scale"
       style={{
         background: 'var(--app-surface)',
         border: overdue ? '1px solid color-mix(in srgb, var(--danger) 25%, transparent)' : 'none',
@@ -496,13 +521,128 @@ function ReminderCard({
         </div>
         {canDelete && (
           <button
-            onClick={() => onDelete(r)}
+            onClick={(e) => { e.stopPropagation(); onDelete(r); }}
             className="p-1.5 press-scale flex-shrink-0"
             title={isAdmin && !isMine ? 'Als Admin löschen' : undefined}
           >
             <Trash2 size={16} color={isAdmin && !isMine ? 'var(--orange)' : 'var(--danger)'} />
           </button>
         )}
+      </div>
+    </button>
+  );
+}
+
+function ReminderDetailSheet({
+  reminder,
+  classId,
+  stableUid,
+  isAdmin,
+  onClose,
+  onDelete,
+}: {
+  reminder: Reminder;
+  classId: string;
+  stableUid: string | null;
+  isAdmin: boolean;
+  onClose: () => void;
+  onDelete: (r: Reminder) => void;
+}) {
+  const [comments, setComments] = useState<ApiComment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(true);
+  const overdue = reminder.remindAt < new Date();
+  const isMine = stableUid != null && reminder.createdByUid === stableUid;
+  const canDelete = isMine || isAdmin;
+
+  useEffect(() => {
+    setCommentsLoading(true);
+
+    // Initial fetch
+    api.reminderComments.list(classId, reminder.id)
+      .then((c) => { setComments(c); setCommentsLoading(false); })
+      .catch(() => setCommentsLoading(false));
+
+    // Live updates
+    const unsub = api.reminderComments.subscribe(reminder.id, (c) => {
+      setComments(c);
+      setCommentsLoading(false);
+    });
+
+    return () => unsub();
+  }, [classId, reminder.id]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end"
+      style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}
+    >
+      <div
+        className="w-full rounded-t-[28px] slide-up flex flex-col"
+        style={{ background: 'var(--app-surface)', maxHeight: '92dvh' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Drag handle */}
+        <div className="w-10 h-1 rounded-full mx-auto mt-3 mb-1 flex-shrink-0" style={{ background: 'var(--app-border)' }} />
+
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto px-5 pb-8">
+          {/* Reminder header */}
+          <div className="flex items-start gap-3 py-4">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
+              style={{
+                background: overdue
+                  ? 'color-mix(in srgb, var(--danger) 15%, transparent)'
+                  : 'color-mix(in srgb, var(--orange) 15%, transparent)',
+              }}
+            >
+              <Bell size={20} color={overdue ? 'var(--danger)' : 'var(--orange)'} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-[18px] font-bold leading-snug" style={{ color: 'var(--app-text-primary)' }}>
+                {reminder.title}
+              </h3>
+              {reminder.body && (
+                <p className="text-[14px] mt-1" style={{ color: 'var(--app-text-secondary)' }}>
+                  {reminder.body}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-2">
+                <p className="text-xs" style={{ color: overdue ? 'var(--danger)' : 'var(--app-text-tertiary)' }}>
+                  {timeUntil(reminder.remindAt)} · {reminder.remindAt.toLocaleDateString('de', { weekday: 'short', day: 'numeric', month: 'short' })}{' '}
+                  {reminder.remindAt.toLocaleTimeString('de', { hour: '2-digit', minute: '2-digit' })} Uhr
+                </p>
+                <p className="text-xs" style={{ color: 'var(--app-text-tertiary)' }}>
+                  von {reminder.createdByUsername || reminder.createdByName}
+                </p>
+              </div>
+            </div>
+            {canDelete && (
+              <button
+                onClick={() => onDelete(reminder)}
+                className="p-2 rounded-xl press-scale flex-shrink-0"
+                style={{ background: 'color-mix(in srgb, var(--danger) 10%, transparent)' }}
+              >
+                <Trash2 size={17} color={isAdmin && !isMine ? 'var(--orange)' : 'var(--danger)'} />
+              </button>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div className="h-px mb-4" style={{ background: 'var(--app-border)' }} />
+
+          {/* Comments */}
+          <CommentSection
+            comments={comments}
+            stableUid={stableUid}
+            isAdmin={isAdmin}
+            loading={commentsLoading}
+            onAdd={(body) => api.reminderComments.create(classId, reminder.id, body)}
+            onEdit={(commentId, body) => api.reminderComments.update(classId, reminder.id, commentId, body)}
+            onDelete={(commentId) => api.reminderComments.delete(classId, reminder.id, commentId)}
+          />
+        </div>
       </div>
     </div>
   );
