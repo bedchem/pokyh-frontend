@@ -110,14 +110,18 @@ export default function IPhoneScene({
   progressRef,
   className,
   onReady,
+  onGlbProgress,
 }: {
   progressRef: RefObject<number>;
   className?: string;
   onReady?: () => void;
+  onGlbProgress?: (v: number) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
+  const onGlbProgressRef = useRef(onGlbProgress);
+  onGlbProgressRef.current = onGlbProgress;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -154,10 +158,13 @@ export default function IPhoneScene({
           { type: 'module' },
         );
 
-        // First-frame readiness signal — used by parent to time loader exit
+        // Message handler: GLB load progress + first-frame ready signal
         worker.onmessage = (ev: MessageEvent) => {
-          if ((ev.data as { type?: string } | null)?.type === 'ready') {
+          const data = ev.data as { type?: string; value?: number } | null;
+          if (data?.type === 'ready') {
             onReadyRef.current?.();
+          } else if (data?.type === 'glbProgress') {
+            onGlbProgressRef.current?.(data.value ?? 0);
           }
         };
 
@@ -218,7 +225,10 @@ export default function IPhoneScene({
     let active = true;
     import('../lib/iphone-scene-inline').then(({ startScene }) => {
       if (!active || !canvasRef.current) return;
-      const stop = startScene(canvasRef.current, progressRef, () => onReadyRef.current?.());
+      const stop = startScene(canvasRef.current, progressRef, () => {
+        onGlbProgressRef.current?.(1);
+        onReadyRef.current?.();
+      });
       (canvas as HTMLCanvasElement & { __fallbackStop?: () => void }).__fallbackStop = stop;
     });
 

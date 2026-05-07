@@ -120,13 +120,14 @@ function reveal(td: number) {
 }
 
 export default function LandingClient() {
-  const phoneStageRef = useRef<HTMLDivElement>(null);
+  const phoneStageRef   = useRef<HTMLDivElement>(null);
   // Scroll progress for Three.js — updated on scroll, never triggers re-render
-  const progressRef   = useRef<number>(0);
+  const progressRef     = useRef<number>(0);
+  // GLB download progress (0→1) — written by IPhoneScene, read by LoadingCover each rAF
+  const glbProgressRef  = useRef<number>(0);
   // Three.js scene only renders after browser is idle (after LCP is done)
   const [sceneReady, setSceneReady] = useState(false);
-  // Metamask-style page loader — visible from first paint, dismissed when the
-  // 3D scene's first frame with the model has rendered (or after a hard 2.5s cap).
+  // Tile-cover loader — dismissed when the 3D scene's first frame with the model renders
   const [pageLoading, setPageLoading]         = useState(true);
   const [sceneFirstFrame, setSceneFirstFrame] = useState(false);
 
@@ -208,6 +209,7 @@ export default function LandingClient() {
       {/* ── PAGE LOADER ── tile-cover animation; exits when iPhone first frame renders */}
       {pageLoading && (
         <LoadingCover
+          glbProgressRef={glbProgressRef}
           sceneReady={sceneFirstFrame}
           onDone={() => setPageLoading(false)}
         />
@@ -249,7 +251,7 @@ export default function LandingClient() {
             which is the signal LandingClient uses to fade the loader out. */}
         <div className="lp-phone-stage" ref={phoneStageRef}>
           {sceneReady
-            ? <IPhoneScene progressRef={progressRef} className="lp-phone-canvas" onReady={() => setSceneFirstFrame(true)} />
+            ? <IPhoneScene progressRef={progressRef} className="lp-phone-canvas" onReady={() => setSceneFirstFrame(true)} onGlbProgress={(v) => { glbProgressRef.current = v; }} />
             : <div className="lp-phone-canvas lp-phone-skeleton" aria-hidden="true" />
           }
         </div>

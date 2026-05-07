@@ -146,6 +146,8 @@ function initScene(data: {
   gltfLoader.load(
     '/models/iphone.glb',
     (gltf) => {
+      // Signal 100% to LoadingCover (handles the no-Content-Length case too)
+      self.postMessage({ type: 'glbProgress', value: 1 });
       const model = gltf.scene;
       const box    = new THREE.Box3().setFromObject(model);
       const size   = box.getSize(new THREE.Vector3());
@@ -173,7 +175,10 @@ function initScene(data: {
         }
       });
     },
-    undefined,
+    (progress) => {
+      const pct = progress.total > 0 ? progress.loaded / progress.total : 0;
+      if (pct > 0 && pct < 1) self.postMessage({ type: 'glbProgress', value: pct });
+    },
     (err) => console.error('[IPhoneWorker] GLB load error', err),
   );
 

@@ -868,7 +868,7 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
   .lp-hero-actions     { gap: 16px; }
   .lp-alink            { font-size: 15px; }
   .lp-btn              { font-size: 15px; padding: 11px 20px; }
-  .lp-phone-stage      { height: 700px; margin-top: -30px; margin-bottom: 0px; }
+  .lp-phone-stage      { height: 900px; margin-top: -30px; margin-bottom: 0px; }
   .lp-tiles-section    { padding: 10px 14px; }
   .lp-tiles            { gap: 10px; }
   .lp-tile             { padding: 32px 20px; min-height: 380px; border-radius: 22px; }
@@ -900,7 +900,7 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
 /* Small phones — iPhone SE, Pixel 6a, etc. (≤ 400px) */
 @media (max-width: 400px) {
   .lp-hero-text        { padding: 48px 14px 44px; }
-  .lp-phone-stage      { height: 600px; margin-top: -20px; margin-bottom: 0px; }
+  .lp-phone-stage      { height: 760px; margin-top: -20px; margin-bottom: 0px; }
   .lp-tile             { padding: 26px 16px; min-height: 340px; }
   .lp-tile.tall        { min-height: 420px; }
   .lp-compare-cell     { padding: 16px 10px; min-height: 140px; }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import type { RefObject } from 'react';
 
 const VIO = '#4930a3';
 
@@ -63,29 +64,28 @@ function ptsStr(pts: Pt[]) {
 }
 
 interface Props {
+  glbProgressRef: RefObject<number>;
   sceneReady: boolean;
   onDone: () => void;
 }
 
-export default function LoadingCover({ sceneReady, onDone }: Props) {
+export default function LoadingCover({ glbProgressRef, sceneReady, onDone }: Props) {
   const [mounted,  setMounted]  = useState(false);
   const [progress, setProgress] = useState(0);
   const [logoOp,   setLogoOp]   = useState(1);
 
-  const rafRef          = useRef<number | null>(null);
-  const startRef        = useRef<number>(0);
-  const lockedRef       = useRef<boolean>(false);
-  const lockElapsedRef  = useRef<number>(0);
-  const lockProgressRef = useRef<number>(0);
-  const rdyRef          = useRef<boolean>(false);
-  const doneRef         = useRef<boolean>(false);
-  const exitTsRef       = useRef<number>(0);
-  const tilesRef        = useRef<Tile[]>([]);
-  const dimRef          = useRef<{ W: number; H: number }>({ W: 0, H: 0 });
+  const rafRef     = useRef<number | null>(null);
+  const mountTsRef = useRef<number>(0); // when the rAF loop first ticked
+  const startRef   = useRef<number>(0); // when the tile animation actually began
+  const rdyRef     = useRef<boolean>(false);
+  const doneRef    = useRef<boolean>(false);
+  const exitTsRef  = useRef<number>(0);
+  const tilesRef   = useRef<Tile[]>([]);
+  const dimRef     = useRef<{ W: number; H: number }>({ W: 0, H: 0 });
 
-  const DEFAULT_DUR  = 2.0;  // hard cap: cover closes after this many seconds regardless
-  const HOLD         = 0.3;  // logo hold before tiles start moving
-  const COMPLETE_DUR = 0.5;  // time to smoothly finish remaining tiles after scene fires
+  // Minimum duration for the animation — even a cached GLB shows a real transition.
+  // On slow connections the tiles clear proportionally to the download progress.
+  const MIN_DURATION = 1.5;
 
   // Mount: measure viewport, build tiles, start rAF loop
   useEffect(() => {
@@ -95,38 +95,45 @@ export default function LoadingCover({ sceneReady, onDone }: Props) {
     setMounted(true);
 
     const step = (ts: number) => {
-      if (!startRef.current) startRef.current = ts;
-      const elapsed = (ts - startRef.current) / 1000;
+      if (!mountTsRef.current) mountTsRef.current = ts;
 
-      // When scene fires → record current progress and complete smoothly from there.
-      // This avoids the jump that happens when tdRef changes mid-animation.
-      if (rdyRef.current && !lockedRef.current) {
-        lockedRef.current      = true;
-        lockElapsedRef.current = elapsed;
-        const rawAtLock = clamp((elapsed - HOLD) / Math.max(DEFAULT_DUR - HOLD, 0.001), 0, 1);
-        lockProgressRef.current = easeInOutCubic(rawAtLock);
+      const glbRaw = clamp(glbProgressRef.current ?? 0, 0, 1);
+
+      // Delay the animation start until the worker begins sending GLB progress,
+      // or fall back to a time-based start after 3 s (network error / no events).
+      if (!startRef.current) {
+        const waited = (ts - mountTsRef.current) / 1000;
+        if (glbRaw > 0 || waited > 3) startRef.current = ts;
       }
 
-      let p: number;
-      if (lockedRef.current) {
-        // Continue from the locked progress, reach 1.0 in COMPLETE_DUR seconds — no jump
-        const t = clamp((elapsed - lockElapsedRef.current) / COMPLETE_DUR, 0, 1);
-        p = lockProgressRef.current + easeInOutCubic(t) * (1 - lockProgressRef.current);
-      } else {
-        const raw = clamp((elapsed - HOLD) / Math.max(DEFAULT_DUR - HOLD, 0.001), 0, 1);
-        p = easeInOutCubic(raw);
+      if (!startRef.current) {
+        // Still waiting for the first GLB progress event — hold at 0 %
+        setProgress(0);
+        setLogoOp(1);
+        rafRef.current = requestAnimationFrame(step);
+        return;
       }
+
+      const elapsed  = (ts - startRef.current) / 1000;
+      const timeRaw  = clamp(elapsed / MIN_DURATION, 0, 1);
+      // Bottleneck: tiles can't clear faster than MIN_DURATION, and can't run
+      // ahead of the actual download. glbRaw=0 on the fallback path means unknown
+      // progress — treat as 100% so the time-based animation runs freely.
+      const p = easeInOutCubic(Math.min(timeRaw, glbRaw > 0 ? glbRaw : 1));
 
       setProgress(p);
       setLogoOp(p > 0 ? Math.max(0, 1 - easeInOutCubic(clamp(p * 8, 0, 1))) : 1);
 
-      if (p >= 1 && !doneRef.current) {
+      // Dismiss only when animation is done AND the first frame with the model rendered
+      if (p >= 1 && rdyRef.current && !doneRef.current) {
         if (!exitTsRef.current) exitTsRef.current = ts;
         if ((ts - exitTsRef.current) / 1000 >= 0.2) {
           doneRef.current = true;
           onDone();
           return;
         }
+      } else if (!rdyRef.current) {
+        exitTsRef.current = 0;
       }
       rafRef.current = requestAnimationFrame(step);
     };
@@ -234,9 +241,10 @@ export default function LoadingCover({ sceneReady, onDone }: Props) {
       style={{
         position: 'fixed', inset: 0, zIndex: 9999,
         contain: 'strict',
-        pointerEvents: progress >= 1 ? 'none' : 'all',
+        pointerEvents: progress >= 1 && sceneReady ? 'none' : 'all',
       }}
     >
+      {/* Tiles animate away — reveal the page behind them as the GLB downloads */}
       <svg
         viewBox={`0 0 ${W} ${H}`}
         style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' }}
