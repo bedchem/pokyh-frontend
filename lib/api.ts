@@ -5,6 +5,7 @@
 
 import { cacheGet, cacheSet, cacheIsStale, cacheClear, cacheDel } from './cache';
 import { pcGetStale, pcIsStale, pcSet, pcDel, pcClear } from './persist-cache';
+import { getSessionCredentials } from './passkey';
 
 const DEBUG = process.env.NEXT_PUBLIC_DEBUG_API === 'true';
 
@@ -22,6 +23,31 @@ async function clearSessionOnce() {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('pockyh-session-expired'));
   }
+}
+
+// Silent re-login: when WebUntis kills the session, re-authenticate transparently
+// using credentials stored in sessionStorage at login time.
+let _reloginInFlight: Promise<boolean> | null = null;
+async function attemptSilentRelogin(): Promise<boolean> {
+  if (_reloginInFlight) return _reloginInFlight;
+  const creds = getSessionCredentials();
+  if (!creds) return false;
+  _reloginInFlight = fetch('/api/webuntis/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: creds.username, password: creds.password }),
+    credentials: 'same-origin',
+  })
+    .then((r) => {
+      if (r.ok) {
+        cacheClear();
+        window.dispatchEvent(new CustomEvent('pockyh-session-refreshed'));
+      }
+      return r.ok;
+    })
+    .catch(() => false)
+    .finally(() => { _reloginInFlight = null; });
+  return _reloginInFlight;
 }
 
 function todayFormatted(): string {
@@ -49,7 +75,21 @@ async function apiFetch(url: string, opts?: RequestInit) {
   const res = await fetch(url, { credentials: 'same-origin', ...opts });
 
   if (res.status === 401) {
-    log('401 from', url, '— clearing session');
+    log('401 from', url, '— attempting silent re-login');
+    const relogged = await attemptSilentRelogin();
+    if (relogged) {
+      log('silent re-login ok — retrying', url);
+      const retry = await fetch(url, { credentials: 'same-origin', ...opts });
+      if (retry.ok) {
+        const json = await retry.json();
+        if ((json as { error?: string })?.error === 'session_expired') {
+          await clearSessionOnce();
+          throw new Error('session_expired');
+        }
+        return json;
+      }
+    }
+    log('silent re-login failed — clearing session');
     await clearSessionOnce();
     throw new Error('session_expired');
   }

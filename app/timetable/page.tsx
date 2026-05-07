@@ -350,23 +350,26 @@ function LessonDetailSheet({ slot, onClose }: { slot: MergedSlot; onClose: () =>
             }}
           >
             {bgImage && (
-              <img
-                src={bgImage}
-                alt=""
-                aria-hidden="true"
-                style={{
-                  position: 'absolute', inset: 0, width: '100%', height: '100%',
-                  objectFit: 'cover', objectPosition: 'center',
-                  opacity: 0.85,
-                  filter: 'saturate(1.1)',
-                  pointerEvents: 'none',
-                  userSelect: 'none',
-                }}
-              />
+              <>
+                <img
+                  src={bgImage}
+                  alt=""
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute', inset: 0, width: '100%', height: '100%',
+                    objectFit: 'cover', objectPosition: 'center',
+                    opacity: 0.85,
+                    filter: 'saturate(1.1)',
+                    pointerEvents: 'none',
+                    userSelect: 'none',
+                  }}
+                />
+                <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.18)', pointerEvents: 'none' }} />
+              </>
             )}
           </div>
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
-            <span style={{ fontSize: 96, fontWeight: 800, color: bgImage ? '#fff' : accentColor, opacity: bgImage ? 0.28 : 0.15, lineHeight: 1, letterSpacing: '-0.04em' }}>
+            <span style={{ fontSize: 96, fontWeight: 800, color: bgImage ? '#fff' : accentColor, opacity: bgImage ? 0.6 : 0.15, lineHeight: 1, letterSpacing: '-0.04em' }}>
               {(headerName || '?').slice(0, 2).toUpperCase()}
             </span>
           </div>

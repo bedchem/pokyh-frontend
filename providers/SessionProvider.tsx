@@ -61,6 +61,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('pockyh-session-expired', handler);
   }, []);
 
+  // After a silent WebUntis re-login, re-read the updated pockyh_user cookie
+  // so the proactive logout timer resets with the new loginAt.
+  useEffect(() => {
+    const handler = () => refreshUser();
+    window.addEventListener('pockyh-session-refreshed', handler);
+    return () => window.removeEventListener('pockyh-session-refreshed', handler);
+  }, [refreshUser]);
+
   const logout = useCallback(async () => {
     try { await apiLogout(); } catch { /* best effort */ }
     clearSessionCredentials();
