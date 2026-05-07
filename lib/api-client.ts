@@ -384,6 +384,64 @@ export const api = {
     },
   },
 
+  subjectImages: {
+    // Module-level cache so all popups benefit from a single fetch
+    _cache: null as Set<string> | null,
+    _promise: null as Promise<Set<string>> | null,
+
+    async getCache(): Promise<Set<string>> {
+      if (this._cache) return this._cache;
+      if (this._promise) return this._promise;
+      this._promise = apiFetch('/subject-images')
+        .then(r => r.ok ? r.json() : [])
+        .then((rows: Array<{ subject: string }>) => {
+          this._cache = new Set(rows.map(r => r.subject));
+          return this._cache!;
+        })
+        .catch(() => new Set<string>())
+        .finally(() => { this._promise = null; });
+      return this._promise;
+    },
+
+    invalidateCache(): void {
+      this._cache = null;
+      this._promise = null;
+    },
+
+    imageUrl(subject: string): string {
+      const key = subject.toLowerCase().trim();
+      return `${API_BASE}/subject-images/${encodeURIComponent(key)}?apiKey=${encodeURIComponent(API_KEY)}`;
+    },
+
+    async list(): Promise<Array<{ subject: string; mimeType: string; updatedAt: string }>> {
+      return apiJson('/subject-images');
+    },
+
+    async upload(subject: string, file: File): Promise<void> {
+      const key = subject.toLowerCase().trim();
+      const data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(',')[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      await apiJson(`/subject-images/${encodeURIComponent(key)}`, {
+        method: 'PUT',
+        body: JSON.stringify({ data, mimeType: file.type }),
+      });
+      this.invalidateCache();
+    },
+
+    async remove(subject: string): Promise<void> {
+      const key = subject.toLowerCase().trim();
+      await apiFetch(`/subject-images/${encodeURIComponent(key)}`, { method: 'DELETE' });
+      this.invalidateCache();
+    },
+  },
+
   dishRatings: {
     async get(dishId: string): Promise<DishRatingsData> {
       return apiJson<DishRatingsData>(`/dish-ratings/${encodeURIComponent(dishId)}`);

@@ -307,6 +307,23 @@ function LessonDetailSheet({ slot, onClose }: { slot: MergedSlot; onClose: () =>
   const showMeta     = !hasCancelledWithReplacement && !hasInlineOriginal && (activeTeachers.length > 0 || absentTeachers.length > 0 || activeRooms.length > 0 || absentRooms.length > 0);
   const showReplMeta = hasCancelledWithReplacement && (replTeachers.length > 0 || replRooms.length > 0);
 
+  const imageSubject = hasCancelledWithReplacement
+    ? (slot.replacement!.subjectLong || slot.replacement!.subjectName || '')
+    : hasInlineOriginal
+      ? (display.originalSubjectLong || display.originalSubject || '')
+      : (display.subjectLong || display.subjectName || '');
+
+  const [bgImage, setBgImage] = useState<string | null>(null);
+  useEffect(() => {
+    if (!imageSubject) { setBgImage(null); return; }
+    import('@/lib/api-client').then(({ api }) => {
+      api.subjectImages.getCache().then(cache => {
+        const key = imageSubject.toLowerCase().trim();
+        setBgImage(cache.has(key) ? api.subjectImages.imageUrl(key) : null);
+      });
+    });
+  }, [imageSubject]);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8"
@@ -326,8 +343,26 @@ function LessonDetailSheet({ slot, onClose }: { slot: MergedSlot; onClose: () =>
             className="w-full h-full"
             style={{
               background: `linear-gradient(135deg, color-mix(in srgb, ${accentColor} 32%, var(--app-surface)), color-mix(in srgb, ${accentColor} 14%, var(--app-surface)))`,
+              position: 'relative',
+              overflow: 'hidden',
             }}
-          />
+          >
+            {bgImage && (
+              <img
+                src={bgImage}
+                alt=""
+                aria-hidden="true"
+                style={{
+                  position: 'absolute', inset: 0, width: '100%', height: '100%',
+                  objectFit: 'cover', objectPosition: 'center',
+                  opacity: 0.22,
+                  filter: 'blur(1.5px) saturate(1.2)',
+                  pointerEvents: 'none',
+                  userSelect: 'none',
+                }}
+              />
+            )}
+          </div>
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
             <span style={{ fontSize: 96, fontWeight: 800, color: accentColor, opacity: 0.15, lineHeight: 1, letterSpacing: '-0.04em' }}>
               {(headerName || '?').slice(0, 2).toUpperCase()}

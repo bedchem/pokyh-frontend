@@ -21,9 +21,9 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
   return (
     <div className="flex h-dvh overflow-hidden" style={{ background: 'var(--app-bg)' }}>
       <Sidebar />
-      <div className="flex flex-col flex-1 overflow-hidden min-w-0">
+      <div className="flex flex-col flex-1 overflow-hidden min-w-0 min-h-0">
         <DashboardTopbar />
-        <main className="flex-1 overflow-hidden">
+        <main className="flex-1 overflow-hidden min-h-0">
           {children}
         </main>
       </div>

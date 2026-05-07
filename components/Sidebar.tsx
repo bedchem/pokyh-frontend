@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home, Calendar, BarChart2, MessageCircle, Utensils,
   UserX, Bell, CheckSquare, User, ChevronLeft,
-  ChevronRight, Menu, X, Scale, Moon, Sun,
+  ChevronRight, Menu, X, Scale, Moon, Sun, Image,
 } from 'lucide-react';
 import { useSidebar } from '@/providers/SidebarProvider';
 import { useTheme } from '@/providers/ThemeProvider';
@@ -23,6 +23,7 @@ const SUB_NAV = [
   { href: '/absences',  label: 'Abwesenheiten', Icon: UserX },
   { href: '/reminders', label: 'Erinnerungen',  Icon: Bell },
   { href: '/todos',     label: 'Todos',         Icon: CheckSquare },
+  { href: '/subjects',  label: 'Fachbilder',    Icon: Image },
 ];
 
 function NavItem({
