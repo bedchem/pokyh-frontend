@@ -338,7 +338,7 @@ function LessonDetailSheet({ slot, onClose }: { slot: MergedSlot; onClose: () =>
         aria-modal="true"
       >
         {/* Colored header */}
-        <div className="relative" style={{ height: 180 }}>
+        <div className="relative detail-img-header">
           <div
             className="w-full h-full"
             style={{
@@ -570,6 +570,14 @@ function LessonDetailSheet({ slot, onClose }: { slot: MergedSlot; onClose: () =>
         </div>
 
         <style jsx>{`
+          .detail-img-header {
+            height: 130px;
+          }
+          @media (min-width: 480px) {
+            .detail-img-header {
+              height: 180px;
+            }
+          }
           .lesson-popup-badge {
             display: inline-flex;
             align-items: center;
