@@ -1077,6 +1077,7 @@ const [autoOpenId] = useState<number | null>(() => {
     if (slot) {
       setActiveSlot(slot);
       autoOpenedRef.current = true;
+      window.history.replaceState(null, '', '/timetable');
     }
   }, [autoOpenId, entries, loading]);
 
