@@ -99,12 +99,8 @@ export default function LoadingCover({ glbProgressRef, sceneReady, onDone }: Pro
 
       const glbRaw = clamp(glbProgressRef.current ?? 0, 0, 1);
 
-      // Delay the animation start until the worker begins sending GLB progress,
-      // or fall back to a time-based start after 3 s (network error / no events).
-      if (!startRef.current) {
-        const waited = (ts - mountTsRef.current) / 1000;
-        if (glbRaw > 0 || waited > 3) startRef.current = ts;
-      }
+      // Start the tile animation on the first rAF tick — no waiting for GLB progress.
+      if (!startRef.current) startRef.current = ts;
 
       if (!startRef.current) {
         // Still waiting for the first GLB progress event — hold at 0 %

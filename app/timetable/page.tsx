@@ -342,7 +342,9 @@ function LessonDetailSheet({ slot, onClose }: { slot: MergedSlot; onClose: () =>
           <div
             className="w-full h-full"
             style={{
-              background: `linear-gradient(135deg, color-mix(in srgb, ${accentColor} 32%, var(--app-surface)), color-mix(in srgb, ${accentColor} 14%, var(--app-surface)))`,
+              background: bgImage
+                ? '#000'
+                : `linear-gradient(135deg, color-mix(in srgb, ${accentColor} 32%, var(--app-surface)), color-mix(in srgb, ${accentColor} 14%, var(--app-surface)))`,
               position: 'relative',
               overflow: 'hidden',
             }}
@@ -355,8 +357,8 @@ function LessonDetailSheet({ slot, onClose }: { slot: MergedSlot; onClose: () =>
                 style={{
                   position: 'absolute', inset: 0, width: '100%', height: '100%',
                   objectFit: 'cover', objectPosition: 'center',
-                  opacity: 0.22,
-                  filter: 'blur(1.5px) saturate(1.2)',
+                  opacity: 0.85,
+                  filter: 'saturate(1.1)',
                   pointerEvents: 'none',
                   userSelect: 'none',
                 }}
@@ -364,13 +366,13 @@ function LessonDetailSheet({ slot, onClose }: { slot: MergedSlot; onClose: () =>
             )}
           </div>
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
-            <span style={{ fontSize: 96, fontWeight: 800, color: accentColor, opacity: 0.15, lineHeight: 1, letterSpacing: '-0.04em' }}>
+            <span style={{ fontSize: 96, fontWeight: 800, color: bgImage ? '#fff' : accentColor, opacity: bgImage ? 0.28 : 0.15, lineHeight: 1, letterSpacing: '-0.04em' }}>
               {(headerName || '?').slice(0, 2).toUpperCase()}
             </span>
           </div>
           <div
             className="absolute inset-0"
-            style={{ background: 'linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.25) 100%)' }}
+            style={{ background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.45) 100%)' }}
           />
           <div className="absolute bottom-4 left-5 flex gap-1.5 flex-wrap">
             {display.isCancelled && !hasCancelledWithReplacement && (
