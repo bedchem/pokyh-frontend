@@ -1088,6 +1088,7 @@ const [autoOpenId] = useState<number | null>(() => {
       cacheRef.current[weekOffset] = parsed;
       pcSet(cacheKey, parsed);
       setEntries(parsed);
+      import('@/lib/api-client').then(({ api }) => api.subjectImages.reportSubjects(parsed));
     } catch (e: unknown) {
       if (e instanceof Error && e.message === 'session_expired') { router.replace('/login'); return; }
       if (!cachedData) {

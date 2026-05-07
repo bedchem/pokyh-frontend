@@ -385,9 +385,9 @@ export const api = {
   },
 
   subjectImages: {
-    // Module-level cache so all popups benefit from a single fetch
     _cache: null as Set<string> | null,
     _promise: null as Promise<Set<string>> | null,
+    _reported: false,
 
     async getCache(): Promise<Set<string>> {
       if (this._cache) return this._cache;
@@ -413,32 +413,22 @@ export const api = {
       return `${API_BASE}/subject-images/${encodeURIComponent(key)}?apiKey=${encodeURIComponent(API_KEY)}`;
     },
 
-    async list(): Promise<Array<{ subject: string; mimeType: string; updatedAt: string }>> {
-      return apiJson('/subject-images');
-    },
-
-    async upload(subject: string, file: File): Promise<void> {
-      const key = subject.toLowerCase().trim();
-      const data = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const result = reader.result as string;
-          resolve(result.split(',')[1]);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-      await apiJson(`/subject-images/${encodeURIComponent(key)}`, {
-        method: 'PUT',
-        body: JSON.stringify({ data, mimeType: file.type }),
-      });
-      this.invalidateCache();
-    },
-
-    async remove(subject: string): Promise<void> {
-      const key = subject.toLowerCase().trim();
-      await apiFetch(`/subject-images/${encodeURIComponent(key)}`, { method: 'DELETE' });
-      this.invalidateCache();
+    async reportSubjects(entries: Array<{ subjectName: string; subjectLong: string }>): Promise<void> {
+      if (this._reported) return;
+      this._reported = true;
+      const map = new Map<string, { key: string; longName: string; shortName: string }>();
+      for (const e of entries) {
+        if (!e.subjectName && !e.subjectLong) continue;
+        const key = (e.subjectLong || e.subjectName).toLowerCase().trim();
+        if (!map.has(key)) {
+          map.set(key, { key, longName: e.subjectLong || e.subjectName, shortName: e.subjectName });
+        }
+      }
+      if (map.size === 0) return;
+      await apiFetch('/subject-images/report', {
+        method: 'POST',
+        body: JSON.stringify({ subjects: [...map.values()] }),
+      }).catch(() => {});
     },
   },
 
