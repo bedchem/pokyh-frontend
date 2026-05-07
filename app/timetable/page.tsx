@@ -369,9 +369,11 @@ function LessonDetailSheet({ slot, onClose }: { slot: MergedSlot; onClose: () =>
             )}
           </div>
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
-            <span style={{ fontSize: 96, fontWeight: 800, color: bgImage ? '#fff' : accentColor, opacity: bgImage ? 0.75 : 0.15, lineHeight: 1, letterSpacing: '-0.04em' }}>
-              {(headerName || '?').slice(0, 2).toUpperCase()}
-            </span>
+            {!bgImage && (
+              <span style={{ fontSize: 96, fontWeight: 800, color: accentColor, opacity: 0.15, lineHeight: 1, letterSpacing: '-0.04em' }}>
+                {(headerName || '?').slice(0, 2).toUpperCase()}
+              </span>
+            )}
           </div>
           <div
             className="absolute inset-0"
