@@ -49,13 +49,21 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { refreshUser(); }, [refreshUser]);
 
   useEffect(() => {
+    let handling = false;
     const handler = () => {
+      if (handling) return;
+      handling = true;
       setUser(null);
       setIsLoading(false);
-      const p = window.location.pathname;
-      if (p !== '/' && p !== '/login') {
-        window.location.replace('/login');
-      }
+      // Clear server-side pockyh_session cookie so middleware allows /login
+      fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' })
+        .catch(() => {})
+        .finally(() => {
+          const p = window.location.pathname;
+          if (p !== '/login') {
+            window.location.replace('/login');
+          }
+        });
     };
     window.addEventListener('pockyh-session-expired', handler);
     return () => window.removeEventListener('pockyh-session-expired', handler);
