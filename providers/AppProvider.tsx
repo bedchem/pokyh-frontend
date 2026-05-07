@@ -7,7 +7,7 @@ import {
   useEffect,
   useState,
 } from 'react';
-import { api } from '@/lib/api-client';
+import { api, apiFetch } from '@/lib/api-client';
 import { useSession } from '@/providers/SessionProvider';
 
 interface AppCtx {
@@ -55,6 +55,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     init(user.username, user.klasseId, user.klasseName);
   }, [user, init]);
+
+  // Periodically verify the backend session is still valid.
+  // If /auth/me returns 401, the session was revoked → force re-login.
+  useEffect(() => {
+    if (!user) return;
+
+    async function checkSession() {
+      const res = await apiFetch('/auth/me');
+      if (res.status === 401 && typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('pockyh-session-expired'));
+      }
+    }
+
+    const interval = setInterval(() => { void checkSession(); }, 30_000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   return (
     <Ctx.Provider value={{ stableUid, classId, ready, retryInit }}>
