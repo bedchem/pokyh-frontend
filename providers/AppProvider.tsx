@@ -62,12 +62,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
 
     async function checkSession() {
-      const res = await apiFetch('/auth/me');
-      if (res.status === 401 && typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('pockyh-session-expired'));
+      try {
+        const res = await apiFetch('/auth/me');
+        if (res.status === 401) {
+          window.dispatchEvent(new Event('pockyh-session-expired'));
+        }
+      } catch {
+        // Network error / server down — don't log out
       }
     }
 
+    void checkSession();
     const interval = setInterval(() => { void checkSession(); }, 30_000);
     return () => clearInterval(interval);
   }, [user]);

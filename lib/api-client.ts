@@ -107,12 +107,10 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
       if (newToken) headers['Authorization'] = `Bearer ${newToken}`;
       res = await fetch(`${API_BASE}${path}`, { ...options, headers });
     } else {
-      // Backend bearer-token auth failed. Clear bearer tokens but DON'T fire
-      // pockyh-session-expired — that event tears down the WebUntis session,
-      // which is independent of this token. A backend hiccup (missing API key,
-      // unreachable backend, expired bearer with no refresh token) must not
-      // log the user out and bounce them to /login.
-      if (typeof window !== 'undefined') clearTokens();
+      clearTokens();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('pockyh-session-expired'));
+      }
     }
   }
 
