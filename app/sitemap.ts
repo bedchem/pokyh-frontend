@@ -35,6 +35,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.75,
     },
     {
+      url: `${SITE_URL}/get/pwa/ios`,
+      lastModified: new Date('2026-05-07'),
+      changeFrequency: 'monthly',
+      priority: 0.75,
+    },
+    {
+      url: `${SITE_URL}/get/pwa/android`,
+      lastModified: new Date('2026-05-07'),
+      changeFrequency: 'monthly',
+      priority: 0.75,
+    },
+    {
       url: `${SITE_URL}/howto`,
       lastModified: new Date('2026-05-06'),
       changeFrequency: 'monthly',

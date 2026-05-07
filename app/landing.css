@@ -1345,7 +1345,7 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
 /* Sliding segmented toggle */
 .get-toggle {
   display: inline-grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   position: relative;
   padding: 4px;
   background: var(--app-card);
@@ -1364,15 +1364,18 @@ html:not(.dark) .get-toggle {
 .get-toggle-pill {
   position: absolute;
   top: 4px; bottom: 4px; left: 4px;
-  width: calc(50% - 4px);
+  width: calc((100% - 8px) / 3);
   border-radius: 100px;
   background: var(--accent);
   pointer-events: none;
   z-index: 0;
   transition: transform 0.30s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.get-toggle-pill.right {
+.get-toggle-pill.middle {
   transform: translateX(100%);
+}
+.get-toggle-pill.right {
+  transform: translateX(200%);
 }
 
 .get-toggle-btn {
@@ -1393,7 +1396,7 @@ html:not(.dark) .get-toggle {
   transition: color 0.22s;
   line-height: 1;
   white-space: nowrap;
-  min-width: 130px;
+  min-width: 110px;
 }
 .get-toggle-btn.active {
   color: #fff;
@@ -1449,6 +1452,33 @@ html:not(.dark) .get-toggle {
   font-size: 13px;
   color: var(--app-text-tertiary);
 }
+
+/* PWA explanation card */
+.get-pwa-info {
+  background: color-mix(in srgb, var(--accent) 7%, var(--app-card));
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  border-radius: 18px;
+  padding: 22px 26px;
+  margin-bottom: 32px;
+  max-width: 540px;
+}
+.get-pwa-info-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--app-text-primary);
+  letter-spacing: -0.01em;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.get-pwa-info-body {
+  font-size: 15px;
+  color: var(--app-text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+.get-pwa-info-body strong { color: var(--app-text-primary); font-weight: 500; }
 
 /* Platform cards (App tab) */
 .get-platforms {
@@ -1525,39 +1555,84 @@ html:not(.dark) .get-platform-card {
 .get-install-steps {
   display: flex;
   flex-direction: column;
-  margin-bottom: 40px;
+  gap: 16px;
+  margin-bottom: 64px;
+  max-width: 880px;
 }
 .get-install-step {
   display: grid;
-  grid-template-columns: 72px 1fr;
-  position: relative;
+  grid-template-columns: 1fr auto;
+  gap: 36px;
+  align-items: center;
+  padding: 32px 36px;
+  background: var(--app-card);
+  border: 1px solid var(--app-border);
+  border-radius: 24px;
 }
-.get-install-step-icon {
-  width: 52px; height: 52px;
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--accent) 11%, var(--app-card));
-  border: 1.5px solid color-mix(in srgb, var(--accent) 22%, var(--app-border));
-  display: flex; align-items: center; justify-content: center;
-  color: var(--accent);
-  flex-shrink: 0;
-  margin-top: 4px;
-  position: relative; z-index: 1;
+.get-install-step-text {
+  min-width: 0;
 }
-.get-install-step-content { padding: 0 0 40px 20px; }
 .get-install-step-num {
-  font-size: 12px; font-weight: 700;
-  color: var(--accent); letter-spacing: 0.05em;
-  margin-bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: linear-gradient(135deg,
+    var(--accent),
+    color-mix(in srgb, var(--accent) 65%, #000));
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-bottom: 18px;
+  box-shadow:
+    0 4px 14px color-mix(in srgb, var(--accent) 30%, transparent),
+    inset 0 1px 0 rgba(255,255,255,0.18);
 }
 .get-install-step-title {
-  font-size: 20px; font-weight: 600;
-  color: var(--app-text-primary); letter-spacing: -0.02em;
-  margin-bottom: 8px;
+  font-size: 21px;
+  font-weight: 600;
+  color: var(--app-text-primary);
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+  margin: 0 0 10px;
 }
 .get-install-step-body {
-  font-size: 15px; color: var(--app-text-secondary); line-height: 1.55;
+  font-size: 15px;
+  color: var(--app-text-secondary);
+  line-height: 1.6;
 }
 .get-install-step-body strong { color: var(--app-text-primary); font-weight: 500; }
+
+/* Screenshot */
+.get-install-screenshot-wrap {
+  width: 180px;
+  border-radius: 22px;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.08),
+    0 6px 20px rgba(0,0,0,0.08),
+    0 18px 40px rgba(0,0,0,0.06);
+}
+.dark .get-install-screenshot-wrap {
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.07),
+    0 6px 20px rgba(0,0,0,0.35),
+    0 18px 40px rgba(0,0,0,0.22);
+}
+.screenshot-light,
+.screenshot-dark,
+.screenshot-both {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.screenshot-dark { display: none; }
+.dark .screenshot-dark { display: block; }
+.dark .screenshot-light { display: none; }
 
 /* Info note */
 .get-install-note {
@@ -1573,11 +1648,34 @@ html:not(.dark) .get-platform-card {
 .get-install-note strong { color: var(--app-text-primary); font-weight: 500; }
 
 /* Responsive */
+@media (max-width: 720px) {
+  .get-install-steps { max-width: 100%; gap: 14px; }
+  .get-install-step {
+    grid-template-columns: 1fr;
+    gap: 22px;
+    padding: 26px 24px;
+    border-radius: 20px;
+  }
+  .get-install-step-title { font-size: 18px; }
+  .get-install-screenshot-wrap {
+    width: 100%;
+    max-width: 240px;
+    margin: 0 auto;
+    border-radius: 18px;
+  }
+}
 @media (max-width: 500px) {
   .get-wrap { padding: 36px 18px 80px; }
-  .get-tabs { margin-bottom: 36px; }
-  .get-tab-btn { padding: 9px 16px; font-size: 14px; }
   .get-h1 { font-size: 30px; }
-  .get-install-step { grid-template-columns: 56px 1fr; }
-  .get-install-step-icon { width: 44px; height: 44px; }
+  .get-toggle-btn { min-width: 0; padding: 10px 12px; font-size: 13px; gap: 5px; }
+  .get-toggle-btn svg { display: none; }
+  .get-pwa-info { padding: 18px 20px; }
+  .get-install-step { padding: 22px 20px; border-radius: 18px; }
+  .get-install-step-num {
+    width: 40px; height: 40px; font-size: 14px;
+    border-radius: 12px; margin-bottom: 14px;
+  }
+  .get-install-step-title { font-size: 17px; }
+  .get-install-step-body { font-size: 14.5px; }
+  .get-install-screenshot-wrap { max-width: 220px; border-radius: 16px; }
 }
