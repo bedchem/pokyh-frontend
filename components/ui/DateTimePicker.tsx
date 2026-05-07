@@ -91,10 +91,12 @@ export default function DateTimePicker({ value, onChange, onBack }: Props) {
   }
 
   function handleTimeText(raw: string) {
-    const val = raw.replace(/[^0-9:]/g, '').slice(0, 5);
-    setTimeText(val);
-    if (val.length === 5) {
-      const m = val.match(/^(\d{2}):(\d{2})$/);
+    // Strip everything except digits, then auto-insert colon after position 2
+    const digits = raw.replace(/\D/g, '').slice(0, 4);
+    const formatted = digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits;
+    setTimeText(formatted);
+    if (formatted.length === 5) {
+      const m = formatted.match(/^(\d{2}):(\d{2})$/);
       setTimeErr(!m || parseInt(m[1]) > 23 || parseInt(m[2]) > 59);
     } else {
       setTimeErr(false);

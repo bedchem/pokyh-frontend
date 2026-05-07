@@ -573,24 +573,20 @@ function ReminderDetailSheet({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end"
+      className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8"
       style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
       <div
-        className="w-full rounded-t-[28px] slide-up flex flex-col"
-        style={{ background: 'var(--app-surface)', maxHeight: '92dvh' }}
+        className="w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-[28px] fade-in"
+        style={{ background: 'var(--app-surface)', animationDuration: '0.25s' }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Drag handle */}
-        <div className="w-10 h-1 rounded-full mx-auto mt-3 mb-1 flex-shrink-0" style={{ background: 'var(--app-border)' }} />
-
-        {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto px-5 pb-8">
-          {/* Reminder header */}
-          <div className="flex items-start gap-3 py-4">
+        {/* Modal header bar */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-3">
+          <div className="flex items-center gap-3">
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
+              className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
               style={{
                 background: overdue
                   ? 'color-mix(in srgb, var(--danger) 15%, transparent)'
@@ -599,39 +595,50 @@ function ReminderDetailSheet({
             >
               <Bell size={20} color={overdue ? 'var(--danger)' : 'var(--orange)'} />
             </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-[18px] font-bold leading-snug" style={{ color: 'var(--app-text-primary)' }}>
+            <div className="min-w-0">
+              <h3 className="text-[17px] font-bold leading-snug" style={{ color: 'var(--app-text-primary)' }}>
                 {reminder.title}
               </h3>
-              {reminder.body && (
-                <p className="text-[14px] mt-1" style={{ color: 'var(--app-text-secondary)' }}>
-                  {reminder.body}
-                </p>
-              )}
-              <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-2">
-                <p className="text-xs" style={{ color: overdue ? 'var(--danger)' : 'var(--app-text-tertiary)' }}>
-                  {timeUntil(reminder.remindAt)} · {reminder.remindAt.toLocaleDateString('de', { weekday: 'short', day: 'numeric', month: 'short' })}{' '}
-                  {reminder.remindAt.toLocaleTimeString('de', { hour: '2-digit', minute: '2-digit' })} Uhr
-                </p>
-                <p className="text-xs" style={{ color: 'var(--app-text-tertiary)' }}>
-                  von {reminder.createdByUsername || reminder.createdByName}
-                </p>
-              </div>
+              <p className="text-xs mt-0.5" style={{ color: overdue ? 'var(--danger)' : 'var(--app-text-tertiary)' }}>
+                {timeUntil(reminder.remindAt)} · {reminder.remindAt.toLocaleDateString('de', { weekday: 'short', day: 'numeric', month: 'short' })}{' '}
+                {reminder.remindAt.toLocaleTimeString('de', { hour: '2-digit', minute: '2-digit' })} Uhr
+              </p>
             </div>
+          </div>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             {canDelete && (
               <button
                 onClick={() => onDelete(reminder)}
-                className="p-2 rounded-xl press-scale flex-shrink-0"
+                className="w-8 h-8 flex items-center justify-center rounded-full press-scale"
                 style={{ background: 'color-mix(in srgb, var(--danger) 10%, transparent)' }}
+                title={isAdmin && !isMine ? 'Als Admin löschen' : 'Löschen'}
               >
-                <Trash2 size={17} color={isAdmin && !isMine ? 'var(--orange)' : 'var(--danger)'} />
+                <Trash2 size={15} color={isAdmin && !isMine ? 'var(--orange)' : 'var(--danger)'} />
               </button>
             )}
+            <button
+              onClick={onClose}
+              className="w-8 h-8 flex items-center justify-center rounded-full press-scale"
+              style={{ background: 'var(--app-card)', color: 'var(--app-text-secondary)' }}
+            >
+              <X size={16} />
+            </button>
           </div>
+        </div>
+
+        {/* Scrollable content */}
+        <div className="px-5 pb-6">
+          {reminder.body && (
+            <p className="text-[14px] mb-3 -mt-1" style={{ color: 'var(--app-text-secondary)' }}>
+              {reminder.body}
+            </p>
+          )}
+          <p className="text-xs mb-4" style={{ color: 'var(--app-text-tertiary)' }}>
+            von {reminder.createdByUsername || reminder.createdByName}
+          </p>
 
           {/* Divider */}
           <div className="h-px mb-4" style={{ background: 'var(--app-border)' }} />
-
           {/* Comments */}
           <CommentSection
             comments={comments}
