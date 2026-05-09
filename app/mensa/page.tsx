@@ -552,11 +552,11 @@ export default function MensaPage() {
             <EmptyView
               icon={<Utensils size={56} color="var(--app-text-primary)" />}
               title="Kein Speiseplan"
-              subtitle="Für heute und die nächsten Tage sind keine Gerichte verfügbar."
+              subtitle="Es gibt aktuell nichts bei der Mensa."
             />
           ) : (
             <div className="flex flex-col gap-6 fade-in">
-              {groups.slice(0, 1).map((group, gi) => (
+              {groups.map((group, gi) => (
                 <section
                   key={group.label}
                   className="fade-in"
