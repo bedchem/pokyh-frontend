@@ -87,13 +87,11 @@ function groupDishes(dishes: Dish[]): GroupedDishes[] {
   });
 
   const today = startOfDay(new Date());
-  const weekStart = new Date(today);
-  weekStart.setDate(today.getDate() - ((today.getDay() + 6) % 7)); // Monday of current week
   const result: GroupedDishes[] = [];
 
   map.forEach((dayDishes, key) => {
     const date = parseISO(key);
-    if (date < weekStart) return;
+    if (date < today) return;
     const todayFlag = isToday(date);
     const tomorrowFlag = isTomorrow(date);
     const label = todayFlag
@@ -554,11 +552,11 @@ export default function MensaPage() {
             <EmptyView
               icon={<Utensils size={56} color="var(--app-text-primary)" />}
               title="Kein Speiseplan"
-              subtitle="Für diese Woche sind keine Gerichte verfügbar."
+              subtitle="Für heute und die nächsten Tage sind keine Gerichte verfügbar."
             />
           ) : (
             <div className="flex flex-col gap-6 fade-in">
-              {groups.map((group, gi) => (
+              {groups.slice(0, 1).map((group, gi) => (
                 <section
                   key={group.label}
                   className="fade-in"
