@@ -26,6 +26,8 @@ const PUBLIC_PREFIXES = [
   '/models',
   '/draco',
   '/og-image',
+  '/tutorials_Screenshots',
+  '/pokyh_ion',
 ];
 
 const SESSION_MAX_MS = 4 * 60 * 60 * 1000; // 4 hours — must match COOKIE_OPTS.maxAge in login/route.ts
@@ -96,6 +98,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|_vercel|favicon\\.ico|POKYH_Logo\\.png|icon-.*\\.png|icons|apple-icon|manifest\\.(?:json|webmanifest)|robots\\.txt|sitemap\\.xml|\\.well-known|draco).*)',
+    '/((?!_next/static|_next/image|_vercel|favicon\\.ico|POKYH_Logo\\.png|icon-.*\\.png|icons|apple-icon|manifest\\.(?:json|webmanifest)|robots\\.txt|sitemap\\.xml|\\.well-known|draco|tutorials_Screenshots|pokyh_ion\\.png).*)',
   ],
 };
