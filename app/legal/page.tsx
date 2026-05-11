@@ -152,7 +152,7 @@ function LandingView() {
       </div>
 
       <p className="text-center text-xs mt-12" style={{ color: 'var(--app-text-tertiary)' }}>
-        Stand: April 2026 · POKYH v{process.env.npm_package_version ?? '1.0'}
+        Stand: Mai 2026 · POKYH v{process.env.npm_package_version ?? '1.0'}
       </p>
     </div>
   );
@@ -229,8 +229,11 @@ function ImpressumView() {
         <div>
           <p className="text-sm font-semibold mb-1" style={{ color: 'var(--app-text-primary)' }}>Technischer Betrieb</p>
           <p className="text-sm" style={{ color: 'var(--app-text-secondary)' }}>
-            Diese Website wird auf der Infrastruktur von Vercel Inc., 340 Pine Street, Suite 900, San Francisco,
-            CA 94104, USA, gehostet. Vercel ist Auftragsverarbeiter gemäß Art. 28 DSGVO.
+            Diese Website und das zugehörige Backend werden auf einem eigenen Server von Felix Plattner
+            (Privatperson, Brixen, Italien) selbst betrieben. Die öffentliche Erreichbarkeit erfolgt über
+            Cloudflare Tunnel, einen Dienst von Cloudflare, Inc., 101 Townsend St., San Francisco, CA 94107,
+            USA. Cloudflare fungiert dabei als Auftragsverarbeiter gemäß Art. 28 DSGVO für die Weiterleitung
+            des Netzwerkverkehrs und hat keinen Zugriff auf verschlüsselte Nutzdaten.
           </p>
         </div>
 
@@ -324,8 +327,16 @@ function DatenschutzView() {
               desc="Diese Website verwendet Google Analytics 4 (Google LLC). GA4 erhebt anonymisierte Nutzungsdaten (Seitenaufrufe, Gerätekategorie, Herkunftsland). Die IP-Adresse wird vor Übermittlung an Google anonymisiert (IP-Masking). Es werden keine Werbedaten erhoben. Rechtsgrundlage: berechtigtes Interesse (Art. 6 Abs. 1 lit. f DSGVO) zur Verbesserung des Dienstes. Du kannst der Datenerhebung durch Google Analytics unter analytics.google.com/analytics/optout widersprechen."
             />
             <DataItem
-              label="Vercel Analytics"
-              desc="Das Hosting-Anbieter Vercel Inc. (USA) erfasst anonyme Web-Vitals-Daten (Ladezeiten, Core Web Vitals) ohne Cookies und ohne personenbezogene Daten. Rechtsgrundlage: berechtigtes Interesse (Art. 6 Abs. 1 lit. f DSGVO) zur Optimierung der App-Performance."
+              label="Cloudflare Tunnel (Cloudflare, Inc.)"
+              desc="Zur öffentlichen Erreichbarkeit des selbst gehosteten Servers wird Cloudflare Tunnel verwendet. Cloudflare verarbeitet dabei Netzwerk-Metadaten (IP-Adressen, Anfrage-Header) zur Weiterleitung des Datenverkehrs. Es werden keine Inhalte dauerhaft gespeichert. Rechtsgrundlage: berechtigtes Interesse (Art. 6 Abs. 1 lit. f DSGVO) für den sicheren Serverbetrieb."
+            />
+            <DataItem
+              label="Server-Protokollierung (Request Logs)"
+              desc="Der POKYH-Backend-Server speichert automatisch Zugriffsprotokolle: IP-Adresse, HTTP-Methode, aufgerufener Pfad, HTTP-Statuscode, Antwortdauer, Benutzername und User-Agent. Zweck: Sicherheit, Fehlerdiagnose und Missbrauchserkennung. Rechtsgrundlage: berechtigtes Interesse (Art. 6 Abs. 1 lit. f DSGVO). Logs werden spätestens nach 30 Tagen gelöscht."
+            />
+            <DataItem
+              label="Mobile App (iOS & Android)"
+              desc="Die nativen POKYH-Apps speichern Zugangsdaten ausschließlich im verschlüsselten OS-Keychain (iOS) bzw. Android Keystore. iCloud-Synchronisierung ist deaktiviert. Firebase Analytics ist deaktiviert – es werden keine Analysedaten durch die App erhoben. Erinnerungen werden als lokale Gerätbenachrichtigungen ausgeliefert (kein Remote-Push). Update-Prüfungen erfolgen über die öffentliche GitHub-API (kein personenbezogenes Datum übertragen)."
             />
             <DataItem
               label="Lokaler Speicher (localStorage)"
@@ -360,23 +371,28 @@ function DatenschutzView() {
               url="https://policies.google.com/privacy"
             />
             <ThirdParty
-              name="Vercel Inc."
-              purpose="Hosting, Bereitstellung und anonyme Performance-Messung (Web Vitals)"
-              url="https://vercel.com/legal/privacy-policy"
+              name="Cloudflare, Inc."
+              purpose="Netzwerkweiterleitung via Cloudflare Tunnel für den selbst gehosteten Server"
+              url="https://www.cloudflare.com/privacypolicy/"
             />
             <ThirdParty
               name="Mensa API (plattnericus.dev)"
               purpose="Anzeige des Mensa-Speiseplans"
               url="https://plattnericus.dev"
             />
+            <ThirdParty
+              name="GitHub API (GitHub, Inc.)"
+              purpose="Update-Prüfung der mobilen Apps – es werden keine personenbezogenen Daten übertragen"
+              url="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement"
+            />
           </div>
         </LegalSection>
 
         <LegalSection title="5. Datentransfer in Drittländer">
           <p>
-            Google LLC und Vercel Inc. sind in den USA ansässig. Der Datentransfer erfolgt auf Basis von
+            Google LLC und Cloudflare, Inc. sind in den USA ansässig. Der Datentransfer erfolgt auf Basis von
             Standardvertragsklauseln (Art. 46 DSGVO) sowie – im Fall von Google – auf Basis des EU-US
-            Data Privacy Framework. Vercel ist nach ISO 27001 zertifiziert.
+            Data Privacy Framework. Cloudflare ist nach ISO 27001 zertifiziert.
           </p>
         </LegalSection>
 
@@ -424,9 +440,11 @@ function DatenschutzView() {
 
         <LegalSection title="8. Datensicherheit">
           <p>
-            Alle Verbindungen erfolgen über HTTPS/TLS. WebUntis-Session-Tokens werden serverseitig
-            AES-GCM-verschlüsselt und ausschließlich in httpOnly-Cookies gespeichert (kein JavaScript-Zugriff).
-            Passwörter werden nie gespeichert. Eingaben werden serverseitig validiert.
+            Alle Verbindungen erfolgen über HTTPS/TLS (bereitgestellt via Cloudflare Tunnel). WebUntis-Session-Tokens
+            werden serverseitig AES-GCM-verschlüsselt und ausschließlich in httpOnly-Cookies gespeichert
+            (kein JavaScript-Zugriff). Passwörter werden nie gespeichert. Eingaben werden serverseitig validiert.
+            Der Server wird auf privater Hardware betrieben und ist ausschließlich über den verschlüsselten
+            Cloudflare-Tunnel zugänglich.
           </p>
         </LegalSection>
 
@@ -436,7 +454,7 @@ function DatenschutzView() {
             <CookieRow name="pockyh_user" type="Notwendig" desc="Nicht-sensible Benutzerinfo zur Anzeige (kein Token, kein Passwort)" />
             <CookieRow name="pockyh_theme" type="Einstellung" desc="Gespeichertes Farbschema (localStorage, kein Cookie)" />
             <CookieRow name="pockyh_sidebar_collapsed" type="Einstellung" desc="Sidebar-Status (localStorage, kein Cookie)" />
-            <CookieRow name="_ga, _ga_*" type="Analytics" desc="Google Analytics 4 – anonymisierte Nutzungsstatistiken, 1–2 Jahre Laufzeit" />
+            <CookieRow name="_ga, _ga_*" type="Analytics" desc="Google Analytics 4 – anonymisierte Nutzungsstatistiken (nur bei Einwilligung), 1–2 Jahre Laufzeit" />
           </div>
         </LegalSection>
 
@@ -444,7 +462,7 @@ function DatenschutzView() {
           <p>
             Diese Datenschutzerklärung kann bei Bedarf angepasst werden. Die aktuelle Version ist stets
             unter <strong style={{ color: 'var(--app-text-primary)' }}>/legal?view=datenschutz</strong> abrufbar.
-            Stand: April 2026.
+            Stand: Mai 2026.
           </p>
         </LegalSection>
       </div>
@@ -605,7 +623,7 @@ function CookiesView() {
           <p>
             Bei Fragen zur Cookie-Nutzung wende dich an:{' '}
             <a href="mailto:contact@pokyh.com" style={{ color: 'var(--accent)' }}>contact@pokyh.com</a>.
-            Stand: April 2026.
+            Stand: Mai 2026.
           </p>
         </LegalSection>
       </div>

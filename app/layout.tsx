@@ -7,7 +7,6 @@ import { SessionProvider } from '@/providers/SessionProvider';
 import { AppProvider } from '@/providers/AppProvider';
 import { SidebarProvider } from '@/providers/SidebarProvider';
 import LayoutShell from '@/components/LayoutShell';
-import { Analytics } from '@vercel/analytics/next';
 import CookieBanner from '@/components/CookieBanner';
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
@@ -223,7 +222,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </AppProvider>
           </SessionProvider>
         </ThemeProvider>
-        <Analytics />
         <CookieBanner />
       </body>
     </html>

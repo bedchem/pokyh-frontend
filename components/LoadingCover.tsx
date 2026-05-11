@@ -120,16 +120,16 @@ export default function LoadingCover({ glbProgressRef, sceneReady, onDone }: Pro
       setProgress(p);
       setLogoOp(p > 0 ? Math.max(0, 1 - easeInOutCubic(clamp(p * 8, 0, 1))) : 1);
 
-      // Dismiss only when animation is done AND the first frame with the model rendered
-      if (p >= 1 && rdyRef.current && !doneRef.current) {
+      // Dismiss when animation is done AND scene is ready — hard fallback after 3 s
+      // so a WebGL failure / slow load never freezes scroll permanently.
+      if (p >= 1 && !doneRef.current) {
         if (!exitTsRef.current) exitTsRef.current = ts;
-        if ((ts - exitTsRef.current) / 1000 >= 0.2) {
+        const waited = (ts - exitTsRef.current) / 1000;
+        if ((rdyRef.current && waited >= 0.2) || waited >= 3.0) {
           doneRef.current = true;
           onDone();
           return;
         }
-      } else if (!rdyRef.current) {
-        exitTsRef.current = 0;
       }
       rafRef.current = requestAnimationFrame(step);
     };

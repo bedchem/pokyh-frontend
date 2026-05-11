@@ -151,7 +151,10 @@ export default function LandingClient() {
     }
     // Mount the scene after the origami unfold has fully landed (~750ms).
     const t = setTimeout(() => setSceneReady(true), 750);
-    return () => clearTimeout(t);
+    // Safety net: if onReady never fires (WebGL unavailable, worker crash, slow load),
+    // force the loader to dismiss after 8 s so scroll is never permanently locked.
+    const fallback = setTimeout(() => setSceneFirstFrame(true), 8000);
+    return () => { clearTimeout(t); clearTimeout(fallback); };
   }, []);
 
   /* Lock the body scroll while the loader is up. Using a class on <html> means
