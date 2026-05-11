@@ -6,6 +6,7 @@ import { ThemeProvider } from '@/providers/ThemeProvider';
 import { SessionProvider } from '@/providers/SessionProvider';
 import { AppProvider } from '@/providers/AppProvider';
 import { SidebarProvider } from '@/providers/SidebarProvider';
+import { ActivityLoggerProvider } from '@/providers/ActivityLoggerProvider';
 import LayoutShell from '@/components/LayoutShell';
 import CookieBanner from '@/components/CookieBanner';
 
@@ -217,7 +218,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <SessionProvider>
             <AppProvider>
               <SidebarProvider>
-                <LayoutShell>{children}</LayoutShell>
+                <ActivityLoggerProvider>
+                  <LayoutShell>{children}</LayoutShell>
+                </ActivityLoggerProvider>
               </SidebarProvider>
             </AppProvider>
           </SessionProvider>

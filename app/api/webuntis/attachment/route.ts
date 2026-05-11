@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession, SCHOOL_COOKIE_VAL } from '@/lib/server-session';
+import { logDownloadServer } from '@/lib/activity-logger-server';
 
 const BASE = 'https://lbs-brixen.webuntis.com/WebUntis';
 
@@ -30,6 +31,9 @@ export async function GET(req: NextRequest) {
     ...authHeaders,
     Accept: 'application/json',
   };
+
+  // Log the download attempt (fire-and-forget)
+  logDownloadServer(req, name, session.username);
 
   // ── Strategy 1: attachmentstorageurl (S3 pre-signed URL) ──────────────
   // Flutter: messages/{storageId}/attachmentstorageurl  (keyed on UUID, not messageId)
