@@ -111,6 +111,12 @@ export const metadata: Metadata = {
     'moderne Schulapp',
     'mobile Schulapp',
     'responsive Schulapp',
+
+    'Tschuggmall',
+    'BFZ Tschuggmall',
+    'Tschuggmall Brixen',
+    'Tschuggmall Schule',
+    'Tschuggmall Schüler',
   ],
   authors: [{ name: 'Nexor', url: 'https://github.com/plattnericus' }, { name: 'Ryhox', url: 'https://github.com/Ryhox' }, { name: 'bedchem', url: 'https://github.com/bedchem/POKYH' }],
   creator: 'Felix Plattner',
