@@ -21,7 +21,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Ungültiges Enddatum.' }, { status: 400 });
   }
 
-  const baseUrl = `${BASE}/api/classreg/absences/students?studentId=${session.studentId}&startDate=${startDate}&endDate=${endDate}&excuseStatusId=-1&limit=${PAGE_SIZE}&pageSize=${PAGE_SIZE}`;
+  const absencePath = process.env.WEBUNTIS_API_PATH_ABSENCES || '/api/classreg/absences/students';
+  const baseUrl = `${BASE}${absencePath}?studentId=${session.studentId}&startDate=${startDate}&endDate=${endDate}&excuseStatusId=-1&limit=${PAGE_SIZE}&pageSize=${PAGE_SIZE}`;
   const headers = webUntisHeaders(session);
 
   try {
