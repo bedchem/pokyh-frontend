@@ -158,14 +158,7 @@ function ImpressumView() {
   return (
     <div className="fade-in">
       <div className="mb-8">
-        <Link
-          href="/legal"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium press-scale transition-opacity hover:opacity-70"
-          style={{ background: 'var(--app-surface)', color: 'var(--app-text-secondary)', border: '1px solid var(--app-border)' }}
-        >
-          <ArrowLeft size={15} />
-          Rechtliches
-        </Link>
+        <LegalBackButton label="Rechtliches" fallbackUrl="/legal" />
       </div>
 
       <div className="flex items-center gap-3 mb-6">
@@ -264,14 +257,7 @@ function DatenschutzView() {
   return (
     <div className="fade-in">
       <div className="mb-8">
-        <Link
-          href="/legal"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium press-scale transition-opacity hover:opacity-70"
-          style={{ background: 'var(--app-surface)', color: 'var(--app-text-secondary)', border: '1px solid var(--app-border)' }}
-        >
-          <ArrowLeft size={15} />
-          Rechtliches
-        </Link>
+        <LegalBackButton label="Rechtliches" fallbackUrl="/legal" />
       </div>
 
       <div className="flex items-center gap-3 mb-6">
@@ -468,14 +454,7 @@ function DatenschutzView() {
       </div>
 
       <div className="flex justify-center mt-8">
-        <Link
-          href="/legal"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium press-scale transition-opacity hover:opacity-70"
-          style={{ background: 'var(--app-surface)', color: 'var(--app-text-secondary)', border: '1px solid var(--app-border)' }}
-        >
-          <ArrowLeft size={15} />
-          Zurück zu Rechtliches
-        </Link>
+        <LegalBackButton label="Zurück zu Rechtliches" fallbackUrl="/legal" />
       </div>
     </div>
   );
@@ -487,14 +466,7 @@ function CookiesView() {
   return (
     <div className="fade-in">
       <div className="mb-8">
-        <Link
-          href="/legal"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium press-scale transition-opacity hover:opacity-70"
-          style={{ background: 'var(--app-surface)', color: 'var(--app-text-secondary)', border: '1px solid var(--app-border)' }}
-        >
-          <ArrowLeft size={15} />
-          Rechtliches
-        </Link>
+        <LegalBackButton label="Rechtliches" fallbackUrl="/legal" />
       </div>
 
       <div className="flex items-center gap-3 mb-6">
@@ -629,14 +601,7 @@ function CookiesView() {
       </div>
 
       <div className="flex justify-center mt-8">
-        <Link
-          href="/legal"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium press-scale transition-opacity hover:opacity-70"
-          style={{ background: 'var(--app-surface)', color: 'var(--app-text-secondary)', border: '1px solid var(--app-border)' }}
-        >
-          <ArrowLeft size={15} />
-          Zurück zu Rechtliches
-        </Link>
+        <LegalBackButton label="Zurück zu Rechtliches" fallbackUrl="/legal" />
       </div>
     </div>
   );

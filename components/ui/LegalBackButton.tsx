@@ -4,14 +4,14 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { isPWA } from '@/lib/pwa';
 
-export default function LegalBackButton() {
+export default function LegalBackButton({ label = 'Zurück', fallbackUrl }: { label?: string; fallbackUrl?: string }) {
   const router = useRouter();
 
   function handleBack() {
     if (window.history.length > 1) {
       router.back();
     } else {
-      router.replace(isPWA() ? '/home' : '/');
+      router.replace(fallbackUrl || (isPWA() ? '/home' : '/'));
     }
   }
 
@@ -27,7 +27,7 @@ export default function LegalBackButton() {
       }}
     >
       <ArrowLeft size={15} />
-      Zurück
+      {label}
     </button>
   );
 }
