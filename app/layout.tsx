@@ -9,6 +9,7 @@ import { SidebarProvider } from '@/providers/SidebarProvider';
 import { ActivityLoggerProvider } from '@/providers/ActivityLoggerProvider';
 import LayoutShell from '@/components/LayoutShell';
 import CookieBanner from '@/components/CookieBanner';
+import PWAInit from '@/components/PWAInit';
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
@@ -292,6 +293,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </SessionProvider>
         </ThemeProvider>
         <CookieBanner />
+        <PWAInit />
       </body>
     </html>
   );

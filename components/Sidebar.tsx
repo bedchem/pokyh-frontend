@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { isPWA } from '@/lib/pwa';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home, Calendar, BarChart2, MessageCircle, Utensils,
@@ -84,12 +86,14 @@ export default function Sidebar() {
   const { collapsed, mobileOpen, toggle, closeMobile } = useSidebar();
   const { resolved, setTheme } = useTheme();
   const pathname = usePathname();
+  const [logoHref, setLogoHref] = useState('/');
+  useEffect(() => { if (isPWA()) setLogoHref('/home'); }, []);
 
   const renderSidebarContent = (isCollapsed: boolean) => (
     <div className="flex flex-col h-full py-4">
-      {/* Logo — clickable, goes to root */}
+      {/* Logo — clickable, goes to root or /home on PWA */}
       <Link
-        href="/"
+        href={logoHref}
         onClick={closeMobile}
         className={`flex items-center px-4 mb-6 flex-shrink-0 press-scale ${isCollapsed ? 'justify-center' : ''}`}
       >

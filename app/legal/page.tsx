@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Scale, Shield, Mail, ArrowLeft, ChevronRight, ExternalLink, Cookie } from 'lucide-react';
+import LegalBackButton from '@/components/ui/LegalBackButton';
 
 type View = 'impressum' | 'datenschutz' | 'cookies' | null;
 
@@ -72,14 +73,7 @@ function LandingView() {
   return (
     <div className="fade-in">
       <div className="mb-8">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium press-scale transition-opacity hover:opacity-70"
-          style={{ background: 'var(--app-surface)', color: 'var(--app-text-secondary)', border: '1px solid var(--app-border)' }}
-        >
-          <ArrowLeft size={15} />
-          Zurück
-        </Link>
+        <LegalBackButton />
       </div>
 
       <h1 className="text-3xl font-black tracking-tight mb-2" style={{ color: 'var(--app-text-primary)' }}>
