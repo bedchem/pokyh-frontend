@@ -17,6 +17,7 @@ import { addDays, format, startOfWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
+import UntisGuard from '@/components/UntisGuard';
 import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
 import { fetchTimetable } from '@/lib/api';
@@ -1225,6 +1226,7 @@ const [autoOpenId] = useState<number | null>(() => {
 
   return (
     <AuthGuard>
+      <UntisGuard>
       <div className="tt-wrap">
         <div className="tt-host">
           <main className="tt-page">
@@ -1994,6 +1996,7 @@ const [autoOpenId] = useState<number | null>(() => {
           }
         `}</style>
       </div>
+      </UntisGuard>
     </AuthGuard>
   );
 }

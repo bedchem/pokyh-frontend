@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BarChart2, ChevronDown, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
+import UntisGuard from '@/components/UntisGuard';
 import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
 import EmptyView from '@/components/ui/EmptyView';
@@ -345,6 +346,7 @@ export default function GradesPage() {
 
   return (
     <AuthGuard>
+      <UntisGuard>
       <div className="grades-dashboard-wrap">
         {loading ? (
           <div className="grades-state">
@@ -1313,6 +1315,7 @@ export default function GradesPage() {
           }
         }
       `}</style>
+      </UntisGuard>
     </AuthGuard>
   );
 }

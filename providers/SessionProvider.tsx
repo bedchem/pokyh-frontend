@@ -9,6 +9,7 @@ export interface UserInfo {
   studentId: number;
   klasseId: number;
   klasseName: string;
+  isUntisUser?: boolean;
   loginAt?: number;
 }
 

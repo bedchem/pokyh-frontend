@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ChevronLeft, CheckCircle, XCircle, UserX, Clock, ClockArrowUp } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
+import UntisGuard from '@/components/UntisGuard';
 import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
 import EmptyView from '@/components/ui/EmptyView';
@@ -347,6 +348,7 @@ export default function AbsencesPage() {
 
   return (
     <AuthGuard>
+      <UntisGuard>
       <div
         className="h-full flex flex-col overflow-hidden"
         style={{ background: 'var(--app-bg)' }}
@@ -579,6 +581,7 @@ export default function AbsencesPage() {
           )}
         </div>
       </div>
+      </UntisGuard>
     </AuthGuard>
   );
 }

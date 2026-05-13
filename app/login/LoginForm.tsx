@@ -101,37 +101,49 @@ export default function LoginForm() {
     setLoadingMsg('Anmelden…');
     setError('');
 
+    const raw = params.get('next') ?? '';
+    const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/home';
+
     try {
-      const res = await fetch('/api/webuntis/login', {
+      // 1. Try WebUntis login first
+      const untisRes = await fetch('/api/webuntis/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: username.trim(), password }),
         credentials: 'same-origin',
       });
+      const untisData = await untisRes.json();
 
-      const data = await res.json();
-
-      if (!res.ok || !data.ok) {
-        setError(data.error ?? 'Anmeldung fehlgeschlagen.');
-        setLoading(false);
-        setLoadingMsg('');
+      if (untisRes.ok && untisData.ok) {
+        setLoadingMsg('Fast fertig…');
+        saveSessionCredentials(username.trim(), password);
+        if (isPasswordCredentialSupported() && !hasDeclinedPasskey()) {
+          storePasswordCredential(username.trim(), password).catch(() => {});
+        }
+        window.location.replace(next);
         return;
       }
 
-      setLoadingMsg('Fast fertig…');
-      saveSessionCredentials(username.trim(), password);
+      // 2. WebUntis failed — try POKYH-only account as fallback
+      setLoadingMsg('Prüfe POKYH-Konto…');
+      const pokyhRes = await fetch('/api/auth/pokyh-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.trim(), password }),
+        credentials: 'same-origin',
+      });
+      const pokyhData = await pokyhRes.json();
 
-      if (isPasswordCredentialSupported() && !hasDeclinedPasskey()) {
-        storePasswordCredential(username.trim(), password).catch(() => {});
+      if (pokyhRes.ok && pokyhData.ok) {
+        setLoadingMsg('Fast fertig…');
+        window.location.replace(next);
+        return;
       }
 
-      const raw = params.get('next') ?? '';
-      const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/home';
-      // Hard navigation: forces a full page reload so SessionProvider remounts and
-      // reads the fresh pockyh_user cookie. Client-side router.replace() would
-      // skip the remount and leave user: null in context, causing AuthGuard to
-      // immediately redirect back to /login.
-      window.location.replace(next);
+      // Both failed — show the WebUntis error (more informative for most users)
+      setError(untisData.error ?? pokyhData.error ?? 'Anmeldung fehlgeschlagen.');
+      setLoading(false);
+      setLoadingMsg('');
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Netzwerkfehler.');
       setLoading(false);
@@ -214,7 +226,6 @@ export default function LoginForm() {
       {/* ── RIGHT PANEL — form ───────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 min-h-dvh">
         <div className="w-full max-w-[360px]">
-
 
           <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(167,139,250,1)', marginBottom: 10 }}>
             POKYH
@@ -354,7 +365,7 @@ export default function LoginForm() {
               <Link href="https://lbs-brixen.webuntis.com" className="font-semibold hover:underline" style={{ color: 'rgba(167,139,250,1)' }}>
                 lbs-brixen.webuntis.com
               </Link>{' '}
-              übertragen.
+              übertragen. Ohne Schulaccount kannst du dich mit einem POKYH-Konto anmelden.
             </p>
           </div>
 

@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     'Mensa LBS Brixen',
     'Schule Brixen App',
     'LBS Brixen Stundenplan online',
-    'BFZ Tschuggmall App',
+    'BFS Tschuggmall App',
   ],
   openGraph: {
     title: 'Anmelden – POKYH Schulapp LBS Brixen',

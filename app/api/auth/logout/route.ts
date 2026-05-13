@@ -6,5 +6,7 @@ export async function POST() {
   const res = NextResponse.json({ ok: true });
   res.cookies.set('pockyh_session', '', CLEAR);
   res.cookies.set('pockyh_user', '', { ...CLEAR, httpOnly: false });
+  res.cookies.set('pockyh_api_token', '', { ...CLEAR, httpOnly: false });
+  res.cookies.set('pockyh_api_refresh', '', CLEAR);
   return res;
 }

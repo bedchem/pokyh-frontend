@@ -6,13 +6,18 @@ import LandingFooter from '@/components/LandingFooter';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.app';
 
 export const metadata: Metadata = {
-  title: 'POKYH & WebUntis – Der Vergleich',
-  description: 'POKYH vs. WebUntis: Was ist der Unterschied? POKYH nutzt die WebUntis-API und bietet eine modernere Oberfläche für Schüler der LBS Brixen.',
-  keywords: ['POKYH vs WebUntis', 'POKYH Vergleich', 'WebUntis Alternative LBS Brixen', 'WebUntis Unterschied'],
+  title: 'POKYH vs. WebUntis – Funktionsvergleich | Schulapp Tschuggmall Brixen',
+  description: 'POKYH vs. WebUntis: Was bietet POKYH zusätzlich? Mensa, automatischer Notenschnitt, Klassen-Erinnerungen — kostenlos für Schüler des BFS Tschuggmall / LBS Brixen.',
+  keywords: [
+    'POKYH vs WebUntis', 'POKYH WebUntis Vergleich', 'POKYH Vergleich',
+    'WebUntis Alternative Tschuggmall', 'WebUntis Alternative Brixen',
+    'POKYH Funktionen', 'Schulapp Vergleich Brixen',
+    'Tschuggmall Schulapp', 'BFS Tschuggmall App', 'LBS Brixen Schulapp',
+  ],
   alternates: { canonical: `${SITE_URL}/comparison` },
   openGraph: {
-    title: 'POKYH & WebUntis – Der Vergleich',
-    description: 'Was ist der Unterschied zwischen POKYH und WebUntis? Eine ehrliche Gegenüberstellung.',
+    title: 'POKYH vs. WebUntis – Funktionsvergleich',
+    description: 'Was bietet POKYH zusätzlich zu WebUntis? Eine ehrliche Gegenüberstellung für Schüler des BFS Tschuggmall / LBS Brixen.',
     url: `${SITE_URL}/comparison`,
     type: 'website',
     siteName: 'POKYH',
@@ -122,7 +127,7 @@ export default function ComparisonPage() {
           POKYH <span className="lp-cmp-amp">&amp;</span> WebUntis
         </h1>
         <p className="lp-page-hero-sub">
-          POKYH und WebUntis ergänzen sich — POKYH nutzt die WebUntis-API und bringt deine Schuldaten in einer moderneren Oberfläche.
+          POKYH und WebUntis ergänzen sich — POKYH nutzt die WebUntis-API und bringt deine Schuldaten des BFS Tschuggmall in einer moderneren Oberfläche.
         </p>
       </div>
 
@@ -217,10 +222,10 @@ export default function ComparisonPage() {
         <div style={{ textAlign: 'center', padding: '60px 0' }}>
           <h2 className="lp-h2">Überzeug dich selbst.</h2>
           <p className="lp-lead" style={{ margin: '12px auto 32px', maxWidth: 460 }}>
-            Kostenlos. Ohne Registrierung. Mit deinem WebUntis-Account.
+            Kostenlos. Mit deinem WebUntis-Account oder POKYH-Konto.
           </p>
           <div style={{ display: 'inline-flex', gap: 22, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
-            <Link href="/login" className="lp-btn">Mit WebUntis anmelden </Link>
+            <Link href="/login" className="lp-btn">Jetzt anmelden</Link>
             <Link href="/faq" className="lp-alink">Zu den FAQ</Link>
           </div>
         </div>

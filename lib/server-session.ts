@@ -9,7 +9,7 @@ export async function getServerSession(): Promise<Session | null> {
   return decryptSession<Session>(token);
 }
 
-export const SCHOOL_COOKIE_VAL = '_bGJzLWJyaXhlbg==';
+export const SCHOOL_COOKIE_VAL = '_' + Buffer.from(process.env.WEBUNTIS_SCHOOL ?? 'lbs-brixen').toString('base64');
 
 export function webUntisHeaders(session: Session): Record<string, string> {
   return {

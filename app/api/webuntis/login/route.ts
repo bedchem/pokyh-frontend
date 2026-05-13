@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { encryptSession } from '@/lib/session-crypto';
 
-const BASE = 'https://lbs-brixen.webuntis.com/WebUntis';
-const SCHOOL = 'lbs-brixen';
-const SCHOOL_COOKIE = '_bGJzLWJyaXhlbg==';
+const BASE = process.env.WEBUNTIS_BASE ?? 'https://lbs-brixen.webuntis.com/WebUntis';
+const SCHOOL = process.env.WEBUNTIS_SCHOOL ?? 'lbs-brixen';
+const SCHOOL_COOKIE = '_' + Buffer.from(SCHOOL).toString('base64');
 
 // Simple in-memory rate limiter (IP-based, max 30 attempts per 5 min)
 const attempts = new Map<string, { count: number; reset: number }>();

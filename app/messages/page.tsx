@@ -5,6 +5,7 @@ import { ChevronRight, Paperclip, Inbox, CheckCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AuthGuard from '@/components/AuthGuard';
+import UntisGuard from '@/components/UntisGuard';
 import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
 import EmptyView from '@/components/ui/EmptyView';
@@ -137,6 +138,7 @@ export default function MessagesPage() {
 
   return (
     <AuthGuard>
+      <UntisGuard>
       <div
         className="h-full flex flex-col overflow-hidden"
         style={{ background: 'var(--app-bg)' }}
@@ -252,6 +254,7 @@ export default function MessagesPage() {
           )}
         </div>
       </div>
+      </UntisGuard>
     </AuthGuard>
   );
 }

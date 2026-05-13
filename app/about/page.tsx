@@ -6,13 +6,19 @@ import LandingFooter from '@/components/LandingFooter';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.app';
 
 export const metadata: Metadata = {
-  title: 'Über POKYH – Die Story dahinter',
-  description: 'Wie POKYH entstanden ist — von zwei Schülern der LBS Brixen, die sich ihre eigene Schulapp gebaut haben.',
-  keywords: ['POKYH About', 'POKYH Story', 'POKYH Team', 'LBS Brixen App', 'bedchem GitHub'],
+  title: 'Über POKYH – Die Story dahinter | Schulapp Tschuggmall Brixen',
+  description: 'Wie POKYH entstanden ist — von zwei Schülern des BFS Tschuggmall (LBS Brixen), die sich ihre eigene Schulapp gebaut haben. Open Source, kostenlos, für Schüler.',
+  keywords: [
+    'POKYH Story', 'POKYH Team', 'POKYH Entwickler', 'POKYH Open Source',
+    'bedchem GitHub', 'Schulapp selbst gebaut',
+    'Tschuggmall App', 'BFS Tschuggmall App', 'Christian Josef Tschuggmall App',
+    'LBS Brixen App entwickelt', 'Open Source Schulapp Südtirol',
+    'Schüler entwickeln App Brixen',
+  ],
   alternates: { canonical: `${SITE_URL}/about` },
   openGraph: {
     title: 'Über POKYH – Die Story dahinter',
-    description: 'Wie POKYH entstanden ist — von zwei Schülern der LBS Brixen, die sich ihre eigene Schulapp gebaut haben.',
+    description: 'Von zwei Schülern des BFS Tschuggmall / LBS Brixen selbst gebaut — kostenlos, open source, für Schüler.',
     url: `${SITE_URL}/about`,
     type: 'website',
     siteName: 'POKYH',
@@ -234,10 +240,10 @@ export default function AboutPage() {
         <div style={{ textAlign: 'center', padding: '60px 0' }}>
           <h2 className="lp-h2">Selbst ausprobieren.</h2>
           <p className="lp-lead" style={{ margin: '12px auto 32px', maxWidth: 460 }}>
-            Kostenlos. Ohne Registrierung. Mit deinem WebUntis-Account.
+            Kostenlos. Mit deinem WebUntis-Account oder POKYH-Konto.
           </p>
           <div style={{ display: 'inline-flex', gap: 22, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
-            <Link href="/login" className="lp-btn">Mit WebUntis anmelden</Link>
+            <Link href="/login" className="lp-btn">Jetzt anmelden</Link>
             <Link href="/comparison" className="lp-alink">POKYH vs. WebUntis</Link>
           </div>
         </div>

@@ -220,9 +220,9 @@ function ImpressumView() {
           <p className="text-sm font-semibold mb-1" style={{ color: 'var(--app-text-primary)' }}>Zweck der Website</p>
           <p className="text-sm" style={{ color: 'var(--app-text-secondary)' }}>
             Nicht-kommerzielles Schüler-Informationssystem für Schülerinnen und Schüler der LBS Brixen
-            (Landesberufsschule Brixen, Südtirol/Italien). Die App stellt WebUntis-Daten (Stundenplan,
-            Noten, Abwesenheiten, Nachrichten) und schulbezogene Funktionen (Mensa, Todos, Erinnerungen)
-            übersichtlich dar.
+            (Landesberufsschule Brixen, Südtirol/Italien). Die App stellt schulische Daten (Stundenplan,
+            Noten, Abwesenheiten, Nachrichten) über die offizielle Schulportal-API sowie schulbezogene
+            Funktionen (Mensa, Todos, Erinnerungen) übersichtlich dar.
           </p>
         </div>
 
@@ -243,10 +243,10 @@ function ImpressumView() {
           </p>
           <p className="text-sm" style={{ color: 'var(--app-text-secondary)' }}>
             Die POKYH App ist ein inoffizielles, nicht-kommerzielles Projekt und steht in keiner
-            Verbindung zur WebUntis GmbH (Gruber &amp; Petters GmbH) oder zur LBS Brixen. Alle Stunden-,
-            Noten- und Abwesenheitsdaten werden direkt von WebUntis über den offiziellen API-Zugang
-            abgerufen und nicht dauerhaft auf unseren Servern gespeichert. Für die Richtigkeit der
-            angezeigten Daten ist WebUntis verantwortlich.
+            Verbindung zur Untis GmbH oder zur LBS Brixen. Die Nutzung der schulischen Stundenplan-API
+            erfolgt mit ausdrücklicher Genehmigung der Untis GmbH. Alle Stunden-, Noten- und
+            Abwesenheitsdaten werden direkt über den offiziellen API-Zugang abgerufen und nicht dauerhaft
+            auf unseren Servern gespeichert.
           </p>
         </div>
 
@@ -307,12 +307,16 @@ function DatenschutzView() {
         <LegalSection title="2. Welche Daten verarbeiten wir?">
           <div className="flex flex-col gap-2">
             <DataItem
-              label="WebUntis-Zugangsdaten"
-              desc="Dein Benutzername und Passwort werden ausschließlich zur Authentifizierung an lbs-brixen.webuntis.com verwendet. Weder Passwort noch Klartext-Zugangsdaten werden gespeichert. Das Session-Token wird AES-GCM-verschlüsselt in einem httpOnly-Cookie gespeichert."
+              label="Schulzugangsdaten (Stundenplan-Login)"
+              desc="Dein Benutzername und Passwort werden ausschließlich zur Authentifizierung an deiner Schule's Stundenplan-Server verwendet. Weder Passwort noch Klartext-Zugangsdaten werden gespeichert. Das Session-Token wird AES-GCM-verschlüsselt in einem httpOnly-Cookie gespeichert."
             />
             <DataItem
               label="Session-Cookie (pockyh_session)"
-              desc="Verschlüsseltes httpOnly-Cookie mit dem WebUntis-Session-Token. Läuft beim Logout oder nach 30 Minuten Inaktivität ab. Nicht für JavaScript zugänglich (XSS-Schutz)."
+              desc="Verschlüsseltes httpOnly-Cookie mit dem Schulportal-Session-Token. Läuft beim Logout oder nach 4 Stunden ab. Nicht für JavaScript zugänglich (XSS-Schutz)."
+            />
+            <DataItem
+              label="POKYH-Konto (Alternative Login)"
+              desc="Nutzer ohne Schulaccount können sich mit einem POKYH-eigenen Konto registrieren (Benutzername + Passwort). Das Passwort wird bcrypt-gehasht gespeichert. Ein Klartext-Passwort wird niemals gespeichert."
             />
             <DataItem
               label="Benutzer-Cookie (pockyh_user)"
@@ -356,8 +360,8 @@ function DatenschutzView() {
         <LegalSection title="4. Drittanbieter">
           <div className="flex flex-col gap-2">
             <ThirdParty
-              name="WebUntis (Gruber & Petters GmbH)"
-              purpose="Stundenplan, Noten, Abwesenheiten und Nachrichten"
+              name="Untis GmbH (Schulportal)"
+              purpose="Stundenplan, Noten, Abwesenheiten und Nachrichten – nur bei Schulaccount-Login"
               url="https://www.webuntis.com/privacy-policy"
             />
             <ThirdParty
@@ -450,8 +454,10 @@ function DatenschutzView() {
 
         <LegalSection title="9. Cookies & Lokaler Speicher">
           <div className="flex flex-col gap-2 mb-3">
-            <CookieRow name="pockyh_session" type="Notwendig" desc="Verschlüsseltes WebUntis-Session-Token (httpOnly, AES-GCM)" />
-            <CookieRow name="pockyh_user" type="Notwendig" desc="Nicht-sensible Benutzerinfo zur Anzeige (kein Token, kein Passwort)" />
+            <CookieRow name="pockyh_session" type="Notwendig" desc="Verschlüsseltes Schulportal-Session-Token (httpOnly, AES-GCM, 4 Stunden)" />
+            <CookieRow name="pockyh_user" type="Notwendig" desc="Nicht-sensible Benutzerinfo zur Anzeige (kein Token, kein Passwort, 4 Stunden)" />
+            <CookieRow name="pockyh_api_token" type="Notwendig" desc="POKYH Backend JWT für API-Zugriff (nicht httpOnly, 8 Stunden)" />
+            <CookieRow name="pockyh_api_refresh" type="Notwendig" desc="POKYH Backend Refresh-Token zum automatischen Erneuern des API-Tokens (httpOnly, 30 Tage)" />
             <CookieRow name="pockyh_theme" type="Einstellung" desc="Gespeichertes Farbschema (localStorage, kein Cookie)" />
             <CookieRow name="pockyh_sidebar_collapsed" type="Einstellung" desc="Sidebar-Status (localStorage, kein Cookie)" />
             <CookieRow name="_ga, _ga_*" type="Analytics" desc="Google Analytics 4 – anonymisierte Nutzungsstatistiken (nur bei Einwilligung), 1–2 Jahre Laufzeit" />

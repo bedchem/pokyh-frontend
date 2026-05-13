@@ -64,10 +64,6 @@ async function refreshAccessToken(): Promise<boolean> {
 
     if (!res.ok) {
       clearTokens();
-      // 401 = token revoked/invalid → force re-login
-      if (res.status === 401 && typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('pockyh-session-expired'));
-      }
       return false;
     }
 
@@ -95,7 +91,7 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
     headers,
   });
 
-  // 401 → try to refresh once
+  // 401 → try to refresh once, then just return the response as-is
   if (res.status === 401) {
     if (!_refreshing) {
       _refreshing = refreshAccessToken().finally(() => { _refreshing = null; });
@@ -108,9 +104,6 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
       res = await fetch(`${API_BASE}${path}`, { ...options, headers });
     } else {
       clearTokens();
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('pockyh-session-expired'));
-      }
     }
   }
 

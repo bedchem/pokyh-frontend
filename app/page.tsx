@@ -4,22 +4,41 @@ import LandingClient from '@/components/LandingClient';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.app';
 
 export const metadata: Metadata = {
-  title: 'POKYH – WebUntis App für LBS Brixen | Schulapp Brixen',
+  title: 'POKYH – Schulapp LBS Brixen | Stundenplan, Noten & Mensa',
   description:
-    'POKYH: Die kostenlose WebUntis Alternative für LBS Brixen. Stundenplan, Noten, Mensa und mehr – Anmeldung mit deinem WebUntis Brixen Account. Kostenlos, werbefrei, von Schülern für Schüler.',
+    'POKYH ist die kostenlose Schulapp für LBS Brixen Schüler: Stundenplan mit Vertretungen, Noten mit Gesamtschnitt, Mensa-Plan, Abwesenheiten und Nachrichten — modern, schnell, gratis.',
   keywords: [
-    'POKYH', 'WebUntis Brixen', 'WebUntis LBS Brixen', 'WebUntis Alternative',
-    'WebUntis App Brixen', 'WebUntis auf Steroid', 'WebUntis besser', 'WebUntis',
-    'Untis Brixen', 'Untis LBS Brixen', 'Brixen Untis', 'LBS Brixen', 'LBS Brixen App',
-    'Schulapp LBS Brixen', 'WebUntis Stundenplan', 'Stundenplan LBS Brixen',
-    'Stundenplan Brixen', 'Noten LBS Brixen', 'Mensa LBS Brixen',
-    'Abwesenheiten LBS Brixen', 'Landesberufsschule Brixen',
-    'Berufsschule Brixen Südtirol', 'Schule App Südtirol', 'LBS Brixen online',
-    'Schulapp Südtirol kostenlos', 'BFZ Tschuggmall', 'Tschuggmall Untis',
-    'Tschuggmall WebUntis', 'BFZ Tschuggmall App', 'Untis Tschuggmall',
-    'Berufsbildungszentrum Tschuggmall', 'Schulportal LBS Brixen',
-    'Schüler App Brixen', 'WebUntis Noten', 'WebUntis Abwesenheiten',
-    'WebUntis Nachrichten', 'WebUntis Südtirol', 'Untis Südtirol',
+    'POKYH', 'POKYH App', 'POKYH Schulapp', 'POKYH Südtirol',
+
+    // Tschuggmall – alle Schreibweisen
+    'Tschuggmall', 'Chr. J. Tschuggmall', 'Chr. Josef Tschuggmall',
+    'Christian Josef Tschuggmall', 'C. J. Tschuggmall',
+    'BFS Tschuggmall', 'BBZ Tschuggmall', 'Berufsbildungszentrum Tschuggmall',
+    'Tschuggmall Brixen', 'Tschuggmall App', 'Tschuggmall Schüler',
+    'Tschuggmall Stundenplan', 'Tschuggmall Noten', 'Tschuggmall Mensa',
+
+    // LBS Brixen (reduziert, selektiv)
+    'LBS Brixen', 'LBS Brixen App', 'Stundenplan LBS Brixen', 'Noten LBS Brixen',
+    'Landesberufsschule Brixen', 'Berufsschule Brixen',
+
+    // Brixen / Bressanone allgemein
+    'Schulapp Brixen', 'Schulportal Brixen', 'Schülerportal Brixen',
+    'Stundenplan Brixen', 'Schüler App Brixen', 'Bressanone Schulapp',
+
+    // Südtirol / Alto Adige
+    'Schulapp Südtirol', 'Schulapp Südtirol kostenlos', 'Berufsschule Südtirol App',
+    'Stundenplan Berufsschule Südtirol', 'Alto Adige Schulapp',
+
+    // WebUntis – vergleichend / erklärend
+    'WebUntis Alternative', 'WebUntis Brixen', 'WebUntis LBS Brixen',
+    'Schulapp statt WebUntis', 'besseres WebUntis',
+
+    // Features
+    'automatischer Notenschnitt', 'Mensa App Brixen', 'Fehlstunden Tracker',
+    'Stundenplan App', 'Noten App Schule', 'Klassen Erinnerungen',
+    'Mensa Speiseplan Brixen', 'Notenübersicht', 'Fehlstunden Übersicht',
+    'digitale Schulapp', 'mobile Schulapp', 'PWA Schulapp', 'kostenlose Schulapp',
+    'School Dashboard', 'Education App',
   ],
   alternates: {
     canonical: SITE_URL,
@@ -31,13 +50,13 @@ export const metadata: Metadata = {
     alternateLocale: ['it_IT', 'de_DE'],
     url: SITE_URL,
     siteName: 'POKYH',
-    title: 'POKYH – WebUntis App für LBS Brixen',
-    description: 'Die kostenlose WebUntis Alternative für LBS Brixen: Stundenplan, Noten, Mensa, Abwesenheiten und Nachrichten – schnell, modern, gratis.',
+    title: 'POKYH – Schulapp für LBS Brixen',
+    description: 'Die kostenlose Schulapp für LBS Brixen: Stundenplan, Noten, Mensa, Abwesenheiten und Nachrichten – schnell, modern, gratis.',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'POKYH – WebUntis App für LBS Brixen',
-    description: 'Die kostenlose WebUntis Alternative für LBS Brixen: Stundenplan, Noten, Mensa und mehr.',
+    title: 'POKYH – Schulapp für LBS Brixen',
+    description: 'Die kostenlose Schulapp für LBS Brixen: Stundenplan, Noten, Mensa und mehr – von Schülern für Schüler.',
   },
   robots: {
     index: true, follow: true,
@@ -102,7 +121,7 @@ const faqStructuredData = {
       name: 'Wo befindet sich die LBS Brixen?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Die LBS Brixen (Landesberufsschule, auch Berufsbildungszentrum Christian Josef Tschuggmall) befindet sich in Brixen, Südtirol, Italien. POKYH ist speziell für Schülerinnen und Schüler dieser Schule entwickelt worden.',
+        text: 'Die LBS Brixen (Landesberufsschule, auch Berufsbildungszentrum Christian Josef Tschuggmall / BBZ Tschuggmall) befindet sich in Brixen (Bressanone), Südtirol, Italien. POKYH ist speziell für Schülerinnen und Schüler dieser Schule entwickelt worden.',
       },
     },
     {
@@ -126,23 +145,39 @@ const faqStructuredData = {
       name: 'Funktioniert POKYH auf dem Smartphone?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Ja, POKYH ist vollständig für Mobile optimiert und funktioniert auf iPhone, Android und allen modernen Smartphones. Die App kann auch als native App heruntergeladen werden.',
+        text: 'Ja, POKYH ist vollständig für Mobile optimiert und funktioniert auf iPhone, Android und allen modernen Smartphones. Die App kann als PWA installiert oder als native App heruntergeladen werden.',
       },
     },
     {
       '@type': 'Question',
-      name: 'Was ist der Unterschied zwischen POKYH und WebUntis?',
+      name: 'Wie unterscheidet sich POKYH vom offiziellen Schulportal?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'POKYH verwendet die WebUntis-API, um dieselben Schuldaten – Stundenplan, Noten, Abwesenheiten und Nachrichten – in einer modernen, schnellen und übersichtlicheren Oberfläche darzustellen. POKYH ist ein inoffizielles, von Schülern entwickeltes Open-Source-Projekt und steht in keiner offiziellen Verbindung zur WebUntis GmbH. Die Anmeldung erfolgt mit demselben WebUntis-Benutzernamen und Passwort – das Passwort wird dabei niemals gespeichert.',
+        text: 'POKYH nutzt die offizielle Schulschnittstelle und zeigt dieselben Daten – Stundenplan, Noten, Abwesenheiten und Nachrichten – in einer modernen, schnellen und übersichtlicheren Oberfläche. POKYH ist ein inoffizielles, von Schülern entwickeltes Open-Source-Projekt und steht in keiner Verbindung zum offiziellen Anbieter. Die Anmeldung erfolgt mit denselben Schulzugangsdaten – das Passwort wird dabei niemals gespeichert.',
       },
     },
     {
       '@type': 'Question',
-      name: 'Speichert POKYH mein WebUntis-Passwort?',
+      name: 'Speichert POKYH mein Passwort?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Nein. POKYH speichert dein Passwort niemals. Das WebUntis-Session-Token wird serverseitig AES-GCM-verschlüsselt in einem httpOnly-Cookie gespeichert, das für JavaScript nicht zugänglich ist. Nur dein Benutzername wird intern für Klassen-Funktionen verwendet.',
+        text: 'Nein. POKYH speichert dein Passwort niemals. Das Session-Token wird serverseitig AES-GCM-verschlüsselt in einem httpOnly-Cookie gespeichert, das für JavaScript nicht zugänglich ist. Nur dein Benutzername wird intern für Klassen-Funktionen verwendet.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Gibt es eine App für den Stundenplan der LBS Brixen?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Ja! POKYH ist als Web-App, iOS-App und Android-App verfügbar. Du kannst POKYH direkt im Browser nutzen, als PWA auf dem Homescreen installieren oder die native App herunterladen. Der persönliche Stundenplan der LBS Brixen ist damit jederzeit auf jedem Gerät abrufbar.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Wie sehe ich meine Fehlstunden bei der LBS Brixen?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'In POKYH findest du unter "Abwesenheiten" eine vollständige Übersicht deiner Fehlstunden und Abwesenheiten – sortiert nach Datum, mit Jahresübersicht und Gesamtquote. So behältst du immer den Überblick über deine Anwesenheit an der LBS Brixen.',
       },
     },
   ],
@@ -171,16 +206,22 @@ export default function LandingPage() {
       {/* SSR-only SEO blurb — visually hidden via sr-only, fully crawlable by Google */}
       <section className="sr-only" aria-label="Über POKYH">
         <p>
-          <strong>POKYH</strong> ist die kostenlose <strong>WebUntis Alternative</strong> für Schüler der{' '}
-          <strong>LBS Brixen</strong> (Landesberufsschule Brixen / Berufsbildungszentrum{' '}
-          <strong>Tschuggmall</strong>, Südtirol). Die App verbindet sich mit{' '}
-          <strong>Untis Brixen</strong> bzw. <strong>WebUntis Brixen</strong> und zeigt deinen persönlichen{' '}
-          <strong>Stundenplan LBS Brixen</strong>, Noten, Abwesenheiten und Mensa — direkt mit deinem{' '}
-          <strong>WebUntis‑Account der LBS Brixen</strong>. Kein separates Passwort, keine Registrierung.
-          Gefunden werden wir auch unter: <strong>Untis LBS Brixen</strong>,{' '}
-          <strong>Tschuggmall Untis</strong>, <strong>BFZ Tschuggmall App</strong>,{' '}
-          <strong>Brixen Untis</strong>, WebUntis Südtirol.
-          POKYH steht in keiner offiziellen Verbindung zu <strong>WebUntis&nbsp;/&nbsp;Untis GmbH</strong>.
+          <strong>POKYH</strong> ist die kostenlose <strong>Schulapp</strong> für Schülerinnen und Schüler des{' '}
+          <strong>Berufsbildungszentrums Christian Josef Tschuggmall</strong> (
+          <strong>BFS Tschuggmall</strong> / <strong>BBZ Tschuggmall</strong> / <strong>LBS Brixen</strong>,
+          Landesberufsschule Brixen, Südtirol, Bressanone). Mit deinen Schulzugangsdaten direkt anmelden —
+          kein separates Passwort. <strong>Stundenplan Tschuggmall Brixen</strong> mit Vertretungen und Prüfungen.{' '}
+          <strong>Noten und Notenschnitt</strong> nach Fach, automatisch berechnet.{' '}
+          <strong>Mensa-Speiseplan Brixen</strong> täglich aktuell.{' '}
+          <strong>Abwesenheiten und Fehlstunden</strong> auf einen Blick.{' '}
+          <strong>Klassen-Erinnerungen</strong> in Echtzeit.
+          Auch gefunden unter: <strong>Chr. J. Tschuggmall App</strong>,{' '}
+          <strong>Christian Josef Tschuggmall Schüler</strong>,{' '}
+          <strong>Tschuggmall Stundenplan</strong>,{' '}
+          <strong>Schulapp Brixen</strong>, <strong>Berufsschule Brixen App</strong>,{' '}
+          <strong>WebUntis Alternative Brixen</strong>, <strong>WebUntis Brixen</strong>.
+          POKYH steht in keiner offiziellen Verbindung zum offiziellen Schulportal.
+          Kostenlos, werbefrei, open source — von Schülern für Schüler.
         </p>
       </section>
     </>

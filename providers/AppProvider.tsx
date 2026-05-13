@@ -63,12 +63,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     async function checkSession() {
       try {
-        const res = await apiFetch('/auth/me');
-        if (res.status === 401) {
-          window.dispatchEvent(new Event('pockyh-session-expired'));
-        }
+        await apiFetch('/auth/me');
       } catch {
-        // Network error / server down — don't log out
+        // Network error / server down / 401 — don't log out
       }
     }
 
