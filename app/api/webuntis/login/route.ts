@@ -84,6 +84,14 @@ export async function POST(req: NextRequest) {
       signal: AbortSignal.timeout(15000),
     });
 
+    if (!rpcRes.ok) {
+      const statusMsg =
+        rpcRes.status >= 500
+          ? `Untis ist momentan nicht erreichbar (Fehler ${rpcRes.status}). Bitte versuche es später erneut.`
+          : 'Verbindung zu Untis fehlgeschlagen.';
+      return NextResponse.json({ error: statusMsg }, { status: 502 });
+    }
+
     const rawCookie = rpcRes.headers.get('set-cookie') ?? '';
     const sessionMatch = rawCookie.match(/JSESSIONID=([^;]+)/);
     const sessionId = sessionMatch?.[1] ?? '';
@@ -124,7 +132,7 @@ export async function POST(req: NextRequest) {
     const encrypted = await encryptSession(sessionData);
 
     // 5. Non-sensitive user data for client (loginAt lets the client set a proactive expiry timer)
-    const userPublic = JSON.stringify({ username, studentId, klasseId, klasseName, loginAt: Date.now() });
+    const userPublic = JSON.stringify({ username, studentId, klasseId, klasseName, loginAt: Date.now(), isUntisUser: true });
 
     const res = NextResponse.json({ ok: true, username, studentId, klasseId, klasseName });
 
