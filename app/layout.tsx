@@ -10,6 +10,7 @@ import { ActivityLoggerProvider } from '@/providers/ActivityLoggerProvider';
 import LayoutShell from '@/components/LayoutShell';
 import CookieBanner from '@/components/CookieBanner';
 import PWAInit from '@/components/PWAInit';
+import AppIconApplier from '@/components/AppIconApplier';
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
@@ -294,6 +295,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </ThemeProvider>
         <CookieBanner />
         <PWAInit />
+        <AppIconApplier />
       </body>
     </html>
   );
