@@ -570,26 +570,42 @@ export default function AbsencesPage() {
                               </div>
                             </div>
                             {entry.reasonName && (
-                              <p
-                                className="text-xs mt-2 px-3 py-1.5 rounded-lg"
-                                style={{
-                                  background: 'var(--app-card)',
-                                  color: 'var(--app-text-secondary)',
-                                }}
+                              <div
+                                className="flex items-baseline gap-2 mt-2 px-3 py-1.5 rounded-lg"
+                                style={{ background: 'var(--app-card)' }}
                               >
-                                {entry.reasonName}
-                              </p>
+                                <span
+                                  className="shrink-0 font-semibold"
+                                  style={{ fontSize: '11px', color: 'var(--app-text-tertiary)' }}
+                                >
+                                  Grund
+                                </span>
+                                <span
+                                  className="text-xs"
+                                  style={{ color: 'var(--app-text-secondary)' }}
+                                >
+                                  {entry.reasonName}
+                                </span>
+                              </div>
                             )}
-                            {entry.note && !entry.reasonName && (
-                              <p
-                                className="text-xs mt-2 px-3 py-1.5 rounded-lg"
-                                style={{
-                                  background: 'var(--app-card)',
-                                  color: 'var(--app-text-secondary)',
-                                }}
+                            {entry.note && (
+                              <div
+                                className="flex items-baseline gap-2 mt-1.5 px-3 py-1.5 rounded-lg"
+                                style={{ background: 'var(--app-card)' }}
                               >
-                                {entry.note}
-                              </p>
+                                <span
+                                  className="shrink-0 font-semibold"
+                                  style={{ fontSize: '11px', color: 'var(--app-text-tertiary)' }}
+                                >
+                                  Text
+                                </span>
+                                <span
+                                  className="text-xs"
+                                  style={{ color: 'var(--app-text-secondary)' }}
+                                >
+                                  {entry.note}
+                                </span>
+                              </div>
                             )}
                           </div>
                         ))}
