@@ -83,6 +83,22 @@ function mergeTimetableIntoMap(
   } catch { /* ignore malformed responses */ }
 }
 
+// Returns one Monday date-string per calendar week from school-year start (Sep 1) to today.
+function getWeeksForSchoolYear(now: Date, sep: Date): string[] {
+  const dow = sep.getDay();
+  const mon = new Date(sep);
+  mon.setDate(sep.getDate() - (dow === 0 ? 6 : dow - 1));
+  const mondays: string[] = [];
+  const d = new Date(mon);
+  while (d <= now) {
+    mondays.push(
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
+    );
+    d.setDate(d.getDate() + 7);
+  }
+  return mondays;
+}
+
 // Returns one Monday date-string per calendar week that overlaps with any absence.
 function getWeeksForAbsences(absences: AbsenceEntry[]): string[] {
   const mondays = new Set<string>();
@@ -268,6 +284,7 @@ export default function AbsencesPage() {
   const router = useRouter();
   const [absences, setAbsences] = useState<AbsenceEntry[]>([]);
   const [minutesMap, setMinutesMap] = useState<Map<number, number>>(new Map());
+  const [totalPossibleMins, setTotalPossibleMins] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [exact, setExact] = useState(false);
@@ -282,9 +299,11 @@ export default function AbsencesPage() {
       const parsed = parseAbsences(res);
       setAbsences(parsed);
 
-      // Fetch timetable for every week that overlaps with an absence
-      const weekDates = getWeeksForAbsences(parsed);
-      const weekResults = await Promise.allSettled(weekDates.map((d) => fetchTimetable(d)));
+      // Fetch timetable for absence weeks + all school-year weeks (for accurate rate denominator)
+      const now = new Date();
+      const sep = new Date(now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1, 8, 1);
+      const allWeeks = Array.from(new Set([...getWeeksForAbsences(parsed), ...getWeeksForSchoolYear(now, sep)]));
+      const weekResults = await Promise.allSettled(allWeeks.map((d) => fetchTimetable(d)));
 
       // If any timetable fetch was rejected due to session expiry, redirect now.
       const sessionExpired = weekResults.some(
@@ -311,6 +330,17 @@ export default function AbsencesPage() {
         mins.set(entry.id, calcAbsenceMinutes(entry, dateMap));
       }
       setMinutesMap(mins);
+
+      // Sum all lesson minutes since school-year start — accounts for Ferien, Feiertage, personal schedule
+      const nowNum = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
+      const sepNum = sep.getFullYear() * 10000 + (sep.getMonth() + 1) * 100 + sep.getDate();
+      let possibleMins = 0;
+      for (const [dateNum, slots] of dateMap.entries()) {
+        if (dateNum >= sepNum && dateNum <= nowNum) {
+          for (const slot of slots) possibleMins += slot.endMins - slot.startMins;
+        }
+      }
+      setTotalPossibleMins(Math.max(1, possibleMins));
     } catch (e: unknown) {
       if (e instanceof Error && e.message === 'session_expired') {
         window.location.replace('/login');
@@ -332,16 +362,7 @@ export default function AbsencesPage() {
   const excusedMinutes  = absences.filter((e) => e.isExcused).reduce((a, e) => a + getMin(e), 0);
   const unexcusedMinutes = totalMinutes - excusedMinutes;
 
-  // Absence rate estimate
-  const now = new Date();
-  const sep = new Date(
-    now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1,
-    8,
-    1,
-  );
-  const elapsedDays = Math.floor((now.getTime() - sep.getTime()) / 86400000);
-  const totalPossibleMinutes = Math.max(1, Math.floor((elapsedDays * 5) / 7) * 8 * 60);
-  const rate      = Math.min((totalMinutes / totalPossibleMinutes) * 100, 100);
+  const rate      = Math.min((totalMinutes / totalPossibleMins) * 100, 100);
   const rateColor = rate < 5 ? 'var(--tint)' : rate < 15 ? 'var(--warning)' : 'var(--danger)';
 
   const groups = groupByMonth(absences, minutesMap);
