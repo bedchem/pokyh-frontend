@@ -1,38 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ChevronLeft, LogOut, Moon, Sun, Monitor, Check } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
 import { useSession } from '@/providers/SessionProvider';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useApp } from '@/providers/AppProvider';
-
-const APP_ICON_PREF_KEY = 'pokyh_app_icon';
-
-const APP_ICON_OPTS = [
-  { id: 'standard', label: 'Standard', src: '/icons/app-icon-standard.png' },
-  { id: 'classic',  label: 'Klassisch', src: '/icons/app-icon-classic.png' },
-  { id: 'nexor',    label: 'Nexor',    src: '/icons/app-icon-nexor.png' },
-  { id: 'nexor2',   label: 'Nexor 2',  src: '/icons/app-icon-nexor2.png' },
-  { id: 'special',  label: 'Special',  src: '/icons/app-icon-special.png' },
-  { id: 'meme',     label: 'Meme',     src: '/icons/app-icon-meme.png' },
-] as const;
-
-type AppIconId = typeof APP_ICON_OPTS[number]['id'];
-
-function applyFavicon(src: string) {
-  if (typeof document === 'undefined') return;
-  let link = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
-  if (!link) {
-    link = document.createElement('link');
-    link.rel = 'icon';
-    document.head.appendChild(link);
-  }
-  link.href = src;
-}
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -129,22 +104,6 @@ export default function ProfilePage() {
   const { stableUid, classId } = useApp();
   const [loggingOut, setLoggingOut] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
-  const [appIcon, setAppIconState] = useState<AppIconId>('standard');
-
-  useEffect(() => {
-    const stored = localStorage.getItem(APP_ICON_PREF_KEY) as AppIconId | null;
-    if (stored && APP_ICON_OPTS.some(o => o.id === stored)) {
-      setAppIconState(stored);
-    }
-  }, []);
-
-  function setAppIcon(id: AppIconId) {
-    const opt = APP_ICON_OPTS.find(o => o.id === id);
-    if (!opt) return;
-    setAppIconState(id);
-    localStorage.setItem(APP_ICON_PREF_KEY, id);
-    applyFavicon(opt.src);
-  }
 
   async function handleLogout() {
     if (!confirmLogout) {
@@ -261,57 +220,6 @@ export default function ProfilePage() {
                     </button>
                   );
                 })}
-              </div>
-            </section>
-
-            {/* App Icon */}
-            <section className="fade-in delay-3">
-              <SectionHeader label="App-Icon" />
-              <div
-                className="rounded-2xl overflow-hidden p-4"
-                style={{ background: 'var(--app-surface)' }}
-              >
-                <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-hide">
-                  {APP_ICON_OPTS.map((opt) => {
-                    const active = appIcon === opt.id;
-                    return (
-                      <button
-                        key={opt.id}
-                        onClick={() => setAppIcon(opt.id)}
-                        className="flex flex-col items-center gap-1.5 flex-shrink-0 press-scale"
-                        style={{ minWidth: 72 }}
-                      >
-                        <div
-                          className="rounded-[18px] overflow-hidden transition-all"
-                          style={{
-                            width: 72,
-                            height: 72,
-                            boxShadow: active
-                              ? '0 0 0 3px var(--accent)'
-                              : '0 0 0 2px transparent',
-                          }}
-                        >
-                          <Image
-                            src={opt.src}
-                            alt={opt.label}
-                            width={72}
-                            height={72}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <span
-                          className="text-[11px] font-medium"
-                          style={{ color: active ? 'var(--accent)' : 'var(--app-text-secondary)' }}
-                        >
-                          {opt.label}
-                        </span>
-                        {active && (
-                          <Check size={12} color="var(--accent)" strokeWidth={3} />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
               </div>
             </section>
 
