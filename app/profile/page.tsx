@@ -100,7 +100,7 @@ const THEME_OPTS: {
 export default function ProfilePage() {
   const router = useRouter();
   const { user, logout } = useSession();
-  const { theme, setTheme } = useTheme();
+  const { theme, toggleWithRipple } = useTheme();
   const { stableUid, classId } = useApp();
   const [loggingOut, setLoggingOut] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
@@ -191,7 +191,7 @@ export default function ProfilePage() {
                   return (
                     <button
                       key={opt.value}
-                      onClick={() => setTheme(opt.value)}
+                      onClick={(e) => toggleWithRipple(e, opt.value)}
                       className="w-full px-4 flex items-center gap-3 press-scale"
                       style={{
                         minHeight: 44,

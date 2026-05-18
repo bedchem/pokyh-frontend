@@ -26,10 +26,8 @@ const nextConfig: NextConfig = {
   output: 'standalone',
 
   experimental: {
-    // Inline CSS in the HTML <head> — eliminates render-blocking stylesheet requests.
-    // Trade-off: styles can't be cached separately from HTML, but benefits first-time
-    // visitors significantly (eliminates 400-600 ms blocking on slow connections).
-    inlineCss: true,
+    // inlineCss deaktiviert weil es ::view-transition-* Pseudo-Elemente blockiert
+    // inlineCss: true,
   },
 
   // Allow LAN devices to access the dev server (e.g. mobile testing)

@@ -98,7 +98,7 @@ function NavItem({
 
 export default function Sidebar() {
   const { collapsed, mobileOpen, toggle, closeMobile } = useSidebar();
-  const { resolved, setTheme } = useTheme();
+  const { resolved, toggleWithRipple } = useTheme();
   const pathname = usePathname();
   const [logoHref, setLogoHref] = useState('/');
   useEffect(() => { if (isPWA()) setLogoHref('/home'); }, []);
@@ -158,7 +158,7 @@ export default function Sidebar() {
           onClick={closeMobile}
         />
         <button
-          onClick={() => setTheme(resolved === 'dark' ? 'light' : 'dark')}
+          onClick={(e) => toggleWithRipple(e, resolved === 'dark' ? 'light' : 'dark')}
           className="group relative flex items-center gap-3.5 rounded-xl px-3.5 py-3 w-full transition-all duration-150"
           style={{
             background: 'color-mix(in srgb, var(--app-text-primary) 8%, transparent)',

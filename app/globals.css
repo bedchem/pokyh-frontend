@@ -2,15 +2,15 @@
 
 :root {
   /* Light theme */
-  --app-bg: #F0F0F5;
-  --app-surface: #FFFFFF;
-  --app-card: #F7F7FC;
-  --app-card-alt: #EBEBF2;
-  --app-text-primary: #0A0A12;
-  --app-text-secondary: #65657A;
-  --app-text-tertiary: #A0A0B4;
-  --app-border: #E2E2ED;
-  --app-separator: #DADADF;
+  --app-bg: #F1F0F8;
+  --app-surface: #FAFAFA;
+  --app-card: #F5F4FC;
+  --app-card-alt: #ECEAF6;
+  --app-text-primary: #0D0C1A;
+  --app-text-secondary: #5A5870;
+  --app-text-tertiary: #9A98B0;
+  --app-border: #E0DEEE;
+  --app-separator: #D8D6EA;
 
   /* Accent (indigo) */
   --accent: #6366F1;
@@ -182,4 +182,15 @@ input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
   outline: none;
+}
+
+/* Theme-Wechsel Ripple (View Transitions API) */
+@keyframes theme-ripple {
+  from { clip-path: circle(0px at var(--ripple-x, 50%) var(--ripple-y, 50%)); }
+  to   { clip-path: circle(200vmax at var(--ripple-x, 50%) var(--ripple-y, 50%)); }
+}
+::view-transition-old(root) { animation: none; mix-blend-mode: normal; }
+::view-transition-new(root) {
+  animation: theme-ripple 2s cubic-bezier(0.4, 0, 0.2, 1) both;
+  mix-blend-mode: normal;
 }
