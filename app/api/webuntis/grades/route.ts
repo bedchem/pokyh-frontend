@@ -9,10 +9,33 @@ function log(...args: unknown[]) {
   if (DEBUG) console.log('[grades]', ...args);
 }
 
-async function getSchoolyearId(session: { sessionId: string }): Promise<number | null | -1> {
+async function getSchoolyearId(session: { sessionId: string }, targetYear?: number): Promise<number | null | -1> {
   const cookieHeader = `JSESSIONID=${session.sessionId}; schoolname="${SCHOOL_COOKIE_VAL}"`;
   const baseHeaders = { 'Content-Type': 'application/json', Cookie: cookieHeader };
 
+  // For a specific year, look it up directly via getSchoolyears
+  if (targetYear != null) {
+    try {
+      const res = await fetch(`${BASE}/jsonrpc.do?school=${SCHOOL}`, {
+        method: 'POST',
+        headers: baseHeaders,
+        body: JSON.stringify({ id: 'sy2', method: 'getSchoolyears', params: {}, jsonrpc: '2.0' }),
+        signal: AbortSignal.timeout(10000),
+      });
+      const json = await res.json();
+      if (json.error?.code === -8500 || json.error?.code === -8501 || json.error?.code === -8520) return -1;
+      const years = json.result as Array<{ id: number; startDate: number; endDate: number }> | undefined;
+      if (Array.isArray(years)) {
+        const match = years.find((y) => Math.floor(y.startDate / 10000) === targetYear);
+        if (match?.id) return match.id;
+      }
+    } catch (e) {
+      log('getSchoolyears (targeted) error:', e);
+    }
+    return null;
+  }
+
+  // Current year: try getCurrentSchoolyear first, then fall back to getSchoolyears
   try {
     const res = await fetch(`${BASE}/jsonrpc.do?school=${SCHOOL}`, {
       method: 'POST',
@@ -53,17 +76,21 @@ async function getSchoolyearId(session: { sessionId: string }): Promise<number |
   return null;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getServerSession();
   if (!session) {
     console.error('[grades] No session cookie');
     return NextResponse.json({ error: 'Nicht angemeldet.' }, { status: 401 });
   }
 
-  log('session studentId:', session.studentId, 'hasBearer:', !!session.bearerToken);
+  const { searchParams } = new URL(request.url);
+  const yearParam = searchParams.get('year');
+  const targetYear = yearParam ? parseInt(yearParam, 10) : undefined;
+
+  log('session studentId:', session.studentId, 'hasBearer:', !!session.bearerToken, 'targetYear:', targetYear);
 
   try {
-    const schoolyearId = await getSchoolyearId(session);
+    const schoolyearId = await getSchoolyearId(session, targetYear);
     log('schoolyearId:', schoolyearId);
 
     if (schoolyearId === -1) {

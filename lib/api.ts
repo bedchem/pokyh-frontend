@@ -147,10 +147,17 @@ export function getMessagesStale(): unknown | undefined {
   return pcGetStale('/api/webuntis/messages');
 }
 
-export function getAbsencesStale(): unknown | undefined {
-  const start = schoolYearStart();
-  const end = schoolYearEnd();
+export function getAbsencesStale(year?: number): unknown | undefined {
+  const start = year ? `${year}0901` : schoolYearStart();
+  const end = year ? `${year + 1}0630` : schoolYearEnd();
   return pcGetStale(`/api/webuntis/absences?startDate=${start}&endDate=${end}`);
+}
+
+export function getClassregEventsStale(year?: number): unknown | undefined {
+  const url = year
+    ? `/api/webuntis/classregevents?year=${year}`
+    : '/api/webuntis/classregevents';
+  return pcGetStale(url);
 }
 
 export function isTimetableStale(date?: string): boolean {
@@ -164,13 +171,14 @@ export function fetchTimetable(date?: string) {
   return apiFetchCached(`/api/webuntis/timetable?date=${d}`);
 }
 
-export function fetchGrades() {
-  return apiFetchCached('/api/webuntis/grades');
+export function fetchGrades(year?: number) {
+  const url = year ? `/api/webuntis/grades?year=${year}` : '/api/webuntis/grades';
+  return apiFetchCached(url);
 }
 
-export function fetchAbsences() {
-  const start = schoolYearStart();
-  const end = schoolYearEnd();
+export function fetchAbsences(year?: number) {
+  const start = year ? `${year}0901` : schoolYearStart();
+  const end = year ? `${year + 1}0630` : schoolYearEnd();
   return apiFetchCached(`/api/webuntis/absences?startDate=${start}&endDate=${end}`);
 }
 
@@ -208,8 +216,11 @@ export function fetchHomework() {
   return apiFetch(`/api/webuntis/homework?startDate=${start}&endDate=${end}`);
 }
 
-export function fetchClassregEvents() {
-  return apiFetchCached('/api/webuntis/classregevents');
+export function fetchClassregEvents(year?: number) {
+  const url = year
+    ? `/api/webuntis/classregevents?year=${year}`
+    : '/api/webuntis/classregevents';
+  return apiFetchCached(url);
 }
 
 export function fetchClassServices() {

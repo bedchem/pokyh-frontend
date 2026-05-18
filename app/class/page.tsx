@@ -15,6 +15,7 @@ import {
   fetchClassServices,
   fetchExams,
   fetchHomeworkRange,
+  getClassregEventsStale,
 } from '@/lib/api';
 import type { AbsenceEntry } from '@/lib/types';
 
@@ -54,6 +55,7 @@ type HomeworkRecord = {
 
 type ClassregEvent = {
   id: number;
+  elementName: string;
   subjectName: string;
   categoryName: string;
   text: string;
@@ -189,7 +191,23 @@ export default function ClassPage() {
   const [hwThis,          setHwThis]          = useState<HomeworkRecord[]>([]);
   const [hwNext,          setHwNext]          = useState<HomeworkRecord[]>([]);
   const [hwLessons,       setHwLessons]       = useState<HomeworkLesson[]>([]);
-  const [recentEvents,    setRecentEvents]    = useState<ClassregEvent[]>([]);
+  const [recentEvents,    setRecentEvents]    = useState<ClassregEvent[]>(() => {
+    const stale = getClassregEventsStale();
+    if (!stale) return [];
+    const r = stale as Record<string, unknown>;
+    const data = (r?.data ?? r) as Record<string, unknown>;
+    const rows = data?.rows as ClassregEvent[] | undefined;
+    const all = Array.isArray(rows) ? rows : [];
+    const cutoff = (() => {
+      const d = new Date();
+      d.setMonth(d.getMonth() - 3);
+      return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+    })();
+    return all
+      .filter((e) => e.createDate >= cutoff)
+      .sort((a, b) => b.createDate - a.createDate || b.createTime - a.createTime)
+      .slice(0, 10);
+  });
   const [loading,         setLoading]         = useState(true);
   const [error,           setError]           = useState('');
 
@@ -324,13 +342,14 @@ export default function ClassPage() {
                           <div className="ev-content">
                             <span className="ev-subject">{ev.subjectName}</span>
                             <span className="ev-text">{ev.text || ev.eventReasonName}</span>
-                            <span className="ev-meta">{ev.creatorName}</span>
+                            <span className="ev-meta">{ev.creatorName} · {fmtTime(ev.createTime)}</span>
                           </div>
                           <span
-                            className="ev-badge"
+                            className="ev-cat-badge"
                             style={{ color: categoryColor(ev.categoryName), background: categoryBg(ev.categoryName) }}
                           >
-                            {ev.categoryName}
+                            <span className="ev-cat-group">{ev.categoryName}</span>
+                            <span className="ev-cat-reason">{ev.eventReasonName}</span>
                           </span>
                         </div>
                       );
@@ -810,33 +829,46 @@ export default function ClassPage() {
             font-size: 13.5px;
             font-weight: 600;
             color: var(--g-ink);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            white-space: normal;
+            word-break: break-word;
           }
 
           .ev-text {
             font-size: 12px;
             color: var(--g-muted);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            white-space: normal;
+            word-break: break-word;
           }
 
           .ev-meta {
             font-size: 11px;
             color: var(--g-muted-2);
+            white-space: normal;
+            word-break: break-word;
           }
 
-          .ev-badge {
+          .ev-cat-badge {
             display: inline-flex;
-            align-items: center;
-            font-size: 11px;
-            font-weight: 600;
-            padding: 3px 9px;
-            border-radius: 999px;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1px;
+            padding: 5px 11px;
+            border-radius: 12px;
             white-space: nowrap;
             flex-shrink: 0;
+          }
+
+          .ev-cat-group {
+            font-size: 10px;
+            font-weight: 500;
+            opacity: 0.6;
+            line-height: 1;
+          }
+
+          .ev-cat-reason {
+            font-size: 12.5px;
+            font-weight: 700;
+            line-height: 1.2;
           }
 
           /* ── Week labels (Prüfungen / Hausaufgaben) ── */
@@ -896,7 +928,7 @@ export default function ClassPage() {
             .ev-row {
               grid-template-columns: 36px 1fr;
             }
-            .ev-badge {
+            .ev-cat-badge {
               display: none;
             }
           }
