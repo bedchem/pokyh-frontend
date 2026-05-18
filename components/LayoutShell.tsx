@@ -37,7 +37,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
   if (isLanding) return <>{children}</>;
 
   return (
-    <div className="flex h-dvh overflow-hidden" style={{ background: 'var(--app-bg)' }}>
+    <div className="flex h-dvh overflow-hidden">
       <Sidebar />
       <div className="flex flex-col flex-1 overflow-hidden min-w-0 min-h-0">
         <DashboardTopbar />

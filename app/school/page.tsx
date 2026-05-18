@@ -50,7 +50,6 @@ export default function SchoolPage() {
     <AuthGuard>
       <div
         className="h-full flex flex-col overflow-hidden"
-        style={{ background: 'var(--app-bg)' }}
       >
         {/* Header */}
         <div className="px-5 pt-5 pb-5 fade-in flex-shrink-0">

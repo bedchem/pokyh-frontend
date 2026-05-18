@@ -58,7 +58,7 @@ export default function LandingNav() {
             <label
               htmlFor="lp-theme-toggle"
               className="lp-theme-toggle"
-              onClick={(e) => { e.preventDefault(); toggleWithRipple(e, resolved === 'dark' ? 'light' : 'dark'); }}
+              onClick={(e) => { e.preventDefault(); toggleWithRipple(e); }}
             >
               <div className="lp-theme-toggle-icon lp-theme-toggle-icon--moon">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">

@@ -158,7 +158,7 @@ export default function Sidebar() {
           onClick={closeMobile}
         />
         <button
-          onClick={(e) => toggleWithRipple(e, resolved === 'dark' ? 'light' : 'dark')}
+          onClick={(e) => toggleWithRipple(e)}
           className="group relative flex items-center gap-3.5 rounded-xl px-3.5 py-3 w-full transition-all duration-150"
           style={{
             background: 'color-mix(in srgb, var(--app-text-primary) 8%, transparent)',

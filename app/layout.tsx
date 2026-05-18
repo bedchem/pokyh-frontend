@@ -281,7 +281,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </Script>
         </>
       )}
-      <body>
+      <body suppressHydrationWarning={true}>
         <ThemeProvider>
           <SessionProvider>
             <AppProvider>

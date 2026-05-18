@@ -176,7 +176,7 @@
 
 /* ── Hero ── */
 .lp-hero {
-  background: var(--app-bg); position: relative;
+  background: transparent; position: relative;
   overflow: hidden; text-align: center;
 }
 /* Full-viewport text zone — phone is always below the fold */
@@ -416,7 +416,7 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
 }
 
 /* ── Tiles ── */
-.lp-tiles-section { padding: 12px 22px; background: var(--app-bg); }
+.lp-tiles-section { padding: 12px 22px; background: transparent; }
 .lp-tiles {
   max-width: 1200px; margin: 0 auto;
   display: grid; grid-template-columns: repeat(2,1fr); gap: 12px;
@@ -745,7 +745,7 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
 .lp-rem-creator { font-size: 11px; color: var(--app-text-tertiary); margin-top: 2px; }
 
 /* ── Compare grid ── */
-.lp-compare { padding: 100px 22px; background: var(--app-bg); }
+.lp-compare { padding: 100px 22px; background: transparent; }
 .lp-compare-grid {
   max-width: 1200px; margin: 0 auto;
   display: grid; grid-template-columns: repeat(4,1fr); gap: 12px;
@@ -761,7 +761,7 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
 .lp-compare-sub { font-size: 13px; color: var(--app-text-secondary); line-height: 1.42; }
 
 /* ── Steps ── */
-.lp-steps { padding: 120px 22px; background: var(--app-bg); text-align: center; }
+.lp-steps { padding: 120px 22px; background: transparent; text-align: center; }
 .lp-steps-head { margin-bottom: 64px; }
 .lp-steps-grid {
   max-width: 980px; margin: 0 auto;
@@ -774,7 +774,7 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
 .lp-step-body strong { color: var(--app-text-primary); font-weight: 500; }
 
 /* ── Makers ── */
-.lp-makers { padding: 120px 22px; background: var(--app-bg); text-align: center; border-top: 0.5px solid var(--app-border); }
+.lp-makers { padding: 120px 22px; background: transparent; text-align: center; border-top: 0.5px solid var(--app-border); }
 .lp-makers-head { margin-bottom: 56px; }
 .lp-makers-grid {
   max-width: 720px; margin: 0 auto;
@@ -796,7 +796,7 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
 .lp-maker-handle { font-size: 13px; color: var(--app-text-tertiary); display: flex; align-items: center; gap: 5px; }
 
 /* ── CTA ── */
-.lp-cta { padding: 120px 22px 100px; background: var(--app-bg); text-align: center; }
+.lp-cta { padding: 120px 22px 100px; background: transparent; text-align: center; }
 
 /* ── Typography ── */
 .lp-h2 {
@@ -1063,7 +1063,7 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
 .lp-mobile-nav-sep { height: 0.5px; background: var(--lp-nav-border); margin: 6px 8px; }
 
 /* ── Inner page layout ── */
-.lp-page { background: var(--app-bg); min-height: 100vh; }
+.lp-page { background: transparent; min-height: 100vh; }
 .lp-page-hero {
   padding: 80px 22px 56px; text-align: center;
   max-width: 820px; margin: 0 auto;

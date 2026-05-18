@@ -533,7 +533,7 @@ export default function MensaPage() {
 
   return (
     <AuthGuard>
-      <div className="h-full flex flex-col overflow-hidden" style={{ background: 'var(--app-bg)' }}>
+      <div className="h-full flex flex-col overflow-hidden">
         {/* Header */}
         <div className="px-5 pt-5 pb-4 fade-in flex-shrink-0">
           <h1 className="text-[28px] font-bold tracking-tight" style={{ color: 'var(--app-text-primary)' }}>

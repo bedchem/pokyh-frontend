@@ -372,7 +372,6 @@ export default function AbsencesPage() {
       <UntisGuard>
       <div
         className="h-full flex flex-col overflow-hidden"
-        style={{ background: 'var(--app-bg)' }}
       >
         {/* Nav */}
         <div className="px-5 pt-4 pb-4 flex items-center gap-3 fade-in flex-shrink-0">

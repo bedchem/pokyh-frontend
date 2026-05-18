@@ -162,7 +162,7 @@ export default function LoginForm() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-dvh flex" style={{ background: 'var(--app-bg)' }}>
+    <div className="min-h-dvh flex">
 
       {/* ── LEFT PANEL — desktop only ────────────────────────────────────── */}
       <aside

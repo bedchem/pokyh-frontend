@@ -119,7 +119,7 @@ export default function TodosPage() {
 
   return (
     <AuthGuard>
-      <div className="h-full flex flex-col overflow-hidden" style={{ background: 'var(--app-bg)' }}>
+      <div className="h-full flex flex-col overflow-hidden">
         {/* Header */}
         <div className="px-5 pt-4 pb-3 flex items-center gap-3 fade-in flex-shrink-0">
           <h1 className="flex-1 text-[28px] font-bold tracking-tight" style={{ color: 'var(--app-text-primary)' }}>

@@ -120,7 +120,6 @@ export default function ProfilePage() {
     <AuthGuard>
       <div
         className="h-full flex flex-col overflow-hidden"
-        style={{ background: 'var(--app-bg)' }}
       >
         {/* Nav bar */}
         <div className="px-5 pt-4 pb-3 flex items-center gap-3 fade-in flex-shrink-0">

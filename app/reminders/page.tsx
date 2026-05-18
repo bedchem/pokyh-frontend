@@ -152,7 +152,7 @@ export default function RemindersPage() {
 
   return (
     <AuthGuard>
-      <div className="h-full flex flex-col overflow-hidden" style={{ background: 'var(--app-bg)' }}>
+      <div className="h-full flex flex-col overflow-hidden">
         {/* Header */}
         <div className="px-5 pt-4 pb-3 fade-in flex-shrink-0">
           <div className="flex items-center gap-3">

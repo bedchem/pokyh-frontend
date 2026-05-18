@@ -51,7 +51,7 @@ export default async function LegalPage({
   const { view } = await searchParams;
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--app-bg)' }}>
+    <div className="min-h-screen">
       <div className="max-w-2xl mx-auto px-4 py-10">
         {view === 'impressum' ? (
           <ImpressumView />
