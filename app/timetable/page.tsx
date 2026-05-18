@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   X,
   FileText,
   ArrowLeftRight,
@@ -27,6 +28,10 @@ import { subjectColor } from '@/lib/colors';
 import type { TimetableEntry } from '@/lib/types';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
+
+const _nowDate = new Date();
+const CURRENT_SCHOOL_YEAR = _nowDate.getMonth() >= 8 ? _nowDate.getFullYear() : _nowDate.getFullYear() - 1;
+const AVAILABLE_YEARS = Array.from({ length: 4 }, (_, i) => CURRENT_SCHOOL_YEAR - i);
 
 const DAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 const DAY_LABELS_LONG = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
@@ -1065,8 +1070,10 @@ function TimetableContent() {
     return Math.round((targetMonday.getTime() - todayMonday.getTime()) / (7 * 24 * 60 * 60 * 1000));
   });
   const [direction, setDirection] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   const navigateWeek = useCallback((by: number) => {
+    setIsTransitioning(true);
     setDirection(by);
     setWeekOffset(o => o + by);
   }, []);
@@ -1087,6 +1094,10 @@ const [autoOpenId] = useState<number | null>(() => {
   return openStr ? parseInt(openStr, 10) : null;
 });
   const autoOpenedRef = useRef(false);
+
+  const [selectedYear, setSelectedYear] = useState(CURRENT_SCHOOL_YEAR);
+  const [isYearOpen, setIsYearOpen] = useState(false);
+  const yearRef = useRef<HTMLDivElement>(null);
 
   const cacheRef       = useRef<Record<number, TimetableEntry[]>>({});
   const preloadRef     = useRef<Record<number, boolean>>({});
@@ -1171,6 +1182,7 @@ const [autoOpenId] = useState<number | null>(() => {
         navigateWeek(1);
       } else if (e.key === 't' || e.key === 'T' || e.key === 'Home') {
         e.preventDefault();
+        setIsTransitioning(true);
         setDirection(weekOffset > 0 ? -1 : 1);
         setWeekOffset(0);
       }
@@ -1178,6 +1190,28 @@ const [autoOpenId] = useState<number | null>(() => {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [activeSlot, navigateWeek, weekOffset]);
+
+  useEffect(() => {
+    function onDown(e: MouseEvent) {
+      if (yearRef.current && !yearRef.current.contains(e.target as Node)) setIsYearOpen(false);
+    }
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, []);
+
+  function jumpToYear(year: number) {
+    const yearDiff = year - selectedYear;
+    const currentMonday = startOfWeek(addDays(new Date(), weekOffset * 7), { weekStartsOn: 1 });
+    const targetDate = new Date(currentMonday.getFullYear() + yearDiff, currentMonday.getMonth(), currentMonday.getDate());
+    const targetMonday = startOfWeek(targetDate, { weekStartsOn: 1 });
+    const todayMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const offset = Math.round((targetMonday.getTime() - todayMonday.getTime()) / (7 * 24 * 60 * 60 * 1000));
+    setIsTransitioning(true);
+    setDirection(yearDiff > 0 ? 1 : -1);
+    setWeekOffset(offset);
+    setSelectedYear(year);
+    setIsYearOpen(false);
+  }
 
   // ── Load ────────────────────────────────────────────────────────────────────
 
@@ -1335,26 +1369,63 @@ const [autoOpenId] = useState<number | null>(() => {
         <div className="tt-host">
           <main className="tt-page">
             <header className="tt-head fade-in">
-              <div className="tt-head-text hidden md:block">
-                <h1 className="tt-title">
-                  {format(monday, 'd. MMM', { locale: de })} – {format(addDays(monday, 5), 'd. MMM yyyy', { locale: de })}
-                </h1>
-                <div className="tt-sub-row">
-                  <p className="tt-sub">
-                    KW {weekNumber(monday)}
-                    {isCurrentWeek && <span className="tt-pill-now">· Diese Woche</span>}
-                  </p>
-                  {!isCurrentWeek && (
-                    <button
-                      type="button"
-                      className="tt-today"
-                      onClick={() => {
-                        setDirection(weekOffset > 0 ? -1 : 1);
-                        setWeekOffset(0);
+              <div className="tt-head-top">
+                <div className="tt-head-text">
+                  <h1 className="tt-title">
+                    {format(monday, 'd. MMM', { locale: de })} – {format(addDays(monday, 5), 'd. MMM yyyy', { locale: de })}
+                  </h1>
+                  <div className="tt-sub-row">
+                    <p className="tt-sub">
+                      KW {weekNumber(monday)}
+                      {isCurrentWeek && <span className="tt-pill-now">· Diese Woche</span>}
+                    </p>
+                    {!isCurrentWeek && (
+                      <button
+                        type="button"
+                        className="tt-today"
+                        onClick={() => {
+                          setIsTransitioning(true);
+                          setDirection(weekOffset > 0 ? -1 : 1);
+                          setWeekOffset(0);
+                        }}
+                      >
+                        Heute
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="custom-select-container" ref={yearRef}>
+                  <button
+                    className={`sort-select year-btn${isYearOpen ? ' open' : ''}`}
+                    onClick={() => setIsYearOpen(!isYearOpen)}
+                    type="button"
+                    aria-haspopup="listbox"
+                    aria-expanded={isYearOpen}
+                  >
+                    {selectedYear} / {selectedYear + 1}
+                    <ChevronDown
+                      size={14}
+                      style={{
+                        transform: isYearOpen ? 'rotate(180deg)' : 'none',
+                        transition: 'transform 0.2s',
                       }}
-                    >
-                      Heute
-                    </button>
+                    />
+                  </button>
+                  {isYearOpen && (
+                    <ul className="custom-select-dropdown fade-in" role="listbox">
+                      {AVAILABLE_YEARS.map((y) => (
+                        <li
+                          key={y}
+                          role="option"
+                          aria-selected={selectedYear === y}
+                          className={`custom-select-item${selectedYear === y ? ' selected' : ''}`}
+                          onClick={() => jumpToYear(y)}
+                        >
+                          {y} / {y + 1}
+                        </li>
+                      ))}
+                    </ul>
                   )}
                 </div>
               </div>
@@ -1397,16 +1468,19 @@ const [autoOpenId] = useState<number | null>(() => {
                   animate="center"
                   exit="exit"
                   transition={swipeTransition}
-                  drag="x"
+                  drag={isTransitioning ? false : 'x'}
                   dragConstraints={{ left: 0, right: 0 }}
                   dragElastic={0.9}
-                  onDragEnd={(e, { offset, velocity }) => {
+                  onDragEnd={(e, { offset }) => {
                     const swipe = offset.x;
                     if (swipe < -50) {
                       navigateWeek(1);
                     } else if (swipe > 50) {
                       navigateWeek(-1);
                     }
+                  }}
+                  onAnimationComplete={(def) => {
+                    if (def === 'center') setIsTransitioning(false);
                   }}
                   className="tt-card-inner"
                 >
@@ -1459,6 +1533,7 @@ const [autoOpenId] = useState<number | null>(() => {
                     <h2>Ferienwoche</h2>
                     <p>In dieser Woche ist kein Unterricht — KW {weekNumber(monday)}</p>
                     <button type="button" className="tt-today is-cta" onClick={() => {
+                        setIsTransitioning(true);
                         setDirection(weekOffset > 0 ? -1 : 1);
                         setWeekOffset(0);
                     }}>
@@ -1644,13 +1719,23 @@ const [autoOpenId] = useState<number | null>(() => {
           /* ── Header ── */
           .tt-head {
             display: flex;
-            align-items: flex-end;
+            flex-direction: column;
+            gap: 12px;
+            position: relative;
+            z-index: 10;
+          }
+          .tt-head-top {
+            display: flex;
+            align-items: flex-start;
             justify-content: space-between;
             gap: 16px;
-            flex-wrap: wrap;
+          }
+          .tt-head-text {
+            flex: 1;
+            min-width: 0;
           }
           .tt-title {
-            font-size: 22px;
+            font-size: 20px;
             font-weight: 700;
             letter-spacing: -0.02em;
             margin: 0;
@@ -1680,10 +1765,9 @@ const [autoOpenId] = useState<number | null>(() => {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 4px;
-            min-width: 100%;
           }
           @media (min-width: 560px) {
-            .tt-head-stats { min-width: auto; gap: 10px; }
+            .tt-head-stats { gap: 10px; }
           }
           .tt-stat {
             display: flex;
@@ -2104,6 +2188,69 @@ const [autoOpenId] = useState<number | null>(() => {
             height: 10px;
             background: var(--app-border);
             flex-shrink: 0;
+          }
+
+          /* ── Year selector dropdown ── */
+          .custom-select-container {
+            position: relative;
+          }
+          .year-btn {
+            width: 140px;
+          }
+          .sort-select {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--app-text-primary);
+            background: var(--app-surface);
+            border: 1px solid var(--app-border);
+            border-radius: 8px;
+            padding: 6px 12px;
+            cursor: pointer;
+            transition: border-color 0.15s, background-color 0.15s;
+          }
+          .sort-select:hover {
+            background: color-mix(in srgb, var(--app-bg) 50%, transparent);
+            border-color: color-mix(in srgb, var(--app-border) 70%, var(--app-text-tertiary));
+          }
+          .sort-select:focus,
+          .sort-select.open {
+            outline: none;
+            border-color: color-mix(in srgb, var(--app-border) 70%, var(--app-text-tertiary));
+          }
+          .custom-select-dropdown {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            width: 140px;
+            background: var(--app-surface);
+            border: 1px solid color-mix(in srgb, var(--app-border) 70%, var(--app-text-tertiary));
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            z-index: 50;
+            padding: 6px;
+            list-style: none;
+            margin: 0;
+          }
+          .custom-select-item {
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--app-text-primary);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+          }
+          .custom-select-item:hover {
+            background: var(--app-bg);
+          }
+          .custom-select-item.selected {
+            background: var(--accent);
+            color: #fff;
+            font-weight: 600;
           }
         `}</style>
       </div>

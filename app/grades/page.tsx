@@ -51,6 +51,10 @@ type RecentItem = {
 
 type SortMode = 'name' | 'avg-desc' | 'avg-asc' | 'recent';
 
+const _now = new Date();
+const CURRENT_SCHOOL_YEAR = _now.getMonth() >= 8 ? _now.getFullYear() : _now.getFullYear() - 1;
+const AVAILABLE_YEARS = Array.from({ length: 4 }, (_, i) => CURRENT_SCHOOL_YEAR - i);
+
 export default function GradesPage() {
   const router = useRouter();
   const [subjects, setSubjects] = useState<SubjectGrades[]>([]);
@@ -61,8 +65,10 @@ export default function GradesPage() {
   const [hoverDonutGrade, setHoverDonutGrade] = useState<number | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>('name');
   const [isSortOpen, setIsSortOpen] = useState(false);
-  const cacheRef = useRef<SubjectGrades[] | null>(null);
+  const [selectedYear, setSelectedYear] = useState(CURRENT_SCHOOL_YEAR);
+  const [isYearOpen, setIsYearOpen] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
+  const yearRef = useRef<HTMLDivElement>(null);
 
   const SORT_OPTIONS: { value: SortMode; label: string }[] = [
     { value: 'name', label: 'Name' },
@@ -76,24 +82,20 @@ export default function GradesPage() {
       if (sortRef.current && !sortRef.current.contains(event.target as Node)) {
         setIsSortOpen(false);
       }
+      if (yearRef.current && !yearRef.current.contains(event.target as Node)) {
+        setIsYearOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const load = useCallback(async () => {
-    if (cacheRef.current) {
-      setSubjects(cacheRef.current);
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
     setError('');
     try {
-      const res = await fetchGrades();
+      const res = await fetchGrades(selectedYear);
       const parsed = parseGrades(res);
-      cacheRef.current = parsed;
       setSubjects(parsed);
     } catch (e: unknown) {
       if (e instanceof Error && e.message === 'session_expired') {
@@ -104,7 +106,7 @@ export default function GradesPage() {
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [router, selectedYear]);
 
   useEffect(() => {
     load();
@@ -147,7 +149,7 @@ export default function GradesPage() {
       : 0;
 
     const today = new Date();
-    const schoolYearStart = today.getMonth() >= 7 ? today.getFullYear() : today.getFullYear() - 1;
+    const schoolYearStart = selectedYear;
 
     // Vormonat: Gesamtdurchschnitt aller Noten OHNE die letzten 4 Wochen
     const oneMonthAgo = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
@@ -283,7 +285,7 @@ export default function GradesPage() {
       donutSegs,
       schoolYearLabel: `${schoolYearStart} / ${schoolYearStart + 1}`,
     };
-  }, [subjects]);
+  }, [subjects, selectedYear]);
 
   const filteredSubjects = useMemo(() => {
     const withMeta = subjects.map((s) => {
@@ -356,20 +358,54 @@ export default function GradesPage() {
           <div className="grades-state">
             <ErrorView message={error} onRetry={load} />
           </div>
-        ) : subjects.length === 0 ? (
-          <div className="grades-state">
-            <EmptyView icon={<BarChart2 size={56} color="var(--app-text-tertiary)" />} title="Keine Noten" subtitle="Es wurden noch keine Noten erfasst." />
-          </div>
         ) : (
           <main className="grades-dashboard">
             <div className="page-head">
               <div>
                 <h1 className="page-title">Schuljahr {dashboard.schoolYearLabel}</h1>
                 <div className="page-sub">
-                  Stand {dashboard.latestGradeDate ? fmtUntisDateLong(dashboard.latestGradeDate) : '—'} · {dashboard.subjectCount} Fächer · {dashboard.allCount} Noten erfasst
+                  {subjects.length > 0
+                    ? `Stand ${dashboard.latestGradeDate ? fmtUntisDateLong(dashboard.latestGradeDate) : '—'} · ${dashboard.subjectCount} Fächer · ${dashboard.allCount} Noten erfasst`
+                    : 'Keine Noten für dieses Schuljahr'}
                 </div>
               </div>
+              <div className="custom-select-container" ref={yearRef}>
+                <button
+                  className={`sort-select year-select-btn ${isYearOpen ? 'open' : ''}`}
+                  onClick={() => setIsYearOpen(!isYearOpen)}
+                  type="button"
+                  aria-haspopup="listbox"
+                  aria-expanded={isYearOpen}
+                >
+                  {dashboard.schoolYearLabel}
+                  <ChevronDown
+                    size={14}
+                    style={{ transform: isYearOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}
+                  />
+                </button>
+                {isYearOpen && (
+                  <ul className="custom-select-dropdown fade-in" role="listbox">
+                    {AVAILABLE_YEARS.map((y) => (
+                      <li
+                        key={y}
+                        role="option"
+                        aria-selected={selectedYear === y}
+                        className={`custom-select-item ${selectedYear === y ? 'selected' : ''}`}
+                        onClick={() => { setSelectedYear(y); setIsYearOpen(false); }}
+                      >
+                        {y} / {y + 1}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
+
+            {subjects.length === 0 ? (
+              <div className="grades-empty">
+                <EmptyView icon={<BarChart2 size={56} color="var(--app-text-tertiary)" />} title="Keine Noten" subtitle="Für dieses Schuljahr wurden keine Noten gefunden." />
+              </div>
+            ) : <>
 
             <section className="kpis">
               <div className="card">
@@ -659,6 +695,7 @@ export default function GradesPage() {
                 )}
               </div>
             </section>
+            </>}
           </main>
         )}
       </div>
@@ -695,6 +732,16 @@ export default function GradesPage() {
           display: grid;
           place-items: center;
           padding: 24px;
+        }
+
+        .grades-empty {
+          display: flex;
+          justify-content: center;
+          padding: 60px 24px;
+        }
+
+        .year-select-btn {
+          width: 140px;
         }
 
         .grades-dashboard {

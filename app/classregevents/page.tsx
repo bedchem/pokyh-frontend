@@ -8,7 +8,7 @@ import UntisGuard from '@/components/UntisGuard';
 import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
 import EmptyView from '@/components/ui/EmptyView';
-import { fetchClassregEvents } from '@/lib/api';
+import { fetchClassregEvents, getClassregEventsStale } from '@/lib/api';
 
 type ClassregEvent = {
   id: number;
@@ -25,6 +25,10 @@ type ClassregEvent = {
 
 type FilterMode = 'all' | '1m' | '3m';
 type SortMode = 'date-desc' | 'date-asc' | 'subject' | 'category';
+
+const _now = new Date();
+const CURRENT_SCHOOL_YEAR = _now.getMonth() >= 8 ? _now.getFullYear() : _now.getFullYear() - 1;
+const AVAILABLE_YEARS = Array.from({ length: 4 }, (_, i) => CURRENT_SCHOOL_YEAR - i);
 
 const MONTH_SHORT = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
 
@@ -85,13 +89,19 @@ function parseRows(raw: unknown): ClassregEvent[] {
 
 export default function ClassregEventsPage() {
   const router = useRouter();
-  const [events, setEvents] = useState<ClassregEvent[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [events, setEvents] = useState<ClassregEvent[]>(() => {
+    const stale = getClassregEventsStale(CURRENT_SCHOOL_YEAR);
+    return stale ? parseRows(stale) : [];
+  });
+  const [loading, setLoading] = useState(() => !getClassregEventsStale(CURRENT_SCHOOL_YEAR));
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<FilterMode>('all');
   const [sortMode, setSortMode] = useState<SortMode>('date-desc');
   const [isSortOpen, setIsSortOpen] = useState(false);
+  const [selectedYear, setSelectedYear] = useState(CURRENT_SCHOOL_YEAR);
+  const [isYearOpen, setIsYearOpen] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
+  const yearRef = useRef<HTMLDivElement>(null);
 
   const SORT_OPTIONS: { value: SortMode; label: string }[] = [
     { value: 'date-desc', label: 'Datum ↓' },
@@ -111,16 +121,19 @@ export default function ClassregEventsPage() {
       if (sortRef.current && !sortRef.current.contains(event.target as Node)) {
         setIsSortOpen(false);
       }
+      if (yearRef.current && !yearRef.current.contains(event.target as Node)) {
+        setIsYearOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    if (!getClassregEventsStale(selectedYear)) setLoading(true);
     setError('');
     try {
-      const res = await fetchClassregEvents();
+      const res = await fetchClassregEvents(selectedYear);
       setEvents(parseRows(res));
     } catch (e: unknown) {
       if (e instanceof Error && e.message === 'session_expired') {
@@ -131,15 +144,13 @@ export default function ClassregEventsPage() {
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [router, selectedYear]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const now = new Date();
-  const schoolYear = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
-  const schoolYearLabel = `${schoolYear} / ${schoolYear + 1}`;
+  const schoolYearLabel = `${selectedYear} / ${selectedYear + 1}`;
 
   const stats = useMemo(() => {
     const total = events.length;
@@ -187,14 +198,6 @@ export default function ClassregEventsPage() {
             <div className="cr-state">
               <ErrorView message={error} onRetry={load} />
             </div>
-          ) : events.length === 0 ? (
-            <div className="cr-state">
-              <EmptyView
-                icon={<BookOpen size={56} color="var(--app-text-tertiary)" />}
-                title="Keine Einträge"
-                subtitle="Es wurden noch keine Klassenbucheinträge erfasst."
-              />
-            </div>
           ) : (
             <main className="cr-dashboard">
               <div className="page-head">
@@ -205,7 +208,54 @@ export default function ClassregEventsPage() {
                     {stats.latest ? ` · Stand ${fmtDateLong(stats.latest)}` : ''}
                   </div>
                 </div>
+                <div className="custom-select-container" ref={yearRef}>
+                  <button
+                    className={`sort-select year-btn ${isYearOpen ? 'open' : ''}`}
+                    onClick={() => setIsYearOpen(!isYearOpen)}
+                    type="button"
+                    aria-haspopup="listbox"
+                    aria-expanded={isYearOpen}
+                  >
+                    {schoolYearLabel}
+                    <ChevronDown
+                      size={14}
+                      className="sort-arrow"
+                      style={{
+                        transform: isYearOpen ? 'rotate(180deg)' : 'none',
+                        transition: 'transform 0.2s',
+                      }}
+                    />
+                  </button>
+                  {isYearOpen && (
+                    <ul className="custom-select-dropdown fade-in" role="listbox">
+                      {AVAILABLE_YEARS.map((y) => (
+                        <li
+                          key={y}
+                          role="option"
+                          aria-selected={selectedYear === y}
+                          className={`custom-select-item ${selectedYear === y ? 'selected' : ''}`}
+                          onClick={() => {
+                            setSelectedYear(y);
+                            setIsYearOpen(false);
+                          }}
+                        >
+                          {y} / {y + 1}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </div>
+
+              {events.length === 0 ? (
+                <div className="cr-empty">
+                  <EmptyView
+                    icon={<BookOpen size={56} color="var(--app-text-tertiary)" />}
+                    title="Keine Einträge"
+                    subtitle="Für dieses Schuljahr wurden keine Klassenbucheinträge gefunden."
+                  />
+                </div>
+              ) : <>
 
               <section className="kpis">
                 <div className="card">
@@ -325,13 +375,14 @@ export default function ClassregEventsPage() {
                           </div>
                           <div className="badge-col">
                             <span
-                              className="category-badge"
+                              className="cat-badge"
                               style={{
                                 color: categoryColor(ev.categoryName),
                                 background: categoryBg(ev.categoryName),
                               }}
                             >
-                              {ev.categoryName}
+                              <span className="cat-badge-group">{ev.categoryName}</span>
+                              <span className="cat-badge-reason">{ev.eventReasonName}</span>
                             </span>
                           </div>
                         </div>
@@ -340,6 +391,7 @@ export default function ClassregEventsPage() {
                   )}
                 </div>
               </section>
+              </>}
             </main>
           )}
         </div>
@@ -369,6 +421,12 @@ export default function ClassregEventsPage() {
             display: grid;
             place-items: center;
             padding: 24px;
+          }
+
+          .cr-empty {
+            display: flex;
+            justify-content: center;
+            padding: 60px 24px;
           }
 
           .cr-dashboard {
@@ -530,6 +588,10 @@ export default function ClassregEventsPage() {
             position: relative;
           }
 
+          .year-btn {
+            width: 140px;
+          }
+
           .sort-select {
             display: flex;
             align-items: center;
@@ -667,25 +729,22 @@ export default function ClassregEventsPage() {
             font-weight: 600;
             letter-spacing: -0.01em;
             color: var(--g-ink);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            white-space: normal;
+            word-break: break-word;
           }
 
           .entry-text {
             font-size: 13px;
             color: var(--g-muted);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            white-space: normal;
+            word-break: break-word;
           }
 
           .entry-meta {
             font-size: 11.5px;
             color: var(--g-muted-2);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            white-space: normal;
+            word-break: break-word;
           }
 
           .badge-col {
@@ -694,14 +753,27 @@ export default function ClassregEventsPage() {
             align-items: center;
           }
 
-          .category-badge {
+          .cat-badge {
             display: inline-flex;
-            align-items: center;
-            font-size: 11.5px;
-            font-weight: 600;
-            padding: 4px 9px;
-            border-radius: 999px;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1px;
+            padding: 5px 11px;
+            border-radius: 12px;
             white-space: nowrap;
+          }
+
+          .cat-badge-group {
+            font-size: 10px;
+            font-weight: 500;
+            opacity: 0.6;
+            line-height: 1;
+          }
+
+          .cat-badge-reason {
+            font-size: 12.5px;
+            font-weight: 700;
+            line-height: 1.2;
           }
 
           @media (max-width: 1200px) {

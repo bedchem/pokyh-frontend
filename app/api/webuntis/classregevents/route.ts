@@ -3,14 +3,17 @@ import { getServerSession, webUntisHeaders } from '@/lib/server-session';
 
 const BASE = process.env.WEBUNTIS_BASE_URL || 'https://lbs-brixen.webuntis.com/WebUntis';
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getServerSession();
   if (!session) {
     return NextResponse.json({ error: 'Nicht angemeldet.' }, { status: 401 });
   }
 
+  const { searchParams } = new URL(request.url);
+  const yearParam = searchParams.get('year');
   const now = new Date();
-  const schoolYear = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+  const currentSchoolYear = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+  const schoolYear = yearParam ? parseInt(yearParam, 10) : currentSchoolYear;
   const startDate = `${schoolYear}0908`;
   const endDate = `${schoolYear + 1}0612`;
 

@@ -1,14 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { ChevronLeft, CheckCircle, XCircle, UserX, Clock, ClockArrowUp } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ChevronLeft, ChevronDown, CheckCircle, XCircle, UserX, Clock, ClockArrowUp } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
 import UntisGuard from '@/components/UntisGuard';
 import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
 import EmptyView from '@/components/ui/EmptyView';
-import { fetchAbsences, fetchTimetable } from '@/lib/api';
+import { fetchAbsences, fetchTimetable, getAbsencesStale } from '@/lib/api';
 import type { AbsenceEntry } from '@/lib/types';
 
 // ─── Time helpers ─────────────────────────────────────────────────────────────
@@ -278,30 +278,45 @@ function groupByMonth(
   return result.sort((a, b) => b.key.localeCompare(a.key));
 }
 
+// ─── Module-level constants ───────────────────────────────────────────────────
+
+const _nowDate = new Date();
+const CURRENT_SCHOOL_YEAR = _nowDate.getMonth() >= 8 ? _nowDate.getFullYear() : _nowDate.getFullYear() - 1;
+const AVAILABLE_YEARS = Array.from({ length: 4 }, (_, i) => CURRENT_SCHOOL_YEAR - i);
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AbsencesPage() {
   const router = useRouter();
-  const [absences, setAbsences] = useState<AbsenceEntry[]>([]);
+  const [selectedYear, setSelectedYear] = useState(CURRENT_SCHOOL_YEAR);
+  const [isYearOpen, setIsYearOpen] = useState(false);
+  const yearRef = useRef<HTMLDivElement>(null);
+  const [absences, setAbsences] = useState<AbsenceEntry[]>(() => {
+    const stale = getAbsencesStale(CURRENT_SCHOOL_YEAR);
+    return stale ? parseAbsences(stale) : [];
+  });
   const [minutesMap, setMinutesMap] = useState<Map<number, number>>(new Map());
-  const [totalPossibleMins, setTotalPossibleMins] = useState(1);
-  const [loading, setLoading] = useState(true);
+  const [totalPossibleMins, setTotalPossibleMins] = useState(0);
+  const [loading, setLoading] = useState(() => !getAbsencesStale(CURRENT_SCHOOL_YEAR));
   const [error, setError] = useState('');
   const [exact, setExact] = useState(false);
 
   const fmt = (m: number) => exact ? formatMinutes(m) : roundHours(m);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    if (!getAbsencesStale(selectedYear)) setLoading(true);
     setError('');
     try {
-      const res = await fetchAbsences();
+      const res = await fetchAbsences(selectedYear);
       const parsed = parseAbsences(res);
       setAbsences(parsed);
 
+      // Compute school year date range for selected year
+      const sep = new Date(selectedYear, 8, 1); // Sept 1 of selected year
+      const schoolYearEndDate = new Date(selectedYear + 1, 5, 30); // June 30 of next year
+      const now = selectedYear === CURRENT_SCHOOL_YEAR ? new Date() : schoolYearEndDate;
+
       // Fetch timetable for absence weeks + all school-year weeks (for accurate rate denominator)
-      const now = new Date();
-      const sep = new Date(now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1, 8, 1);
       const allWeeks = Array.from(new Set([...getWeeksForAbsences(parsed), ...getWeeksForSchoolYear(now, sep)]));
       const weekResults = await Promise.allSettled(allWeeks.map((d) => fetchTimetable(d)));
 
@@ -350,11 +365,19 @@ export default function AbsencesPage() {
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [router, selectedYear]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    function onDown(e: MouseEvent) {
+      if (yearRef.current && !yearRef.current.contains(e.target as Node)) setIsYearOpen(false);
+    }
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, []);
 
   const getMin = (e: AbsenceEntry) => minutesMap.get(e.id) ?? e.hours * 60;
 
@@ -362,7 +385,7 @@ export default function AbsencesPage() {
   const excusedMinutes  = absences.filter((e) => e.isExcused).reduce((a, e) => a + getMin(e), 0);
   const unexcusedMinutes = totalMinutes - excusedMinutes;
 
-  const rate      = Math.min((totalMinutes / totalPossibleMins) * 100, 100);
+  const rate      = totalPossibleMins > 0 ? Math.min((totalMinutes / totalPossibleMins) * 100, 100) : 0;
   const rateColor = rate < 5 ? 'var(--tint)' : rate < 15 ? 'var(--warning)' : 'var(--danger)';
 
   const groups = groupByMonth(absences, minutesMap);
@@ -371,11 +394,11 @@ export default function AbsencesPage() {
     <AuthGuard>
       <UntisGuard>
       <div
-        className="h-full flex flex-col overflow-hidden"
+        className="h-full flex flex-col"
         style={{ background: 'var(--app-bg)' }}
       >
         {/* Nav */}
-        <div className="px-5 pt-4 pb-4 flex items-center gap-3 fade-in flex-shrink-0">
+        <div className="px-5 pt-4 pb-4 flex items-center gap-3 fade-in flex-shrink-0" style={{ position: 'relative', zIndex: 10 }}>
           <button
             onClick={() => router.back()}
             className="p-2 rounded-full press-scale"
@@ -389,6 +412,40 @@ export default function AbsencesPage() {
           >
             Abwesenheiten
           </h1>
+          {/* Year selector */}
+          <div className="custom-select-container" ref={yearRef}>
+            <button
+              className={`sort-select year-btn${isYearOpen ? ' open' : ''}`}
+              onClick={() => setIsYearOpen(!isYearOpen)}
+              type="button"
+              aria-haspopup="listbox"
+              aria-expanded={isYearOpen}
+            >
+              {selectedYear} / {selectedYear + 1}
+              <ChevronDown
+                size={14}
+                style={{
+                  transform: isYearOpen ? 'rotate(180deg)' : 'none',
+                  transition: 'transform 0.2s',
+                }}
+              />
+            </button>
+            {isYearOpen && (
+              <ul className="custom-select-dropdown fade-in" role="listbox">
+                {AVAILABLE_YEARS.map((y) => (
+                  <li
+                    key={y}
+                    role="option"
+                    aria-selected={selectedYear === y}
+                    className={`custom-select-item${selectedYear === y ? ' selected' : ''}`}
+                    onClick={() => { setSelectedYear(y); setIsYearOpen(false); }}
+                  >
+                    {y} / {y + 1}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           <button
             onClick={() => setExact((v) => !v)}
             className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium press-scale"
@@ -618,6 +675,69 @@ export default function AbsencesPage() {
           )}
         </div>
       </div>
+        <style jsx>{`
+          .custom-select-container {
+            position: relative;
+          }
+          .year-btn {
+            width: 140px;
+          }
+          .sort-select {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--app-text-primary);
+            background: var(--app-surface);
+            border: 1px solid var(--app-border);
+            border-radius: 8px;
+            padding: 6px 12px;
+            cursor: pointer;
+            transition: border-color 0.15s, background-color 0.15s;
+          }
+          .sort-select:hover {
+            background: color-mix(in srgb, var(--app-bg) 50%, transparent);
+            border-color: color-mix(in srgb, var(--app-border) 70%, var(--app-text-tertiary));
+          }
+          .sort-select:focus,
+          .sort-select.open {
+            outline: none;
+            border-color: color-mix(in srgb, var(--app-border) 70%, var(--app-text-tertiary));
+          }
+          .custom-select-dropdown {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            width: 140px;
+            background: var(--app-surface);
+            border: 1px solid color-mix(in srgb, var(--app-border) 70%, var(--app-text-tertiary));
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            z-index: 50;
+            padding: 6px;
+            list-style: none;
+            margin: 0;
+          }
+          .custom-select-item {
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--app-text-primary);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+          }
+          .custom-select-item:hover {
+            background: var(--app-bg);
+          }
+          .custom-select-item.selected {
+            background: var(--accent);
+            color: #fff;
+            font-weight: 600;
+          }
+        `}</style>
       </UntisGuard>
     </AuthGuard>
   );
