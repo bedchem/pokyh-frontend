@@ -564,12 +564,22 @@ export default function SubjectDetailPage({
                       );
                     })()}
 
-                    {chronological.length > 1 && (() => {
-                      const first = chronological[0].value;
-                      const last = chronological[chronological.length - 1].value;
-                      const y1 = 220 - ((first - 4) / 6) * 200;
-                      const y2 = 220 - ((last - 4) / 6) * 200;
-                      return <line key={`fit-${trendAnimKey}`} x1="32" y1={Math.max(20, Math.min(220, y1))} x2="628" y2={Math.max(20, Math.min(220, y2))} className="trend-fit" />;
+                    {trendPoints.filter(p => !p.isCustom).length > 1 && (() => {
+                      const realPts = trendPoints.filter(p => !p.isCustom);
+                      const n = realPts.length;
+                      const sumX  = realPts.reduce((s, p) => s + p.x, 0);
+                      const sumY  = realPts.reduce((s, p) => s + p.y, 0);
+                      const sumXY = realPts.reduce((s, p) => s + p.x * p.y, 0);
+                      const sumX2 = realPts.reduce((s, p) => s + p.x * p.x, 0);
+                      const denom = n * sumX2 - sumX * sumX;
+                      if (Math.abs(denom) < 1e-9) return null;
+                      const slope = (n * sumXY - sumX * sumY) / denom;
+                      const intercept = (sumY - slope * sumX) / n;
+                      const rx1 = realPts[0].x;
+                      const rx2 = realPts[realPts.length - 1].x;
+                      const ry1 = Math.max(20, Math.min(220, slope * rx1 + intercept));
+                      const ry2 = Math.max(20, Math.min(220, slope * rx2 + intercept));
+                      return <line key={`fit-${trendAnimKey}`} x1={rx1.toFixed(1)} y1={ry1.toFixed(1)} x2={rx2.toFixed(1)} y2={ry2.toFixed(1)} className="trend-fit" />;
                     })()}
 
                     {trendPoints.map((p) => (

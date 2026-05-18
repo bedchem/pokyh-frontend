@@ -86,6 +86,7 @@ interface ApiGridEntry {
   position3: ApiPositionItem[] | null;
   lessonText: string;
   lessonInfo: string | null;
+  exam?: { description?: string; id?: number; name?: string; typeLongName?: string } | null;
 }
 
 interface ApiDay {
@@ -155,6 +156,7 @@ function parseTimetable(json: unknown): TimetableEntry[] {
           originalTeacherLong: removedTeachersLong.join(', ') || undefined,
           originalRoom:     removedRooms.join(', '),
           note:             ge.lessonInfo || ge.lessonText || undefined,
+          examDescription:  ge.exam?.description || undefined,
         });
       }
     }
@@ -270,7 +272,7 @@ function getDayKind(dayEntries: TimetableEntry[], hasOtherDayEntries: boolean): 
 
 // ── Detail Sheet ──────────────────────────────────────────────────────────────
 
-function LessonDetailSheet({ slot, onClose }: { slot: MergedSlot; onClose: () => void }) {
+function LessonDetailSheet({ slot, onClose, preloadedExamDesc }: { slot: MergedSlot; onClose: () => void; preloadedExamDesc?: string | null }) {
   const { display } = slot;
   const hasReplacement = !!slot.replacement;
 
@@ -324,6 +326,26 @@ function LessonDetailSheet({ slot, onClose }: { slot: MergedSlot; onClose: () =>
       });
     });
   }, [imageSubject]);
+
+  const [examDescription, setExamDescription] = useState<string | null>(preloadedExamDesc ?? display.examDescription ?? null);
+  useEffect(() => {
+    if (!display.isExam) return;
+    fetch(`/api/webuntis/lesson-detail?date=${display.date}&startTime=${display.startTime}&endTime=${display.endTime}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        const entries = data?.calendarEntries ?? [];
+        const entry = entries.find((e: Record<string, unknown>) => e?.exam) ?? entries[0] ?? data;
+        const desc =
+          entry?.exam?.description ??
+          data?.exam?.description ??
+          data?.data?.exam?.description ??
+          null;
+        if (typeof desc === 'string' && desc.trim()) setExamDescription(desc.trim());
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [display.isExam, display.lessonId, display.date, display.startTime, display.endTime]);
 
   return (
     <div
@@ -472,6 +494,13 @@ function LessonDetailSheet({ slot, onClose }: { slot: MergedSlot; onClose: () =>
             <div className="rounded-xl p-4 mb-4" style={{ background: 'var(--app-card)' }}>
               <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--app-text-secondary)' }}>Notiz</p>
               <p className="text-sm" style={{ color: 'var(--app-text-primary)', lineHeight: '1.45', whiteSpace: 'pre-wrap' }}>{display.note}</p>
+            </div>
+          )}
+
+          {display.isExam && examDescription && (
+            <div className="rounded-xl p-4 mb-4" style={{ background: 'var(--app-card)' }}>
+              <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--app-text-secondary)' }}>Prüfungsinhalt</p>
+              <p className="text-sm" style={{ color: 'var(--app-text-primary)', lineHeight: '1.45', whiteSpace: 'pre-wrap' }}>{examDescription}</p>
             </div>
           )}
 
@@ -1024,9 +1053,10 @@ const [autoOpenId] = useState<number | null>(() => {
 });
   const autoOpenedRef = useRef(false);
 
-  const cacheRef     = useRef<Record<number, TimetableEntry[]>>({});
-  const preloadRef   = useRef<Record<number, boolean>>({});
-  const timeRef      = useRef<ReturnType<typeof setInterval> | null>(null);
+  const cacheRef       = useRef<Record<number, TimetableEntry[]>>({});
+  const preloadRef     = useRef<Record<number, boolean>>({});
+  const timeRef        = useRef<ReturnType<typeof setInterval> | null>(null);
+  const examDescCache  = useRef<Map<string, string>>(new Map());
 
   const monday      = startOfWeek(addDays(new Date(), weekOffset * 7), { weekStartsOn: 1 });
   const weekDates   = Array.from({ length: 6 }, (_, i) => addDays(monday, i));
@@ -1105,6 +1135,20 @@ const [autoOpenId] = useState<number | null>(() => {
       pcSet(cacheKey, parsed);
       setEntries(parsed);
       import('@/lib/api-client').then(({ api }) => api.subjectImages.reportSubjects(parsed));
+      // Pre-fetch exam descriptions in background
+      for (const exam of parsed.filter(e => e.isExam)) {
+        const key = `${exam.date}-${exam.startTime}-${exam.endTime}`;
+        if (examDescCache.current.has(key)) continue;
+        fetch(`/api/webuntis/lesson-detail?date=${exam.date}&startTime=${exam.startTime}&endTime=${exam.endTime}`)
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (!data) return;
+            const entry = (data?.calendarEntries ?? []).find((e: Record<string, unknown>) => e?.exam) ?? (data?.calendarEntries ?? [])[0] ?? data;
+            const desc = entry?.exam?.description ?? data?.exam?.description ?? null;
+            if (typeof desc === 'string' && desc.trim()) examDescCache.current.set(key, desc.trim());
+          })
+          .catch(() => {});
+      }
     } catch (e: unknown) {
       if (e instanceof Error && e.message === 'session_expired') { router.replace('/login'); return; }
       if (!cachedData) {
@@ -1493,6 +1537,7 @@ const [autoOpenId] = useState<number | null>(() => {
           <LessonDetailSheet
             slot={activeSlot}
             onClose={() => setActiveSlot(null)}
+            preloadedExamDesc={examDescCache.current.get(`${activeSlot.display.date}-${activeSlot.display.startTime}-${activeSlot.display.endTime}`) ?? null}
           />
         )}
 

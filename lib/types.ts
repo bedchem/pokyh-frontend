@@ -33,6 +33,7 @@ export interface TimetableEntry {
   originalRoom?: string;
   homeworkText?: string;
   note?: string;
+  examDescription?: string;
 }
 
 export interface GradeEntry {

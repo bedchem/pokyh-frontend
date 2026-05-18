@@ -14,19 +14,18 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Nicht angemeldet.' }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const lessonId  = searchParams.get('lessonId');
   const date      = searchParams.get('date');
   const startTime = searchParams.get('startTime');
   const endTime   = searchParams.get('endTime');
 
-  if (!lessonId || !date || !startTime || !endTime) {
+  if (!date || !startTime || !endTime) {
     return NextResponse.json({ error: 'Parameter fehlen.' }, { status: 400 });
   }
 
   try {
     const start = encodeURIComponent(toIso(parseInt(date), parseInt(startTime)));
     const end   = encodeURIComponent(toIso(parseInt(date), parseInt(endTime)));
-    const url   = `${BASE}/api/rest/view/v2/calendar-entry/detail?elementId=${lessonId}&elementType=5&startDateTime=${start}&endDateTime=${end}&homeworkOption=DUE`;
+    const url   = `${BASE}/api/rest/view/v2/calendar-entry/detail?elementId=${session.studentId}&elementType=5&startDateTime=${start}&endDateTime=${end}&homeworkOption=DUE`;
 
     const res  = await fetch(url, { headers: webUntisHeaders(session), signal: AbortSignal.timeout(10000) });
     const text = await res.text();
