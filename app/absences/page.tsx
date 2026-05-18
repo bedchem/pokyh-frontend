@@ -394,12 +394,8 @@ export default function AbsencesPage() {
     <AuthGuard>
       <UntisGuard>
       <div
-<<<<<<< HEAD
-        className="h-full flex flex-col overflow-hidden"
-=======
         className="h-full flex flex-col"
         style={{ background: 'var(--app-bg)' }}
->>>>>>> 4673478bcf6fd80cc916e29f0387f45ea9521524
       >
         {/* Nav */}
         <div className="px-5 pt-4 pb-4 flex items-center gap-3 fade-in flex-shrink-0" style={{ position: 'relative', zIndex: 10 }}>
