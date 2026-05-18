@@ -12,6 +12,7 @@ import {
   CalendarClock,
   MapPin,
   User,
+  Home,
 } from 'lucide-react';
 import { addDays, format, startOfWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -54,6 +55,13 @@ const BREAKS = [
 
 type SlotKind = 'normal' | 'cancelled' | 'replacement' | 'exam' | 'event';
 type DayKind = 'normal' | 'holiday' | 'allCancelled' | 'allReplacement' | 'fullDayEvent' | 'weekend';
+
+type HWItem = {
+  id: number;
+  text: string;
+  completed: boolean;
+  dueDateTime: string;
+};
 
 interface MergedSlot {
   display: TimetableEntry;
@@ -181,6 +189,12 @@ function toMins(t: number): number {
   return parseInt(s.slice(0, 2)) * 60 + parseInt(s.slice(2, 4));
 }
 
+function formatDueDate(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('de-AT', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
 // ── Slot building ─────────────────────────────────────────────────────────────
 
 function buildSlots(dayEntries: TimetableEntry[]): MergedSlot[] {
@@ -272,7 +286,7 @@ function getDayKind(dayEntries: TimetableEntry[], hasOtherDayEntries: boolean): 
 
 // ── Detail Sheet ──────────────────────────────────────────────────────────────
 
-function LessonDetailSheet({ slot, onClose, preloadedExamDesc }: { slot: MergedSlot; onClose: () => void; preloadedExamDesc?: string | null }) {
+function LessonDetailSheet({ slot, onClose, preloadedExamDesc, preloadedHomeworks }: { slot: MergedSlot; onClose: () => void; preloadedExamDesc?: string | null; preloadedHomeworks?: HWItem[] }) {
   const { display } = slot;
   const hasReplacement = !!slot.replacement;
 
@@ -328,24 +342,22 @@ function LessonDetailSheet({ slot, onClose, preloadedExamDesc }: { slot: MergedS
   }, [imageSubject]);
 
   const [examDescription, setExamDescription] = useState<string | null>(preloadedExamDesc ?? display.examDescription ?? null);
+  const [homeworks, setHomeworks] = useState<HWItem[]>(preloadedHomeworks ?? []);
+
   useEffect(() => {
-    if (!display.isExam) return;
+    if (!display.isExam || examDescription) return;
     fetch(`/api/webuntis/lesson-detail?date=${display.date}&startTime=${display.startTime}&endTime=${display.endTime}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data) return;
-        const entries = data?.calendarEntries ?? [];
-        const entry = entries.find((e: Record<string, unknown>) => e?.exam) ?? entries[0] ?? data;
-        const desc =
-          entry?.exam?.description ??
-          data?.exam?.description ??
-          data?.data?.exam?.description ??
-          null;
+        const calEntries = data?.calendarEntries ?? [];
+        const calEntry = calEntries.find((e: Record<string, unknown>) => e?.exam) ?? calEntries[0] ?? data;
+        const desc = calEntry?.exam?.description ?? data?.exam?.description ?? null;
         if (typeof desc === 'string' && desc.trim()) setExamDescription(desc.trim());
       })
       .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [display.isExam, display.lessonId, display.date, display.startTime, display.endTime]);
+  }, [display.date, display.startTime, display.endTime, display.isExam]);
 
   return (
     <div
@@ -504,6 +516,19 @@ function LessonDetailSheet({ slot, onClose, preloadedExamDesc }: { slot: MergedS
             </div>
           )}
 
+          {homeworks.length > 0 && (
+            <div className="rounded-xl p-4 mb-4" style={{ background: 'var(--app-card)' }}>
+              <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--app-text-secondary)' }}>Hausaufgaben</p>
+              <div className="flex flex-col gap-3">
+                {homeworks.map((hw, i) => (
+                  <div key={hw.id ?? i} className={i > 0 ? 'pt-3' : ''} style={i > 0 ? { borderTop: '1px solid var(--app-border)' } : {}}>
+                    <p className="text-sm" style={{ color: 'var(--app-text-primary)', lineHeight: 1.45 }}>{hw.text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {hasInlineOriginal && (
             <div className="rounded-xl p-4 mb-4" style={{ background: 'var(--app-card)' }}>
               <div className="flex items-center gap-2 mb-2">
@@ -640,7 +665,7 @@ function LessonDetailSheet({ slot, onClose, preloadedExamDesc }: { slot: MergedS
 
 // ── Lesson Cell ───────────────────────────────────────────────────────────────
 
-function LessonCell({ slot, onClick, compact }: { slot: MergedSlot; onClick: () => void; compact: boolean }) {
+function LessonCell({ slot, onClick, compact, hasHomework }: { slot: MergedSlot; onClick: () => void; compact: boolean; hasHomework: boolean }) {
   const { display, kind } = slot;
 
   const hasInlineOriginal =
@@ -733,7 +758,12 @@ function LessonCell({ slot, onClick, compact }: { slot: MergedSlot; onClick: () 
           </div>
         )}
       </div>
-      {StatusIcon && <span className="lesson-icon">{StatusIcon}</span>}
+      {(hasHomework || StatusIcon) && (
+        <span className="lesson-icons">
+          {hasHomework && <span className="lesson-hw-icon"><Home size={13} /></span>}
+          {StatusIcon && <span style={{ color: 'var(--lesson-color)', display: 'inline-flex', alignItems: 'center' }}>{StatusIcon}</span>}
+        </span>
+      )}
 
       <style jsx>{`
         .lesson-cell {
@@ -805,14 +835,19 @@ function LessonCell({ slot, onClick, compact }: { slot: MergedSlot; onClick: () 
           white-space: nowrap;
           flex-shrink: 0;
         }
-        .lesson-icon {
+        .lesson-icons {
           position: absolute;
           bottom: 4px;
           right: 5px;
-          color: var(--lesson-color);
           display: inline-flex;
           align-items: center;
+          gap: 3px;
           pointer-events: none;
+        }
+        .lesson-hw-icon {
+          color: var(--app-text-tertiary);
+          display: inline-flex;
+          align-items: center;
         }
         .lesson-meta {
           display: flex;
@@ -1056,7 +1091,46 @@ const [autoOpenId] = useState<number | null>(() => {
   const cacheRef       = useRef<Record<number, TimetableEntry[]>>({});
   const preloadRef     = useRef<Record<number, boolean>>({});
   const timeRef        = useRef<ReturnType<typeof setInterval> | null>(null);
-  const examDescCache  = useRef<Map<string, string>>(new Map());
+  const lessonDetailCache = useRef<Map<string, { examDesc: string | null; homeworks: HWItem[] }>>(new Map());
+  const [slotsWithHomework, setSlotsWithHomework] = useState<Set<string>>(new Set());
+
+  // Pre-fetch lesson details for all visible slots; also re-syncs homework icons from cache
+  useEffect(() => {
+    if (entries.length === 0) return;
+    const hwSlots = new Set<string>();
+    for (const [key, detail] of lessonDetailCache.current) {
+      if (detail.homeworks.length > 0) hwSlots.add(key);
+    }
+    setSlotsWithHomework(hwSlots);
+
+    const uniqueSlots = new Map<string, TimetableEntry>();
+    for (const e of entries.filter(e2 => !e2.isCancelled)) {
+      const k = `${e.date}-${e.startTime}-${e.endTime}`;
+      if (!uniqueSlots.has(k)) uniqueSlots.set(k, e);
+    }
+    for (const [key, entry] of uniqueSlots) {
+      if (lessonDetailCache.current.has(key)) continue;
+      fetch(`/api/webuntis/lesson-detail?date=${entry.date}&startTime=${entry.startTime}&endTime=${entry.endTime}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (!data) return;
+          const calEntries = data?.calendarEntries ?? [];
+          const calEntry = calEntries.find((e: Record<string, unknown>) => e?.exam) ?? calEntries[0];
+          const examDesc = calEntry?.exam?.description ?? null;
+          const homeworks: HWItem[] = calEntries.flatMap((e: Record<string, unknown>) =>
+            Array.isArray(e?.homeworks) ? (e.homeworks as HWItem[]) : []
+          );
+          lessonDetailCache.current.set(key, {
+            examDesc: typeof examDesc === 'string' && examDesc.trim() ? examDesc.trim() : null,
+            homeworks,
+          });
+          if (homeworks.length > 0) {
+            setSlotsWithHomework(prev => { const next = new Set(prev); next.add(key); return next; });
+          }
+        })
+        .catch(() => {});
+    }
+  }, [entries]);
 
   const monday      = startOfWeek(addDays(new Date(), weekOffset * 7), { weekStartsOn: 1 });
   const weekDates   = Array.from({ length: 6 }, (_, i) => addDays(monday, i));
@@ -1135,20 +1209,6 @@ const [autoOpenId] = useState<number | null>(() => {
       pcSet(cacheKey, parsed);
       setEntries(parsed);
       import('@/lib/api-client').then(({ api }) => api.subjectImages.reportSubjects(parsed));
-      // Pre-fetch exam descriptions in background
-      for (const exam of parsed.filter(e => e.isExam)) {
-        const key = `${exam.date}-${exam.startTime}-${exam.endTime}`;
-        if (examDescCache.current.has(key)) continue;
-        fetch(`/api/webuntis/lesson-detail?date=${exam.date}&startTime=${exam.startTime}&endTime=${exam.endTime}`)
-          .then(r => r.ok ? r.json() : null)
-          .then(data => {
-            if (!data) return;
-            const entry = (data?.calendarEntries ?? []).find((e: Record<string, unknown>) => e?.exam) ?? (data?.calendarEntries ?? [])[0] ?? data;
-            const desc = entry?.exam?.description ?? data?.exam?.description ?? null;
-            if (typeof desc === 'string' && desc.trim()) examDescCache.current.set(key, desc.trim());
-          })
-          .catch(() => {});
-      }
     } catch (e: unknown) {
       if (e instanceof Error && e.message === 'session_expired') { router.replace('/login'); return; }
       if (!cachedData) {
@@ -1497,7 +1557,12 @@ const [autoOpenId] = useState<number | null>(() => {
                                     className="tt-cell-slot"
                                     style={{ top, height }}
                                   >
-                                    <LessonCell slot={slot} compact={compact} onClick={() => setActiveSlot(slot)} />
+                                    <LessonCell
+                                      slot={slot}
+                                      compact={compact}
+                                      onClick={() => setActiveSlot(slot)}
+                                      hasHomework={slotsWithHomework.has(`${slot.display.date}-${slot.display.startTime}-${slot.display.endTime}`)}
+                                    />
                                   </div>
                                 );
                               });
@@ -1537,7 +1602,8 @@ const [autoOpenId] = useState<number | null>(() => {
           <LessonDetailSheet
             slot={activeSlot}
             onClose={() => setActiveSlot(null)}
-            preloadedExamDesc={examDescCache.current.get(`${activeSlot.display.date}-${activeSlot.display.startTime}-${activeSlot.display.endTime}`) ?? null}
+            preloadedExamDesc={lessonDetailCache.current.get(`${activeSlot.display.date}-${activeSlot.display.startTime}-${activeSlot.display.endTime}`)?.examDesc ?? null}
+            preloadedHomeworks={lessonDetailCache.current.get(`${activeSlot.display.date}-${activeSlot.display.startTime}-${activeSlot.display.endTime}`)?.homeworks}
           />
         )}
 

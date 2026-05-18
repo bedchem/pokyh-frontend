@@ -73,11 +73,23 @@ function MensaIcon({ active }: { active: boolean }) {
   );
 }
 
+function BookIcon({ active }: { active: boolean }) {
+  const c = active ? 'var(--accent)' : 'var(--app-text-tertiary)';
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke={c} strokeWidth="1.8" strokeLinecap="round"/>
+      <path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15Z" stroke={c} strokeWidth="1.8" strokeLinejoin="round"/>
+      <path d="M9 7h6M9 11h4" stroke={c} strokeWidth="1.8" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
 const TABS: Tab[] = [
   { href: '/home', label: 'Home', icon: (a) => <HomeIcon active={a} /> },
   { href: '/timetable', label: 'Stundenplan', icon: (a) => <TimetableIcon active={a} /> },
   { href: '/school', label: 'Schule', icon: (a) => <SchoolIcon active={a} /> },
   { href: '/mensa', label: 'Mensa', icon: (a) => <MensaIcon active={a} /> },
+  { href: '/classregevents', label: 'Klassenbuch', icon: (a) => <BookIcon active={a} /> },
 ];
 
 export default function BottomNav() {

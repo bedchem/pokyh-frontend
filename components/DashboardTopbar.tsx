@@ -5,16 +5,18 @@ import { MobileMenuButton } from './Sidebar';
 import TopActions from './TopActions';
 
 const ROUTE_TITLES: Record<string, string> = {
-  '/home':      'Dashboard',
-  '/timetable': 'Stundenplan',
-  '/grades':    'Noten',
-  '/messages':  'Nachrichten',
-  '/mensa':     'Mensa',
-  '/absences':  'Abwesenheiten',
-  '/reminders': 'Erinnerungen',
-  '/todos':     'Todos',
-  '/school':    'Schule',
-  '/profile':   'Profil',
+  '/home':           'Dashboard',
+  '/class':          'Klasse',
+  '/timetable':      'Stundenplan',
+  '/grades':         'Noten',
+  '/messages':       'Nachrichten',
+  '/mensa':          'Mensa',
+  '/absences':       'Abwesenheiten',
+  '/classregevents': 'Klassenbuch',
+  '/reminders':      'Erinnerungen',
+  '/todos':          'Todos',
+  '/school':         'Schule',
+  '/profile':        'Profil',
 };
 
 function getTitle(pathname: string): string {

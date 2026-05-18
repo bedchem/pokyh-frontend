@@ -8,23 +8,37 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home, Calendar, BarChart2, MessageCircle, Utensils,
   UserX, Bell, CheckSquare, User, ChevronLeft,
-  ChevronRight, Menu, X, Scale, Moon, Sun,
+  ChevronRight, Menu, X, Scale, Moon, Sun, BookOpen, Users,
 } from 'lucide-react';
 import { useSidebar } from '@/providers/SidebarProvider';
 import { useTheme } from '@/providers/ThemeProvider';
 
-const MAIN_NAV = [
-  { href: '/home',      label: 'Dashboard',    Icon: Home },
-  { href: '/timetable', label: 'Stundenplan',  Icon: Calendar },
-  { href: '/grades',    label: 'Noten',        Icon: BarChart2 },
-  { href: '/messages',  label: 'Nachrichten',  Icon: MessageCircle },
-  { href: '/mensa',     label: 'Mensa',        Icon: Utensils },
-];
-
-const SUB_NAV = [
-  { href: '/absences',  label: 'Abwesenheiten', Icon: UserX },
-  { href: '/reminders', label: 'Erinnerungen',  Icon: Bell },
-  { href: '/todos',     label: 'Todos',         Icon: CheckSquare },
+const NAV_GROUPS = [
+  {
+    label: 'Übersicht',
+    items: [
+      { href: '/home',  label: 'Dashboard', Icon: Home },
+      { href: '/class', label: 'Klasse',    Icon: Users },
+    ],
+  },
+  {
+    label: 'Unterricht',
+    items: [
+      { href: '/timetable',      label: 'Stundenplan',      Icon: Calendar },
+      { href: '/grades',         label: 'Noten',            Icon: BarChart2 },
+      { href: '/absences',       label: 'Abwesenheiten',    Icon: UserX },
+      { href: '/classregevents', label: 'Klassenbuch',      Icon: BookOpen },
+    ],
+  },
+  {
+    label: 'Mehr',
+    items: [
+      { href: '/mensa',     label: 'Mensa',        Icon: Utensils },
+      { href: '/messages',  label: 'Nachrichten',  Icon: MessageCircle },
+      { href: '/reminders', label: 'Erinnerungen', Icon: Bell },
+      { href: '/todos',     label: 'Todos',        Icon: CheckSquare },
+    ],
+  },
 ];
 
 function NavItem({
@@ -108,37 +122,28 @@ export default function Sidebar() {
       </Link>
 
       {/* Main nav */}
-      <nav className="flex flex-col gap-0.5 px-3 flex-1 overflow-y-auto">
-        {MAIN_NAV.map(({ href, label, Icon }) => (
-          <NavItem
-            key={href}
-            href={href}
-            label={label}
-            Icon={Icon}
-            active={pathname === href || pathname.startsWith(href + '/')}
-            collapsed={isCollapsed}
-            onClick={closeMobile}
-          />
-        ))}
-
-        <div className="my-2 mx-1 h-px" style={{ background: 'var(--app-border)' }} />
-
-        {!isCollapsed && (
-          <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--app-text-tertiary)' }}>
-            Schule
-          </p>
-        )}
-
-        {SUB_NAV.map(({ href, label, Icon }) => (
-          <NavItem
-            key={href}
-            href={href}
-            label={label}
-            Icon={Icon}
-            active={pathname === href}
-            collapsed={isCollapsed}
-            onClick={closeMobile}
-          />
+      <nav className="flex flex-col px-3 flex-1 overflow-y-auto">
+        {NAV_GROUPS.map((group, gi) => (
+          <div key={group.label} className={gi > 0 ? 'mt-3' : ''}>
+            {!isCollapsed && (
+              <p className="px-3 mb-0.5 text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--app-text-tertiary)' }}>
+                {group.label}
+              </p>
+            )}
+            <div className="flex flex-col gap-0.5">
+              {group.items.map(({ href, label, Icon }) => (
+                <NavItem
+                  key={href}
+                  href={href}
+                  label={label}
+                  Icon={Icon}
+                  active={pathname === href || pathname.startsWith(href + '/')}
+                  collapsed={isCollapsed}
+                  onClick={closeMobile}
+                />
+              ))}
+            </div>
+          </div>
         ))}
       </nav>
 

@@ -208,6 +208,22 @@ export function fetchHomework() {
   return apiFetch(`/api/webuntis/homework?startDate=${start}&endDate=${end}`);
 }
 
+export function fetchClassregEvents() {
+  return apiFetchCached('/api/webuntis/classregevents');
+}
+
+export function fetchClassServices() {
+  return apiFetch('/api/webuntis/classservices');
+}
+
+export function fetchExams(startDate: string, endDate: string) {
+  return apiFetch(`/api/webuntis/exams?startDate=${startDate}&endDate=${endDate}`);
+}
+
+export function fetchHomeworkRange(startDate: string, endDate: string) {
+  return apiFetch(`/api/webuntis/homework?startDate=${startDate}&endDate=${endDate}`);
+}
+
 export function fetchMensa() {
   return apiFetch('/api/mensa');
 }
