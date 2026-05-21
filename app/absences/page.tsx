@@ -34,13 +34,13 @@ function formatTime(t: number): string {
 }
 
 function formatMinutes(m: number): string {
-  const h = Math.floor(m / 60);
-  const min = m % 60;
+  const h = Math.floor(m / 50);
+  const min = m % 50;
   return min === 0 ? `${h}h` : `${h}h ${min}m`;
 }
 
 function roundHours(m: number): string {
-  return `${Math.round(m / 60)}h`;
+  return `${Math.round(m / 50)}h`;
 }
 
 // ─── Timetable helpers for exact absence minutes ───────────────────────────────
@@ -271,7 +271,7 @@ function groupByMonth(
   map.forEach((es, key) => {
     const [year, month] = key.split('-');
     const label = `${MONTHS[parseInt(month) - 1]} ${year}`;
-    const totalMinutes = es.reduce((a, e) => a + (minutesMap.get(e.id) ?? e.hours * 60), 0);
+    const totalMinutes = es.reduce((a, e) => a + (minutesMap.get(e.id) ?? e.hours * 50), 0);
     result.push({ key, label, entries: es, totalMinutes });
   });
 
@@ -379,7 +379,7 @@ export default function AbsencesPage() {
     return () => document.removeEventListener('mousedown', onDown);
   }, []);
 
-  const getMin = (e: AbsenceEntry) => minutesMap.get(e.id) ?? e.hours * 60;
+  const getMin = (e: AbsenceEntry) => minutesMap.get(e.id) ?? e.hours * 50;
 
   const totalMinutes    = absences.reduce((a, e) => a + getMin(e), 0);
   const excusedMinutes  = absences.filter((e) => e.isExcused).reduce((a, e) => a + getMin(e), 0);
