@@ -47,6 +47,7 @@ type RecentItem = {
   id: number;
   subject: string;
   numeric: number;
+  date: number;
 };
 
 type SortMode = 'name' | 'avg-desc' | 'avg-asc' | 'recent';
@@ -222,12 +223,14 @@ export default function GradesPage() {
     });
 
     const recent: RecentItem[] = [...allGrades]
-      .sort((a, b) => b.date - a.date)
+      .filter((g) => g.markDisplayValue > 0)
+      .sort((a, b) => b.id - a.id)
       .slice(0, 3)
       .map((g) => ({
         id: g.id,
         subject: g.subjectName,
         numeric: g.markDisplayValue,
+        date: g.date,
       }));
 
     const donutSegs: DonutSeg[] = [];
@@ -587,7 +590,10 @@ export default function GradesPage() {
                     const cls = gradeClass(r.numeric);
                     return (
                       <div key={r.id} className="recent-row">
-                        <span className="subj">{r.subject}</span>
+                        <div className="recent-info">
+                          <span className="subj">{r.subject}</span>
+                          <span className="recent-date">{fmtDateShort(r.date)}</span>
+                        </div>
                         <span className={`grade ${cls}`}>{formatMark(r.numeric)}</span>
                       </div>
                     );
@@ -948,6 +954,19 @@ export default function GradesPage() {
 
         .recent-row:last-child {
           border-bottom: 0;
+        }
+
+        .recent-info {
+          display: flex;
+          flex-direction: column;
+          gap: 1px;
+          min-width: 0;
+        }
+
+        .recent-date {
+          font-size: 11px;
+          color: var(--g-muted-2);
+          font-variant-numeric: tabular-nums;
         }
 
         .recent-row .subj {
