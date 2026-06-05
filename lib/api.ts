@@ -6,6 +6,13 @@
 import { cacheGet, cacheSet, cacheIsStale, cacheClear, cacheDel } from './cache';
 import { pcGetStale, pcIsStale, pcSet, pcDel, pcClear } from './persist-cache';
 import { getSessionCredentials } from './passkey';
+import type {
+  UntisPermissions,
+  AbsenceReason,
+  MessageRecipient,
+  ReportAbsenceInput,
+  SendMessageInput,
+} from './types';
 
 const DEBUG = process.env.NEXT_PUBLIC_DEBUG_API === 'true';
 
@@ -243,6 +250,64 @@ export function getAttachmentUrl(messageId: number, storageId: string, name: str
   const p = new URLSearchParams({ messageId: String(messageId), storageId, name });
   if (attachmentId != null) p.set('attachmentId', String(attachmentId));
   return `/api/webuntis/attachment?${p.toString()}`;
+}
+
+// ─── Absence write features + teacher messages ─────────────────────────────────
+
+// Drop cached absences for every school year so the list reflects a write.
+function invalidateAbsences() {
+  const now = new Date();
+  const cur = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+  const keys = new Set<string>();
+  for (let y = cur; y >= cur - 4; y--) {
+    keys.add(`/api/webuntis/absences?startDate=${y}0901&endDate=${y + 1}0630`);
+  }
+  keys.add(`/api/webuntis/absences?startDate=${schoolYearStart()}&endDate=${schoolYearEnd()}`);
+  for (const k of keys) { cacheDel(k); pcDel(k); }
+}
+
+export function fetchPermissions(): Promise<UntisPermissions> {
+  return apiFetch('/api/webuntis/permissions') as Promise<UntisPermissions>;
+}
+
+export function fetchAbsenceReasons(): Promise<{ reasons: AbsenceReason[] }> {
+  return apiFetchCached('/api/webuntis/absence-reasons') as Promise<{ reasons: AbsenceReason[] }>;
+}
+
+export function fetchRecipients(): Promise<{ recipients: MessageRecipient[] }> {
+  return apiFetchCached('/api/webuntis/messages/recipients') as Promise<{ recipients: MessageRecipient[] }>;
+}
+
+export async function createAbsence(input: ReportAbsenceInput): Promise<unknown> {
+  const res = await apiFetch('/api/webuntis/absences/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  invalidateAbsences();
+  return res;
+}
+
+export async function excuseAbsence(
+  absenceIds: number[],
+  reasonId?: number,
+  text?: string,
+): Promise<unknown> {
+  const res = await apiFetch('/api/webuntis/absences/excuse', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ absenceIds, reasonId, text }),
+  });
+  invalidateAbsences();
+  return res;
+}
+
+export function sendMessage(input: SendMessageInput): Promise<unknown> {
+  return apiFetch('/api/webuntis/messages/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
 }
 
 export async function logout() {

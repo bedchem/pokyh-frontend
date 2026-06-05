@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession, webUntisHeaders } from '@/lib/server-session';
 
-const BASE = 'https://lbs-brixen.webuntis.com/WebUntis';
+const BASE = process.env.WEBUNTIS_BASE_URL || 'https://lbs-brixen.webuntis.com/WebUntis';
 
 function toIso(date: number, time: number): string {
   const d = date.toString().padStart(8, '0');

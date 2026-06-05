@@ -6,6 +6,8 @@ export interface Session {
   klasseName: string;
   username: string;
   personName?: string;
+  personType?: number;
+  isParent?: boolean;
 }
 
 export interface TimetableEntry {
@@ -70,6 +72,44 @@ export interface AbsenceEntry {
   excuseNote?: string;
   teacherName?: string;
   subjectName?: string;
+}
+
+// ─── Absence write features (report / excuse) ──────────────────────────────────
+
+export interface AbsenceReason {
+  id: number;
+  name: string;
+}
+
+export interface ReportAbsenceInput {
+  startDate: string; // YYYYMMDD
+  endDate: string; // YYYYMMDD
+  startTime: string; // HHMM, e.g. "0750"
+  endTime: string; // HHMM
+  reasonId: number;
+  text: string;
+}
+
+export interface UntisPermissions {
+  canReportAbsence: boolean;
+  personName: string | null;
+}
+
+// ─── Message compose (to teachers) ─────────────────────────────────────────────
+
+export interface MessageRecipient {
+  id: number;
+  type: string; // TEACHER, STAFF, …
+  name: string;
+  role?: string;
+  initials: string;
+  category: 'classTeacher' | 'other';
+}
+
+export interface SendMessageInput {
+  recipients: { id: number; type: string }[];
+  subject: string;
+  content: string;
 }
 
 export interface MessagePreview {

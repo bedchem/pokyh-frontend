@@ -1,14 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronDown, CheckCircle, XCircle, UserX, Clock, ClockArrowUp } from 'lucide-react';
+import { ChevronLeft, ChevronDown, CheckCircle, XCircle, UserX, Clock, ClockArrowUp, Plus, Check, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
 import UntisGuard from '@/components/UntisGuard';
 import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
 import EmptyView from '@/components/ui/EmptyView';
-import { fetchAbsences, fetchTimetable, getAbsencesStale } from '@/lib/api';
+import ReportAbsenceSheet from '@/components/absences/ReportAbsenceSheet';
+import { fetchAbsences, fetchTimetable, getAbsencesStale, fetchPermissions, excuseAbsence } from '@/lib/api';
 import type { AbsenceEntry } from '@/lib/types';
 
 // ─── Time helpers ─────────────────────────────────────────────────────────────
@@ -300,6 +301,10 @@ export default function AbsencesPage() {
   const [loading, setLoading] = useState(() => !getAbsencesStale(CURRENT_SCHOOL_YEAR));
   const [error, setError] = useState('');
   const [exact, setExact] = useState(false);
+  const [canReport, setCanReport] = useState(false);
+  const [personName, setPersonName] = useState<string | null>(null);
+  const [showReport, setShowReport] = useState(false);
+  const [excusingId, setExcusingId] = useState<number | null>(null);
 
   const fmt = (m: number) => exact ? formatMinutes(m) : roundHours(m);
 
@@ -370,6 +375,36 @@ export default function AbsencesPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    let alive = true;
+    fetchPermissions()
+      .then((p) => {
+        if (!alive) return;
+        setCanReport(!!p.canReportAbsence);
+        setPersonName(p.personName ?? null);
+      })
+      .catch(() => { /* gating stays off on error */ });
+    return () => { alive = false; };
+  }, []);
+
+  async function handleExcuse(id: number) {
+    if (excusingId !== null) return;
+    setExcusingId(id);
+    setError('');
+    try {
+      await excuseAbsence([id]);
+      await load();
+    } catch (e: unknown) {
+      if (e instanceof Error && e.message === 'session_expired') {
+        window.location.replace('/login');
+      } else {
+        setError(e instanceof Error ? e.message : 'Entschuldigen fehlgeschlagen.');
+      }
+    } finally {
+      setExcusingId(null);
+    }
+  }
 
   useEffect(() => {
     function onDown(e: MouseEvent) {
@@ -461,6 +496,16 @@ export default function AbsencesPage() {
               : <Clock size={15} />}
             {exact ? 'Exakt' : 'Gerundet'}
           </button>
+          {canReport && (
+            <button
+              onClick={() => setShowReport(true)}
+              className="w-10 h-10 flex items-center justify-center rounded-full press-scale flex-shrink-0"
+              style={{ background: 'var(--accent)', color: '#fff' }}
+              aria-label="Abwesenheit melden"
+            >
+              <Plus size={20} />
+            </button>
+          )}
         </div>
 
         <div className="flex-1 px-4 pb-10 overflow-auto">
@@ -612,18 +657,25 @@ export default function AbsencesPage() {
                                     : ''}
                                 </p>
                               </div>
-                              <div className="flex items-center gap-2 flex-shrink-0">
+                              <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                                 <span
                                   className="text-sm font-semibold"
                                   style={{ color: 'var(--app-text-secondary)' }}
                                 >
                                   {fmt(getMin(entry))}
                                 </span>
-                                {entry.isExcused ? (
-                                  <CheckCircle size={18} color="var(--tint)" />
-                                ) : (
-                                  <XCircle size={18} color="var(--danger)" />
-                                )}
+                                <span
+                                  className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                                  style={{
+                                    background: entry.isExcused
+                                      ? 'color-mix(in srgb, var(--tint) 14%, transparent)'
+                                      : 'color-mix(in srgb, var(--danger) 14%, transparent)',
+                                    color: entry.isExcused ? 'var(--tint)' : 'var(--danger)',
+                                  }}
+                                >
+                                  {entry.isExcused ? <CheckCircle size={12} /> : <XCircle size={12} />}
+                                  {entry.isExcused ? 'entschuldigt' : 'offen'}
+                                </span>
                               </div>
                             </div>
                             {entry.reasonName && (
@@ -663,6 +715,19 @@ export default function AbsencesPage() {
                                   {entry.note}
                                 </span>
                               </div>
+                            )}
+                            {!entry.isExcused && canReport && (
+                              <button
+                                onClick={() => handleExcuse(entry.id)}
+                                disabled={excusingId === entry.id}
+                                className="mt-2.5 w-full h-9 rounded-xl text-[13px] font-semibold press-scale flex items-center justify-center gap-1.5 disabled:opacity-60"
+                                style={{ background: 'color-mix(in srgb, var(--tint) 14%, var(--app-card))', color: 'var(--tint)' }}
+                              >
+                                {excusingId === entry.id
+                                  ? <Loader2 size={14} className="animate-spin" />
+                                  : <Check size={14} />}
+                                Entschuldigen
+                              </button>
                             )}
                           </div>
                         ))}
@@ -738,6 +803,13 @@ export default function AbsencesPage() {
             font-weight: 600;
           }
         `}</style>
+        {showReport && (
+          <ReportAbsenceSheet
+            personName={personName}
+            onClose={() => setShowReport(false)}
+            onCreated={load}
+          />
+        )}
       </UntisGuard>
     </AuthGuard>
   );

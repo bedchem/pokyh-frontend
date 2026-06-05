@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { ChevronRight, Paperclip, Inbox, CheckCheck } from 'lucide-react';
+import { ChevronRight, Paperclip, Inbox, CheckCheck, Pencil } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AuthGuard from '@/components/AuthGuard';
@@ -9,6 +9,7 @@ import UntisGuard from '@/components/UntisGuard';
 import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
 import EmptyView from '@/components/ui/EmptyView';
+import ComposeMessageSheet from '@/components/messages/ComposeMessageSheet';
 import { fetchMessages, markAllMessagesRead } from '@/lib/api';
 import type { MessagePreview } from '@/lib/types';
 
@@ -98,6 +99,7 @@ export default function MessagesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [markingAll, setMarkingAll] = useState(false);
+  const [showCompose, setShowCompose] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -158,6 +160,14 @@ export default function MessagesPage() {
           >
             {markingAll ? <Spinner size={14} /> : <CheckCheck size={16} />}
             {!markingAll && 'Alle als gelesen'}
+          </button>
+          <button
+            onClick={() => setShowCompose(true)}
+            className="w-10 h-10 flex items-center justify-center rounded-full press-scale flex-shrink-0"
+            style={{ background: 'var(--accent)', color: '#fff' }}
+            aria-label="Mitteilung verfassen"
+          >
+            <Pencil size={18} />
           </button>
         </div>
 
@@ -253,6 +263,9 @@ export default function MessagesPage() {
           )}
         </div>
       </div>
+      {showCompose && (
+        <ComposeMessageSheet onClose={() => setShowCompose(false)} onSent={load} />
+      )}
       </UntisGuard>
     </AuthGuard>
   );

@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSession, webUntisHeaders, SCHOOL_COOKIE_VAL } from '@/lib/server-session';
 
-const BASE = 'https://lbs-brixen.webuntis.com/WebUntis';
-const SCHOOL = 'lbs-brixen';
+const BASE = process.env.WEBUNTIS_BASE_URL || 'https://lbs-brixen.webuntis.com/WebUntis';
+const SCHOOL = process.env.WEBUNTIS_SCHOOL || 'lbs-brixen';
 const DEBUG = process.env.DEBUG_API === 'true';
 
 function log(...args: unknown[]) {

@@ -43,3 +43,7 @@ next-env.d.ts
 # Claude
 .Claude
 CLAUDE.md
+
+# temp WebUntis endpoint discovery output
+untis-discovery.json
+/scripts

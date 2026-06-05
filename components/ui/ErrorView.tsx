@@ -1,25 +1,31 @@
 import { AlertTriangle, WifiOff, Lock, RefreshCw } from 'lucide-react';
 
+// Maps any internal error to a short, user-readable German message.
+// Never exposes status codes, endpoints, env var names or stack details.
 function classifyError(message: string): { icon: React.ReactNode; title: string; detail: string } {
-  const m = message.toLowerCase();
-  if (m.includes('session') || m.includes('login') || m.includes('auth') || m.includes('unauthorized') || m === 'session_expired') {
+  const m = (message || '').toLowerCase();
+
+  if (m.includes('session') || m.includes('login') || m.includes('auth') || m.includes('unauthorized') || m.includes('angemeldet')) {
     return {
       icon: <Lock size={44} color="var(--warning)" strokeWidth={1.5} />,
       title: 'Sitzung abgelaufen',
       detail: 'Bitte melde dich erneut an.',
     };
   }
-  if (m.includes('network') || m.includes('fetch') || m.includes('failed') || m.includes('offline') || m.includes('verbindung') || m.includes('timeout') || m.includes('econnrefused')) {
+
+  if (m.includes('network') || m.includes('fetch') || m.includes('offline') || m.includes('verbindung') || m.includes('timeout') || m.includes('econnrefused')) {
     return {
       icon: <WifiOff size={44} color="var(--app-text-tertiary)" strokeWidth={1.5} />,
       title: 'Keine Verbindung',
       detail: 'Überprüfe deine Internetverbindung und versuche es erneut.',
     };
   }
+
+  // Everything else (incl. 5xx, WebUntis upstream errors): generic, friendly.
   return {
     icon: <AlertTriangle size={44} color="var(--warning)" strokeWidth={1.5} />,
-    title: 'Fehler aufgetreten',
-    detail: message,
+    title: 'Daten konnten nicht geladen werden',
+    detail: 'WebUntis ist gerade nicht erreichbar. Bitte versuche es später erneut.',
   };
 }
 
@@ -34,11 +40,6 @@ export default function ErrorView({ message, onRetry }: { message: string; onRet
       <p className="text-sm" style={{ color: 'var(--app-text-secondary)' }}>
         {detail}
       </p>
-      {process.env.NODE_ENV === 'development' && message !== detail && (
-        <p className="text-xs font-mono px-3 py-2 rounded-lg mt-1" style={{ background: 'var(--app-card)', color: 'var(--app-text-tertiary)', wordBreak: 'break-all' }}>
-          {message}
-        </p>
-      )}
       {onRetry && (
         <button
           onClick={onRetry}

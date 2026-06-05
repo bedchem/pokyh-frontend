@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { encryptSession } from '@/lib/session-crypto';
+import { fetchAppData, detectParent, extractChildStudentId } from '@/lib/untis-permissions';
 
-const BASE = process.env.WEBUNTIS_BASE ?? 'https://lbs-brixen.webuntis.com/WebUntis';
+const BASE = process.env.WEBUNTIS_BASE_URL ?? process.env.WEBUNTIS_BASE ?? 'https://lbs-brixen.webuntis.com/WebUntis';
 const SCHOOL = process.env.WEBUNTIS_SCHOOL ?? 'lbs-brixen';
 const SCHOOL_COOKIE = '_' + Buffer.from(SCHOOL).toString('base64');
 
@@ -104,11 +105,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { personId: studentId, klasseId } = rpcJson.result;
+    const { personId: studentId, klasseId, personType } = rpcJson.result;
 
-    // 2+3. Fetch bearer token and class name in parallel (both only need sessionId)
+    // 2+3+4. Fetch bearer token, class name and the accessible students in parallel.
     const cookie = `JSESSIONID=${sessionId}; schoolname="${SCHOOL_COOKIE}"`;
-    const [bearerToken, klasseName] = await Promise.all([
+    const [bearerToken, klasseName, students] = await Promise.all([
       fetch(`${BASE}/api/token/new`, {
         headers: { Cookie: cookie },
         signal: AbortSignal.timeout(10000),
@@ -125,16 +126,51 @@ export async function POST(req: NextRequest) {
         .then((r) => r.json())
         .then((kj) => (kj.result as Array<{ id: number; name: string }>)?.find((k) => k.id === klasseId)?.name ?? '')
         .catch(() => ''),
+      fetch(`${BASE}/jsonrpc.do?school=${SCHOOL}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify({ id: 'pockyh-students', method: 'getStudents', params: {}, jsonrpc: '2.0' }),
+        signal: AbortSignal.timeout(10000),
+      })
+        .then((r) => r.json())
+        .then((sj) => (Array.isArray(sj.result) ? (sj.result as Array<{ id: number; klasseId?: number }>) : []))
+        .catch(() => []),
     ]);
 
-    // 4. Encrypt full session into httpOnly cookie
-    const sessionData = { sessionId, bearerToken, studentId, klasseId, klasseName, username, loginAt: Date.now() };
+    // App data (best-effort, capped at 5s so a slow call never stalls login) —
+    // used both for parent detection and to resolve a guardian's child.
+    const appData = await Promise.race([
+      fetchAppData({ sessionId, bearerToken, studentId, klasseId, klasseName, username }),
+      new Promise<{ ok: false }>((resolve) => setTimeout(() => resolve({ ok: false as const }), 5000)),
+    ]);
+    const appJson = 'ok' in appData && appData.ok ? appData.json : null;
+    const isParent = appJson ? detectParent(appJson) : false;
+
+    // Resolve the effective student. For a student login the logged-in person IS
+    // a student (their id appears in getStudents) → keep it. For a guardian/parent
+    // login the person is NOT a student → use their (first) child's student id so
+    // all WebUntis data (timetable, absences, …) resolves to the child.
+    let resolvedStudentId = studentId;
+    let resolvedKlasseId = klasseId;
+    const isStudentSelf = students.some((s) => s.id === studentId);
+    if (!isStudentSelf) {
+      if (students.length) {
+        resolvedStudentId = students[0].id;
+        if (students[0].klasseId) resolvedKlasseId = students[0].klasseId;
+      } else if (appJson) {
+        const childId = extractChildStudentId(appJson, studentId);
+        if (childId) resolvedStudentId = childId;
+      }
+    }
+
+    // 4. Encrypt full session into httpOnly cookie (uses the resolved student).
+    const sessionData = { sessionId, bearerToken, studentId: resolvedStudentId, klasseId: resolvedKlasseId, klasseName, username, personType, isParent, loginAt: Date.now() };
     const encrypted = await encryptSession(sessionData);
 
     // 5. Non-sensitive user data for client (loginAt lets the client set a proactive expiry timer)
-    const userPublic = JSON.stringify({ username, studentId, klasseId, klasseName, loginAt: Date.now(), isUntisUser: true });
+    const userPublic = JSON.stringify({ username, studentId: resolvedStudentId, klasseId: resolvedKlasseId, klasseName, personType, isParent, loginAt: Date.now(), isUntisUser: true });
 
-    const res = NextResponse.json({ ok: true, username, studentId, klasseId, klasseName });
+    const res = NextResponse.json({ ok: true, username, studentId: resolvedStudentId, klasseId: resolvedKlasseId, klasseName });
 
     res.cookies.set('pockyh_session', encrypted, COOKIE_OPTS);
     res.cookies.set('pockyh_user', userPublic, {

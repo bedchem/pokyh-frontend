@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useSidebar } from '@/providers/SidebarProvider';
 import { useTheme } from '@/providers/ThemeProvider';
+import { useSession } from '@/providers/SessionProvider';
 
 const NAV_GROUPS = [
   {
@@ -99,9 +100,15 @@ function NavItem({
 export default function Sidebar() {
   const { collapsed, mobileOpen, toggle, closeMobile } = useSidebar();
   const { resolved, toggleWithRipple } = useTheme();
+  const { user } = useSession();
   const pathname = usePathname();
   const [logoHref, setLogoHref] = useState('/');
   useEffect(() => { if (isPWA()) setLogoHref('/home'); }, []);
+
+  // Parent/guardian accounts don't get personal reminders → hide the tab.
+  const navGroups = user?.isParent
+    ? NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => i.href !== '/reminders') }))
+    : NAV_GROUPS;
 
   const renderSidebarContent = (isCollapsed: boolean) => (
     <div className="flex flex-col h-full py-4">
@@ -123,7 +130,7 @@ export default function Sidebar() {
 
       {/* Main nav */}
       <nav className="flex flex-col px-3 flex-1 overflow-y-auto">
-        {NAV_GROUPS.map((group, gi) => (
+        {navGroups.map((group, gi) => (
           <div key={group.label} className={gi > 0 ? 'mt-3' : ''}>
             {!isCollapsed && (
               <p className="px-3 mb-0.5 text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--app-text-tertiary)' }}>

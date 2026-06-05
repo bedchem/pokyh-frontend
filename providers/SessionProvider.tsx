@@ -11,6 +11,8 @@ export interface UserInfo {
   klasseName: string;
   isUntisUser?: boolean;
   loginAt?: number;
+  personType?: number;
+  isParent?: boolean;
 }
 
 interface SessionCtx {
