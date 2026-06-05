@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { X, Send, ChevronRight, Check, Loader2 } from 'lucide-react';
+import { X, Send, ChevronRight, Check, Loader2, Pencil } from 'lucide-react';
 import RecipientPicker from './RecipientPicker';
-import { fetchRecipients, sendMessage } from '@/lib/api';
+import { fetchRecipients, sendMessage, saveDraft } from '@/lib/api';
 import type { MessageRecipient } from '@/lib/types';
 
 interface Props {
@@ -23,8 +23,10 @@ export default function ComposeMessageSheet({ onClose, onSent }: Props) {
   const [content, setContent] = useState('');
 
   const [sending, setSending] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [draftSaved, setDraftSaved] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -61,6 +63,25 @@ export default function ComposeMessageSheet({ onClose, onSent }: Props) {
     } catch {
       setError('Die Nachricht konnte nicht gesendet werden. Bitte versuche es später erneut.');
       setSending(false);
+    }
+  }
+
+  async function storeDraft() {
+    if (savingDraft || sending) return;
+    if (!subject.trim() && !content.trim()) { setError('Bitte gib einen Betreff oder Text ein.'); return; }
+    setSavingDraft(true);
+    setError('');
+    try {
+      await saveDraft({
+        recipients: selected.map((r) => ({ id: r.id, type: r.type })),
+        subject: subject.trim(),
+        content: content.trim(),
+      });
+      setDraftSaved(true);
+      setTimeout(() => { onSent?.(); onClose(); }, 950);
+    } catch {
+      setError('Der Entwurf konnte nicht gespeichert werden. Bitte versuche es später erneut.');
+      setSavingDraft(false);
     }
   }
 
@@ -160,6 +181,17 @@ export default function ComposeMessageSheet({ onClose, onSent }: Props) {
             />
           </div>
 
+          {/* Save as draft */}
+          <button
+            onClick={storeDraft}
+            disabled={sending || savingDraft || success || draftSaved}
+            className="w-full flex items-center justify-center gap-2 h-11 rounded-xl press-scale mb-3 text-[14px] font-medium disabled:opacity-50"
+            style={{ background: 'var(--app-card)', color: 'var(--app-text-secondary)' }}
+          >
+            {savingDraft ? <Loader2 size={16} className="animate-spin" /> : <Pencil size={15} />}
+            Als Entwurf speichern
+          </button>
+
           {recipientsErr && (
             <p className="text-[12px] px-1 mb-2" style={{ color: 'var(--warning)' }}>
               Empfänger konnten gerade nicht geladen werden. Bitte versuche es später erneut.
@@ -173,6 +205,11 @@ export default function ComposeMessageSheet({ onClose, onSent }: Props) {
           {success && (
             <div className="rounded-xl px-4 py-3 text-[13px] flex items-center gap-2" style={{ background: 'color-mix(in srgb, var(--tint) 14%, var(--app-card))', color: 'var(--tint)' }}>
               <Check size={16} /> Nachricht gesendet.
+            </div>
+          )}
+          {draftSaved && (
+            <div className="rounded-xl px-4 py-3 text-[13px] flex items-center gap-2" style={{ background: 'color-mix(in srgb, var(--tint) 14%, var(--app-card))', color: 'var(--tint)' }}>
+              <Check size={16} /> Entwurf gespeichert.
             </div>
           )}
         </div>

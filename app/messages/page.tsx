@@ -10,8 +10,14 @@ import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
 import EmptyView from '@/components/ui/EmptyView';
 import ComposeMessageSheet from '@/components/messages/ComposeMessageSheet';
-import { fetchMessages, markAllMessagesRead } from '@/lib/api';
+import { fetchMessages, markAllMessagesRead, type MessageFolder } from '@/lib/api';
 import type { MessagePreview } from '@/lib/types';
+
+const FOLDERS: { key: MessageFolder; label: string }[] = [
+  { key: 'inbox', label: 'Posteingang' },
+  { key: 'sent', label: 'Gesendet' },
+  { key: 'drafts', label: 'Entwürfe' },
+];
 
 function senderColor(name: string): string {
   let hash = 0;
@@ -24,11 +30,16 @@ function senderColor(name: string): string {
 function parseMessages(json: unknown): MessagePreview[] {
   try {
     const root = json as Record<string, unknown>;
-    // Primary: incomingMessages; fallback: messages, data.incomingMessages, data[]
+    const data = (root?.data as Record<string, unknown>) ?? {};
+    // Inbox → incomingMessages, Sent → sentMessages, Drafts → draftMessages.
     const arr =
       (root?.incomingMessages as unknown[]) ??
+      (root?.sentMessages as unknown[]) ??
+      (root?.draftMessages as unknown[]) ??
       (root?.messages as unknown[]) ??
-      ((root?.data as Record<string, unknown>)?.incomingMessages as unknown[]) ??
+      (data?.incomingMessages as unknown[]) ??
+      (data?.sentMessages as unknown[]) ??
+      (data?.draftMessages as unknown[]) ??
       (Array.isArray(root?.data) ? (root.data as unknown[]) : null) ??
       [];
 
@@ -37,11 +48,17 @@ function parseMessages(json: unknown): MessagePreview[] {
         typeof m.sender === 'object' && m.sender !== null
           ? (m.sender as Record<string, unknown>)
           : null;
+      // For sent/draft messages there's no sender — show the recipients instead.
+      const recipients = Array.isArray(m.recipients) ? (m.recipients as Record<string, unknown>[]) : [];
+      const recipientLabel = recipients
+        .map((r) => (r.displayName as string) ?? (r.name as string) ?? '')
+        .filter(Boolean)
+        .join(', ');
       const senderName =
         (sender?.displayName as string) ??
         (sender?.name as string) ??
         (m.senderName as string) ??
-        'Unbekannt';
+        (recipientLabel ? `An: ${recipientLabel}` : 'Unbekannt');
       const sentDate =
         (m.sentDateTime as string) ??
         (m.sentDate as string) ??
@@ -100,12 +117,13 @@ export default function MessagesPage() {
   const [error, setError] = useState('');
   const [markingAll, setMarkingAll] = useState(false);
   const [showCompose, setShowCompose] = useState(false);
+  const [folder, setFolder] = useState<MessageFolder>('inbox');
 
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetchMessages();
+      const res = await fetchMessages(folder);
       setMessages(parseMessages(res));
     } catch (e: unknown) {
       if (e instanceof Error && e.message === 'session_expired') {
@@ -116,7 +134,7 @@ export default function MessagesPage() {
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [router, folder]);
 
   useEffect(() => {
     load();
@@ -152,15 +170,17 @@ export default function MessagesPage() {
           >
             Nachrichten
           </h1>
-          <button
-            onClick={handleMarkAllRead}
-            disabled={markingAll || unreadIds.length === 0}
-            className="flex items-center gap-1.5 px-3 h-9 rounded-xl text-sm font-medium press-scale disabled:opacity-50"
-            style={{ background: 'var(--app-surface)', color: 'var(--accent)' }}
-          >
-            {markingAll ? <Spinner size={14} /> : <CheckCheck size={16} />}
-            {!markingAll && 'Alle als gelesen'}
-          </button>
+          {folder === 'inbox' && (
+            <button
+              onClick={handleMarkAllRead}
+              disabled={markingAll || unreadIds.length === 0}
+              className="flex items-center gap-1.5 px-3 h-9 rounded-xl text-sm font-medium press-scale disabled:opacity-50"
+              style={{ background: 'var(--app-surface)', color: 'var(--accent)' }}
+            >
+              {markingAll ? <Spinner size={14} /> : <CheckCheck size={16} />}
+              {!markingAll && 'Alle als gelesen'}
+            </button>
+          )}
           <button
             onClick={() => setShowCompose(true)}
             className="w-10 h-10 flex items-center justify-center rounded-full press-scale flex-shrink-0"
@@ -169,6 +189,27 @@ export default function MessagesPage() {
           >
             <Pencil size={18} />
           </button>
+        </div>
+
+        {/* Folder tabs */}
+        <div className="px-5 pb-3 flex gap-2 flex-shrink-0 fade-in">
+          {FOLDERS.map((f) => {
+            const active = folder === f.key;
+            return (
+              <button
+                key={f.key}
+                onClick={() => setFolder(f.key)}
+                className="px-4 h-9 rounded-full text-[13px] font-semibold press-scale"
+                style={{
+                  background: active ? 'var(--accent)' : 'var(--app-surface)',
+                  color: active ? '#fff' : 'var(--app-text-secondary)',
+                  transition: 'background 0.2s, color 0.2s',
+                }}
+              >
+                {f.label}
+              </button>
+            );
+          })}
         </div>
 
         <div className="flex-1 overflow-auto pb-8">
@@ -181,8 +222,14 @@ export default function MessagesPage() {
           ) : messages.length === 0 ? (
             <EmptyView
               icon={<Inbox size={56} color="var(--app-text-primary)" />}
-              title="Keine Nachrichten"
-              subtitle="Du hast noch keine Nachrichten erhalten."
+              title={folder === 'sent' ? 'Nichts gesendet' : folder === 'drafts' ? 'Keine Entwürfe' : 'Keine Nachrichten'}
+              subtitle={
+                folder === 'sent'
+                  ? 'Du hast noch keine Nachrichten gesendet.'
+                  : folder === 'drafts'
+                    ? 'Du hast noch keine Entwürfe gespeichert.'
+                    : 'Du hast noch keine Nachrichten erhalten.'
+              }
             />
           ) : (
             <div style={{ background: 'var(--app-surface)' }} className="fade-in delay-1">

@@ -125,8 +125,9 @@ export default function RecipientPicker({ recipients, selectedIds, onToggle, onB
         {/* List */}
         <div className="flex-1 overflow-y-auto px-2 pb-6">
           {recipients.length === 0 ? (
-            <p className="text-center text-[13px] py-10" style={{ color: 'var(--app-text-tertiary)' }}>
-              Keine Empfänger verfügbar.
+            <p className="text-center text-[13px] py-10 px-6 leading-relaxed" style={{ color: 'var(--app-text-tertiary)' }}>
+              Empfänger werden geladen … falls dauerhaft leer, sind für dieses Konto keine
+              Empfänger verfügbar.
             </p>
           ) : (
             <>

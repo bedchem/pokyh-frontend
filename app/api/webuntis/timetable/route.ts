@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession, webUntisHeaders } from '@/lib/server-session';
 
-const BASE = process.env.WEBUNTIS_BASE_URL || 'https://lbs-brixen.webuntis.com/WebUntis';
+import { WEBUNTIS_BASE } from '@/lib/untis-permissions';
+const BASE = WEBUNTIS_BASE;
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession();
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
     if (text.startsWith('<') || res.status === 401 || res.status === 403) {
       return NextResponse.json({ error: 'session_expired' }, { status: 401 });
     }
-    if (!res.ok) return NextResponse.json({ error: `API ${res.status}` }, { status: 502 });
+    if (!res.ok) return NextResponse.json({ error: 'Der Stundenplan konnte gerade nicht geladen werden.' }, { status: 502 });
     return NextResponse.json(JSON.parse(text));
   } catch (e: unknown) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Fehler' }, { status: 500 });

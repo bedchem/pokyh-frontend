@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession, webUntisHeaders } from '@/lib/server-session';
 
-const BASE = process.env.WEBUNTIS_BASE_URL || 'https://lbs-brixen.webuntis.com/WebUntis';
+import { WEBUNTIS_BASE } from '@/lib/untis-permissions';
+const BASE = WEBUNTIS_BASE;
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession();

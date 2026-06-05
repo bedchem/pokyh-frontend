@@ -7,6 +7,10 @@ interface Props {
   value: string; // "YYYY-MM-DDTHH:MM" or ""
   onChange: (val: string) => void;
   onBack: () => void;
+  // Lower bound (e.g. the chosen start). Earlier days are disabled and, on the
+  // same day, earlier times are rejected — so the end can only grow, never shrink
+  // before the start. When `value` is empty the picker opens on this day.
+  minDateTime?: string;
 }
 
 const MONTH_NAMES = [
@@ -34,12 +38,15 @@ function parseGermanDate(raw: string): string | null {
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-export default function DateTimePicker({ value, onChange, onBack }: Props) {
+export default function DateTimePicker({ value, onChange, onBack, minDateTime }: Props) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayDs = toDs(today);
 
-  const initDs = value ? value.split('T')[0] : '';
+  const minDs = minDateTime ? minDateTime.split('T')[0] : '';
+  const minTimeStr = minDateTime ? (minDateTime.split('T')[1] ?? '').slice(0, 5) : '';
+
+  const initDs = value ? value.split('T')[0] : minDs;
   const initTime = value ? (value.split('T')[1] ?? '').slice(0, 5) : '';
   const initD = initDs ? new Date(initDs + 'T00:00') : today;
 
@@ -61,6 +68,7 @@ export default function DateTimePicker({ value, onChange, onBack }: Props) {
 
   function selectDay(day: number) {
     const ds = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    if (minDs && ds < minDs) return; // earlier than the lower bound — not selectable
     setSelDate(ds);
     setDateText(dsToGerman(ds));
     setDateErr(false);
@@ -104,7 +112,10 @@ export default function DateTimePicker({ value, onChange, onBack }: Props) {
   }
 
   const timeValid = /^\d{2}:\d{2}$/.test(timeText) && !timeErr;
-  const canConfirm = !!selDate && timeValid;
+  // On the lower-bound day the time may not be earlier than the bound's time.
+  const belowMin = !!minDateTime && !!selDate && timeValid &&
+    (selDate < minDs || (selDate === minDs && timeText < minTimeStr));
+  const canConfirm = !!selDate && timeValid && !belowMin;
 
   function confirm() {
     if (!canConfirm) return;
@@ -189,11 +200,14 @@ export default function DateTimePicker({ value, onChange, onBack }: Props) {
                 const ds = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                 const isSel = ds === selDate;
                 const isToday = ds === todayDs;
+                const isDisabled = !!minDs && ds < minDs;
                 return (
                   <button
                     key={ds}
                     onClick={() => selectDay(day)}
+                    disabled={isDisabled}
                     className="h-9 flex items-center justify-center press-scale"
+                    style={{ cursor: isDisabled ? 'not-allowed' : undefined }}
                   >
                     <span
                       style={{
@@ -202,6 +216,7 @@ export default function DateTimePicker({ value, onChange, onBack }: Props) {
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: 14,
                         fontWeight: isSel ? 700 : 400,
+                        opacity: isDisabled ? 0.3 : 1,
                         background: isSel
                           ? 'var(--accent)'
                           : isToday
@@ -261,6 +276,11 @@ export default function DateTimePicker({ value, onChange, onBack }: Props) {
             />
             {timeErr && (
               <p className="text-[11px] mt-1 px-1" style={{ color: 'var(--danger)' }}>Format: HH:MM (z.B. 08:30)</p>
+            )}
+            {!timeErr && belowMin && (
+              <p className="text-[11px] mt-1 px-1" style={{ color: 'var(--danger)' }}>
+                Das Ende muss nach dem Start liegen.
+              </p>
             )}
           </div>
 

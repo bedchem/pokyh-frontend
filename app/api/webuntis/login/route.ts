@@ -137,29 +137,31 @@ export async function POST(req: NextRequest) {
         .catch(() => []),
     ]);
 
-    // App data (best-effort, capped at 5s so a slow call never stalls login) —
-    // used both for parent detection and to resolve a guardian's child.
-    const appData = await Promise.race([
-      fetchAppData({ sessionId, bearerToken, studentId, klasseId, klasseName, username }),
-      new Promise<{ ok: false }>((resolve) => setTimeout(() => resolve({ ok: false as const }), 5000)),
-    ]);
-    const appJson = 'ok' in appData && appData.ok ? appData.json : null;
-    const isParent = appJson ? detectParent(appJson) : false;
-
-    // Resolve the effective student. For a student login the logged-in person IS
-    // a student (their id appears in getStudents) → keep it. For a guardian/parent
-    // login the person is NOT a student → use their (first) child's student id so
-    // all WebUntis data (timetable, absences, …) resolves to the child.
+    // Resolve the effective student. For a normal student login the logged-in
+    // person IS a student (their id appears in getStudents) → keep it and SKIP the
+    // app-data call entirely (faster login). Only guardian/other logins need
+    // app-data, to detect the parent role and resolve the child's student id.
     let resolvedStudentId = studentId;
     let resolvedKlasseId = klasseId;
+    let isParent = false;
     const isStudentSelf = students.some((s) => s.id === studentId);
     if (!isStudentSelf) {
       if (students.length) {
         resolvedStudentId = students[0].id;
         if (students[0].klasseId) resolvedKlasseId = students[0].klasseId;
-      } else if (appJson) {
-        const childId = extractChildStudentId(appJson, studentId);
-        if (childId) resolvedStudentId = childId;
+      }
+      // App data (best-effort, capped at 5s so a slow call never stalls login).
+      const appData = await Promise.race([
+        fetchAppData({ sessionId, bearerToken, studentId, klasseId, klasseName, username }),
+        new Promise<{ ok: false }>((resolve) => setTimeout(() => resolve({ ok: false as const }), 5000)),
+      ]);
+      const appJson = 'ok' in appData && appData.ok ? appData.json : null;
+      if (appJson) {
+        isParent = detectParent(appJson);
+        if (!students.length) {
+          const childId = extractChildStudentId(appJson, studentId);
+          if (childId) resolvedStudentId = childId;
+        }
       }
     }
 

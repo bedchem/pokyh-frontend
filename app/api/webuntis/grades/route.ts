@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSession, webUntisHeaders, SCHOOL_COOKIE_VAL } from '@/lib/server-session';
 
-const BASE = process.env.WEBUNTIS_BASE_URL || 'https://lbs-brixen.webuntis.com/WebUntis';
+import { WEBUNTIS_BASE } from '@/lib/untis-permissions';
+const BASE = WEBUNTIS_BASE;
 const SCHOOL = process.env.WEBUNTIS_SCHOOL || 'lbs-brixen';
 const DEBUG = process.env.DEBUG_API === 'true';
 
@@ -120,7 +121,7 @@ export async function GET(request: Request) {
     }
     if (!listRes.ok) {
       console.error('[grades] List API error:', listRes.status, listText.slice(0, 300));
-      return NextResponse.json({ error: `Notenliste Fehler (${listRes.status}): ${listText.slice(0, 100)}` }, { status: 502 });
+      return NextResponse.json({ error: 'Die Noten konnten gerade nicht geladen werden.' }, { status: 502 });
     }
 
     const listData = JSON.parse(listText);

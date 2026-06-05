@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession, webUntisHeaders } from '@/lib/server-session';
 
-const BASE = process.env.WEBUNTIS_BASE_URL || 'https://lbs-brixen.webuntis.com/WebUntis';
+import { WEBUNTIS_BASE } from '@/lib/untis-permissions';
+const BASE = WEBUNTIS_BASE;
 
 function toIso(date: number, time: number): string {
   const d = date.toString().padStart(8, '0');
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
     const res  = await fetch(url, { headers: webUntisHeaders(session), signal: AbortSignal.timeout(10000) });
     const text = await res.text();
     if (text.startsWith('<')) return NextResponse.json({ error: 'session_expired' }, { status: 401 });
-    if (!res.ok) return NextResponse.json({ error: `API ${res.status}` }, { status: 502 });
+    if (!res.ok) return NextResponse.json({ error: 'Die Details konnten gerade nicht geladen werden.' }, { status: 502 });
     return NextResponse.json(JSON.parse(text));
   } catch (e: unknown) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Fehler' }, { status: 500 });

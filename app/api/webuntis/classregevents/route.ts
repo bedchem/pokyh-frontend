@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSession, webUntisHeaders } from '@/lib/server-session';
 
-const BASE = process.env.WEBUNTIS_BASE_URL || 'https://lbs-brixen.webuntis.com/WebUntis';
+import { WEBUNTIS_BASE } from '@/lib/untis-permissions';
+const BASE = WEBUNTIS_BASE;
 
 export async function GET(request: Request) {
   const session = await getServerSession();
@@ -31,7 +32,7 @@ export async function GET(request: Request) {
 
     if (!res.ok) {
       console.error('[classregevents] API error:', res.status, text.slice(0, 200));
-      return NextResponse.json({ error: `Klassenbuch Fehler (${res.status})` }, { status: 502 });
+      return NextResponse.json({ error: 'Das Klassenbuch konnte gerade nicht geladen werden.' }, { status: 502 });
     }
 
     const parsed = JSON.parse(text);

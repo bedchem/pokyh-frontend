@@ -8,8 +8,10 @@ import UntisGuard from '@/components/UntisGuard';
 import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
 import EmptyView from '@/components/ui/EmptyView';
-import ReportAbsenceSheet from '@/components/absences/ReportAbsenceSheet';
+// Abwesenheit-melden deaktiviert (kein funktionierender WebUntis-Schreib-Endpunkt):
+// import ReportAbsenceSheet from '@/components/absences/ReportAbsenceSheet';
 import { fetchAbsences, fetchTimetable, getAbsencesStale, fetchPermissions, excuseAbsence } from '@/lib/api';
+import { useSession } from '@/providers/SessionProvider';
 import type { AbsenceEntry } from '@/lib/types';
 
 // ─── Time helpers ─────────────────────────────────────────────────────────────
@@ -285,10 +287,39 @@ const _nowDate = new Date();
 const CURRENT_SCHOOL_YEAR = _nowDate.getMonth() >= 8 ? _nowDate.getFullYear() : _nowDate.getFullYear() - 1;
 const AVAILABLE_YEARS = Array.from({ length: 4 }, (_, i) => CURRENT_SCHOOL_YEAR - i);
 
+// ─── Lokaler Berechnungs-Cache (nur localStorage) ───────────────────────────────
+// Die Fehlstunden-Berechnung (Stundenplan-Abgleich) ist teuer. Wir berechnen sie
+// einmal und cachen das Ergebnis lokal pro Schüler+Jahr — beim nächsten Mal lädt
+// die Seite sofort, ohne den Stundenplan erneut zu holen. Invalidiert automatisch,
+// wenn sich die Anzahl der Abwesenheiten ändert (neue Einträge) oder nach 7 Tagen.
+const CALC_CACHE_PREFIX = 'pockyh_abscalc_';
+const CALC_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
+interface CalcCache { minutes: [number, number][]; possible: number; count: number; ts: number }
+
+function readCalcCache(studentId: number, year: number): { minutes: Map<number, number>; possible: number; count: number } | null {
+  if (!studentId || typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(`${CALC_CACHE_PREFIX}${studentId}_${year}`);
+    if (!raw) return null;
+    const o = JSON.parse(raw) as CalcCache;
+    if (!o || !Array.isArray(o.minutes) || Date.now() - o.ts > CALC_CACHE_TTL) return null;
+    return { minutes: new Map(o.minutes), possible: o.possible, count: o.count };
+  } catch { return null; }
+}
+
+function writeCalcCache(studentId: number, year: number, minutes: Map<number, number>, possible: number, count: number): void {
+  if (!studentId || typeof window === 'undefined') return;
+  try {
+    const payload: CalcCache = { minutes: [...minutes], possible, count, ts: Date.now() };
+    window.localStorage.setItem(`${CALC_CACHE_PREFIX}${studentId}_${year}`, JSON.stringify(payload));
+  } catch { /* Quota/privat — ignorieren */ }
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AbsencesPage() {
   const router = useRouter();
+  const { user } = useSession();
   const [selectedYear, setSelectedYear] = useState(CURRENT_SCHOOL_YEAR);
   const [isYearOpen, setIsYearOpen] = useState(false);
   const yearRef = useRef<HTMLDivElement>(null);
@@ -315,6 +346,16 @@ export default function AbsencesPage() {
       const res = await fetchAbsences(selectedYear);
       const parsed = parseAbsences(res);
       setAbsences(parsed);
+
+      // Schneller Pfad: lokal gecachtes Berechnungs-Ergebnis verwenden, solange
+      // sich die Anzahl der Abwesenheiten nicht geändert hat → kein Stundenplan-Laden.
+      const studentId = user?.studentId ?? 0;
+      const cached = readCalcCache(studentId, selectedYear);
+      if (cached && cached.count === parsed.length) {
+        setMinutesMap(cached.minutes);
+        setTotalPossibleMins(Math.max(1, cached.possible));
+        return; // finally setzt loading=false
+      }
 
       // Compute school year date range for selected year
       const sep = new Date(selectedYear, 8, 1); // Sept 1 of selected year
@@ -361,6 +402,9 @@ export default function AbsencesPage() {
         }
       }
       setTotalPossibleMins(Math.max(1, possibleMins));
+
+      // Ergebnis lokal cachen → nächster Aufruf rendert sofort.
+      writeCalcCache(user?.studentId ?? 0, selectedYear, mins, possibleMins, parsed.length);
     } catch (e: unknown) {
       if (e instanceof Error && e.message === 'session_expired') {
         window.location.replace('/login');
@@ -370,7 +414,7 @@ export default function AbsencesPage() {
     } finally {
       setLoading(false);
     }
-  }, [router, selectedYear]);
+  }, [router, selectedYear, user?.studentId]);
 
   useEffect(() => {
     load();
@@ -496,6 +540,11 @@ export default function AbsencesPage() {
               : <Clock size={15} />}
             {exact ? 'Exakt' : 'Gerundet'}
           </button>
+          {/* ── Abwesenheit melden (auskommentiert) ─────────────────────────────
+              Deaktiviert, weil WebUntis an dieser Schule keinen funktionierenden
+              Schreib-Endpunkt zum Anlegen einer Abwesenheit bereitstellt
+              (classreg → 403, REST calendar-entry → 500). Zum Reaktivieren einfach
+              wieder einkommentieren (auch den Sheet-Render unten + die Importe).
           {canReport && (
             <button
               onClick={() => setShowReport(true)}
@@ -506,6 +555,7 @@ export default function AbsencesPage() {
               <Plus size={20} />
             </button>
           )}
+          ──────────────────────────────────────────────────────────────────── */}
         </div>
 
         <div className="flex-1 px-4 pb-10 overflow-auto">
@@ -803,6 +853,7 @@ export default function AbsencesPage() {
             font-weight: 600;
           }
         `}</style>
+        {/* ── Abwesenheit-melden-Sheet (auskommentiert, siehe Hinweis oben) ─────
         {showReport && (
           <ReportAbsenceSheet
             personName={personName}
@@ -810,6 +861,7 @@ export default function AbsencesPage() {
             onCreated={load}
           />
         )}
+        ──────────────────────────────────────────────────────────────────── */}
       </UntisGuard>
     </AuthGuard>
   );

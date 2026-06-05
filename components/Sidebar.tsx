@@ -105,9 +105,10 @@ export default function Sidebar() {
   const [logoHref, setLogoHref] = useState('/');
   useEffect(() => { if (isPWA()) setLogoHref('/home'); }, []);
 
-  // Parent/guardian accounts don't get personal reminders → hide the tab.
+  // Parent/guardian accounts don't get personal reminders or todos → hide them.
+  const HIDDEN_FOR_PARENT = ['/reminders', '/todos'];
   const navGroups = user?.isParent
-    ? NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => i.href !== '/reminders') }))
+    ? NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => !HIDDEN_FOR_PARENT.includes(i.href)) }))
     : NAV_GROUPS;
 
   const renderSidebarContent = (isCollapsed: boolean) => (

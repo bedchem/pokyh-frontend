@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession, webUntisHeaders } from '@/lib/server-session';
 
-const BASE = process.env.WEBUNTIS_BASE_URL || 'https://lbs-brixen.webuntis.com/WebUntis';
+import { WEBUNTIS_BASE } from '@/lib/untis-permissions';
+const BASE = WEBUNTIS_BASE;
 const DEBUG = process.env.DEBUG_API === 'true';
+
+// Message folders (MessageCenter 2021). Each returns a differently-named array
+// (incomingMessages / sentMessages / draftMessages); the client normalises them.
+const FOLDER_PATHS: Record<string, string> = {
+  inbox: process.env.WEBUNTIS_API_PATH_MSG_LIST || '/api/rest/view/v1/messages',
+  sent: process.env.WEBUNTIS_API_PATH_MSG_SENT || '/api/rest/view/v1/messages/sent',
+  drafts: process.env.WEBUNTIS_API_PATH_MSG_DRAFTS || '/api/rest/view/v1/messages/drafts',
+};
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession();
@@ -38,9 +47,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ attachments: [] });
   }
 
+  const folderParam = searchParams.get('folder') ?? 'inbox';
+  const folderPath = FOLDER_PATHS[folderParam] ?? FOLDER_PATHS.inbox;
   const url = messageId
     ? `${BASE}/api/rest/view/v1/messages/${messageId}`
-    : `${BASE}/api/rest/view/v1/messages?pageSize=100&start=0`;
+    : `${BASE}${folderPath}?pageSize=100&start=0`;
 
   try {
     const res = await fetch(url, {
@@ -56,7 +67,7 @@ export async function GET(req: NextRequest) {
     }
     if (!res.ok) {
       console.error('[messages] API error:', res.status, text.slice(0, 200));
-      return NextResponse.json({ error: `Nachrichten Fehler (${res.status})` }, { status: 502 });
+      return NextResponse.json({ error: 'Die Nachrichten konnten gerade nicht geladen werden.' }, { status: 502 });
     }
 
     const json = JSON.parse(text);

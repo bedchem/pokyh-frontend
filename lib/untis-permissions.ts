@@ -183,13 +183,38 @@ export async function fetchAppData(session: Session): Promise<AppDataResult> {
   return result.reason === 'expired' ? { ok: false, expired: true, status: 401 } : { ok: false, status: 404 };
 }
 
-// Server-side gate used before any absence write. Returns true if the dev
-// override is on or the WebUntis right is present.
+// WebUntis' own age-aware flag for "may create an absence". It lives in the
+// absences envelope (`data.showCreateAbsence`) and is the SAME flag the WebUntis
+// UI uses: true for guardians and students of legal age, false for minors —
+// unlike the raw permission tokens, which students hold regardless of age.
+// Returns null when the flag can't be read (caller falls back).
+export async function fetchAbsenceCreateFlag(session: Session): Promise<boolean | null> {
+  const n = new Date();
+  const d = `${n.getFullYear()}${String(n.getMonth() + 1).padStart(2, '0')}${String(n.getDate()).padStart(2, '0')}`;
+  const path = `/api/classreg/absences/students?studentId=${session.studentId}&startDate=${d}&endDate=${d}&excuseStatusId=-1`;
+  try {
+    const r = await fetch(`${WEBUNTIS_BASE}${path}`, {
+      headers: webUntisHeaders(session),
+      signal: AbortSignal.timeout(12000),
+    });
+    const t = await r.text();
+    if (r.status === 401 || t.trimStart().startsWith('<') || !r.ok) return null;
+    const flag = (JSON.parse(t) as { data?: { showCreateAbsence?: unknown } })?.data?.showCreateAbsence;
+    return typeof flag === 'boolean' ? flag : null;
+  } catch {
+    return null;
+  }
+}
+
+// Server-side gate used before any absence write. Prefers WebUntis' age-aware
+// `showCreateAbsence` flag; only falls back to the permission-token scan if the
+// flag is unavailable. The dev override forces it on.
 export async function canReportAbsence(session: Session): Promise<boolean> {
   if (FORCE_REPORT) return true;
+  const flag = await fetchAbsenceCreateFlag(session);
+  if (flag !== null) return flag;
   const data = await fetchAppData(session);
-  if (!data.ok) return false;
-  return detectAbsenceRight(data.json);
+  return data.ok ? detectAbsenceRight(data.json) : false;
 }
 
 // Headers for WebUntis classreg POSTs (cookie-session based). Mark as XHR which

@@ -86,10 +86,18 @@ export async function POST(req: NextRequest) {
     if (res.reason === 'expired') return NextResponse.json({ error: 'session_expired' }, { status: 401 });
     if (res.reason === 'error') {
       console.error('[absence/create] API error:', res.status, res.body);
-      return NextResponse.json({ error: `Anlegen fehlgeschlagen (${res.status})` }, { status: 502 });
+      return NextResponse.json(
+        {
+          error: 'Die Abwesenheit konnte nicht gespeichert werden. Bitte versuche es später erneut.',
+          ...(process.env.NEXT_PUBLIC_DEBUG_API === 'true'
+            ? { _debug: { status: res.status, body: res.body, sent: payload } }
+            : {}),
+        },
+        { status: 502 },
+      );
     }
     return NextResponse.json(
-      { error: 'Kein Anlegen-Endpunkt gefunden (WEBUNTIS_API_PATH_ABSENCE_CREATE in .env setzen).' },
+      { error: 'Die Abwesenheit konnte nicht gespeichert werden. Bitte versuche es später erneut.' },
       { status: 502 },
     );
   } catch (e: unknown) {

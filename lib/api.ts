@@ -189,8 +189,10 @@ export function fetchAbsences(year?: number) {
   return apiFetchCached(`/api/webuntis/absences?startDate=${start}&endDate=${end}`);
 }
 
-export function fetchMessages() {
-  return apiFetchCached('/api/webuntis/messages');
+export type MessageFolder = 'inbox' | 'sent' | 'drafts';
+
+export function fetchMessages(folder: MessageFolder = 'inbox') {
+  return apiFetchCached(`/api/webuntis/messages?folder=${folder}`);
 }
 
 export function fetchMessageDetail(id: number) {
@@ -267,7 +269,8 @@ function invalidateAbsences() {
 }
 
 export function fetchPermissions(): Promise<UntisPermissions> {
-  return apiFetch('/api/webuntis/permissions') as Promise<UntisPermissions>;
+  // Never cached (browser or memory) — the 18+/report gate is always read fresh.
+  return apiFetch('/api/webuntis/permissions', { cache: 'no-store' }) as Promise<UntisPermissions>;
 }
 
 export function fetchAbsenceReasons(): Promise<{ reasons: AbsenceReason[] }> {
@@ -304,6 +307,14 @@ export async function excuseAbsence(
 
 export function sendMessage(input: SendMessageInput): Promise<unknown> {
   return apiFetch('/api/webuntis/messages/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+}
+
+export function saveDraft(input: SendMessageInput): Promise<unknown> {
+  return apiFetch('/api/webuntis/messages/send?draft=1', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession, webUntisHeaders } from '@/lib/server-session';
+import { WEBUNTIS_BASE } from '@/lib/untis-permissions';
 
-const BASE = process.env.WEBUNTIS_BASE_URL || 'https://lbs-brixen.webuntis.com/WebUntis';
+const BASE = WEBUNTIS_BASE;
 const PAGE_SIZE = 100;
 
 export async function GET(req: NextRequest) {
@@ -46,7 +47,7 @@ export async function GET(req: NextRequest) {
       if (!res.ok) {
         if (page === 0) {
           console.error('[absences] API error:', res.status, text.slice(0, 200));
-          return NextResponse.json({ error: `Abwesenheiten Fehler (${res.status})` }, { status: 502 });
+          return NextResponse.json({ error: 'Die Abwesenheiten konnten gerade nicht geladen werden.' }, { status: 502 });
         }
         break;
       }
@@ -62,17 +63,13 @@ export async function GET(req: NextRequest) {
           (inner?.totalCount as number) ??
           (inner?.totalElements as number) ??
           null;
-        console.log('[absences] page 0 — items:', pageItems.length, 'totalCount:', totalCount);
       }
 
       if (pageItems.length === 0) break; // no more data
 
       // Duplicate detection: if the first item ID matches what we already have, stop
       const firstId = (pageItems[0] as Record<string, unknown>)?.id;
-      if (page > 0 && allAbsences.some((a) => (a as Record<string, unknown>).id === firstId)) {
-        console.log('[absences] duplicate page detected at page', page, '— stopping');
-        break;
-      }
+      if (page > 0 && allAbsences.some((a) => (a as Record<string, unknown>).id === firstId)) break;
 
       allAbsences.push(...pageItems);
 
@@ -84,7 +81,6 @@ export async function GET(req: NextRequest) {
       page++;
     }
 
-    console.log('[absences] total fetched:', allAbsences.length, '(expected:', totalCount, ')');
     return NextResponse.json({ data: { absences: allAbsences, count: allAbsences.length } });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Fehler';

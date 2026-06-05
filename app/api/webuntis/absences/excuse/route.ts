@@ -63,10 +63,10 @@ export async function POST(req: NextRequest) {
     if (res.reason === 'expired') return NextResponse.json({ error: 'session_expired' }, { status: 401 });
     if (res.reason === 'error') {
       console.error('[absence/excuse] API error:', res.status, res.body);
-      return NextResponse.json({ error: `Entschuldigen fehlgeschlagen (${res.status})` }, { status: 502 });
+      return NextResponse.json({ error: 'Die Abwesenheit konnte nicht entschuldigt werden. Bitte versuche es später erneut.' }, { status: 502 });
     }
     return NextResponse.json(
-      { error: 'Kein Entschuldigen-Endpunkt gefunden (WEBUNTIS_API_PATH_ABSENCE_EXCUSE in .env setzen).' },
+      { error: 'Die Abwesenheit konnte nicht entschuldigt werden. Bitte versuche es später erneut.' },
       { status: 502 },
     );
   } catch (e: unknown) {

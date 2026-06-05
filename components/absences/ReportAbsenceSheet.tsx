@@ -58,6 +58,17 @@ export default function ReportAbsenceSheet({ personName, onClose, onCreated }: P
     return () => { alive = false; };
   }, []);
 
+  // Changing the start keeps the end on the SAME day (absences default to one
+  // day) and never before the start — you can only extend the end later.
+  function changeStart(newStart: string) {
+    setStart(newStart);
+    const sp = dtToParts(newStart);
+    const ep = dtToParts(end);
+    if (sp && ep) {
+      setEnd(`${sp.ymd}${ep.hhmm}` >= `${sp.ymd}${sp.hhmm}` ? partsToDt(sp.ymd, ep.hhmm) : newStart);
+    }
+  }
+
   function applyRange(r: PickedRange) {
     setStart(partsToDt(r.startDate, r.startTime));
     setEnd(partsToDt(r.endDate, r.endTime));
@@ -93,10 +104,10 @@ export default function ReportAbsenceSheet({ personName, onClose, onCreated }: P
 
   // ── Sub-views ────────────────────────────────────────────────────────────────
   if (view === 'start') {
-    return <DateTimePicker value={start} onChange={setStart} onBack={() => setView('form')} />;
+    return <DateTimePicker value={start} onChange={changeStart} onBack={() => setView('form')} />;
   }
   if (view === 'end') {
-    return <DateTimePicker value={end} onChange={setEnd} onBack={() => setView('form')} />;
+    return <DateTimePicker value={end} onChange={setEnd} onBack={() => setView('form')} minDateTime={start} />;
   }
   if (view === 'reason') {
     return (
