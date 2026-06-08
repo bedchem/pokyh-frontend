@@ -110,6 +110,8 @@ export interface SendMessageInput {
   recipients: { id: number; type: string }[];
   subject: string;
   content: string;
+  files?: File[];
+  draftId?: number; // when set, update this existing draft in place (PUT)
 }
 
 export interface MessagePreview {

@@ -305,20 +305,57 @@ export async function excuseAbsence(
   return res;
 }
 
+// Build a multipart body so attachments ride along with the message. The browser
+// sets the multipart Content-Type (with boundary) itself, so we don't set headers.
+function messageFormData(input: SendMessageInput): FormData {
+  const fd = new FormData();
+  fd.append('subject', input.subject);
+  fd.append('content', input.content);
+  fd.append('recipients', JSON.stringify(input.recipients));
+  for (const f of input.files ?? []) fd.append('attachments', f, f.name);
+  return fd;
+}
+
 export function sendMessage(input: SendMessageInput): Promise<unknown> {
   return apiFetch('/api/webuntis/messages/send', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    body: messageFormData(input),
   });
 }
 
 export function saveDraft(input: SendMessageInput): Promise<unknown> {
-  return apiFetch('/api/webuntis/messages/send?draft=1', {
+  // Editing an existing draft → update in place (server PUTs it, keeping the
+  // draft's already-uploaded attachments). New compose → create a fresh draft.
+  const qs = input.draftId ? `?draft=1&id=${input.draftId}` : '?draft=1';
+  const res = apiFetch(`/api/webuntis/messages/send${qs}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    body: messageFormData(input),
   });
+  invalidateDrafts();
+  return res;
+}
+
+export interface DraftData {
+  id?: number;
+  subject: string;
+  content: string;
+  recipients: { id: number; type: string; name: string }[];
+  attachments: { id: string; name: string }[];
+}
+
+export function fetchDraft(id: number): Promise<DraftData> {
+  return apiFetch(`/api/webuntis/messages/draft?id=${id}`) as Promise<DraftData>;
+}
+
+export async function deleteDraft(id: number): Promise<void> {
+  await apiFetch(`/api/webuntis/messages/draft?id=${id}`, { method: 'DELETE' });
+  invalidateDrafts();
+}
+
+// Drop the cached drafts list so it reflects a save/delete.
+function invalidateDrafts() {
+  cacheDel('/api/webuntis/messages?folder=drafts');
+  pcDel('/api/webuntis/messages?folder=drafts');
 }
 
 export async function logout() {

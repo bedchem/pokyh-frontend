@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { ChevronRight, Paperclip, Inbox, CheckCheck, Pencil } from 'lucide-react';
+import { ChevronRight, Paperclip, Inbox, CheckCheck, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AuthGuard from '@/components/AuthGuard';
@@ -9,8 +9,8 @@ import UntisGuard from '@/components/UntisGuard';
 import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
 import EmptyView from '@/components/ui/EmptyView';
-import ComposeMessageSheet from '@/components/messages/ComposeMessageSheet';
-import { fetchMessages, markAllMessagesRead, type MessageFolder } from '@/lib/api';
+import ComposeMessageSheet, { type ComposeInitial } from '@/components/messages/ComposeMessageSheet';
+import { fetchMessages, markAllMessagesRead, fetchDraft, deleteDraft, type MessageFolder } from '@/lib/api';
 import type { MessagePreview } from '@/lib/types';
 
 const FOLDERS: { key: MessageFolder; label: string }[] = [
@@ -117,6 +117,9 @@ export default function MessagesPage() {
   const [error, setError] = useState('');
   const [markingAll, setMarkingAll] = useState(false);
   const [showCompose, setShowCompose] = useState(false);
+  const [composeInitial, setComposeInitial] = useState<ComposeInitial | undefined>(undefined);
+  const [openingDraftId, setOpeningDraftId] = useState<number | null>(null);
+  const [deletingDraftId, setDeletingDraftId] = useState<number | null>(null);
   const [folder, setFolder] = useState<MessageFolder>('inbox');
 
   const load = useCallback(async () => {
@@ -141,6 +144,40 @@ export default function MessagesPage() {
   }, [load]);
 
   const unreadIds = messages.filter((m) => !m.isRead).map((m) => m.id);
+
+  async function openDraft(id: number) {
+    if (openingDraftId != null) return;
+    setOpeningDraftId(id);
+    try {
+      const d = await fetchDraft(id);
+      setComposeInitial({ draftId: id, subject: d.subject, content: d.content, recipients: d.recipients, attachments: d.attachments });
+      setShowCompose(true);
+    } catch (e) {
+      if (e instanceof Error && e.message === 'session_expired') router.replace('/login');
+      else setError('Der Entwurf konnte nicht geöffnet werden.');
+    } finally {
+      setOpeningDraftId(null);
+    }
+  }
+
+  async function handleDeleteDraft(id: number) {
+    if (deletingDraftId != null) return;
+    setDeletingDraftId(id);
+    try {
+      await deleteDraft(id);
+      setMessages((prev) => prev.filter((m) => m.id !== id));
+    } catch (e) {
+      if (e instanceof Error && e.message === 'session_expired') router.replace('/login');
+      else setError('Der Entwurf konnte nicht gelöscht werden.');
+    } finally {
+      setDeletingDraftId(null);
+    }
+  }
+
+  function newCompose() {
+    setComposeInitial(undefined);
+    setShowCompose(true);
+  }
 
   async function handleMarkAllRead() {
     if (markingAll || unreadIds.length === 0) return;
@@ -182,7 +219,7 @@ export default function MessagesPage() {
             </button>
           )}
           <button
-            onClick={() => setShowCompose(true)}
+            onClick={newCompose}
             className="w-10 h-10 flex items-center justify-center rounded-full press-scale flex-shrink-0"
             style={{ background: 'var(--accent)', color: '#fff' }}
             aria-label="Mitteilung verfassen"
@@ -233,16 +270,11 @@ export default function MessagesPage() {
             />
           ) : (
             <div style={{ background: 'var(--app-surface)' }} className="fade-in delay-1">
-              {messages.map((msg, i) => (
-                <Link
-                  key={msg.id}
-                  href={`/messages/${msg.id}`}
-                  className="block press-scale"
-                  style={{
-                    borderTop:
-                      i > 0 ? '1px solid var(--app-separator)' : 'none',
-                  }}
-                >
+              {messages.map((msg, i) => {
+                const isDraft = folder === 'drafts';
+                const borderTop = i > 0 ? '1px solid var(--app-separator)' : 'none';
+
+                const inner = (
                   <div className="px-4 py-4 flex items-center gap-3">
                     {/* Avatar with unread dot */}
                     <div className="relative flex-shrink-0">
@@ -255,10 +287,7 @@ export default function MessagesPage() {
                       {!msg.isRead && (
                         <div
                           className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full border-2"
-                          style={{
-                            background: 'var(--accent)',
-                            borderColor: 'var(--app-surface)',
-                          }}
+                          style={{ background: 'var(--accent)', borderColor: 'var(--app-surface)' }}
                         />
                       )}
                     </div>
@@ -268,50 +297,70 @@ export default function MessagesPage() {
                       <div className="flex items-center justify-between gap-2">
                         <p
                           className="text-sm truncate"
-                          style={{
-                            color: 'var(--app-text-primary)',
-                            fontWeight: msg.isRead ? 400 : 700,
-                          }}
+                          style={{ color: 'var(--app-text-primary)', fontWeight: msg.isRead ? 400 : 700 }}
                         >
                           {msg.subject}
                         </p>
-                        <p
-                          className="text-xs flex-shrink-0"
-                          style={{ color: 'var(--app-text-tertiary)' }}
-                        >
+                        <p className="text-xs flex-shrink-0" style={{ color: 'var(--app-text-tertiary)' }}>
                           {formatMessageDate(msg.sentDate)}
                         </p>
                       </div>
                       <div className="flex items-center gap-1 mt-0.5">
                         <p
                           className="text-xs truncate flex-1"
-                          style={{
-                            color: 'var(--app-text-secondary)',
-                            fontWeight: msg.isRead ? 400 : 500,
-                          }}
+                          style={{ color: 'var(--app-text-secondary)', fontWeight: msg.isRead ? 400 : 500 }}
                         >
                           {msg.senderName}
                           {msg.contentPreview ? ` · ${msg.contentPreview}` : ''}
                         </p>
-                        {msg.hasAttachments && (
-                          <Paperclip
-                            size={12}
-                            color="var(--app-text-tertiary)"
-                          />
-                        )}
+                        {msg.hasAttachments && <Paperclip size={12} color="var(--app-text-tertiary)" />}
                       </div>
                     </div>
 
-                    <ChevronRight size={16} color="var(--app-text-tertiary)" />
+                    {!isDraft && <ChevronRight size={16} color="var(--app-text-tertiary)" />}
                   </div>
-                </Link>
-              ))}
+                );
+
+                if (!isDraft) {
+                  return (
+                    <Link key={msg.id} href={`/messages/${msg.id}`} className="block press-scale" style={{ borderTop }}>
+                      {inner}
+                    </Link>
+                  );
+                }
+
+                // Drafts: tap to edit, with a delete action.
+                return (
+                  <div key={msg.id} className="flex items-center" style={{ borderTop }}>
+                    <button
+                      onClick={() => openDraft(msg.id)}
+                      disabled={openingDraftId != null || deletingDraftId === msg.id}
+                      className="flex-1 min-w-0 text-left press-scale disabled:opacity-60"
+                    >
+                      {inner}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteDraft(msg.id)}
+                      disabled={deletingDraftId != null || openingDraftId != null}
+                      className="w-11 h-11 mr-2 flex items-center justify-center rounded-full press-scale flex-shrink-0 disabled:opacity-50"
+                      style={{ color: 'var(--danger)' }}
+                      aria-label="Entwurf löschen"
+                    >
+                      {deletingDraftId === msg.id ? <Loader2 size={17} className="animate-spin" /> : <Trash2 size={17} />}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
       </div>
       {showCompose && (
-        <ComposeMessageSheet onClose={() => setShowCompose(false)} onSent={load} />
+        <ComposeMessageSheet
+          initial={composeInitial}
+          onClose={() => { setShowCompose(false); setComposeInitial(undefined); }}
+          onSent={load}
+        />
       )}
       </UntisGuard>
     </AuthGuard>
