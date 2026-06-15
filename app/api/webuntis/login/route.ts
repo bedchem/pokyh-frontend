@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { encryptSession } from '@/lib/session-crypto';
-import { fetchAppData, detectParent, extractChildStudentId } from '@/lib/untis-permissions';
+import { fetchAppData, detectParent, extractChildStudentId, extractImageUrl } from '@/lib/untis-permissions';
 
 const BASE = process.env.WEBUNTIS_BASE_URL ?? process.env.WEBUNTIS_BASE ?? 'https://lbs-brixen.webuntis.com/WebUntis';
 const SCHOOL = process.env.WEBUNTIS_SCHOOL ?? 'lbs-brixen';
@@ -138,24 +138,29 @@ export async function POST(req: NextRequest) {
     ]);
 
     // Resolve the effective student. For a normal student login the logged-in
-    // person IS a student (their id appears in getStudents) → keep it and SKIP the
-    // app-data call entirely (faster login). Only guardian/other logins need
-    // app-data, to detect the parent role and resolve the child's student id.
+    // person IS a student (their id appears in getStudents). Guardian/other logins
+    // need app-data to detect the parent role and resolve the child's student id.
     let resolvedStudentId = studentId;
     let resolvedKlasseId = klasseId;
     let isParent = false;
+    let imageUrl: string | undefined;
     const isStudentSelf = students.some((s) => s.id === studentId);
+
+    // Fetch app-data once here, where the WebUntis session is freshest — this is
+    // the most reliable moment to read the profile-image URL (a later, separate
+    // request can hit a stale cookie session and fail). Best-effort, capped at 5s
+    // so a slow call never stalls login.
+    const appData = await Promise.race([
+      fetchAppData({ sessionId, bearerToken, studentId, klasseId, klasseName, username }),
+      new Promise<{ ok: false }>((resolve) => setTimeout(() => resolve({ ok: false as const }), 5000)),
+    ]);
+    const appJson = 'ok' in appData && appData.ok ? appData.json : null;
+
     if (!isStudentSelf) {
       if (students.length) {
         resolvedStudentId = students[0].id;
         if (students[0].klasseId) resolvedKlasseId = students[0].klasseId;
       }
-      // App data (best-effort, capped at 5s so a slow call never stalls login).
-      const appData = await Promise.race([
-        fetchAppData({ sessionId, bearerToken, studentId, klasseId, klasseName, username }),
-        new Promise<{ ok: false }>((resolve) => setTimeout(() => resolve({ ok: false as const }), 5000)),
-      ]);
-      const appJson = 'ok' in appData && appData.ok ? appData.json : null;
       if (appJson) {
         isParent = detectParent(appJson);
         if (!students.length) {
@@ -165,8 +170,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Profile-image URL — for a guardian it's the child's, otherwise the person's.
+    if (appJson) imageUrl = extractImageUrl(appJson, isParent);
+
     // 4. Encrypt full session into httpOnly cookie (uses the resolved student).
-    const sessionData = { sessionId, bearerToken, studentId: resolvedStudentId, klasseId: resolvedKlasseId, klasseName, username, personType, isParent, loginAt: Date.now() };
+    const sessionData = { sessionId, bearerToken, studentId: resolvedStudentId, klasseId: resolvedKlasseId, klasseName, username, personType, isParent, imageUrl, loginAt: Date.now() };
     const encrypted = await encryptSession(sessionData);
 
     // 5. Non-sensitive user data for client (loginAt lets the client set a proactive expiry timer)

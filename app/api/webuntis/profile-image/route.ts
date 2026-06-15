@@ -11,8 +11,13 @@ export async function GET() {
   const session = await getServerSession();
   if (!session) return NextResponse.json({ error: 'Nicht angemeldet.' }, { status: 401 });
 
-  const appData = await fetchAppData(session);
-  const imageUrl = appData.ok ? extractImageUrl(appData.json, session.isParent) : undefined;
+  // Primary: the image URL captured at login (reliable — session was fresh then).
+  // Fallback: a live app-data lookup for sessions created before this was stored.
+  let imageUrl = session.imageUrl;
+  if (!imageUrl) {
+    const appData = await fetchAppData(session);
+    imageUrl = appData.ok ? extractImageUrl(appData.json, session.isParent) : undefined;
+  }
   if (!imageUrl) {
     return NextResponse.json({ error: 'Kein Profilbild vorhanden.' }, { status: 404 });
   }

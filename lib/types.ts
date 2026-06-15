@@ -8,6 +8,8 @@ export interface Session {
   personName?: string;
   personType?: number;
   isParent?: boolean;
+  /** WebUntis profile-image URL, captured at login (session is freshest then). */
+  imageUrl?: string;
 }
 
 export interface TimetableEntry {
