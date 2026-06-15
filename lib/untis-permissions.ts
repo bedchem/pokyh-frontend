@@ -112,6 +112,22 @@ export function extractPersonName(json: unknown): string | undefined {
   return full || undefined;
 }
 
+// Extracts the profile-image URL from WebUntis app-data. For a guardian the
+// relevant image is the child's (`user.students[0].imageUrl`); otherwise it's
+// the logged-in person's (`user.person.imageUrl`). Returns undefined when none
+// is set (most accounts have no uploaded picture → caller falls back to initials).
+export function extractImageUrl(json: unknown, isParent = false): string | undefined {
+  const j = json as Record<string, any>;
+  const u = j?.data?.user ?? j?.user ?? j?.data ?? j;
+  const candidates: unknown[] = [];
+  if (isParent && Array.isArray(u?.students)) candidates.push(u.students[0]?.imageUrl);
+  candidates.push(u?.person?.imageUrl, u?.imageUrl, j?.data?.user?.person?.imageUrl);
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.trim()) return c.trim();
+  }
+  return undefined;
+}
+
 // The display name to show as the absence's subject ("Schüler/in"). For a
 // guardian this is the child (app-data `user.students[0].displayName`); otherwise
 // it's the logged-in person.

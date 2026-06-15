@@ -104,6 +104,7 @@ export default function ProfilePage() {
   const { stableUid, classId } = useApp();
   const [loggingOut, setLoggingOut] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const [avatarFailed, setAvatarFailed] = useState(false);
 
   async function handleLogout() {
     if (!confirmLogout) {
@@ -142,13 +143,23 @@ export default function ProfilePage() {
           {/* Avatar hero */}
           <div className="flex flex-col items-center pt-5 pb-8 px-5 fade-in">
             <div
-              className="w-[88px] h-[88px] rounded-full flex items-center justify-center text-[30px] font-bold text-white mb-4"
+              className="w-[88px] h-[88px] rounded-full overflow-hidden flex items-center justify-center text-[30px] font-bold text-white mb-4"
               style={{
                 background: 'linear-gradient(145deg, var(--accent) 0%, #5E5CE6 100%)',
                 boxShadow: '0 8px 28px color-mix(in srgb, var(--accent) 40%, transparent)',
               }}
             >
-              {initials}
+              {avatarFailed ? (
+                initials
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src="/api/webuntis/profile-image"
+                  alt={user?.username ?? 'Profil'}
+                  className="w-full h-full object-cover"
+                  onError={() => setAvatarFailed(true)}
+                />
+              )}
             </div>
             <h2
               className="text-[20px] font-bold tracking-tight"

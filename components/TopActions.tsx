@@ -65,6 +65,7 @@ export default function TopActions() {
   }, [refreshUnread]);
 
   const initials = user?.username.slice(0, 2).toUpperCase() ?? 'ME';
+  const [avatarFailed, setAvatarFailed] = useState(false);
 
   return (
     <div className="flex items-center gap-3">
@@ -81,10 +82,20 @@ export default function TopActions() {
       </Link>
       <Link href="/profile" className="press-scale" aria-label="Profil">
         <div
-          className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white"
+          className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center text-sm font-bold text-white"
           style={{ background: 'linear-gradient(135deg, #0A84FF, #5E5CE6)' }}
         >
-          {initials}
+          {avatarFailed ? (
+            initials
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src="/api/webuntis/profile-image"
+              alt={user?.username ?? 'Profil'}
+              className="w-full h-full object-cover"
+              onError={() => setAvatarFailed(true)}
+            />
+          )}
         </div>
       </Link>
     </div>
