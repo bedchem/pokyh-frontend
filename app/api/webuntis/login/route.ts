@@ -198,7 +198,15 @@ export async function POST(req: NextRequest) {
           'X-Server-Key': process.env.API_SERVER_KEY ?? '',
           'X-API-Key': process.env.API_BACKEND_KEY ?? '',
         },
-        body: JSON.stringify({ username, klasseId, klasseName }),
+        // Parents are auto-assigned (invisibly) to their child's class — send the
+        // resolved child klasseId and the parent role so the backend creates a
+        // parent account (own todos, sees class name, no reminders, hidden member).
+        body: JSON.stringify({
+          username,
+          klasseId: resolvedKlasseId,
+          klasseName,
+          role: isParent ? 'parent' : 'student',
+        }),
         signal: AbortSignal.timeout(10000),
       });
 

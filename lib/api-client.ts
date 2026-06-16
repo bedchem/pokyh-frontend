@@ -128,6 +128,7 @@ export interface ApiUser {
   webuntisKlasseName: string;
   classId: string | null;
   isAdmin: boolean;
+  role?: 'student' | 'parent';
 }
 
 export interface ApiTodo {
