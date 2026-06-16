@@ -1,227 +1,246 @@
-# POKYH — Schulapp für LBS Brixen
+<div align="center">
 
-Eine kostenlose Web-App für Schülerinnen, Schüler und Erziehungsberechtigte der
-Landesberufsschule Brixen (Südtirol). Stundenplan, Noten, Mensa, Abwesenheiten,
-Nachrichten, Todos und Klassen-Erinnerungen — alles an einem Ort, in einem
-cleanen, Apple-artigen Design.
+# POKYH — Web Frontend
 
-**Live:** [pokyh.com](https://pokyh.com)
+**The web app for students and guardians of LBS Brixen — WebUntis, reimagined.**
 
-> Nicht offiziell mit der LBS Brixen oder WebUntis verbunden.
+Stundenplan · Noten · Mensa · Abwesenheiten · Nachrichten · To-dos · Klassen-Erinnerungen — an einem Ort, als installierbare PWA.
+
+Next.js 16 · React 19 · TypeScript · Tailwind CSS 4 · Framer Motion · Server-Sent Events · Web Push
+
+</div>
 
 ---
 
-## Inhalt
+## Table of contents
 
+- [Overview](#overview)
 - [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Lokale Entwicklung](#lokale-entwicklung)
-- [Umgebungsvariablen](#umgebungsvariablen)
-- [Architektur](#architektur)
-- [WebUntis-Integration](#webuntis-integration)
-- [Eltern-/Schülerkonten](#eltern--und-schülerkonten)
-- [Bekannte Einschränkungen](#bekannte-einschränkungen)
-- [Projektstruktur](#projektstruktur)
-- [Sicherheit](#sicherheit)
-- [Lizenz](#lizenz)
+- [Architecture](#architecture)
+- [Tech stack](#tech-stack)
+- [Quick start](#quick-start)
+- [Environment variables](#environment-variables)
+- [How auth works](#how-auth-works)
+- [Project layout](#project-layout)
+- [Scripts](#scripts)
+- [Deployment](#deployment)
+- [Security notes](#security-notes)
+- [Troubleshooting](#troubleshooting)
+
+---
+
+## Overview
+
+A free, fast, mobile-first web app for the students, pupils and guardians of the
+**Landesberufsschule Brixen** (South Tyrol). It wraps the school's [WebUntis](https://www.untis.at/)
+instance in a clean, app-like interface and layers on POKYH's own social features (shared class
+reminders, personal to-dos, the cafeteria menu with ratings & comments).
+
+It is a **Progressive Web App**: installable to the home screen, offline-aware, with push
+notifications. WebUntis calls are proxied **server-side** so credentials and session cookies never
+touch the browser.
 
 ---
 
 ## Features
 
-| Bereich | Beschreibung |
-|---------|--------------|
-| **Stundenplan** | Tages- und Wochenansicht mit Prüfungen, Vertretungen und Entfällen |
-| **Noten** | Fachweise Übersicht inkl. automatischem Gesamtschnitt |
-| **Abwesenheiten** | Fehlstunden mit Jahresübersicht, exakter Minuten­berechnung und Status (entschuldigt/offen) |
-| **Mensa** | Speiseplan mit Nährwerten, Allergenen und Sternebewertungen |
-| **Nachrichten** | WebUntis MessageCenter: Posteingang, **Gesendet**, **Entwürfe**, Anhänge, Empfänger-Auswahl |
-| **Todos** | Persönliche Aufgabenliste mit Fälligkeitsdaten |
-| **Erinnerungen** | Klassenweite Erinnerungen für Hausaufgaben und Prüfungen |
-| **Klassenbuch** | Klassenbuch-Einträge |
-
-Dazu: Dunkel- & Hellmodus, Mobile-First-Layout, PWA-fähig, framer-motion-Animationen.
+- 📅 **Stundenplan** — timetable with lesson details, exams and homework
+- 📊 **Noten** — grades with subject breakdowns and averages
+- 🍽️ **Mensa** — daily menu with star ratings & comments (POKYH backend)
+- 🚫 **Abwesenheiten** — view, self-report and excuse absences (where WebUntis permits)
+- ✉️ **Nachrichten** — WebUntis message center (inbox / sent / drafts, attachments)
+- ✅ **To-dos** — personal tasks, realtime-synced across devices
+- 🔔 **Erinnerungen** — class-wide reminders with threaded comments
+- 👪 **Eltern-Accounts** — guardians log in and are auto-assigned (invisibly) to their child's class
+- 📲 **PWA** — installable, offline-aware, Web Push notifications
+- 🔐 **Passkey/credential** save for frictionless re-login
 
 ---
 
-## Tech Stack
+## Architecture
 
-| Was | Womit |
-|-----|-------|
-| Framework | **Next.js 16** (App Router, Route Handlers) |
-| Sprache | **TypeScript** |
-| Styling | **Tailwind CSS v4** + CSS-Variablen (Theme-Tokens) |
-| Animationen | framer-motion + CSS-Keyframes |
-| WebUntis-Daten | WebUntis Interne API (über eigene Server-Proxy-Routes) |
-| App-Auth & -Daten | [POKYH Backend](https://github.com/bedchem/pokyh-backend) (Node.js, MySQL, JWT) |
-| Session | AES-GCM-verschlüsseltes httpOnly-Cookie |
-| Hosting | Selfhosting |
+The browser never talks to WebUntis or holds secrets directly. **Next.js route handlers**
+(`app/api/**`) act as a secure server-side proxy:
 
----
-
-## Lokale Entwicklung
-
-**Voraussetzungen:** Node.js ≥ 20, laufendes [pokyh-backend](https://github.com/bedchem/pokyh-backend)
-
-```bash
-# 1. Repository klonen
-git clone https://github.com/bedchem/pokyh-frontend
-cd pokyh-frontend
-
-# 2. Abhängigkeiten installieren
-npm install
-
-# 3. Umgebungsvariablen konfigurieren
-cp .env.example .env.local
-#    .env.local mit deinen Werten befüllen
-
-# 4. Entwicklungsserver starten
-npm run dev
+```
+Browser  ──►  Next.js Route Handlers (server)  ──►  WebUntis
+   │                     │
+   │                     └────────────────────►  POKYH Backend (api.pokyh.com)
+   │
+   └─ httpOnly session cookie · public user cookie · readable access-token cookie
 ```
 
-App läuft auf [http://localhost:3000](http://localhost:3000).
+- **`/api/webuntis/*`** — proxies WebUntis (timetable, grades, messages, absences, …) using a
+  WebUntis session that lives **only** in an encrypted, httpOnly cookie.
+- **`/api/auth/*`** — POKYH session lifecycle (`login`, `refresh`, `logout`, `pokyh-login`,
+  `register`). The refresh token is httpOnly; refresh happens **server-side** so it actually works.
+- **`proxy.ts`** (middleware) — gates every non-public route on a valid, non-expired session and
+  redirects to `/login` otherwise.
+- **Client `lib/api-client.ts`** — talks to the POKYH backend with `X-API-Key` + `Bearer` token,
+  transparently refreshing on `401` and emitting a clean session-expiry event when it can't.
+
+---
+
+## Tech stack
+
+| Concern        | Choice                                            |
+| -------------- | ------------------------------------------------- |
+| Framework      | Next.js 16 (App Router, route handlers)           |
+| UI             | React 19 · Tailwind CSS 4 · Framer Motion         |
+| 3D / landing   | three.js · @react-three/fiber & drei              |
+| Language       | TypeScript (strict)                               |
+| Realtime       | Server-Sent Events (`EventSource`)                |
+| Offline / PWA  | Service worker + persistent caches (`lib/persist-cache.ts`) |
+| Push           | Web Push (VAPID)                                  |
+| Analytics      | Vercel Analytics                                  |
+| E2E tests      | Playwright                                        |
+
+---
+
+## Quick start
+
+### Prerequisites
+- Node.js ≥ 20.9
+- A running [POKYH backend](../pokyh-backend) (locally or `https://api.pokyh.com`)
 
 ```bash
-npm run dev      # Entwicklungsserver
-npm run build    # Produktions-Build
-npm run start    # Produktionsserver
+# 1. Install
+npm install
+
+# 2. Configure
+cp .env.example .env.local     # or create .env.local (see below)
+
+# 3. Run
+npm run dev                    # http://localhost:3000
+```
+
+> The dev server runs on **port 3000**. Make sure the backend's `CORS_ORIGIN` includes
+> `http://localhost:3000`.
+
+---
+
+## Environment variables
+
+Create **`.env.local`** (never commit it). Values prefixed `NEXT_PUBLIC_` are exposed to the
+browser; the rest are server-only.
+
+| Variable                       | Scope   | Purpose                                                                 |
+| ------------------------------ | ------- | ----------------------------------------------------------------------- |
+| `SESSION_SECRET`               | server  | Key for encrypting the WebUntis session cookie. **Secret.**             |
+| `NEXT_PUBLIC_SITE_URL`         | public  | Canonical site URL for SEO/metadata. **Prod:** `https://pokyh.com` — note the `https://` (a malformed value breaks sitemap/OG, not auth). |
+| `API_BACKEND_URL`              | server  | POKYH backend URL for server-side calls (no CORS). e.g. `https://api.pokyh.com` |
+| `NEXT_PUBLIC_API_BACKEND_URL`  | public  | POKYH backend URL for client-side calls.                                |
+| `API_BACKEND_KEY` / `NEXT_PUBLIC_API_KEY` | both | `X-API-Key` — must match the backend's `API_KEY`.                  |
+| `API_SERVER_KEY`               | server  | `X-Server-Key` for the trusted server-to-server login. **Secret.** Must match the backend's `SERVER_KEY`. |
+| `WEBUNTIS_BASE_URL`            | server  | WebUntis base, e.g. `https://lbs-brixen.webuntis.com/WebUntis`.         |
+| `WEBUNTIS_SCHOOL`              | server  | WebUntis school short name, e.g. `lbs-brixen`.                          |
+| `WEBUNTIS_API_PATH_*`          | server  | Overridable WebUntis REST paths (verified against LBS Brixen).          |
+| `WEBUNTIS_ABSENCE_RIGHT`       | server  | Permission tokens that unlock absence report/excuse.                    |
+| `NEXT_PUBLIC_DEBUG_API`        | public  | `true` to log API calls in the console.                                 |
+| `NEXT_PUBLIC_FORCE_ABSENCE_REPORT` | public | Dev override to force-show the absence UI. `false` in prod.          |
+
+> **Secrets** (`SESSION_SECRET`, `API_SERVER_KEY`) must only ever be set server-side and must
+> never be prefixed `NEXT_PUBLIC_`.
+
+---
+
+## How auth works
+
+1. The user enters their **WebUntis** credentials at `/login`.
+2. `POST /api/webuntis/login` (server) authenticates against WebUntis, resolves the student (or, for
+   a guardian, the **child** — including deriving the class from the child's timetable when WebUntis
+   doesn't expose it), then performs a trusted **server-to-server** login at the POKYH backend with
+   `X-Server-Key`.
+3. On success it sets cookies:
+   - `pockyh_session` — encrypted WebUntis session (**httpOnly**)
+   - `pockyh_api_token` — POKYH access token (readable by JS; sent as `Bearer`)
+   - `pockyh_api_refresh` — POKYH refresh token (**httpOnly**)
+   - `pockyh_user` — non-sensitive profile for the UI
+4. The client uses the access token for backend calls. On `401` it calls **`/api/auth/refresh`**,
+   which reads the httpOnly refresh cookie server-side, mints a fresh access token and updates the
+   cookie. If refresh fails, a single `pockyh-session-expired` event redirects cleanly to `/login` —
+   no retry loops.
+
+---
+
+## Project layout
+
+```
+app/
+├── (pages)           # home, timetable, grades, mensa, absences, messages,
+│                     # todos, reminders, profile, class, login, + landing/legal
+├── api/
+│   ├── auth/         # login · pokyh-login · refresh · logout · register
+│   ├── webuntis/     # server-side WebUntis proxy (timetable, grades, messages, …)
+│   ├── push/         # Web Push subscription registration
+│   └── mensa/        # cafeteria menu proxy
+proxy.ts              # middleware: session gate + public-path allow-list
+providers/            # Session, App, Theme, Sidebar, ActivityLogger contexts
+lib/                  # api-client (backend), api (WebUntis), session-crypto,
+│                     # server-session, untis-permissions, caches, push, passkey
+components/           # UI: nav, guards, landing, messages, absences, ui/*
+workers/              # web workers (3D landing scene)
+public/               # PWA assets, icons, models
+```
+
+---
+
+## Scripts
+
+```bash
+npm run dev      # start the dev server (http://localhost:3000)
+npm run build    # production build
+npm run start    # serve the production build
 npm run lint     # ESLint
 ```
 
 ---
 
-## Umgebungsvariablen
+## Deployment
 
-Alle Variablen sind in `.env.example` dokumentiert. **Nichts ist hartkodiert** —
-sämtliche WebUntis-URLs/-Pfade kommen aus der Umgebung, mit sinnvollen Defaults,
-sodass die App „out of the box" für eine andere WebUntis-Instanz konfigurierbar ist.
+Standard Next.js deployment (self-hosted or any Next-compatible host). Set all environment
+variables in the host's config and ensure:
 
-### App / Backend
+- `NEXT_PUBLIC_SITE_URL=https://pokyh.com`
+- `API_BACKEND_URL` / `NEXT_PUBLIC_API_BACKEND_URL` point at the backend (`https://api.pokyh.com`)
+- `API_BACKEND_KEY` / `NEXT_PUBLIC_API_KEY` match the backend `API_KEY`
+- `API_SERVER_KEY` matches the backend `SERVER_KEY`
+- the backend's `CORS_ORIGIN` includes this app's origin (`https://pokyh.com`)
 
-| Variable | Beschreibung |
-|----------|--------------|
-| `SESSION_SECRET` | AES-GCM-Schlüssel für das Session-Cookie (Base64, 32 Byte) |
-| `NEXT_PUBLIC_SITE_URL` | Öffentliche URL der App |
-| `API_BACKEND_URL` | Interne Backend-URL für Server-zu-Server-Calls |
-| `API_SERVER_KEY` / `API_BACKEND_KEY` | Keys für privilegierte Backend-Calls |
-| `NEXT_PUBLIC_GA_ID` | Google-Analytics-ID (optional) |
-
-### WebUntis
-
-| Variable | Default | Zweck |
-|----------|---------|-------|
-| `WEBUNTIS_BASE_URL` | `https://lbs-brixen.webuntis.com/WebUntis` | Basis-URL der Instanz |
-| `WEBUNTIS_SCHOOL` | `lbs-brixen` | Schul-Kürzel (für `?school=`) |
-| `WEBUNTIS_API_PATH_APPDATA` | `/api/rest/view/v1/app/data` | App-/Userdaten (Rechte, Kind-Auflösung) |
-| `WEBUNTIS_API_PATH_ABSENCES` | `/api/classreg/absences/students` | Abwesenheiten-Liste (enthält auch `absenceReasons` + `showCreateAbsence`) |
-| `WEBUNTIS_API_PATH_MSG_LIST` | `/api/rest/view/v1/messages` | Posteingang |
-| `WEBUNTIS_API_PATH_MSG_SENT` | `/api/rest/view/v1/messages/sent` | Gesendet |
-| `WEBUNTIS_API_PATH_MSG_DRAFTS` | `/api/rest/view/v1/messages/drafts` | Entwürfe |
-| `WEBUNTIS_API_PATH_MSG_RECIPIENTS` | `/api/rest/view/v1/messages/recipients/static/persons` | Empfängerliste (Klassenlehrkräfte / Andere) |
-| `WEBUNTIS_API_PATH_MSG_SEND` | `/api/rest/view/v1/messages` | Nachricht senden |
-| `WEBUNTIS_ABSENCE_RIGHT` | `STUDABS_REPORT,…` | Fallback-Rechte-Tokens für das Melde-Gate |
-| `NEXT_PUBLIC_FORCE_ABSENCE_REPORT` | `false` | DEV: Melde-UI erzwingen (Tests) |
-
----
-
-## Architektur
-
-```
-Browser ──▶ Next.js (lib/api.ts)
-                │  fetch /api/webuntis/*
-                ▼
-        Route Handler (app/api/webuntis/*)        ← Server, kein CORS
-                │  liest verschlüsselte Session, setzt Bearer/Cookie
-                ▼
-            WebUntis API
-```
-
-- **Kein direkter Browser-Zugriff auf WebUntis** — alle WebUntis-Calls laufen
-  server-seitig über Proxy-Routes (`app/api/webuntis/*`). Dadurch keine
-  CORS-Probleme und keine Token-Exposition im Client.
-- **Session:** Beim Login wird per WebUntis-JSON-RPC `authenticate` eingeloggt,
-  ein Bearer-Token geholt und alles in ein **AES-GCM-verschlüsseltes httpOnly-Cookie**
-  (`lib/session-crypto.ts`, `lib/server-session.ts`) gepackt (4 h gültig).
-- **Middleware** (`proxy.ts`) schützt alle Routen; nur explizite Public-Prefixes
-  (Login, Mensa, Marketing-Seiten) sind ohne Session erreichbar.
-- **Client-Cache:** In-Memory + localStorage für sofortiges Rendern (`lib/cache.ts`),
-  mit Stale-While-Revalidate. Sensible/zustandsabhängige Endpunkte (z. B.
-  Berechtigungen) werden **bewusst nie gecacht**.
-
----
-
-## WebUntis-Integration
-
-Die internen WebUntis-Endpunkte sind undokumentiert und je Instanz unterschiedlich.
-Alle Pfade sind daher **env-konfigurierbar**. Wichtige, live verifizierte Eigenheiten
-der Instanz `lbs-brixen` (ui2020):
-
-- **Abwesenheitsgründe** liegen *in* der Abwesenheits-Antwort (`data.absenceReasons`),
-  es gibt keinen eigenen Endpunkt.
-- **Melde-Berechtigung (18+ / Erziehungsberechtigte)** wird über das WebUntis-eigene,
-  altersabhängige Flag `data.showCreateAbsence` bestimmt — nicht über rohe
-  Rechte-Tokens (die haben Schüler altersunabhängig).
-- **Nachrichten-Empfänger:** `…/messages/recipients/static/persons` liefert Gruppen
-  (`CLASS_TEACHERS`, `TEACHERS`, `OTHERS`) mit `userId` + `displayName`.
-
----
-
-## Eltern- und Schülerkonten
-
-- **Schülerkonto:** Die eingeloggte Person *ist* der Schüler → eigene Daten.
-- **Erziehungsberechtigte:** WebUntis erlaubt `getStudents` für Eltern **nicht**.
-  Das Kind wird stattdessen aus den App-Daten (`user.students[0].id`) aufgelöst, und
-  alle Daten (Stundenplan, Noten, Abwesenheiten) werden auf das Kind bezogen.
-- Für Elternkonten werden **Erinnerungen** und **Todos** ausgeblendet (persönliche
-  Schüler-Features).
-
----
-
-## Bekannte Einschränkungen
-
-- **Abwesenheit *anlegen* ist aktuell deaktiviert (auskommentiert).** Die Instanz
-  `lbs-brixen` stellt über die verfügbare API **keinen funktionierenden
-  Schreib-Endpunkt** bereit: der Legacy-`classreg`-Pfad antwortet mit `403`
-  („Access Denied"), der moderne REST-Pfad (`calendar-entry/absences`) mit `500`
-  bei jedem getesteten Format. Das **Lesen** der Abwesenheiten funktioniert
-  vollständig. Der UI-Code (`+`-Button, Sheet) ist in `app/absences/page.tsx`
-  auskommentiert und kann reaktiviert werden, sobald das korrekte
-  Sende-Format bekannt ist.
-- Fehlermeldungen für Endnutzer sind bewusst generisch (keine Statuscodes,
-  Endpunkte oder Variablennamen).
-
----
-
-## Projektstruktur
-
-```
-app/
-├── api/
-│   ├── webuntis/        # WebUntis-Proxy: timetable, grades, absences, messages …
-│   ├── auth/            # App-Login/Logout, Session
-│   └── mensa/           # Speiseplan
-├── home/ timetable/ grades/ mensa/ messages/ absences/
-├── todos/ reminders/ class/ profile/ login/ legal/
-components/              # UI-Komponenten (absences/, messages/, ui/ …)
-providers/               # React Context (Session, Theme, Sidebar)
-lib/                     # API-Client, Session-Crypto, WebUntis-Helper, Typen
-proxy.ts                 # Middleware (Routen-Schutz)
+```bash
+npm ci
+npm run build
+npm run start
 ```
 
 ---
 
-## Sicherheit
+## Security notes
 
-- Alle `/api/webuntis/*`-Routes (außer Login) erfordern eine gültige Session.
-- WebUntis-Schreib-Routes prüfen die Berechtigung **zusätzlich serverseitig**.
-- Session-Cookie ist `httpOnly`, `sameSite=strict`, in Produktion `secure`,
-  AES-GCM-verschlüsselt.
-- IP-basiertes Rate-Limiting am Login.
-- `npm audit`: 0 Schwachstellen.
+- WebUntis credentials are used **once** at login; only an **encrypted, httpOnly** session cookie
+  persists. The browser never sees the WebUntis session or the refresh token.
+- The POKYH refresh token is httpOnly and only ever exchanged through the server route
+  `/api/auth/refresh` — client JS can't read it.
+- The session-gate middleware (`proxy.ts`) enforces a maximum session age that matches the cookie
+  lifetime.
+- Server-only secrets are never prefixed `NEXT_PUBLIC_`.
 
 ---
 
-## Lizenz
+## Troubleshooting
 
-MIT — kostenlos nutzbar, keine Garantie. Nicht offiziell mit der LBS Brixen oder
-WebUntis verbunden.
+| Symptom                                    | Likely cause / fix                                                                  |
+| ------------------------------------------ | ----------------------------------------------------------------------------------- |
+| Repeated `GET /auth/me 401` after login    | Backend didn't issue a token (rate limit / `X-Server-Key` mismatch) **or** stale cache. Hard-refresh; verify the backend is deployed with the server-key rate-limit bypass. |
+| **CORS** error calling `api.pokyh.com`     | Add this app's origin to the backend's `CORS_ORIGIN`.                               |
+| "Klasse nicht gefunden" for a guardian     | WebUntis didn't expose the child's class; the login route derives it from the child's timetable. Check the server log line `[login] resolved {…}`. |
+| CSS preload warning in the console         | Harmless Next.js preload notice — **not an error**, no action needed.               |
+| Pushes not arriving                        | VAPID keys must be configured on the backend and the user must grant permission.    |
+
+---
+
+<div align="center">
+
+Part of the **POKYH** project · Frontend (this repo) · iOS (SwiftUI) · Backend (Express/Prisma)
+
+</div>

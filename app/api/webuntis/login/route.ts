@@ -6,40 +6,73 @@ const BASE = process.env.WEBUNTIS_BASE_URL ?? process.env.WEBUNTIS_BASE ?? 'http
 const SCHOOL = process.env.WEBUNTIS_SCHOOL ?? 'lbs-brixen';
 const SCHOOL_COOKIE = '_' + Buffer.from(SCHOOL).toString('base64');
 
-// How many days ahead to scan a student's timetable when deriving their class.
-// A 2-week window spans weekends/single holidays so we still find a period.
-const KLASSE_LOOKUP_DAYS = Number(process.env.WEBUNTIS_KLASSE_LOOKUP_DAYS ?? 14);
+type Klasse = { id: number; name: string };
 
-// Derives a student's klasseId from their timetable. WebUntis `getStudents` does
-// not expose the class for guardian logins, but every timetable period references
-// it via `kl`. Scans a short window (config-driven) so holidays don't yield an
-// empty result. Best-effort: returns 0 on any failure (never throws).
-async function deriveKlasseIdFromTimetable(cookie: string, studentId: number): Promise<number> {
-  const fmt = (d: Date) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-  const today = new Date();
-  const end = new Date(today);
-  end.setDate(end.getDate() + KLASSE_LOOKUP_DAYS);
-  try {
-    const r = await fetch(`${BASE}/jsonrpc.do?school=${SCHOOL}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Cookie: cookie },
-      body: JSON.stringify({
-        id: 'pockyh-tt',
-        method: 'getTimetable',
-        params: { id: studentId, type: 5, startDate: fmt(today), endDate: fmt(end) },
-        jsonrpc: '2.0',
-      }),
-      signal: AbortSignal.timeout(10000),
-    });
-    const j = await r.json();
-    const periods = Array.isArray(j.result) ? j.result : [];
-    for (const p of periods) {
-      const kl = (p as { kl?: Array<{ id?: number }> }).kl;
-      const id = Number(kl?.[0]?.id);
-      if (Number.isFinite(id) && id > 0) return id;
+// Pulls the class element (type === "CLASS") out of a REST timetable response.
+// Shape: days[].gridEntries[].position1..7[].current  (same layout the app's
+// timetable view parses). Returns the class short name or null.
+function extractClassNameFromTimetable(json: unknown): string | null {
+  const days = (json as { days?: unknown }).days;
+  if (!Array.isArray(days)) return null;
+  const POSITIONS = ['position1', 'position2', 'position3', 'position4', 'position5', 'position6', 'position7'];
+  for (const day of days) {
+    const entries = (day as { gridEntries?: unknown })?.gridEntries;
+    if (!Array.isArray(entries)) continue;
+    for (const ge of entries) {
+      for (const key of POSITIONS) {
+        const arr = (ge as Record<string, unknown>)?.[key];
+        if (!Array.isArray(arr)) continue;
+        for (const el of arr) {
+          const cur = (el as { current?: { type?: string; shortName?: string; displayName?: string } })?.current;
+          if (cur?.type === 'CLASS') {
+            const name = cur.shortName ?? cur.displayName;
+            if (typeof name === 'string' && name.trim()) return name.trim();
+          }
+        }
+      }
     }
-  } catch {
-    /* best-effort — fall through to 0 */
+  }
+  return null;
+}
+
+// Derives a student's numeric klasseId from their timetable. WebUntis `getStudents`
+// does not expose the class for guardian logins, and at block-teaching schools
+// (LBS Brixen) whole weeks are free — so we sample the current week plus mid-month
+// points across the school year until a week with lessons reveals the CLASS element,
+// then map its name to the numeric id via the getKlassen list. Uses the same REST
+// endpoint the timetable view uses (proven for this instance). Best-effort → 0.
+async function deriveKlasseIdFromTimetable(
+  headers: Record<string, string>,
+  studentId: number,
+  klassen: Klasse[],
+): Promise<number> {
+  if (studentId <= 0 || klassen.length === 0) return 0;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const iso = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+  const now = new Date();
+  const startYear = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+  const samples: Date[] = [new Date()];
+  for (const m of [9, 10, 11, 12]) samples.push(new Date(startYear, m - 1, 15));
+  for (const m of [1, 2, 3, 4, 5, 6]) samples.push(new Date(startYear + 1, m - 1, 15));
+
+  for (const day of samples) {
+    const start = iso(day);
+    const end = iso(new Date(day.getFullYear(), day.getMonth(), day.getDate() + 5));
+    const url = `${BASE}/api/rest/view/v1/timetable/entries?start=${start}&end=${end}&format=1&resourceType=STUDENT&resources=${studentId}&periodTypes=&timetableType=MY_TIMETABLE&layout=START_TIME`;
+    try {
+      const r = await fetch(url, { headers, signal: AbortSignal.timeout(8000) });
+      if (!r.ok) continue;
+      const text = await r.text();
+      if (text.startsWith('<')) continue;
+      const name = extractClassNameFromTimetable(JSON.parse(text));
+      if (name) {
+        const match = klassen.find((k) => k.name?.toLowerCase() === name.toLowerCase());
+        if (match && match.id > 0) return match.id;
+      }
+    } catch {
+      /* try next sample */
+    }
   }
   return 0;
 }
@@ -211,11 +244,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Guardians: getStudents doesn't expose the child's class, so resolvedKlasseId
-    // may still be 0. Derive it from the child's timetable (each period carries
-    // its class via `kl`). Best-effort, capped — never blocks a valid login.
+    // Guardians (and students whose `authenticate` returned klasseId 0): the
+    // child's class isn't in getStudents, so derive it from the child's timetable.
+    // Uses the resolved (child) studentId + the same REST endpoint as the app.
     if ((!resolvedKlasseId || resolvedKlasseId <= 0) && resolvedStudentId > 0) {
-      const derived = await deriveKlasseIdFromTimetable(cookie, resolvedStudentId);
+      const ttHeaders: Record<string, string> = {
+        Cookie: cookie,
+        Accept: 'application/json',
+        ...(bearerToken ? { Authorization: `Bearer ${bearerToken}` } : {}),
+      };
+      const derived = await deriveKlasseIdFromTimetable(ttHeaders, resolvedStudentId, klassen);
       if (derived > 0) resolvedKlasseId = derived;
     }
 
