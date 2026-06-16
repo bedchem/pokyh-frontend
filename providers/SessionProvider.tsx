@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { logout as apiLogout } from '@/lib/api';
 import { clearSessionCredentials } from '@/lib/passkey';
 
@@ -43,8 +43,13 @@ function readUserCookie(): UserInfo | null {
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  // Prevents pockyh-session-refreshed from overwriting user=null once logout starts.
+  // Without this guard a concurrent re-login event can undo the setUser(null) that
+  // pockyh-session-expired set, leaving the app stuck with an expired session.
+  const loggingOut = useRef(false);
 
   const refreshUser = useCallback(() => {
+    if (loggingOut.current) return;
     setUser(readUserCookie());
     setIsLoading(false);
   }, []);
@@ -56,6 +61,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     const handler = () => {
       if (handling) return;
       handling = true;
+      loggingOut.current = true;
       setUser(null);
       setIsLoading(false);
       // Clear server-side pockyh_session cookie so middleware allows /login
@@ -74,6 +80,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   // After a silent WebUntis re-login, re-read the updated pockyh_user cookie
   // so the proactive logout timer resets with the new loginAt.
+  // Guarded by loggingOut so a pockyh-session-refreshed that fires concurrently
+  // with pockyh-session-expired cannot overwrite the user=null state.
   useEffect(() => {
     const handler = () => refreshUser();
     window.addEventListener('pockyh-session-refreshed', handler);
@@ -81,6 +89,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, [refreshUser]);
 
   const logout = useCallback(async () => {
+    loggingOut.current = true;
     try { await apiLogout(); } catch { /* best effort */ }
     clearSessionCredentials();
     setUser(null);

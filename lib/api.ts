@@ -45,12 +45,19 @@ async function attemptSilentRelogin(): Promise<boolean> {
     body: JSON.stringify({ username: creds.username, password: creds.password }),
     credentials: 'same-origin',
   })
-    .then((r) => {
-      if (r.ok) {
-        cacheClear();
+    .then(async (r) => {
+      if (!r.ok) return false;
+      cacheClear();
+      // Only signal a session refresh when the POKYH backend layer was actually
+      // re-synced (fresh token issued). If the WebUntis session was renewed but
+      // the backend sync failed (pokyhSynced=false), dispatching the refresh
+      // event would re-run loginWithSession against a stale POKYH token →
+      // /auth/me 401 → infinite re-login loop. WebUntis data still works.
+      const data = await r.json().catch(() => ({} as { pokyhSynced?: boolean }));
+      if (data?.pokyhSynced) {
         window.dispatchEvent(new CustomEvent('pockyh-session-refreshed'));
       }
-      return r.ok;
+      return true;
     })
     .catch(() => false)
     .finally(() => { _reloginInFlight = null; });

@@ -180,15 +180,11 @@ export async function POST(req: NextRequest) {
     // 5. Non-sensitive user data for client (loginAt lets the client set a proactive expiry timer)
     const userPublic = JSON.stringify({ username, studentId: resolvedStudentId, klasseId: resolvedKlasseId, klasseName, personType, isParent, loginAt: Date.now(), isUntisUser: true });
 
-    const res = NextResponse.json({ ok: true, username, studentId: resolvedStudentId, klasseId: resolvedKlasseId, klasseName });
-
-    res.cookies.set('pockyh_session', encrypted, COOKIE_OPTS);
-    res.cookies.set('pockyh_user', userPublic, {
-      ...COOKIE_OPTS,
-      httpOnly: false, // Client JS needs to read this
-    });
-
-    // Register/login user with the Node.js backend
+    // Register/login user with the Node.js backend.
+    // pokyhSynced tells the client whether the POKYH session layer was refreshed
+    // (not only the WebUntis session) so it knows whether to dispatch
+    // pockyh-session-refreshed (which re-runs loginWithSession).
+    let pokyhSynced = false;
     try {
       const backendUrl = process.env.API_BACKEND_URL ?? 'https://api.pokyh.com';
       const backendRes = await fetch(`${backendUrl}/auth/login`, {
@@ -212,30 +208,49 @@ export async function POST(req: NextRequest) {
 
       if (backendRes.ok) {
         const backendData = await backendRes.json() as { token: string; refreshToken: string };
-        const isSecure = process.env.NODE_ENV === 'production';
+        if (backendData?.token && backendData?.refreshToken) {
+          const isSecure = process.env.NODE_ENV === 'production';
+          pokyhSynced = true;
 
-        res.cookies.set('pockyh_api_token', backendData.token, {
-          httpOnly: false, // Must be readable by client JS
-          secure: isSecure,
-          sameSite: 'strict',
-          path: '/',
-          maxAge: 8 * 60 * 60, // 8 hours
-        });
-
-        res.cookies.set('pockyh_api_refresh', backendData.refreshToken, {
-          httpOnly: true,
-          secure: isSecure,
-          sameSite: 'strict',
-          path: '/',
-          maxAge: 30 * 24 * 60 * 60, // 30 days
-        });
+          // Build the response only once the backend tokens are in hand so the
+          // pockyh_api_token cookie always carries a fresh, valid token. Returning
+          // it without tokens (as before) left the client with an expired token →
+          // /auth/me 401 → loginWithSession retried forever.
+          const res = NextResponse.json({ ok: true, pokyhSynced, username, studentId: resolvedStudentId, klasseId: resolvedKlasseId, klasseName });
+          res.cookies.set('pockyh_session', encrypted, COOKIE_OPTS);
+          res.cookies.set('pockyh_user', userPublic, { ...COOKIE_OPTS, httpOnly: false });
+          res.cookies.set('pockyh_api_token', backendData.token, {
+            httpOnly: false, // Must be readable by client JS
+            secure: isSecure,
+            sameSite: 'strict',
+            path: '/',
+            maxAge: 8 * 60 * 60, // 8 hours
+          });
+          res.cookies.set('pockyh_api_refresh', backendData.refreshToken, {
+            httpOnly: true,
+            secure: isSecure,
+            sameSite: 'strict',
+            path: '/',
+            maxAge: 30 * 24 * 60 * 60, // 30 days
+          });
+          return res;
+        }
+      } else {
+        console.error('[login] Backend sync failed:', backendRes.status);
       }
     } catch (backendErr) {
       // Non-fatal: WebUntis session still works, backend sync failed
       console.error('[login] Backend sync error:', backendErr);
     }
 
-    return res;
+    // POKYH backend sync failed — return the WebUntis session so the user can
+    // still see timetable/grades, but pokyhSynced=false tells the client NOT to
+    // dispatch pockyh-session-refreshed (which would re-run loginWithSession →
+    // /auth/me 401 → infinite loop) and NOT to keep stale POKYH cookies around.
+    const resFallback = NextResponse.json({ ok: true, pokyhSynced, username, studentId: resolvedStudentId, klasseId: resolvedKlasseId, klasseName });
+    resFallback.cookies.set('pockyh_session', encrypted, COOKIE_OPTS);
+    resFallback.cookies.set('pockyh_user', userPublic, { ...COOKIE_OPTS, httpOnly: false });
+    return resFallback;
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Netzwerkfehler';
     return NextResponse.json({ error: msg }, { status: 500 });
