@@ -76,6 +76,20 @@ async function refreshAccessToken(): Promise<boolean> {
   }
 }
 
+// Dispatch pockyh-session-expired once per expiry window so SessionProvider
+// redirects to /login. Deduplicated because multiple simultaneous 401s would
+// otherwise fire multiple redirects (SessionProvider also deduplicates via `handling`).
+let _sessionExpiredPending = false;
+function notifySessionExpired() {
+  if (_sessionExpiredPending) return;
+  _sessionExpiredPending = true;
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('pockyh-session-expired'));
+  }
+  // Reset after 10s so a future re-login → re-expiry can trigger again
+  setTimeout(() => { _sessionExpiredPending = false; }, 10_000);
+}
+
 export async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
   const token = getToken();
   const headers: Record<string, string> = {
@@ -91,8 +105,12 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
     headers,
   });
 
-  // 401 → try to refresh once, then just return the response as-is
+  // 401 → try to refresh once. If refresh also fails AND we had a session,
+  // fire pockyh-session-expired so SessionProvider redirects to /login.
   if (res.status === 401) {
+    // Capture before the refresh attempt (which calls clearTokens on failure)
+    const hadSession = !!(token || getRefreshToken());
+
     if (!_refreshing) {
       _refreshing = refreshAccessToken().finally(() => { _refreshing = null; });
     }
@@ -104,6 +122,9 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
       res = await fetch(`${API_BASE}${path}`, { ...options, headers });
     } else {
       clearTokens();
+      if (hadSession) {
+        notifySessionExpired();
+      }
     }
   }
 
