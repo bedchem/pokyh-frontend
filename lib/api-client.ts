@@ -52,14 +52,14 @@ function clearTokens(): void {
 let _refreshing: Promise<boolean> | null = null;
 
 async function refreshAccessToken(): Promise<boolean> {
-  const rt = getRefreshToken();
-  if (!rt) return false;
-
+  // Refresh via the same-origin Next.js route: the refresh token is stored in an
+  // httpOnly cookie that JS cannot read, so we cannot call the backend directly.
+  // The browser sends the httpOnly cookie automatically to /api/auth/refresh,
+  // which exchanges it and sets a fresh pockyh_api_token cookie.
   try {
-    const res = await fetch(`${API_BASE}/auth/refresh`, {
+    const res = await fetch('/api/auth/refresh', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
-      body: JSON.stringify({ refreshToken: rt }),
+      credentials: 'same-origin',
     });
 
     if (!res.ok) {
@@ -67,9 +67,13 @@ async function refreshAccessToken(): Promise<boolean> {
       return false;
     }
 
-    const data = await res.json() as { token: string };
-    setToken(data.token);
-    return true;
+    const data = await res.json() as { token?: string };
+    if (data.token) {
+      setToken(data.token);
+      return true;
+    }
+    clearTokens();
+    return false;
   } catch {
     clearTokens();
     return false;
@@ -108,8 +112,14 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
   // 401 → try to refresh once. If refresh also fails AND we had a session,
   // fire pockyh-session-expired so SessionProvider redirects to /login.
   if (res.status === 401) {
-    // Capture before the refresh attempt (which calls clearTokens on failure)
-    const hadSession = !!(token || getRefreshToken());
+    // Capture before the refresh attempt (which calls clearTokens on failure).
+    // "Had a session" also covers the case where the access token is missing but
+    // the user cookie still exists (e.g. the backend login-sync failed) — without
+    // this, a missing token would skip the redirect and loop forever.
+    const hadSession =
+      !!token ||
+      !!getRefreshToken() ||
+      (typeof document !== 'undefined' && /(?:^|;\s*)pockyh_user=/.test(document.cookie));
 
     if (!_refreshing) {
       _refreshing = refreshAccessToken().finally(() => { _refreshing = null; });
