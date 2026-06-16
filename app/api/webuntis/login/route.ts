@@ -197,10 +197,14 @@ export async function POST(req: NextRequest) {
         // Parents are auto-assigned (invisibly) to their child's class — send the
         // resolved child klasseId and the parent role so the backend creates a
         // parent account (own todos, sees class name, no reminders, hidden member).
+        // klasseId is coerced to a non-negative number (0 = no class) so the
+        // backend never gets undefined/NaN and rejects a valid login with 422.
         body: JSON.stringify({
           username,
-          klasseId: resolvedKlasseId,
-          klasseName,
+          klasseId: Number.isFinite(Number(resolvedKlasseId)) && Number(resolvedKlasseId) > 0
+            ? Number(resolvedKlasseId)
+            : 0,
+          klasseName: klasseName ?? '',
           role: isParent ? 'parent' : 'student',
         }),
         signal: AbortSignal.timeout(10000),
@@ -236,7 +240,8 @@ export async function POST(req: NextRequest) {
           return res;
         }
       } else {
-        console.error('[login] Backend sync failed:', backendRes.status);
+        const errBody = await backendRes.text().catch(() => '');
+        console.error('[login] Backend sync failed:', backendRes.status, errBody.slice(0, 300));
       }
     } catch (backendErr) {
       // Non-fatal: WebUntis session still works, backend sync failed
