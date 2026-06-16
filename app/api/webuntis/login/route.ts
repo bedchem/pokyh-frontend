@@ -6,6 +6,44 @@ const BASE = process.env.WEBUNTIS_BASE_URL ?? process.env.WEBUNTIS_BASE ?? 'http
 const SCHOOL = process.env.WEBUNTIS_SCHOOL ?? 'lbs-brixen';
 const SCHOOL_COOKIE = '_' + Buffer.from(SCHOOL).toString('base64');
 
+// How many days ahead to scan a student's timetable when deriving their class.
+// A 2-week window spans weekends/single holidays so we still find a period.
+const KLASSE_LOOKUP_DAYS = Number(process.env.WEBUNTIS_KLASSE_LOOKUP_DAYS ?? 14);
+
+// Derives a student's klasseId from their timetable. WebUntis `getStudents` does
+// not expose the class for guardian logins, but every timetable period references
+// it via `kl`. Scans a short window (config-driven) so holidays don't yield an
+// empty result. Best-effort: returns 0 on any failure (never throws).
+async function deriveKlasseIdFromTimetable(cookie: string, studentId: number): Promise<number> {
+  const fmt = (d: Date) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  const today = new Date();
+  const end = new Date(today);
+  end.setDate(end.getDate() + KLASSE_LOOKUP_DAYS);
+  try {
+    const r = await fetch(`${BASE}/jsonrpc.do?school=${SCHOOL}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({
+        id: 'pockyh-tt',
+        method: 'getTimetable',
+        params: { id: studentId, type: 5, startDate: fmt(today), endDate: fmt(end) },
+        jsonrpc: '2.0',
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+    const j = await r.json();
+    const periods = Array.isArray(j.result) ? j.result : [];
+    for (const p of periods) {
+      const kl = (p as { kl?: Array<{ id?: number }> }).kl;
+      const id = Number(kl?.[0]?.id);
+      if (Number.isFinite(id) && id > 0) return id;
+    }
+  } catch {
+    /* best-effort — fall through to 0 */
+  }
+  return 0;
+}
+
 // Simple in-memory rate limiter (IP-based, max 30 attempts per 5 min)
 const attempts = new Map<string, { count: number; reset: number }>();
 
@@ -109,7 +147,7 @@ export async function POST(req: NextRequest) {
 
     // 2+3+4. Fetch bearer token, class name and the accessible students in parallel.
     const cookie = `JSESSIONID=${sessionId}; schoolname="${SCHOOL_COOKIE}"`;
-    const [bearerToken, klasseName, students] = await Promise.all([
+    const [bearerToken, klassen, students] = await Promise.all([
       fetch(`${BASE}/api/token/new`, {
         headers: { Cookie: cookie },
         signal: AbortSignal.timeout(10000),
@@ -124,8 +162,8 @@ export async function POST(req: NextRequest) {
         signal: AbortSignal.timeout(10000),
       })
         .then((r) => r.json())
-        .then((kj) => (kj.result as Array<{ id: number; name: string }>)?.find((k) => k.id === klasseId)?.name ?? '')
-        .catch(() => ''),
+        .then((kj) => (Array.isArray(kj.result) ? (kj.result as Array<{ id: number; name: string }>) : []))
+        .catch(() => [] as Array<{ id: number; name: string }>),
       fetch(`${BASE}/jsonrpc.do?school=${SCHOOL}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Cookie: cookie },
@@ -136,6 +174,9 @@ export async function POST(req: NextRequest) {
         .then((sj) => (Array.isArray(sj.result) ? (sj.result as Array<{ id: number; klasseId?: number }>) : []))
         .catch(() => []),
     ]);
+
+    // Class name resolved from the final klasseId once it's known (see below).
+    let klasseName = klassen.find((k) => k.id === klasseId)?.name ?? '';
 
     // Resolve the effective student. For a normal student login the logged-in
     // person IS a student (their id appears in getStudents). Guardian/other logins
@@ -169,6 +210,24 @@ export async function POST(req: NextRequest) {
         }
       }
     }
+
+    // Guardians: getStudents doesn't expose the child's class, so resolvedKlasseId
+    // may still be 0. Derive it from the child's timetable (each period carries
+    // its class via `kl`). Best-effort, capped — never blocks a valid login.
+    if ((!resolvedKlasseId || resolvedKlasseId <= 0) && resolvedStudentId > 0) {
+      const derived = await deriveKlasseIdFromTimetable(cookie, resolvedStudentId);
+      if (derived > 0) resolvedKlasseId = derived;
+    }
+
+    // Final class name from the resolved klasseId.
+    klasseName = klassen.find((k) => k.id === resolvedKlasseId)?.name ?? klasseName;
+
+    // Diagnostic (no secrets) — shows exactly how the class was resolved in prod logs.
+    console.log('[login] resolved', JSON.stringify({
+      username, studentId, klasseId, personType,
+      isStudentSelf, studentsLen: students.length, isParent,
+      resolvedStudentId, resolvedKlasseId, klasseName,
+    }));
 
     // Profile-image URL — for a guardian it's the child's, otherwise the person's.
     if (appJson) imageUrl = extractImageUrl(appJson, isParent);
