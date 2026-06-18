@@ -1,10 +1,29 @@
 'use client';
 
-const API_BASE = (
-  process.env.NEXT_PUBLIC_API_BACKEND_URL ??
-  process.env.NEXT_PUBLIC_API_URL ??
-  'https://api.pokyh.com'
-).replace(/\/$/, '');
+// Resolve the backend base URL. NEXT_PUBLIC_* values are inlined into the client
+// bundle at build time, so a stale/misconfigured `http://` value gets frozen in.
+//
+// Guard against Mixed Content: when the page is served over HTTPS, an `http://`
+// API base makes the browser block every fetch and EventSource. If the page is
+// HTTPS, force the API onto HTTPS too (the backend serves both schemes).
+function resolveApiBase(): string {
+  const configured = (
+    process.env.NEXT_PUBLIC_API_BACKEND_URL ??
+    process.env.NEXT_PUBLIC_API_URL ??
+    'https://api.pokyh.com'
+  ).replace(/\/$/, '');
+
+  if (
+    typeof window !== 'undefined' &&
+    window.location.protocol === 'https:' &&
+    configured.startsWith('http://')
+  ) {
+    return `https://${configured.slice('http://'.length)}`;
+  }
+  return configured;
+}
+
+const API_BASE = resolveApiBase();
 const API_KEY =
   process.env.NEXT_PUBLIC_API_BACKEND_KEY ??
   process.env.NEXT_PUBLIC_API_KEY ??

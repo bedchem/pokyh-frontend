@@ -4,13 +4,17 @@ COPY package*.json ./
 RUN npm ci
 COPY . .
 
-# Build-time env vars (baked into the client bundle)
+# Build-time env vars (baked into the client bundle). NEXT_PUBLIC_* is frozen at
+# build time, so the backend URL must be set here — and must be https:// to avoid
+# Mixed Content when the app is served over HTTPS.
 ARG NEXT_PUBLIC_API_KEY
 ARG NEXT_PUBLIC_SITE_URL=https://pokyh.com
 ARG NEXT_PUBLIC_DEBUG_API=false
+ARG NEXT_PUBLIC_API_BACKEND_URL=https://api.pokyh.com
 ENV NEXT_PUBLIC_API_KEY=$NEXT_PUBLIC_API_KEY
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 ENV NEXT_PUBLIC_DEBUG_API=$NEXT_PUBLIC_DEBUG_API
+ENV NEXT_PUBLIC_API_BACKEND_URL=$NEXT_PUBLIC_API_BACKEND_URL
 
 RUN npm run build
 

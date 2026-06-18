@@ -1,0 +1,24 @@
+# Dependencies / build artifacts — reinstalled/regenerated inside the image
+node_modules
+.next
+out
+build
+coverage
+
+# Local env files: secrets and dev-only config (e.g. http:// backend URL) must
+# NOT leak into the build context. Build-time NEXT_PUBLIC_* vars come from the
+# Dockerfile ARGs / compose build args instead.
+.env
+.env.*
+
+# VCS / tooling / OS noise
+.git
+.gitignore
+.dockerignore
+Dockerfile
+docker-compose.yml
+*.tsbuildinfo
+.DS_Store
+.vercel
+.claude
+npm-debug.log*
