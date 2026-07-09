@@ -1,6 +1,31 @@
 import type { MetadataRoute } from 'next';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com';
+const FALLBACK_SITE_URL = 'https://pokyh.com';
+
+function resolveSiteUrl(): string {
+  const rawSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+
+  if (!rawSiteUrl) {
+    return FALLBACK_SITE_URL;
+  }
+
+  try {
+    const parsedUrl = new URL(rawSiteUrl);
+    const hostname = parsedUrl.hostname.toLowerCase();
+    const isLocalhost =
+      hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0' || hostname === '::1' || hostname.endsWith('.local');
+
+    if (parsedUrl.protocol !== 'https:' || isLocalhost) {
+      return FALLBACK_SITE_URL;
+    }
+
+    return parsedUrl.origin;
+  } catch {
+    return FALLBACK_SITE_URL;
+  }
+}
+
+const SITE_URL = resolveSiteUrl();
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
