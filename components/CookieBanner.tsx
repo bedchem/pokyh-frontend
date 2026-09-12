@@ -17,6 +17,7 @@ export default function CookieBanner() {
 
   function accept(choice: CookieConsent) {
     localStorage.setItem(STORAGE_KEY, choice);
+    window.dispatchEvent(new CustomEvent('cookie-consent-changed', { detail: choice }));
     setVisible(false);
   }
 

@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
-import Script from 'next/script';
 import './globals.css';
 import { ThemeProvider } from '@/providers/ThemeProvider';
 import { SessionProvider } from '@/providers/SessionProvider';
@@ -9,6 +8,7 @@ import { SidebarProvider } from '@/providers/SidebarProvider';
 import { ActivityLoggerProvider } from '@/providers/ActivityLoggerProvider';
 import LayoutShell from '@/components/LayoutShell';
 import CookieBanner from '@/components/CookieBanner';
+import AnalyticsLoader from '@/components/AnalyticsLoader';
 import PWAInit from '@/components/PWAInit';
 import AppIconApplier from '@/components/AppIconApplier';
 
@@ -260,27 +260,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://www.gstatic.com" crossOrigin="anonymous" />
         {GA_ID && <link rel="preconnect" href="https://www.googletagmanager.com" />}
       </head>
-      {GA_ID && (
-        <>
-          <Script
-            src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
-            strategy="afterInteractive"
-          />
-          <Script id="gtag-init" strategy="afterInteractive">
-            {`
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', '${GA_ID}', {
-                anonymize_ip: true,
-                allow_google_signals: false,
-                allow_ad_personalization_signals: false,
-                cookie_flags: 'SameSite=None;Secure',
-              });
-            `}
-          </Script>
-        </>
-      )}
       <body suppressHydrationWarning={true}>
         <ThemeProvider>
           <SessionProvider>
@@ -294,6 +273,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </SessionProvider>
         </ThemeProvider>
         <CookieBanner />
+        <AnalyticsLoader gaId={GA_ID} />
         <PWAInit />
         <AppIconApplier />
       </body>
