@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Scale, Shield, Mail, ChevronRight, ExternalLink, Cookie } from 'lucide-react';
+import { CookieSettingsButton } from '@/components/CookieSettingsButton';
 import LegalBackButton from '@/components/ui/LegalBackButton';
 import LocaleSwitcher, { legalLocale, type LegalLocale } from '@/components/legal/LocaleSwitcher';
+import { getLegalIdentity, type LegalIdentity } from '@/lib/legal-identity';
 
 export async function generateMetadata({
   searchParams,
@@ -57,18 +59,19 @@ export default async function LegalPage({
 }) {
   const { view, lang } = await searchParams;
   const locale = legalLocale(lang);
+  const identity = getLegalIdentity();
 
   return (
     <div className="min-h-screen">
       <div className="max-w-2xl mx-auto px-4 py-10">
         {view === 'impressum' ? (
-          <ImpressumView locale={locale} />
+          <ImpressumView locale={locale} identity={identity} />
         ) : view === 'datenschutz' ? (
-          <DatenschutzView locale={locale} />
+          <DatenschutzView locale={locale} identity={identity} />
         ) : view === 'cookies' ? (
-          <CookiesView locale={locale} />
+          <CookiesView locale={locale} identity={identity} />
         ) : view === 'learn' ? (
-          <LearnPrivacyView locale={locale} />
+          <LearnPrivacyView locale={locale} identity={identity} />
         ) : (
           <LandingView />
         )}
@@ -204,11 +207,11 @@ const impressumCopy: Record<LegalLocale, {
     ownerLabel: 'Betreiber',
     contactLabel: 'Kontakt',
     purposeLabel: 'Zweck der Website',
-    purpose: 'Nicht-kommerzielles Schüler-Informationssystem für Schülerinnen und Schüler der LBS Brixen (Landesberufsschule Brixen, Südtirol/Italien). Die App stellt schulische Daten (Stundenplan, Noten, Abwesenheiten, Nachrichten) über die offizielle Schulportal-API sowie schulbezogene Funktionen (Mensa, Todos, Erinnerungen) übersichtlich dar.',
+    purpose: 'Digitales Informations- und Lernangebot für berechtigte Nutzerinnen und Nutzer. Schul- oder Drittanbieter-Integrationen werden nur im jeweils freigegebenen Umfang aktiviert; die konkret genutzten Daten und Dienste sind in der Datenschutzerklärung beschrieben.',
     operationLabel: 'Technischer Betrieb',
-    operation: 'Diese Website und das zugehörige Backend werden auf einem eigenen Server von Felix Plattner (Privatperson, Brixen, Italien) selbst betrieben. Die öffentliche Erreichbarkeit erfolgt über Cloudflare Tunnel, einen Dienst von Cloudflare, Inc., 101 Townsend St., San Francisco, CA 94107, USA. Cloudflare fungiert dabei als Auftragsverarbeiter gemäß Art. 28 DSGVO für die Weiterleitung des Netzwerkverkehrs und hat keinen Zugriff auf verschlüsselte Nutzdaten.',
+    operation: 'Die technische Bereitstellung erfolgt im Auftrag des in diesem Impressum genannten Betreibers. Aktive Hosting-, Sicherheits- und Analyse-Dienste sowie die jeweils zutreffenden Empfänger sind in der Datenschutzerklärung aufgeführt. Die dortigen Angaben müssen vor einer öffentlichen Bereitstellung mit der tatsächlichen Produktionskonfiguration abgeglichen werden.',
     disclaimerLabel: 'Haftungsausschluss',
-    disclaimer: 'Die POKYH App ist ein informelles, unentgeltliches Projekt zweier Privatpersonen und steht in keiner Verbindung zu Untis oder zur LBS Brixen. Ein Zugriff auf WebUntis- oder schulische Schnittstellen darf ausschließlich nach dokumentierter Freigabe durch die zuständige Schule bzw. den Verantwortlichen und unter den jeweils geltenden Vertrags- und Datenschutzvorgaben aktiviert werden. Ohne diese Freigabe bleibt eine entsprechende Integration deaktiviert.',
+    disclaimer: 'POKYH ist unabhängig von Untis und Schulen. Ein Zugriff auf WebUntis- oder schulische Schnittstellen darf ausschließlich nach dokumentierter Freigabe durch die zuständige Schule bzw. den Verantwortlichen und unter den jeweils geltenden Vertrags- und Datenschutzvorgaben aktiviert werden. Ohne diese Freigabe bleibt eine entsprechende Integration deaktiviert.',
     copyrightLabel: 'Urheberrecht',
     copyright: 'Der Quellcode der POKYH App steht unter einer Open-Source-Lizenz auf GitHub zur Verfügung. Die verwendeten Bibliotheken unterliegen ihren jeweiligen Lizenzen.',
   },
@@ -218,11 +221,11 @@ const impressumCopy: Record<LegalLocale, {
     ownerLabel: 'Gestore del sito',
     contactLabel: 'Contatto',
     purposeLabel: 'Finalità del sito',
-    purpose: 'Sistema informativo non commerciale per le studentesse e gli studenti della LBS Brixen (Landesberufsschule Brixen, Alto Adige/Italia). L’app presenta in modo chiaro i dati scolastici (orario, voti, assenze, messaggi) tramite l’API ufficiale del portale scolastico, oltre a funzioni collegate alla scuola (mensa, cose da fare, promemoria).',
+    purpose: 'Servizio digitale di informazione e apprendimento per utenti autorizzati. Le integrazioni scolastiche o di terze parti sono attivate solo nell’ambito autorizzato; i dati e i servizi effettivamente utilizzati sono descritti nell’informativa privacy.',
     operationLabel: 'Gestione tecnica',
-    operation: 'Questo sito e il relativo backend sono gestiti autonomamente su un server personale da Felix Plattner (persona fisica, Bressanone, Italia). L’accessibilità pubblica avviene tramite Cloudflare Tunnel, un servizio di Cloudflare, Inc., 101 Townsend St., San Francisco, CA 94107, USA. Cloudflare agisce come responsabile del trattamento ai sensi dell’art. 28 GDPR per l’inoltro del traffico di rete e non ha accesso ai dati utente cifrati.',
+    operation: 'La fornitura tecnica avviene per conto del gestore indicato in questo Impressum. I servizi di hosting, sicurezza e analisi attivi e i relativi destinatari sono indicati nell’informativa privacy. Tali indicazioni devono essere verificate rispetto alla configurazione effettiva di produzione prima della pubblicazione.',
     disclaimerLabel: 'Esclusione di responsabilità',
-    disclaimer: 'L’app POKYH è un progetto informale e non retribuito gestito da due persone e non ha alcun collegamento con Untis o con la LBS Brixen. L’accesso a WebUntis o alle interfacce scolastiche può essere attivato esclusivamente dopo un’autorizzazione documentata da parte della scuola competente o del titolare, nel rispetto delle condizioni contrattuali e di protezione dei dati applicabili. In assenza di tale autorizzazione, la relativa integrazione resta disattivata.',
+    disclaimer: 'POKYH è indipendente da Untis e dalle scuole. L’accesso a WebUntis o alle interfacce scolastiche può essere attivato esclusivamente dopo un’autorizzazione documentata da parte della scuola competente o del titolare, nel rispetto delle condizioni contrattuali e di protezione dei dati applicabili. In assenza di tale autorizzazione, la relativa integrazione resta disattivata.',
     copyrightLabel: 'Diritto d’autore',
     copyright: 'Il codice sorgente dell’app POKYH è disponibile su GitHub con licenza open source. Le librerie utilizzate sono soggette alle rispettive licenze.',
   },
@@ -232,17 +235,17 @@ const impressumCopy: Record<LegalLocale, {
     ownerLabel: 'Site operator',
     contactLabel: 'Contact',
     purposeLabel: 'Purpose of the website',
-    purpose: 'A non-commercial information system for students of LBS Brixen (Landesberufsschule Brixen, South Tyrol/Italy). The app presents school data (timetable, grades, absences, messages) via the official school-portal API, together with school-related features (canteen menu, to-dos, reminders).',
+    purpose: 'A digital information and learning service for authorised users. School or third-party integrations are enabled only within their authorised scope; the data and services actually used are described in the privacy notice.',
     operationLabel: 'Technical operation',
-    operation: 'This website and its backend are self-hosted on a private server by Felix Plattner (a private individual, Brixen, Italy). Public reachability is provided through Cloudflare Tunnel, a service of Cloudflare, Inc., 101 Townsend St., San Francisco, CA 94107, USA. Cloudflare acts as a processor under GDPR Art. 28 for forwarding network traffic and has no access to encrypted user data.',
+    operation: 'Technical delivery is carried out on behalf of the operator named in this imprint. Active hosting, security, and analytics services and the applicable recipients are listed in the privacy notice. Those details must be checked against the actual production configuration before public release.',
     disclaimerLabel: 'Disclaimer',
-    disclaimer: 'The POKYH app is an informal, unpaid project run by two individuals and is not affiliated with Untis or with LBS Brixen. Access to WebUntis or other school interfaces may only be activated after documented authorisation from the responsible school or controller, under the applicable contractual and data-protection terms. Without that authorisation, the corresponding integration remains disabled.',
+    disclaimer: 'POKYH is independent from Untis and schools. Access to WebUntis or other school interfaces may only be activated after documented authorisation from the responsible school or controller, under the applicable contractual and data-protection terms. Without that authorisation, the corresponding integration remains disabled.',
     copyrightLabel: 'Copyright',
     copyright: 'The POKYH app source code is available under an open-source licence on GitHub. The libraries used are subject to their respective licences.',
   },
 };
 
-function ImpressumView({ locale }: { locale: LegalLocale }) {
+function ImpressumView({ locale, identity }: { locale: LegalLocale; identity: LegalIdentity }) {
   const copy = impressumCopy[locale];
   return (
     <div className="fade-in">
@@ -274,22 +277,18 @@ function ImpressumView({ locale }: { locale: LegalLocale }) {
           <p className="text-sm font-semibold mb-1" style={{ color: 'var(--app-text-primary)' }}>
             {copy.ownerLabel}
           </p>
-          <p className="text-sm" style={{ color: 'var(--app-text-secondary)' }}>
-            Felix Plattner<br />
-            Strange 12<br />
-            39042 Brixen (BZ), Südtirol, Italien
-          </p>
+          <LegalIdentityDetails locale={locale} identity={identity} includeContact={false} showReadiness />
         </div>
 
         <div>
           <p className="text-sm font-semibold mb-1" style={{ color: 'var(--app-text-primary)' }}>{copy.contactLabel}</p>
           <a
-            href="mailto:contact@pokyh.com"
+            href={`mailto:${identity.contactEmail}`}
             className="text-sm flex items-center gap-1.5 transition-opacity hover:opacity-70"
             style={{ color: 'var(--accent)' }}
           >
             <Mail size={13} />
-            contact@pokyh.com
+            {identity.contactEmail}
           </a>
         </div>
 
@@ -369,9 +368,9 @@ const datenschutzCopy: Record<LegalLocale, {
   de: {
     title: 'Datenschutzerklärung',
     s1Title: '1. Verantwortlicher',
-    s1Controller: 'Verantwortliche Stelle im Sinne der DSGVO (EU) 2016/679 ist Felix Plattner, Strange 12, 39042 Brixen (BZ), Südtirol, Italien.',
+    s1Controller: 'Verantwortliche Stelle im Sinne der DSGVO (EU) 2016/679 ist:',
     s1ContactLabel: 'Kontakt:',
-    s1Dpo: 'Für Fragen zum Datenschutz ist der Verantwortliche direkter Ansprechpartner; da es sich um ein informelles, unentgeltliches Projekt zweier Personen handelt, wurde kein gesonderter Datenschutzbeauftragter (DSB) bestellt.',
+    s1Dpo: 'Für Fragen zum Datenschutz ist die oben genannte Kontaktstelle erreichbar. Falls ein Datenschutzbeauftragter bestellt ist oder bestellt werden muss, werden dessen verifizierte Kontaktdaten hier veröffentlicht.',
     s2Title: '2. Welche Daten verarbeiten wir?',
     dataItems: [
       { label: 'Schulzugangsdaten (Stundenplan-Login)', desc: 'Dein Benutzername und Passwort werden ausschließlich zur Authentifizierung am Stundenplan-Server deiner Schule verwendet. Weder Passwort noch Klartext-Zugangsdaten werden gespeichert. Das Session-Token wird AES-GCM-verschlüsselt in einem httpOnly-Cookie gespeichert.' },
@@ -434,9 +433,9 @@ const datenschutzCopy: Record<LegalLocale, {
   it: {
     title: 'Informativa sulla privacy',
     s1Title: '1. Titolare del trattamento',
-    s1Controller: 'Il titolare del trattamento ai sensi del GDPR (UE) 2016/679 è Felix Plattner, Strange 12, 39042 Brixen (BZ), Südtirol, Italia.',
+    s1Controller: 'Il titolare del trattamento ai sensi del GDPR (UE) 2016/679 è:',
     s1ContactLabel: 'Contatto:',
-    s1Dpo: 'Per qualsiasi richiesta in materia di protezione dei dati, il titolare è il referente diretto; trattandosi di un progetto informale e non retribuito gestito da due persone, non è stato nominato un responsabile della protezione dei dati (DPO) distinto.',
+    s1Dpo: 'Per richieste sulla protezione dei dati è disponibile il contatto indicato sopra. Se è stato nominato o deve essere nominato un responsabile della protezione dei dati (DPO), i relativi recapiti verificati saranno pubblicati qui.',
     s2Title: '2. Quali dati trattiamo?',
     dataItems: [
       { label: 'Credenziali scolastiche (accesso all’orario)', desc: 'Il tuo nome utente e la password vengono utilizzati esclusivamente per l’autenticazione presso il server dell’orario della tua scuola. Né la password né le credenziali in chiaro vengono memorizzate. Il token di sessione viene cifrato con AES-GCM e conservato in un cookie httpOnly.' },
@@ -499,9 +498,9 @@ const datenschutzCopy: Record<LegalLocale, {
   en: {
     title: 'Privacy notice',
     s1Title: '1. Controller',
-    s1Controller: 'The controller within the meaning of GDPR (EU) 2016/679 is Felix Plattner, Strange 12, 39042 Brixen (BZ), South Tyrol, Italy.',
+    s1Controller: 'The controller within the meaning of GDPR (EU) 2016/679 is:',
     s1ContactLabel: 'Contact:',
-    s1Dpo: 'For any data-protection questions, the controller is the direct contact point; as this is an informal, unpaid project run by two people, no separate Data Protection Officer (DPO) has been appointed.',
+    s1Dpo: 'The contact listed above is available for data-protection questions. If a Data Protection Officer (DPO) has been appointed or must be appointed, their verified contact details will be published here.',
     s2Title: '2. What data do we process?',
     dataItems: [
       { label: 'School access credentials (timetable login)', desc: 'Your username and password are used solely to authenticate with your school’s timetable server. Neither the password nor plaintext credentials are stored. The session token is AES-GCM encrypted and kept in an httpOnly cookie.' },
@@ -563,7 +562,7 @@ const datenschutzCopy: Record<LegalLocale, {
   },
 };
 
-function DatenschutzView({ locale }: { locale: LegalLocale }) {
+function DatenschutzView({ locale, identity }: { locale: LegalLocale; identity: LegalIdentity }) {
   const copy = datenschutzCopy[locale];
   return (
     <div className="fade-in">
@@ -589,9 +588,11 @@ function DatenschutzView({ locale }: { locale: LegalLocale }) {
         style={{ background: 'var(--app-surface)', border: '1px solid var(--app-border)' }}
       >
         <LegalSection title={copy.s1Title}>
-          <p>
-            {copy.s1Controller} {copy.s1ContactLabel}{' '}
-            <a href="mailto:contact@pokyh.com" style={{ color: 'var(--accent)' }}>contact@pokyh.com</a>
+          <p>{copy.s1Controller}</p>
+          <LegalIdentityDetails locale={locale} identity={identity} includeContact={false} />
+          <p className="mt-2">
+            {copy.s1ContactLabel}{' '}
+            <a href={`mailto:${identity.privacyEmail}`} style={{ color: 'var(--accent)' }}>{identity.privacyEmail}</a>
           </p>
           <p className="mt-2">{copy.s1Dpo}</p>
         </LegalSection>
@@ -636,7 +637,7 @@ function DatenschutzView({ locale }: { locale: LegalLocale }) {
           </ul>
           <p className="mt-3">
             {copy.rightsContactLabel}{' '}
-            <a href="mailto:contact@pokyh.com" style={{ color: 'var(--accent)' }}>contact@pokyh.com</a>
+            <a href={`mailto:${identity.privacyEmail}`} style={{ color: 'var(--accent)' }}>{identity.privacyEmail}</a>
           </p>
           <p className="mt-2">
             {copy.complaintPrefix}{' '}
@@ -754,7 +755,7 @@ const learnPrivacyCopy: Record<LegalLocale, {
   },
 };
 
-function LearnPrivacyView({ locale }: { locale: LegalLocale }) {
+function LearnPrivacyView({ locale, identity }: { locale: LegalLocale; identity: LegalIdentity }) {
   const copy = learnPrivacyCopy[locale];
   return (
     <div className="fade-in">
@@ -772,7 +773,10 @@ function LearnPrivacyView({ locale }: { locale: LegalLocale }) {
       <p className="text-sm mb-6" style={{ color: 'var(--app-text-secondary)' }}>{copy.intro}</p>
 
       <div className="rounded-2xl p-6 flex flex-col gap-6" style={{ background: 'var(--app-surface)', border: '1px solid var(--app-border)' }}>
-        <LegalSection title={copy.controllerTitle}><p>{copy.controller}</p></LegalSection>
+        <LegalSection title={copy.controllerTitle}>
+          <p>{copy.controller}</p>
+          <LegalIdentityDetails locale={locale} identity={identity} />
+        </LegalSection>
         <LegalSection title={copy.dataTitle}><p>{copy.data}</p></LegalSection>
         <LegalSection title={copy.legalTitle}><p>{copy.legal}</p></LegalSection>
         <LegalSection title={copy.recipientsTitle}><p>{copy.recipients}</p></LegalSection>
@@ -811,8 +815,7 @@ const cookiesCopy: Record<LegalLocale, {
   cookieKindLabels: Record<CookieKind, string>;
   revokeTitle: string;
   revokeIntro: string;
-  revokeInstructions: string;
-  revokeInstructionsAfter: string;
+  revokeButtonLabel: string;
   optOutPrefix: string;
   optOutLabel: string;
   legalTitle: string;
@@ -848,9 +851,8 @@ const cookiesCopy: Record<LegalLocale, {
     ],
     cookieKindLabels: { necessary: 'Notwendig', setting: 'Einstellung', analytics: 'Analytics' },
     revokeTitle: 'Einwilligung widerrufen',
-    revokeIntro: 'Du kannst deine Einwilligung jederzeit widerrufen, indem du den gespeicherten Eintrag aus dem lokalen Speicher entfernst. Danach erscheint das Cookie-Banner erneut.',
-    revokeInstructions: 'Browserkonsole öffnen (F12) → Anwendung → Lokaler Speicher → Schlüssel',
-    revokeInstructionsAfter: 'löschen → Seite neu laden.',
+    revokeIntro: 'Du kannst deine Auswahl jederzeit mit derselben Leichtigkeit ändern. Öffne dafür die Cookie-Einstellungen und wähle „Nur notwendige“, um optionale Analytics zu widerrufen.',
+    revokeButtonLabel: 'Cookie-Einstellungen öffnen',
     optOutPrefix: 'Alternativ kannst du Google Analytics dauerhaft deaktivieren:',
     optOutLabel: 'Google Analytics Opt-out',
     legalTitle: 'Rechtsgrundlage',
@@ -886,9 +888,8 @@ const cookiesCopy: Record<LegalLocale, {
     ],
     cookieKindLabels: { necessary: 'Necessario', setting: 'Impostazione', analytics: 'Analytics' },
     revokeTitle: 'Revocare il consenso',
-    revokeIntro: 'Puoi revocare il tuo consenso in qualsiasi momento eliminando la voce salvata dalla memoria locale. Il banner dei cookie ricomparirà.',
-    revokeInstructions: 'Apri la console del browser (F12) → Applicazione → Memoria locale → elimina la chiave',
-    revokeInstructionsAfter: '→ ricarica la pagina.',
+    revokeIntro: 'Puoi modificare la tua scelta in qualsiasi momento con la stessa facilità. Apri le impostazioni dei cookie e scegli «Solo necessari» per revocare gli analytics opzionali.',
+    revokeButtonLabel: 'Apri impostazioni cookie',
     optOutPrefix: 'In alternativa puoi disattivare Google Analytics in modo permanente:',
     optOutLabel: 'Opt-out di Google Analytics',
     legalTitle: 'Base giuridica',
@@ -924,9 +925,8 @@ const cookiesCopy: Record<LegalLocale, {
     ],
     cookieKindLabels: { necessary: 'Necessary', setting: 'Setting', analytics: 'Analytics' },
     revokeTitle: 'Withdrawing consent',
-    revokeIntro: 'You can withdraw your consent at any time by removing the stored entry from local storage. The cookie banner will then appear again.',
-    revokeInstructions: 'Open the browser console (F12) → Application → Local Storage → delete the key',
-    revokeInstructionsAfter: '→ reload the page.',
+    revokeIntro: 'You can change your choice at any time just as easily. Open cookie settings and choose “Necessary only” to withdraw optional analytics.',
+    revokeButtonLabel: 'Open cookie settings',
     optOutPrefix: 'Alternatively, you can permanently disable Google Analytics:',
     optOutLabel: 'Google Analytics opt-out',
     legalTitle: 'Legal basis',
@@ -937,7 +937,7 @@ const cookiesCopy: Record<LegalLocale, {
   },
 };
 
-function CookiesView({ locale }: { locale: LegalLocale }) {
+function CookiesView({ locale, identity }: { locale: LegalLocale; identity: LegalIdentity }) {
   const copy = cookiesCopy[locale];
   return (
     <div className="fade-in">
@@ -998,13 +998,7 @@ function CookiesView({ locale }: { locale: LegalLocale }) {
 
         <LegalSection title={copy.revokeTitle}>
           <p className="mb-3">{copy.revokeIntro}</p>
-          <div
-            className="rounded-xl p-4 text-[13px] font-mono"
-            style={{ background: 'var(--app-card)', color: 'var(--app-text-secondary)' }}
-          >
-            {copy.revokeInstructions}{' '}
-            <code style={{ color: 'var(--accent)' }}>pokyh_cookie_consent</code> {copy.revokeInstructionsAfter}
-          </div>
+          <CookieSettingsButton label={copy.revokeButtonLabel} />
           <p className="mt-3">
             {copy.optOutPrefix}{' '}
             <a
@@ -1026,7 +1020,7 @@ function CookiesView({ locale }: { locale: LegalLocale }) {
         <LegalSection title={copy.contactTitle}>
           <p>
             {copy.contactPrefix}{' '}
-            <a href="mailto:contact@pokyh.com" style={{ color: 'var(--accent)' }}>contact@pokyh.com</a>
+            <a href={`mailto:${identity.privacyEmail}`} style={{ color: 'var(--accent)' }}>{identity.privacyEmail}</a>
             {copy.contactSuffix}
           </p>
         </LegalSection>
@@ -1040,6 +1034,95 @@ function CookiesView({ locale }: { locale: LegalLocale }) {
 }
 
 /* ─── Shared components ──────────────────────────────────────────────────── */
+
+const legalIdentityLabels: Record<LegalLocale, {
+  representative: string;
+  vatId: string;
+  companyRegister: string;
+  reaNumber: string;
+  pec: string;
+  missingRegistration: string;
+}> = {
+  de: {
+    representative: 'Gesetzliche Vertretung',
+    vatId: 'Umsatzsteuer-ID',
+    companyRegister: 'Handelsregister',
+    reaNumber: 'REA-Nummer',
+    pec: 'PEC',
+    missingRegistration: 'Vor einer öffentlichen kommerziellen Bereitstellung müssen die verifizierten Angaben zur gesetzlichen Vertretung, Umsatzsteuer-ID und Handelsregistereintragung in der Produktionskonfiguration ergänzt werden.',
+  },
+  it: {
+    representative: 'Rappresentante legale',
+    vatId: 'Partita IVA',
+    companyRegister: 'Registro delle imprese',
+    reaNumber: 'Numero REA',
+    pec: 'PEC',
+    missingRegistration: 'Prima della pubblicazione commerciale, i dati verificati su rappresentante legale, partita IVA e registro delle imprese devono essere completati nella configurazione di produzione.',
+  },
+  en: {
+    representative: 'Legal representative',
+    vatId: 'VAT ID',
+    companyRegister: 'Company register',
+    reaNumber: 'REA number',
+    pec: 'PEC',
+    missingRegistration: 'Before commercial public release, the verified legal representative, VAT ID, and company-register information must be completed in the production configuration.',
+  },
+};
+
+function LegalIdentityDetails({
+  locale,
+  identity,
+  includeContact = true,
+  showReadiness = false,
+}: {
+  locale: LegalLocale;
+  identity: LegalIdentity;
+  includeContact?: boolean;
+  showReadiness?: boolean;
+}) {
+  const labels = legalIdentityLabels[locale];
+  const optionalRows = [
+    [labels.representative, identity.legalRepresentative],
+    [labels.vatId, identity.vatId],
+    [labels.companyRegister, identity.companyRegister],
+    [labels.reaNumber, identity.reaNumber],
+    [labels.pec, identity.pec],
+  ].filter(([, value]) => Boolean(value)) as Array<[string, string]>;
+
+  return (
+    <div className="text-sm" style={{ color: 'var(--app-text-secondary)' }}>
+      <p>
+        <strong style={{ color: 'var(--app-text-primary)' }}>{identity.name}</strong><br />
+        {identity.addressLines.map((line) => <span key={line}>{line}<br /></span>)}
+      </p>
+      {includeContact && (
+        <a
+          href={`mailto:${identity.contactEmail}`}
+          className="mt-2 inline-flex items-center gap-1.5 transition-opacity hover:opacity-70"
+          style={{ color: 'var(--accent)' }}
+        >
+          <Mail size={13} />
+          {identity.contactEmail}
+        </a>
+      )}
+      {optionalRows.length > 0 && (
+        <dl className="mt-2 grid gap-1">
+          {optionalRows.map(([label, value]) => (
+            <div key={label} className="flex flex-wrap gap-x-1.5">
+              <dt className="font-semibold" style={{ color: 'var(--app-text-primary)' }}>{label}:</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {showReadiness && !identity.isCompanyRegistrationComplete && (
+        <p className="mt-3 rounded-xl p-3 text-[13px]" role="note" style={{ background: 'var(--app-card)', color: 'var(--app-text-secondary)', border: '1px solid var(--app-border)' }}>
+          {labels.missingRegistration}
+        </p>
+      )}
+    </div>
+  );
+}
 
 function LegalSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (

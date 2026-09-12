@@ -2,26 +2,58 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Cookie, X } from 'lucide-react';
+import { Cookie, Settings2, X } from 'lucide-react';
+import { COOKIE_SETTINGS_EVENT } from '@/components/CookieSettingsButton';
 
-const STORAGE_KEY = 'pokyh_cookie_consent';
+export const COOKIE_CONSENT_STORAGE_KEY = 'pokyh_cookie_consent';
 
 export type CookieConsent = 'all' | 'necessary';
 
-export default function CookieBanner() {
+export default function CookieBanner({ analyticsEnabled = false }: { analyticsEnabled?: boolean }) {
   const [visible, setVisible] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
-    if (!localStorage.getItem(STORAGE_KEY)) setVisible(true);
+    // Defer the browser-only storage read until after hydration. Besides
+    // avoiding a server/client render mismatch, this keeps the banner state
+    // synchronised with the actual browser choice rather than a server guess.
+    const initialCheck = window.requestAnimationFrame(() => {
+      if (!localStorage.getItem(COOKIE_CONSENT_STORAGE_KEY)) setVisible(true);
+    });
+
+    function openSettings() {
+      setShowDetails(true);
+      setVisible(true);
+    }
+
+    window.addEventListener(COOKIE_SETTINGS_EVENT, openSettings);
+    return () => {
+      window.cancelAnimationFrame(initialCheck);
+      window.removeEventListener(COOKIE_SETTINGS_EVENT, openSettings);
+    };
   }, []);
 
   function accept(choice: CookieConsent) {
-    localStorage.setItem(STORAGE_KEY, choice);
+    localStorage.setItem(COOKIE_CONSENT_STORAGE_KEY, choice);
     window.dispatchEvent(new CustomEvent('cookie-consent-changed', { detail: choice }));
+    setShowDetails(false);
     setVisible(false);
   }
 
-  if (!visible) return null;
+  if (!visible) {
+    return (
+      <button
+        type="button"
+        onClick={() => { setShowDetails(true); setVisible(true); }}
+        aria-label="Cookie-Einstellungen öffnen"
+        className="fixed bottom-4 right-4 z-[999] inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[12px] font-semibold shadow-lg transition-opacity hover:opacity-80"
+        style={{ background: 'var(--app-surface)', color: 'var(--app-text-secondary)', border: '1px solid var(--app-border)' }}
+      >
+        <Settings2 size={15} />
+        Cookie-Einstellungen
+      </button>
+    );
+  }
 
   return (
     <div
@@ -50,8 +82,7 @@ export default function CookieBanner() {
               Cookies &amp; Datenschutz
             </p>
             <p className="text-[13px] mt-1 leading-relaxed" style={{ color: 'var(--app-text-secondary)' }}>
-              Wir verwenden notwendige Cookies für den Betrieb der App sowie optionale Analytics-Cookies
-              (Google Analytics 4) zur Verbesserung unseres Dienstes.{' '}
+              Wir verwenden notwendige Cookies für den Betrieb der App{analyticsEnabled ? ' sowie optionale Analytics-Cookies zur Verbesserung unseres Dienstes.' : '.'}{' '}
               <Link
                 href="/legal?view=cookies"
                 className="underline underline-offset-2 transition-opacity hover:opacity-70"
@@ -65,17 +96,24 @@ export default function CookieBanner() {
             onClick={() => accept('necessary')}
             className="flex-shrink-0 p-1.5 rounded-lg transition-opacity hover:opacity-60"
             style={{ color: 'var(--app-text-tertiary)' }}
-            aria-label="Schließen"
+            aria-label="Nur notwendige Cookies verwenden und schließen"
           >
             <X size={16} />
           </button>
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-2.5 mt-4">
+        {showDetails && (
+          <div className="rounded-xl p-3.5 text-[12px] leading-relaxed" style={{ background: 'var(--app-card)', color: 'var(--app-text-secondary)' }}>
+            <p className="font-semibold" style={{ color: 'var(--app-text-primary)' }}>Deine Auswahl</p>
+            <p className="mt-1">Notwendige Cookies bleiben für Anmeldung, Sicherheit und die gewählten Einstellungen aktiv. {analyticsEnabled ? 'Analytics bleibt nur mit deiner ausdrücklichen Zustimmung aktiv und kann hier jederzeit wieder deaktiviert werden.' : 'Analytics ist für diese Bereitstellung nicht aktiviert.'}</p>
+          </div>
+        )}
+
+        <div className="mt-4 flex flex-wrap items-center gap-2.5">
+          {!showDetails && <button type="button" onClick={() => setShowDetails(true)} className="text-[12px] font-semibold transition-opacity hover:opacity-70" style={{ color: 'var(--accent)' }}>Einstellungen</button>}
           <button
             onClick={() => accept('necessary')}
-            className="flex-1 h-10 rounded-xl text-[13px] font-semibold transition-opacity hover:opacity-70 press-scale"
+            className="min-w-[9rem] flex-1 h-10 rounded-xl text-[13px] font-semibold transition-opacity hover:opacity-70 press-scale"
             style={{
               background: 'var(--app-card)',
               color: 'var(--app-text-secondary)',
@@ -84,13 +122,13 @@ export default function CookieBanner() {
           >
             Nur notwendige
           </button>
-          <button
-            onClick={() => accept('all')}
-            className="flex-1 h-10 rounded-xl text-[13px] font-semibold text-white transition-opacity hover:opacity-90 press-scale"
-            style={{ background: 'linear-gradient(135deg, #6366F1, #8B5CF6)' }}
-          >
-            Alles akzeptieren
-          </button>
+          {analyticsEnabled && <button
+              onClick={() => accept('all')}
+              className="min-w-[9rem] flex-1 h-10 rounded-xl text-[13px] font-semibold text-white transition-opacity hover:opacity-90 press-scale"
+              style={{ background: 'var(--accent)' }}
+            >
+              Alles akzeptieren
+            </button>}
         </div>
       </div>
     </div>

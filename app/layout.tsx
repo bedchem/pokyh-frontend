@@ -13,6 +13,7 @@ import PWAInit from '@/components/PWAInit';
 import AppIconApplier from '@/components/AppIconApplier';
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
+const analyticsEnabled = /^G-[A-Z0-9]+$/i.test(GA_ID ?? '');
 
 const inter = Inter({
   subsets: ['latin'],
@@ -272,7 +273,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </AppProvider>
           </SessionProvider>
         </ThemeProvider>
-        <CookieBanner />
+        <CookieBanner analyticsEnabled={analyticsEnabled} />
         <AnalyticsLoader gaId={GA_ID} />
         <PWAInit />
         <AppIconApplier />
