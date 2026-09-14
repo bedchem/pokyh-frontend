@@ -1,9 +1,16 @@
 // AES-GCM session encryption – works in both Node.js and Edge runtimes
 
-const SECRET = process.env.SESSION_SECRET ?? 'pockyh-default-secret-change-me!';
-if (!process.env.SESSION_SECRET && process.env.NODE_ENV === 'production') {
-  console.warn('[security] SESSION_SECRET is not set – using insecure default. Set SESSION_SECRET in your environment.');
+const configuredSecret = process.env.SESSION_SECRET?.trim();
+
+// A predictable encryption key would let an attacker forge or decrypt WebUntis
+// session cookies. Production must fail closed instead of silently falling back
+// to a known development value. Existing deployments already use a 32+ byte
+// secret, so keeping the established derivation preserves their sessions.
+if (process.env.NODE_ENV === 'production' && (!configuredSecret || configuredSecret.length < 32)) {
+  throw new Error('SESSION_SECRET must be set to at least 32 characters in production.');
 }
+
+const SECRET = configuredSecret || 'development-only-session-secret-do-not-use-in-production';
 
 let _cachedKey: CryptoKey | null = null;
 

@@ -126,7 +126,7 @@ browser; the rest are server-only.
 
 | Variable                       | Scope   | Purpose                                                                 |
 | ------------------------------ | ------- | ----------------------------------------------------------------------- |
-| `SESSION_SECRET`               | server  | Key for encrypting the WebUntis session cookie. **Secret.**             |
+| `SESSION_SECRET`               | server  | Key for encrypting the WebUntis session cookie. **Secret; required in production and at least 32 characters.** |
 | `NEXT_PUBLIC_SITE_URL`         | public  | Canonical site URL for SEO/metadata. **Prod:** `https://pokyh.com` — note the `https://` (a malformed value breaks sitemap/OG, not auth). |
 | `API_BACKEND_URL`              | server  | POKYH backend URL for server-side calls (no CORS). e.g. `https://api.pokyh.com` |
 | `NEXT_PUBLIC_API_BACKEND_URL`  | public  | POKYH backend URL for client-side calls.                                |
