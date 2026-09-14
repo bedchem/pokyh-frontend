@@ -1,22 +1,26 @@
 // AES-GCM session encryption – works in both Node.js and Edge runtimes
 
-const configuredSecret = process.env.SESSION_SECRET?.trim();
-
 // A predictable encryption key would let an attacker forge or decrypt WebUntis
 // session cookies. Production must fail closed instead of silently falling back
-// to a known development value. Existing deployments already use a 32+ byte
-// secret, so keeping the established derivation preserves their sessions.
-if (process.env.NODE_ENV === 'production' && (!configuredSecret || configuredSecret.length < 32)) {
-  throw new Error('SESSION_SECRET must be set to at least 32 characters in production.');
-}
+// to a known development value. Validate at first use, rather than at module
+// evaluation, so a multi-stage Docker build never needs to receive a runtime
+// secret. The running container must still provide a strong secret before it
+// can encrypt or decrypt a session.
+function getSessionSecret(): string {
+  const configuredSecret = process.env.SESSION_SECRET?.trim();
+  if (process.env.NODE_ENV === 'production' && (!configuredSecret || configuredSecret.length < 32)) {
+    throw new Error('SESSION_SECRET must be set to at least 32 characters in production.');
+  }
 
-const SECRET = configuredSecret || 'development-only-session-secret-do-not-use-in-production';
+  return configuredSecret || 'development-only-session-secret-do-not-use-in-production';
+}
 
 let _cachedKey: CryptoKey | null = null;
 
 async function getKey(): Promise<CryptoKey> {
   if (_cachedKey) return _cachedKey;
-  const raw = new TextEncoder().encode(SECRET.slice(0, 32).padEnd(32, '0'));
+  const secret = getSessionSecret();
+  const raw = new TextEncoder().encode(secret.slice(0, 32).padEnd(32, '0'));
   _cachedKey = await crypto.subtle.importKey('raw', raw, { name: 'AES-GCM' }, false, [
     'encrypt',
     'decrypt',

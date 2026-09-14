@@ -15,6 +15,12 @@ const COOKIE_OPTS = {
   path: '/',
 };
 
+function clearAuthCookies(res: NextResponse) {
+  res.cookies.set('pockyh_api_token', '', { ...COOKIE_OPTS, httpOnly: false, maxAge: 0 });
+  res.cookies.set('pockyh_api_refresh', '', { ...COOKIE_OPTS, httpOnly: true, maxAge: 0 });
+  return res;
+}
+
 export async function POST(req: NextRequest) {
   const refreshToken = req.cookies.get('pockyh_api_refresh')?.value;
   if (!refreshToken) {
@@ -35,14 +41,15 @@ export async function POST(req: NextRequest) {
     if (!backendRes.ok) {
       // Refresh token invalid/expired/revoked — clear it so the client stops
       // retrying and falls through to a clean re-login.
-      const res = NextResponse.json({ error: 'refresh_failed' }, { status: 401 });
-      res.cookies.set('pockyh_api_refresh', '', { ...COOKIE_OPTS, httpOnly: true, maxAge: 0 });
-      return res;
+      return clearAuthCookies(NextResponse.json({ error: 'refresh_failed' }, { status: 401 }));
     }
 
-    const data = await backendRes.json() as { token?: string };
-    if (!data.token) {
-      return NextResponse.json({ error: 'invalid_response' }, { status: 502 });
+    const data = await backendRes.json() as { token?: string; refreshToken?: string };
+    if (!data.token || !data.refreshToken) {
+      // The backend intentionally rotates refresh tokens. Treat a partial
+      // response as unusable: keeping the old token would make the next
+      // refresh fail and leave stale credentials in the browser.
+      return clearAuthCookies(NextResponse.json({ error: 'invalid_response' }, { status: 502 }));
     }
 
     const res = NextResponse.json({ ok: true, token: data.token });
@@ -50,6 +57,11 @@ export async function POST(req: NextRequest) {
       ...COOKIE_OPTS,
       httpOnly: false, // client JS reads this for the Authorization header
       maxAge: 8 * 60 * 60,
+    });
+    res.cookies.set('pockyh_api_refresh', data.refreshToken, {
+      ...COOKIE_OPTS,
+      httpOnly: true,
+      maxAge: 30 * 24 * 60 * 60,
     });
     return res;
   } catch (e: unknown) {
