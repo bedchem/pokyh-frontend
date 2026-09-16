@@ -9,6 +9,7 @@ import { isKnownPageRoute, isMensaRoute } from '@/lib/routes';
 
 const Sidebar = dynamic(() => import('./Sidebar'));
 const DashboardTopbar = dynamic(() => import('./DashboardTopbar'));
+const AnnouncementPopup = dynamic(() => import('./AnnouncementPopup'), { ssr: false });
 
 // Landing pages that PWA users should never see
 const PWA_BLOCKED = ['/', '/about', '/faq', '/comparison', '/howto'];
@@ -40,7 +41,13 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
     !isKnownPageRoute(pathname) ||
     (isMensaRoute(pathname) && (isLoading || !user));
 
-  if (isLanding || isStandalone) return <>{children}</>;
+  // Admin popups: guests see the "guests" audience on the public pages, signed-in
+  // users the "users" audience. Keyed so signing in/out starts a fresh check.
+  const popups = isLoading ? null : (
+    <AnnouncementPopup key={user ? 'user' : 'guest'} audience={user ? 'user' : 'guest'} />
+  );
+
+  if (isLanding || isStandalone) return <>{children}{popups}</>;
 
   return (
     <div className="flex h-dvh overflow-hidden">
@@ -51,6 +58,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
           {children}
         </main>
       </div>
+      {popups}
     </div>
   );
 }

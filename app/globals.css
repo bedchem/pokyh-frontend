@@ -190,3 +190,35 @@ select:focus-visible {
 /* View Transitions deaktiviert — Theme-Ripple läuft über Overlay + CSS mask */
 ::view-transition-old(root),
 ::view-transition-new(root) { animation: none; }
+
+/* ─── Announcement popup content ──────────────────────────────────────────────
+   Backend-rendered Markdown/HTML (components/AnnouncementPopup.tsx). Mirrored
+   by the admin preview in pokyh-backend/admin/src/components/popups/PopupPreview.tsx. */
+.popup-content { font-size: 14.5px; line-height: 1.6; color: var(--app-text-primary); overflow-wrap: anywhere; }
+.popup-content > :first-child { margin-top: 0; }
+.popup-content > :last-child { margin-bottom: 0; }
+.popup-content h1 { font-size: 22px; line-height: 1.3; font-weight: 700; letter-spacing: -0.02em; margin: 18px 0 8px; }
+.popup-content h2 { font-size: 18px; line-height: 1.35; font-weight: 600; letter-spacing: -0.01em; margin: 16px 0 6px; }
+.popup-content h3 { font-size: 15.5px; font-weight: 600; margin: 14px 0 4px; }
+.popup-content p { margin: 0 0 10px; }
+.popup-content a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.popup-content img { max-width: 100%; height: auto; border-radius: 16px; display: block; margin: 10px 0; }
+.popup-content blockquote { margin: 10px 0; padding: 8px 14px; border-left: 3px solid var(--accent); background: var(--app-card); border-radius: 0 12px 12px 0; color: var(--app-text-secondary); }
+.popup-content blockquote p { margin: 0; }
+.popup-content code { background: var(--app-card-alt); padding: 1px 6px; border-radius: 6px; font-size: 0.88em; }
+.popup-content pre { background: var(--app-card); padding: 12px 14px; border-radius: 14px; overflow-x: auto; }
+.popup-content pre code { background: none; padding: 0; }
+.popup-content ul, .popup-content ol { padding-left: 22px; margin: 0 0 10px; }
+.popup-content ul { list-style: disc; }
+.popup-content ol { list-style: decimal; }
+.popup-content li { margin: 3px 0; }
+.popup-content li:has(> input[type=checkbox]) { list-style: none; margin-left: -20px; }
+.popup-content input[type=checkbox] { accent-color: var(--accent); margin: 0 6px 0 0; vertical-align: -2px; }
+.popup-content hr { border: 0; border-top: 1px solid var(--app-border); margin: 14px 0; }
+.popup-content table { border-collapse: separate; border-spacing: 0; width: 100%; margin: 10px 0; font-size: 13.5px; border-radius: 14px; overflow: hidden; background: var(--app-card); }
+.popup-content th, .popup-content td { padding: 7px 12px; text-align: left; }
+.popup-content th { background: var(--app-card-alt); font-weight: 600; }
+.popup-content tr + tr td { border-top: 1px solid var(--app-border); }
+.popup-content mark { color: #0D0C1A; border-radius: 4px; padding: 0 3px; }
+.popup-content details { background: var(--app-card); border-radius: 14px; padding: 10px 14px; margin: 10px 0; }
+.popup-content summary { font-weight: 600; cursor: pointer; }
