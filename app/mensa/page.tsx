@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { format, isToday, isTomorrow, parseISO, startOfDay } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { Star, Utensils, X } from 'lucide-react';
-import AuthGuard from '@/components/AuthGuard';
+import Link from 'next/link';
+import { LogIn, Star, Utensils, X } from 'lucide-react';
+import LandingNav from '@/components/LandingNav';
 import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
 import EmptyView from '@/components/ui/EmptyView';
@@ -12,7 +13,11 @@ import CommentSection from '@/components/ui/CommentSection';
 import { fetchMensa } from '@/lib/api';
 import type { Dish } from '@/lib/types';
 import { useApp } from '@/providers/AppProvider';
+import { useSession } from '@/providers/SessionProvider';
 import { api, type DishRatingsData, type ApiComment } from '@/lib/api-client';
+
+// Guests can browse the menu; rating and commenting need an account.
+const LOGIN_HREF = `/login?next=${encodeURIComponent('/mensa')}`;
 
 // -- helpers --
 
@@ -148,7 +153,7 @@ function StarDisplay({
             onClick={() => onRate(s)}
             onMouseEnter={() => setHover(s)}
             onMouseLeave={() => setHover(0)}
-            className="p-0.5 press-scale"
+            className="p-0.5 press-scale cursor-pointer"
           >
             <Star
               size={24}
@@ -283,16 +288,71 @@ function DishCard({
   );
 }
 
+function LoginRequiredDialog({ onCancel }: { onCancel: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-[130] flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+      // Stop here so closing this dialog doesn't also close the dish detail behind it
+      onClick={(e) => { e.stopPropagation(); onCancel(); }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mensa-login-title"
+        className="rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+        style={{ background: 'var(--app-surface)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-3 mb-5">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: 'color-mix(in srgb, var(--accent) 15%, transparent)' }}
+          >
+            <LogIn size={20} color="var(--accent)" />
+          </div>
+          <div>
+            <p id="mensa-login-title" className="font-bold text-[16px]" style={{ color: 'var(--app-text-primary)' }}>
+              Anmeldung erforderlich
+            </p>
+            <p className="text-xs" style={{ color: 'var(--app-text-secondary)' }}>
+              Zum Bewerten und Kommentieren musst du angemeldet sein
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-3 rounded-xl font-medium text-sm cursor-pointer press-scale"
+            style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)' }}
+          >
+            Abbrechen
+          </button>
+          <Link
+            href={LOGIN_HREF}
+            className="flex-1 py-3 rounded-xl font-semibold text-sm text-white text-center press-scale flex items-center justify-center"
+            style={{ background: 'var(--accent)' }}
+          >
+            Anmelden
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DishDetail({
   dish,
   stableUid,
   isAdmin,
+  isGuest,
   onClose,
   onRated,
 }: {
   dish: Dish;
   stableUid: string | null;
   isAdmin: boolean;
+  isGuest: boolean;
   onClose: () => void;
   onRated: (dishId: string, ratings: Record<string, number>) => void;
 }) {
@@ -300,9 +360,11 @@ function DishDetail({
   const [saving, setSaving] = useState(false);
   const [comments, setComments] = useState<ApiComment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(true);
+  const [loginRequired, setLoginRequired] = useState(false);
+  const requireLogin = useCallback(() => setLoginRequired(true), []);
 
   useEffect(() => {
-    // Fetch initial ratings
+    // Fetch initial ratings (guests get anonymized read-only data)
     api.dishRatings.get(dish.id)
       .then((data) => {
         setRatingsData(data);
@@ -335,6 +397,10 @@ function DishDetail({
   const ratingCount = Object.keys(ratingsData.ratings).length;
 
   async function rate(stars: number) {
+    if (isGuest) {
+      requireLogin();
+      return;
+    }
     if (!stableUid || saving) return;
     setSaving(true);
     try {
@@ -348,7 +414,7 @@ function DishDetail({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8"
+      className="fixed inset-0 z-[120] flex items-center justify-center px-4 py-8"
       style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
@@ -419,11 +485,6 @@ function DishDetail({
                 {ratingCount} Bewertung{ratingCount !== 1 ? 'en' : ''}
               </p>
             )}
-            {!stableUid && (
-              <p className="text-xs mt-2" style={{ color: 'var(--app-text-tertiary)' }}>
-                Anmelden um zu bewerten
-              </p>
-            )}
           </div>
 
           {/* Nutrition */}
@@ -458,18 +519,23 @@ function DishDetail({
               onAdd={(body) => api.dishComments.create(dish.id, body)}
               onEdit={(commentId, body) => api.dishComments.update(dish.id, commentId, body)}
               onDelete={(commentId) => api.dishComments.delete(dish.id, commentId)}
+              onRequireLogin={isGuest ? requireLogin : undefined}
             />
           </div>
 
           <div className="h-4" />
         </div>
       </div>
+
+      {loginRequired && <LoginRequiredDialog onCancel={() => setLoginRequired(false)} />}
     </div>
   );
 }
 
 export default function MensaPage() {
   const { stableUid } = useApp();
+  const { user, isLoading: sessionLoading } = useSession();
+  const isGuest = !sessionLoading && !user;
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -507,9 +573,10 @@ export default function MensaPage() {
 
   useEffect(() => { loadMenu(); }, [loadMenu]);
 
-  // Fetch ratings in batch once BOTH the menu is loaded AND stableUid is available.
+  // Fetch ratings in batch once the menu is loaded AND stableUid is available
+  // (guests fetch the anonymized ratings without waiting for a stableUid).
   useEffect(() => {
-    if (!stableUid || groups.length === 0 || ratingsFetched.current) return;
+    if ((!stableUid && !isGuest) || groups.length === 0 || ratingsFetched.current) return;
     ratingsFetched.current = true;
     const allDishes = groups.flatMap((g) => g.dishes);
     const dishIds = allDishes.map((d) => d.id);
@@ -525,26 +592,22 @@ export default function MensaPage() {
         setAllRatings(ratings);
       })
       .catch((e) => console.error('[mensa] ratings batch fetch error:', e));
-  }, [stableUid, groups]);
+  }, [stableUid, isGuest, groups]);
 
   const handleRated = useCallback((dishId: string, ratings: Record<string, number>) => {
     setAllRatings((prev) => ({ ...prev, [dishId]: ratings }));
   }, []);
 
-  return (
-    <AuthGuard>
-      <div className="h-full flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="px-5 pt-5 pb-4 fade-in flex-shrink-0">
-          <h1 className="text-[28px] font-bold tracking-tight" style={{ color: 'var(--app-text-primary)' }}>
-            Mensa
-          </h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--app-text-secondary)' }}>LBS Brixen</p>
-        </div>
+  const header = (
+    <div className="px-5 pt-5 pb-4 fade-in flex-shrink-0">
+      <h1 className="text-[28px] font-bold tracking-tight" style={{ color: 'var(--app-text-primary)' }}>
+        Mensa
+      </h1>
+      <p className="text-sm mt-0.5" style={{ color: 'var(--app-text-secondary)' }}>LBS Brixen</p>
+    </div>
+  );
 
-        {/* Scrollable content */}
-        <div className="flex-1 overflow-auto px-4 pb-8">
-          {loading ? (
+  const menu = loading ? (
             <div className="flex justify-center py-16"><Spinner size={28} /></div>
           ) : error ? (
             <ErrorView message={error} onRetry={loadMenu} />
@@ -598,19 +661,48 @@ export default function MensaPage() {
                 </section>
               ))}
             </div>
-          )}
-        </div>
+          );
 
-        {selected && (
-          <DishDetail
-            dish={selected}
-            stableUid={stableUid}
-            isAdmin={isAdmin}
-            onClose={() => setSelected(null)}
-            onRated={handleRated}
-          />
-        )}
+  const detail = selected && (
+    <DishDetail
+      dish={selected}
+      stableUid={stableUid}
+      isAdmin={isAdmin}
+      isGuest={isGuest}
+      onClose={() => setSelected(null)}
+      onRated={handleRated}
+    />
+  );
+
+  if (sessionLoading) {
+    return (
+      <div className="h-dvh flex items-center justify-center" style={{ background: 'var(--app-bg)' }}>
+        <Spinner size={32} />
       </div>
-    </AuthGuard>
+    );
+  }
+
+  if (isGuest) {
+    return (
+      <div className="lp-root min-h-dvh" style={{ background: 'var(--app-bg)' }}>
+        <LandingNav />
+        <main className="w-full max-w-2xl mx-auto pb-12">
+          {header}
+          <div className="px-4">{menu}</div>
+        </main>
+        {detail}
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full flex flex-col overflow-hidden">
+      {header}
+
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-auto px-4 pb-8">{menu}</div>
+
+      {detail}
+    </div>
   );
 }

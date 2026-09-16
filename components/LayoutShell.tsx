@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { isPWA } from '@/lib/pwa';
 import { useSession } from '@/providers/SessionProvider';
+import { isKnownPageRoute, isMensaRoute } from '@/lib/routes';
 
 const Sidebar = dynamic(() => import('./Sidebar'));
 const DashboardTopbar = dynamic(() => import('./DashboardTopbar'));
@@ -19,7 +20,7 @@ const LANDING_PREFIX = ['/get'];
 export default function LayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user } = useSession();
+  const { user, isLoading } = useSession();
 
   useEffect(() => {
     if (!isPWA()) return;
@@ -34,7 +35,12 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
     LANDING_EXACT.includes(pathname) ||
     LANDING_PREFIX.some((p) => pathname === p || pathname.startsWith(p + '/'));
 
-  if (isLanding) return <>{children}</>;
+  // Unknown routes (404) and the guest Mensa view bring their own chrome
+  const isStandalone =
+    !isKnownPageRoute(pathname) ||
+    (isMensaRoute(pathname) && (isLoading || !user));
+
+  if (isLanding || isStandalone) return <>{children}</>;
 
   return (
     <div className="flex h-dvh overflow-hidden">

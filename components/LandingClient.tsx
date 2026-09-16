@@ -238,6 +238,11 @@ export default function LandingClient() {
             <Link href="/login"    className="lp-alink">Jetzt anmelden</Link>
             <a    href="#funktionen" className="lp-alink">Alle Funktionen</a>
           </div>
+          <Link href="/mensa" className="lp-hero-mensa">
+            <strong>Was gibt&apos;s heute in der Mensa?</strong>
+            <span className="lp-hero-mensa-sub"> Speiseplan ohne Anmeldung</span>
+            <span className="lp-hero-mensa-arrow" aria-hidden="true">›</span>
+          </Link>
           {/* Scroll cue */}
           <div className="lp-scroll-hint" aria-hidden="true">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -417,6 +422,9 @@ export default function LandingClient() {
             <div className="lp-tile-eyebrow lp-reveal">Mensa</div>
             <h2 className="lp-tile-title lp-reveal" {...reveal(60)}>Was gibt's heute?</h2>
             <p  className="lp-tile-sub   lp-reveal" {...reveal(120)}>Tagesmenü mit Bewertungen und Allergenen — direkt im Klassenzimmer.</p>
+            <div className="lp-tile-link lp-reveal" {...reveal(150)}>
+              <Link href="/mensa" className="lp-alink">Speiseplan ansehen</Link>
+            </div>
             <div className="lp-tile-visual lp-reveal" {...reveal(180)}>
               <div className="lp-mock-mensa">
                 {DISHES.map((d) => (

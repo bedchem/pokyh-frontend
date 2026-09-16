@@ -30,9 +30,12 @@ interface Props {
   onAdd: (body: string) => Promise<unknown>;
   onEdit: (commentId: string, body: string) => Promise<unknown>;
   onDelete: (commentId: string) => Promise<unknown>;
+  /** When set and there is no stableUid, the input is shown but asks for a login instead. */
+  onRequireLogin?: () => void;
 }
 
-export default function CommentSection({ comments, stableUid, isAdmin, loading, onAdd, onEdit, onDelete }: Props) {
+export default function CommentSection({ comments, stableUid, isAdmin, loading, onAdd, onEdit, onDelete, onRequireLogin }: Props) {
+  const guestPrompt = !stableUid && onRequireLogin ? onRequireLogin : null;
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -211,7 +214,7 @@ export default function CommentSection({ comments, stableUid, isAdmin, loading, 
       )}
 
       {/* Add comment input */}
-      {stableUid && (
+      {(stableUid || guestPrompt) && (
         <div
           className="flex items-end gap-2 rounded-xl px-3 py-2"
           style={{ background: 'var(--app-card)', border: '1.5px solid var(--app-border)' }}
@@ -219,6 +222,12 @@ export default function CommentSection({ comments, stableUid, isAdmin, loading, 
           <textarea
             ref={inputRef}
             value={draft}
+            readOnly={!!guestPrompt}
+            // Guests: open the prompt on click (not mousedown/focus), otherwise the
+            // mouseup lands on the freshly opened dialog backdrop and closes it.
+            onMouseDown={guestPrompt ? (e) => e.preventDefault() : undefined}
+            onClick={guestPrompt ?? undefined}
+            onFocus={guestPrompt ? (e) => { e.currentTarget.blur(); guestPrompt(); } : undefined}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
@@ -233,9 +242,9 @@ export default function CommentSection({ comments, stableUid, isAdmin, loading, 
             }}
           />
           <button
-            onClick={handleSend}
-            disabled={!draft.trim() || sending}
-            className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center press-scale disabled:opacity-40 transition-opacity"
+            onClick={guestPrompt ?? handleSend}
+            disabled={!guestPrompt && (!draft.trim() || sending)}
+            className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center press-scale cursor-pointer disabled:cursor-default disabled:opacity-40 transition-opacity"
             style={{ background: draft.trim() ? 'var(--accent)' : 'var(--app-surface)' }}
           >
             {sending ? <Spinner size={14} /> : <Send size={14} color={draft.trim() ? '#fff' : 'var(--app-text-tertiary)'} />}

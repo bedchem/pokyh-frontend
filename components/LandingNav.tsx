@@ -12,6 +12,16 @@ const NAV_LINKS = [
   { label: 'Vergleich', href: '/comparison' },
 ];
 
+function MensaIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" />
+      <path d="M7 2v20" />
+      <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7" />
+    </svg>
+  );
+}
+
 export default function LandingNav() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const close = () => setMobileOpen(false);
@@ -71,6 +81,14 @@ export default function LandingNav() {
                 </svg>
               </div>
             </label>
+            <Link
+              href="/mensa"
+              className={`lp-nav-mensa ${pathname === '/mensa' ? 'active' : ''}`}
+              aria-label="Mensa-Speiseplan ansehen"
+            >
+              <MensaIcon />
+              <span className="lp-nav-mensa-label">Mensa</span>
+            </Link>
             <Link href="/login" className="lp-nav-login">Anmelden</Link>
             <Link href="/get" className="lp-nav-get">GET POKYH</Link>
           </div>
@@ -94,6 +112,12 @@ export default function LandingNav() {
         <>
           <div className="lp-mobile-nav-overlay open" onClick={close} />
           <div className="lp-mobile-nav-drawer open">
+            <Link href="/mensa" className="lp-mobile-nav-item lp-mobile-nav-mensa" onClick={close}>
+              <MensaIcon />
+              Mensa-Speiseplan
+              <span className="lp-mobile-nav-badge">Ohne Login</span>
+            </Link>
+            <div className="lp-mobile-nav-sep" />
             <div className="lp-mobile-nav-section">Seiten</div>
             {NAV_LINKS.map(link => (
               <Link key={link.href} href={link.href} className="lp-mobile-nav-item" onClick={close}>

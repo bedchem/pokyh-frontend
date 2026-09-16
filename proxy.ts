@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { decryptSession } from '@/lib/session-crypto';
+import { isMensaRoute, isProtectedAppRoute } from '@/lib/routes';
 
 // Public paths that never require a session
 const PUBLIC_PREFIXES = [
@@ -66,6 +67,23 @@ export async function proxy(request: NextRequest) {
     if (authenticated) {
       return NextResponse.redirect(new URL('/home', request.url));
     }
+    return NextResponse.next();
+  }
+
+  // Mensa menu is public; rating and commenting stay behind the login in the UI.
+  // Drop a stale user cookie so the client renders the guest view instead of
+  // hitting 401s and bouncing to /login.
+  if (isMensaRoute(pathname)) {
+    const res = NextResponse.next();
+    if (!authenticated && request.cookies.has('pockyh_user')) {
+      res.cookies.delete('pockyh_session');
+      res.cookies.delete('pockyh_user');
+    }
+    return res;
+  }
+
+  // Unknown pages render the 404 page instead of asking for a login
+  if (!pathname.startsWith('/api/') && !isProtectedAppRoute(pathname)) {
     return NextResponse.next();
   }
 
