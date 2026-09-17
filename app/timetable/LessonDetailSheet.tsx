@@ -52,7 +52,7 @@ export default function LessonDetailSheet({ slot, onClose }: { slot: MergedSlot;
         if (!cache.has(imageSubject)) return;
         // Usually already downloaded in the background by SubjectImagePreloader.
         const src = await resolveSubjectImageSrc(api.subjectImages.imageUrl(imageSubject));
-        if (alive) setImageUrl(src);
+        if (alive && src) setImageUrl(src);
       }),
     ).catch(() => {});
     return () => { alive = false; };

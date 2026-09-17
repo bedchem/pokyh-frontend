@@ -546,9 +546,15 @@ export const api = {
       this._promise = null;
     },
 
+    // The backend only accepts the API key as a header here, so this URL can't be used as
+    // an <img src> directly — fetch it via fetchImage() and display a blob URL instead.
     imageUrl(subject: string): string {
       const key = subject.toLowerCase().trim();
-      return `${API_BASE}/subject-images/${encodeURIComponent(key)}?apiKey=${encodeURIComponent(API_KEY)}`;
+      return `${API_BASE}/subject-images/${encodeURIComponent(key)}`;
+    },
+
+    fetchImage(url: string): Promise<Response> {
+      return fetch(url, { mode: 'cors', credentials: 'omit', headers: { 'X-API-Key': API_KEY } });
     },
 
     async reportSubjects(entries: Array<{ subjectName: string; subjectLong: string }>): Promise<void> {
