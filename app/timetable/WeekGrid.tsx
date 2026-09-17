@@ -1,7 +1,8 @@
 'use client';
 
 import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import type { TimetableEntry } from '@/lib/types';
+import type { AbsenceEntry, TimetableEntry } from '@/lib/types';
+import { ABSENCE_MARK_LABEL, absenceBands } from '@/lib/absences';
 import {
   CELL_GAP,
 
@@ -9,7 +10,6 @@ import {
   GRID_GUTTER,
   MIN_CELL_HEIGHT,
   MIN_CELL_WIDTH,
-  PAST_LESSON_ALPHA,
   PX_PER_MINUTE,
   TEXT_MIN_CELL_WIDTH,
   TIMETABLE_PERIODS,
@@ -46,6 +46,7 @@ export default function WeekGrid({
   minute,
   scale,
   onTap,
+  absences = [],
 }: {
   dayEntries: TimetableEntry[][];
   dates: Date[];
@@ -55,6 +56,8 @@ export default function WeekGrid({
   minute: number;
   scale: number;
   onTap: (slot: MergedSlot) => void;
+  /** The student's Abwesenheiten — drawn as a labelled wash over the lessons they cover. */
+  absences?: AbsenceEntry[];
 }) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const [bodyWidth, setBodyWidth] = useState(0);
@@ -159,6 +162,7 @@ export default function WeekGrid({
             todayNum={todayNum}
             minute={minute}
             onTap={onTap}
+            absences={absences}
           />
         ))}
 
@@ -189,6 +193,7 @@ function DayColumn({
   todayNum,
   minute,
   onTap,
+  absences,
 }: {
   width: number;
   height: number;
@@ -202,8 +207,21 @@ function DayColumn({
   todayNum: number;
   minute: number;
   onTap: (slot: MergedSlot) => void;
+  absences: AbsenceEntry[];
 }) {
   const cells = useMemo(() => buildGridCells(slots), [slots]);
+  const bands = useMemo(
+    () => absenceBands(
+      absences,
+      dayNum,
+      cells
+        .filter(c => !(c.kind === 'cancelled' || c.entry.isCancelled))
+        .map(c => ({ startMinute: c.startMinute, endMinute: c.endMinute })),
+      todayNum,
+      minute,
+    ),
+    [absences, dayNum, cells, todayNum, minute],
+  );
 
   return (
     <div className={s.column} style={{ height }}>
@@ -230,14 +248,29 @@ function DayColumn({
           return (
             <div
               key={cell.key}
-              className={s.cellSlot}
-              style={{ top, left, width: cellWidth, height: h, opacity: past ? PAST_LESSON_ALPHA : 1 }}
+              className={`${s.cellSlot} ${past ? s.cellPast : ''}`}
+              style={{ top, left, width: cellWidth, height: h }}
             >
               <GridLessonCell cell={cell} height={h} width={cellWidth} dense={sharing} scale={scale} onTap={onTap} />
             </div>
           );
         })
       )}
+
+      {kind === 'normal' && width > 0 && bands.map(band => {
+        const top = (band.startMinute - minMins) * pxPerMin;
+        const h = Math.max(MIN_CELL_HEIGHT * scale, (band.endMinute - band.startMinute) * pxPerMin);
+        return (
+          <div
+            key={`abs-${band.startMinute}`}
+            className={`${s.absenceBand} ${band.mark === 'absent' ? s.absenceBandAbsent : ''}`}
+            style={{ top, height: h }}
+            aria-label={ABSENCE_MARK_LABEL[band.mark]}
+          >
+            <span className={s.absenceLabel}>{ABSENCE_MARK_LABEL[band.mark]}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }

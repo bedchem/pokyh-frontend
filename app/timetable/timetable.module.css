@@ -358,6 +358,25 @@
   position: absolute;
   padding: calc(2px * var(--s)) 0;
 }
+/* Finished lessons keep their original subject colour with a darkening layer
+   over the whole cell, so the rest of the day stands out. In light mode the
+   layer *multiplies* a cool grey instead of painting over the cell: a normal
+   overlay covered the pastels (black went muddy, grey washed them out), while
+   multiply darkens every colour but keeps its hue, so each subject stays
+   recognisable. */
+.cellPast .cell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgb(196, 202, 212);
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+:global(.dark) .cellPast .cell::after {
+  background: rgba(0, 0, 0, 0.5);
+  mix-blend-mode: normal;
+}
 .cell {
   position: relative;
   display: block;
@@ -928,3 +947,41 @@ button.special { border: 0; background: transparent; font: inherit; cursor: poin
   font-weight: 600;
 }
 .menuItemActive:hover { background: var(--accent); }
+
+/* Abwesenheit over the lessons it covers (Vorentschuldigung / Entschuldigt / Gefehlt).
+   Clicks pass through to the lesson underneath. */
+.absenceBand {
+  position: absolute;
+  left: 0;
+  right: 0;
+  padding: calc(2px * var(--s)) 0;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.absenceBand::before {
+  content: '';
+  position: absolute;
+  inset: calc(2px * var(--s)) 0;
+  border-radius: calc(9px * var(--s));
+  background: color-mix(in srgb, var(--app-text-secondary) 26%, transparent);
+}
+:global(.dark) .absenceBand::before { background: color-mix(in srgb, var(--app-text-secondary) 32%, transparent); }
+.absenceBandAbsent::before { background: color-mix(in srgb, var(--danger) 18%, transparent); }
+:global(.dark) .absenceBandAbsent::before { background: color-mix(in srgb, var(--danger) 28%, transparent); }
+.absenceLabel {
+  position: relative;
+  max-width: calc(100% - 4px);
+  padding: calc(1.5px * var(--s)) calc(4px * var(--s));
+  border-radius: calc(5px * var(--s));
+  background: color-mix(in srgb, var(--app-card) 88%, transparent);
+  color: var(--app-text-primary);
+  font-size: calc(10px * var(--s));
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+.absenceBandAbsent .absenceLabel { color: var(--danger); }

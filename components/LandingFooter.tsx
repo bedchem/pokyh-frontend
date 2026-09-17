@@ -22,8 +22,9 @@ export default function LandingFooter() {
             <Link href="/faq">FAQ</Link>
             <Link href="/comparison">Comparison</Link>
             <Link href="/howto">GET POKYH</Link>
-            <Link href="/legal">Impressum</Link>
-            <Link href="/legal#datenschutz">Datenschutz</Link>
+            <Link href="/legal?view=impressum">Impressum</Link>
+            <Link href="/legal?view=datenschutz">Datenschutz</Link>
+            <Link href="/legal?view=cookies">Cookies</Link>
           </div>
         </div>
       </div>

@@ -2,10 +2,18 @@ import 'server-only';
 
 /**
  * Public operator data is deliberately configured at deployment time rather
- * than scattered through legal copy. It is not secret. POKYH has no
- * registered company today — the default identity is the operating private
- * individual. If POKYH is ever incorporated, these values must be updated to
- * match the actual company register record before any commercial release.
+ * than scattered through legal copy. POKYH has no registered company today and
+ * is a free, ad-free, non-commercial project — the identity is the operating
+ * private individual.
+ *
+ * What is published, and why:
+ * - Name: required. GDPR Art. 13(1)(a) demands the controller's identity, and
+ *   for a private individual that is their name.
+ * - Contact: an e-mail address provides the "contact details" of Art. 13.
+ * - Postal address: not published by default. The address duty of
+ *   D.Lgs. 70/2003 Art. 7 targets services provided as an economic activity.
+ *   If POKYH is ever monetised or incorporated, set LEGAL_ADDRESS_LINE_* (and
+ *   the company fields) before that release.
  */
 export type LegalIdentity = {
   name: string;
@@ -37,8 +45,8 @@ export function getLegalIdentity(): LegalIdentity {
     // Registry details intentionally have no invented fallback.
     name: configured('LEGAL_ENTITY_NAME', 'Felix Plattner'),
     addressLines: [
-      configured('LEGAL_ADDRESS_LINE_1', 'Strange 12'),
-      configured('LEGAL_ADDRESS_LINE_2', '39042 Brixen (BZ), Südtirol, Italien'),
+      configured('LEGAL_ADDRESS_LINE_1'),
+      configured('LEGAL_ADDRESS_LINE_2'),
     ].filter(Boolean),
     contactEmail: configured('LEGAL_CONTACT_EMAIL', 'contact@pokyh.com'),
     privacyEmail: configured('LEGAL_PRIVACY_EMAIL', configured('LEGAL_CONTACT_EMAIL', 'contact@pokyh.com')),

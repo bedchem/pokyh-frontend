@@ -392,6 +392,11 @@ function DishDetail({
     return () => { unsubRatings(); unsubComments(); };
   }, [dish.id, onRated]);
 
+  // Own changes show immediately even if the live stream is reconnecting;
+  // everyone else gets them through the SSE subscription above.
+  const refreshComments = () =>
+    api.dishComments.list(dish.id).then(setComments).catch(() => {});
+
   const avg = avgRating(ratingsData.ratings);
   const myRating = ratingsData.myRating ?? 0;
   const ratingCount = Object.keys(ratingsData.ratings).length;
@@ -404,7 +409,9 @@ function DishDetail({
     if (!stableUid || saving) return;
     setSaving(true);
     try {
-      await api.dishRatings.rate(dish.id, stars);
+      const data = await api.dishRatings.rate(dish.id, stars);
+      setRatingsData(data);
+      onRated(dish.id, data.ratings);
     } catch (e) {
       console.error('[mensa] rate error:', e);
     } finally {
@@ -516,9 +523,9 @@ function DishDetail({
               stableUid={stableUid}
               isAdmin={isAdmin}
               loading={commentsLoading}
-              onAdd={(body) => api.dishComments.create(dish.id, body)}
-              onEdit={(commentId, body) => api.dishComments.update(dish.id, commentId, body)}
-              onDelete={(commentId) => api.dishComments.delete(dish.id, commentId)}
+              onAdd={(body) => api.dishComments.create(dish.id, body).then(refreshComments)}
+              onEdit={(commentId, body) => api.dishComments.update(dish.id, commentId, body).then(refreshComments)}
+              onDelete={(commentId) => api.dishComments.delete(dish.id, commentId).then(refreshComments)}
               onRequireLogin={isGuest ? requireLogin : undefined}
             />
           </div>
@@ -597,6 +604,12 @@ export default function MensaPage() {
   const handleRated = useCallback((dishId: string, ratings: Record<string, number>) => {
     setAllRatings((prev) => ({ ...prev, [dishId]: ratings }));
   }, []);
+
+  // Votes from anyone — including this user in the Android app — show up live.
+  useEffect(() => {
+    if (!stableUid) return;
+    return api.dishRatings.subscribeAll((dishId, data) => handleRated(dishId, data.ratings));
+  }, [stableUid, handleRated]);
 
   const header = (
     <div className="px-5 pt-5 pb-4 fade-in flex-shrink-0">

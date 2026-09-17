@@ -8,9 +8,10 @@ import AuthGuard from '@/components/AuthGuard';
 import UntisGuard from '@/components/UntisGuard';
 import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
-import { fetchTimetable } from '@/lib/api';
+import { fetchAbsences, fetchTimetable, getAbsencesStale } from '@/lib/api';
+import { parseAbsences } from '@/lib/absences';
 import { pcGetWithTs } from '@/lib/persist-cache';
-import type { TimetableEntry } from '@/lib/types';
+import type { AbsenceEntry, TimetableEntry } from '@/lib/types';
 import {
   TIMETABLE_PERIODS,
   buildIcs,
@@ -64,6 +65,11 @@ function downloadIcs(filename: string, content: string) {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** School year (starting 1 September) a date belongs to. */
+function schoolYearOfDate(d: Date): number {
+  return d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1;
 }
 
 function asOfText(ts: number): string {
@@ -142,6 +148,29 @@ function TimetableContent() {
     }
     void fetchWeek(offset, false);
   }, [fetchWeek, setPage]);
+
+  // ── Abwesenheiten (overlay) ─────────────────────────────────────────────────
+  // Loaded here on their own, so the grid marks Vorentschuldigung / Entschuldigt /
+  // Gefehlt without the Abwesenheiten page ever having been opened.
+
+  const [absences, setAbsences] = useState<Record<number, AbsenceEntry[]>>({});
+  const absenceYear = schoolYearOfDate(dateOf(weekOffset, 3));
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      const stale = getAbsencesStale(absenceYear);
+      if (stale) setAbsences(prev => (prev[absenceYear] ? prev : { ...prev, [absenceYear]: parseAbsences(stale) }));
+      fetchAbsences(absenceYear)
+        .then(res => { if (!cancelled) setAbsences(prev => ({ ...prev, [absenceYear]: parseAbsences(res) })); })
+        .catch(() => { /* no overlay rather than a wrong one */ });
+    };
+    load();
+    // Back to the tab → re-read, so an absence excused in the meantime turns "Entschuldigt".
+    const onVisible = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { cancelled = true; document.removeEventListener('visibilitychange', onVisible); };
+  }, [absenceYear]);
 
   // Preload radius 2 → a 5-week window is always cached.
   useEffect(() => {
@@ -327,6 +356,7 @@ function TimetableContent() {
         minute={minute}
         scale={scale}
         onTap={setActiveSlot}
+        absences={absences[absenceYear] ?? []}
       />
     );
   };

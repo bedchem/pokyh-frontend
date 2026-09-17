@@ -589,11 +589,36 @@ export const api = {
       });
     },
 
-    async rate(dishId: string, stars: number): Promise<void> {
-      await apiJson(`/dish-ratings/${encodeURIComponent(dishId)}`, {
+    // Returns the dish's ratings after the vote, including this user's myRating.
+    async rate(dishId: string, stars: number): Promise<DishRatingsData> {
+      return apiJson<DishRatingsData>(`/dish-ratings/${encodeURIComponent(dishId)}`, {
         method: 'POST',
         body: JSON.stringify({ stars }),
       });
+    },
+
+    // Live ratings of every dish — fires whenever anyone rates anywhere (web or app).
+    subscribeAll(callback: (dishId: string, data: DishRatingsData) => void): () => void {
+      const token = getToken();
+      if (!token) return () => {};
+
+      const url = `${API_BASE}/sse/dish-ratings?token=${encodeURIComponent(token)}&apiKey=${encodeURIComponent(API_KEY)}`;
+      const es = new EventSource(url);
+
+      es.addEventListener('dishRating', (e: MessageEvent) => {
+        try {
+          const { dishId, ...data } = JSON.parse(e.data) as DishRatingsData & { dishId: string };
+          callback(dishId, data);
+        } catch {
+          console.error('[api-client] Failed to parse dishRating SSE event');
+        }
+      });
+
+      es.onerror = () => {
+        console.warn('[api-client] SSE all dish-ratings connection lost, reconnecting...');
+      };
+
+      return () => es.close();
     },
 
     subscribe(dishId: string, callback: (data: DishRatingsData) => void): () => void {

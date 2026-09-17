@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Cookie, Settings2, X } from 'lucide-react';
+import { Cookie, X } from 'lucide-react';
 import { COOKIE_SETTINGS_EVENT } from '@/components/CookieSettingsButton';
 
 export const COOKIE_CONSENT_STORAGE_KEY = 'pokyh_cookie_consent';
@@ -40,20 +40,11 @@ export default function CookieBanner({ analyticsEnabled = false }: { analyticsEn
     setVisible(false);
   }
 
-  if (!visible) {
-    return (
-      <button
-        type="button"
-        onClick={() => { setShowDetails(true); setVisible(true); }}
-        aria-label="Cookie-Einstellungen öffnen"
-        className="fixed bottom-4 right-4 z-[999] inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[12px] font-semibold shadow-lg transition-opacity hover:opacity-80"
-        style={{ background: 'var(--app-surface)', color: 'var(--app-text-secondary)', border: '1px solid var(--app-border)' }}
-      >
-        <Settings2 size={15} />
-        Cookie-Einstellungen
-      </button>
-    );
-  }
+  // No floating button once a choice is made. Consent stays revocable through
+  // the "Cookie-Einstellungen öffnen" button on the Cookie-Richtlinie page
+  // (reachable via Rechtliches and the "Cookies" footer link), which dispatches
+  // COOKIE_SETTINGS_EVENT to reopen this banner.
+  if (!visible) return null;
 
   return (
     <div

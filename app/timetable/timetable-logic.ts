@@ -27,7 +27,6 @@ export const MIN_CELL_WIDTH = 10;
 /** Below this a cell carries no text — the tint and outline already say enough. */
 export const TEXT_MIN_CELL_WIDTH = 34;
 export const CELL_GAP = 3;
-export const PAST_LESSON_ALPHA = 0.7;
 const PER_MILLE = 1000;
 /** What the lesson that happens keeps when a cancellation runs alongside it. */
 const ACTIVE_SHARE = 750;
@@ -66,6 +65,17 @@ export function fmtTime(t: number): string {
 
 export function hhmm(totalMinutes: number): string {
   return `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`;
+}
+
+/**
+ * The next exam that is not over yet — by date *and* time. An exam earlier today that has already
+ * ended is skipped, so with two exams on one day the second one takes over once the first is done.
+ */
+export function nextUpcomingExam(entries: TimetableEntry[], nowDateNum: number, nowMinute: number): TimetableEntry | null {
+  return entries
+    .filter(e => e.isExam && !e.isCancelled)
+    .filter(e => e.date > nowDateNum || (e.date === nowDateNum && toMins(e.endTime) > nowMinute))
+    .sort((a, b) => a.date - b.date || a.startTime - b.startTime)[0] ?? null;
 }
 
 export function dateNumOf(d: Date): number {
@@ -536,7 +546,8 @@ function subjectHue(name: string): number {
 export function subjectTone(name: string): Tone {
   const h = subjectHue(name);
   return {
-    fill: hsl(h, 0.72, 0.91), ink: hsl(h, 0.62, 0.27), bar: hsl(h, 0.60, 0.55),
+    // Light fill at 83% lightness: at 91% the pastels read as near-white on the page.
+    fill: hsl(h, 0.78, 0.83), ink: hsl(h, 0.65, 0.24), bar: hsl(h, 0.60, 0.55),
     fillDark: hsl(h, 0.34, 0.21), inkDark: hsl(h, 0.85, 0.87), barDark: hsl(h, 0.60, 0.62),
   };
 }
@@ -545,7 +556,7 @@ export function subjectTone(name: string): Tone {
 export function statusTone(hex: string): Tone {
   const h = hexHue(hex);
   return {
-    fill: hsl(h, 0.80, 0.92), ink: hsl(h, 0.62, 0.30), bar: hex,
+    fill: hsl(h, 0.82, 0.85), ink: hsl(h, 0.65, 0.27), bar: hex,
     fillDark: hsl(h, 0.38, 0.22), inkDark: hsl(h, 0.85, 0.85), barDark: hex,
   };
 }

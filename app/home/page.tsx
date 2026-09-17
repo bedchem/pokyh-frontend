@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { ChevronRight, Clock, TrendingUp, BookOpen, MessageCircle, FileText, Star } from 'lucide-react';
 import { useSession } from '@/providers/SessionProvider';
@@ -16,6 +16,7 @@ import { subjectColor, averageColor } from '@/lib/colors';
 import { format, addDays } from 'date-fns';
 import { de } from 'date-fns/locale';
 import type { TimetableEntry, MessagePreview, Dish } from '@/lib/types';
+import { dateNumOf, nextUpcomingExam, schoolMinuteNow } from '@/app/timetable/timetable-logic';
 
 interface RecentGrade {
   id: number;
@@ -328,7 +329,17 @@ export default function HomePage() {
   const { user } = useSession();
   const { stableUid } = useApp();
   const [allEntries, setAllEntries] = useState<TimetableEntry[]>([]);
-  const [nextExam, setNextExam] = useState<TimetableEntry | null>(null);
+  // Every exam in the loaded weeks; which one is "next" is decided against the clock below.
+  const [examCandidates, setExamCandidates] = useState<TimetableEntry[]>([]);
+  const [clock, setClock] = useState(() => ({ day: dateNumOf(new Date()), minute: schoolMinuteNow() }));
+  useEffect(() => {
+    const id = setInterval(() => setClock({ day: dateNumOf(new Date()), minute: schoolMinuteNow() }), 30_000);
+    return () => clearInterval(id);
+  }, []);
+  const nextExam = useMemo(
+    () => nextUpcomingExam(examCandidates, clock.day, clock.minute),
+    [examCandidates, clock],
+  );
   const [overallAvg, setOverallAvg] = useState<number | null>(null);
   const [subjectCount, setSubjectCount] = useState(0);
   const [recentGrades, setRecentGrades] = useState<RecentGrade[]>([]);
@@ -349,7 +360,7 @@ export default function HomePage() {
       if (staleTt !== undefined) {
         const entries = parseTimetableResult(staleTt);
         setAllEntries(entries);
-        setNextExam(entries.filter((e) => e.isExam && !e.isCancelled && e.date >= todayNum).sort((a, b) => a.date - b.date || a.startTime - b.startTime)[0] ?? null);
+        setExamCandidates(entries);
       }
       if (staleGr !== undefined) {
         const { avg, subjectCount: sc, recentGrades: rg } = parseGradesResult(staleGr);
@@ -375,7 +386,7 @@ export default function HomePage() {
       if (ttRes.status === 'fulfilled') {
         const entries = parseTimetableResult(ttRes.value);
         setAllEntries(entries);
-        setNextExam(entries.filter((e) => e.isExam && !e.isCancelled && e.date >= todayNum).sort((a, b) => a.date - b.date || a.startTime - b.startTime)[0] ?? null);
+        setExamCandidates(entries);
       }
       if (grRes.status === 'fulfilled') {
         const { avg, subjectCount: sc, recentGrades: rg } = parseGradesResult(grRes.value);
@@ -394,9 +405,8 @@ export default function HomePage() {
       const examEntries = [ttRes, tt1Res, tt2Res]
         .filter((r): r is PromiseFulfilledResult<unknown> => r.status === 'fulfilled')
         .flatMap((r) => parseTimetableResult(r.value))
-        .filter((e) => e.isExam && !e.isCancelled && e.date >= todayNum)
-        .sort((a, b) => a.date - b.date || a.startTime - b.startTime);
-      setNextExam(examEntries[0] ?? null);
+        .filter((e) => e.isExam && e.date >= todayNum);
+      setExamCandidates(examEntries);
 
       if (menRes.status === 'fulfilled') {
         const raw = menRes.value as Record<string, unknown>;
@@ -430,6 +440,21 @@ export default function HomePage() {
       })
       .catch((e) => console.error('[home] mensa ratings fetch error:', e));
   }, [stableUid, dishes]);
+
+  // Keep today's dish stars live when anyone rates (web or app).
+  useEffect(() => {
+    if (!stableUid) return;
+    return api.dishRatings.subscribeAll((dishId, data) => {
+      const values = Object.values(data.ratings);
+      setDishRatings((prev) => ({
+        ...prev,
+        [dishId]: {
+          value: values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0,
+          count: values.length,
+        },
+      }));
+    });
+  }, [stableUid]);
 
   const todayDateNum = parseInt(format(new Date(), 'yyyyMMdd'));
   const todayEntriesRaw = allEntries.filter((e) => e.date === todayDateNum);

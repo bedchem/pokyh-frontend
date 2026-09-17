@@ -106,7 +106,7 @@ export const metadata: Metadata = {
     'Tschuggmall Schüler',
   ],
   authors: [{ name: 'Nexor', url: 'https://github.com/plattnericus' }, { name: 'Ryhox', url: 'https://github.com/Ryhox' }, { name: 'bedchem', url: 'https://github.com/bedchem/POKYH' }],
-  creator: 'Felix Plattner',
+  creator: 'POKYH',
   publisher: 'POKYH',
   applicationName: 'POKYH',
   generator: 'Next.js',
@@ -205,7 +205,7 @@ const structuredData = [
       name: 'bedchem',
       url: 'https://github.com/bedchem',
       member: [
-        { '@type': 'Person', name: 'Felix Plattner', url: 'https://github.com/plattnericus' },
+        { '@type': 'Person', name: 'Nexor', url: 'https://github.com/plattnericus' },
         { '@type': 'Person', name: 'Ryhox', url: 'https://github.com/ryhox' },
       ],
     },

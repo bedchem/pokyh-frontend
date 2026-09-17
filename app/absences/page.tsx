@@ -13,6 +13,7 @@ import EmptyView from '@/components/ui/EmptyView';
 import { fetchAbsences, fetchTimetable, getAbsencesStale, fetchPermissions, excuseAbsence } from '@/lib/api';
 import { useSession } from '@/providers/SessionProvider';
 import type { AbsenceEntry } from '@/lib/types';
+import { parseAbsences } from '@/lib/absences';
 
 // ─── Time helpers ─────────────────────────────────────────────────────────────
 
@@ -164,81 +165,6 @@ function calcAbsenceMinutes(
     d.setDate(d.getDate() + 1);
   }
   return total;
-}
-
-// ─── Parser ───────────────────────────────────────────────────────────────────
-
-function parseAbsences(json: unknown): AbsenceEntry[] {
-  try {
-    const root = json as Record<string, unknown>;
-    const inner = (root?.data as Record<string, unknown>) ?? root;
-
-    let items: Record<string, unknown>[] = [];
-    if (inner?.absences && Array.isArray(inner.absences)) {
-      items = inner.absences as Record<string, unknown>[];
-    } else if (inner?.absence && Array.isArray(inner.absence)) {
-      items = inner.absence as Record<string, unknown>[];
-    } else if (Array.isArray(inner)) {
-      items = inner as Record<string, unknown>[];
-    } else if (Array.isArray(root)) {
-      items = root as Record<string, unknown>[];
-    }
-
-    return items.map((item) => {
-      const startDate = item.startDate as number;
-      const endDate = item.endDate as number;
-      const startTime = (item.startTime as number) ?? 0;
-      const endTime = (item.endTime as number) ?? 0;
-
-      // Prefer server-provided hours; fallback to single-day estimate
-      const rawHours =
-        (item.hours as number | null | undefined) ??
-        (item.lessonHours as number | null | undefined) ??
-        null;
-
-      let hours: number;
-      if (rawHours !== null && rawHours !== undefined && rawHours > 0) {
-        hours = rawHours;
-      } else {
-        const startMins = toMinutes(startTime);
-        const endMins   = toMinutes(endTime);
-        hours = endMins > startMins
-          ? Math.max(1, Math.round((endMins - startMins) / 50))
-          : 1;
-      }
-
-      const teacherName =
-        (item.teacherName as string) ??
-        (item.teacher as string) ??
-        (item.teacherFirstname
-          ? `${item.teacherFirstname} ${item.teacherLastname ?? ''}`
-          : undefined);
-
-      const subjectName =
-        (item.subject as string) ??
-        (item.subjectName as string) ??
-        (item.subjectShortName as string) ??
-        undefined;
-
-      return {
-        id: item.id as number,
-        startDate,
-        endDate,
-        startTime,
-        endTime,
-        isExcused: (item.isExcused as boolean) ?? false,
-        reasonName: (item.reasonName as string) ?? (item.reason as string) ?? undefined,
-        absenceType: (item.absenceType as string) ?? undefined,
-        hours,
-        note: (item.text as string) ?? (item.note as string) ?? undefined,
-        excuseNote: (item.excuseNote as string) ?? undefined,
-        teacherName: teacherName as string | undefined,
-        subjectName: subjectName as string | undefined,
-      };
-    });
-  } catch {
-    return [];
-  }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
