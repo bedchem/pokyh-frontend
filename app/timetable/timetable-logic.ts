@@ -609,8 +609,8 @@ export function subjectTone(name: string): Tone {
   return {
     // Softer than [statusTone]: a subject is a quiet block of colour, and the loud ones are
     // reserved for what a colour *means* — Entfall, Prüfung, Vertretung.
-    fill: hsl(h, 0.74, 0.82), ink: hsl(h, 0.62, 0.24), bar: hsl(h, 0.55, 0.56),
-    fillDark: hsl(h, 0.36, 0.24), inkDark: hsl(h, 0.80, 0.87), barDark: hsl(h, 0.58, 0.62),
+    fill: hsl(h, 0.62, 0.84), ink: hsl(h, 0.54, 0.26), bar: hsl(h, 0.48, 0.57),
+    fillDark: hsl(h, 0.42, 0.25), inkDark: hsl(h, 0.80, 0.86), barDark: hsl(h, 0.58, 0.62),
   };
 }
 
@@ -619,7 +619,7 @@ export function statusTone(hex: string): Tone {
   const h = hexHue(hex);
   return {
     fill: hsl(h, 0.82, 0.85), ink: hsl(h, 0.65, 0.27), bar: hex,
-    fillDark: hsl(h, 0.38, 0.22), inkDark: hsl(h, 0.85, 0.85), barDark: hex,
+    fillDark: hsl(h, 0.58, 0.29), inkDark: hsl(h, 0.92, 0.88), barDark: hex,
   };
 }
 
