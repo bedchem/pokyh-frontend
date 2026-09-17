@@ -259,7 +259,7 @@ function DayColumn({
 
       {kind === 'normal' && width > 0 && bands.map(band => {
         const top = (band.startMinute - minMins) * pxPerMin;
-        const h = Math.max(MIN_CELL_HEIGHT * scale, (band.endMinute - band.startMinute) * pxPerMin);
+        const h = (band.endMinute - band.startMinute) * pxPerMin;
         return (
           <div
             key={`abs-${band.startMinute}`}

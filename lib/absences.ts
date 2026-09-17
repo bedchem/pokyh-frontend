@@ -117,6 +117,40 @@ const MIN_COVERED_MINUTES = 15;
 /** Lessons closer than this share one band — a break is not the end of an absence. */
 const MERGE_GAP_MINUTES = 30;
 
+/**
+ * The mark for one lesson, plus the part of it the absence actually covers (minutes of the day):
+ * an absence from 10:00 over a 09:30–10:20 lesson covers 10:00–10:20, not the whole lesson.
+ */
+function lessonCoverage(
+  absences: AbsenceEntry[],
+  dateNum: number,
+  startMinute: number,
+  endMinute: number,
+  nowDateNum: number,
+  nowMinute: number,
+): AbsenceBand | null {
+  const dayStart = dateNum * MINUTES_PER_DAY;
+  const lessonStart = dayStart + startMinute;
+  const lessonEnd = dayStart + endMinute;
+  let from = Infinity;
+  let to = -Infinity;
+  const covering = absences.filter((a) => {
+    if (!a.startDate || !a.endDate) return false;
+    const absStart = a.startDate * MINUTES_PER_DAY + (a.startTime > 0 ? toMinutes(a.startTime) : 0);
+    const absEnd = a.endDate * MINUTES_PER_DAY + (a.endTime > 0 ? toMinutes(a.endTime) : MINUTES_PER_DAY);
+    const coveredFrom = Math.max(lessonStart, absStart);
+    const coveredTo = Math.min(lessonEnd, absEnd);
+    if (coveredTo - coveredFrom < Math.min(MIN_COVERED_MINUTES, lessonEnd - lessonStart)) return false;
+    from = Math.min(from, coveredFrom);
+    to = Math.max(to, coveredTo);
+    return true;
+  });
+  if (covering.length === 0) return null;
+  const over = dateNum < nowDateNum || (dateNum === nowDateNum && endMinute <= nowMinute);
+  const mark: AbsenceMark = !over ? 'preExcused' : covering.every((a) => a.isExcused) ? 'excused' : 'absent';
+  return { startMinute: from - dayStart, endMinute: to - dayStart, mark };
+}
+
 export function absenceMarkFor(
   absences: AbsenceEntry[],
   dateNum: number,
@@ -125,22 +159,13 @@ export function absenceMarkFor(
   nowDateNum: number,
   nowMinute: number,
 ): AbsenceMark | null {
-  const lessonStart = dateNum * MINUTES_PER_DAY + startMinute;
-  const lessonEnd = dateNum * MINUTES_PER_DAY + endMinute;
-  const covering = absences.filter((a) => {
-    if (!a.startDate || !a.endDate) return false;
-    const absStart = a.startDate * MINUTES_PER_DAY + (a.startTime > 0 ? toMinutes(a.startTime) : 0);
-    const absEnd = a.endDate * MINUTES_PER_DAY + (a.endTime > 0 ? toMinutes(a.endTime) : MINUTES_PER_DAY);
-    const covered = Math.min(lessonEnd, absEnd) - Math.max(lessonStart, absStart);
-    return covered >= Math.min(MIN_COVERED_MINUTES, lessonEnd - lessonStart);
-  });
-  if (covering.length === 0) return null;
-  const over = dateNum < nowDateNum || (dateNum === nowDateNum && endMinute <= nowMinute);
-  if (!over) return 'preExcused';
-  return covering.every((a) => a.isExcused) ? 'excused' : 'absent';
+  return lessonCoverage(absences, dateNum, startMinute, endMinute, nowDateNum, nowMinute)?.mark ?? null;
 }
 
-/** Continuous stretches of one day covered by the same mark. Pass only lessons that take place. */
+/**
+ * Continuous stretches of one day covered by the same mark, from exactly where the absence starts
+ * to where it ends (never beyond the lessons it covers). Pass only lessons that take place.
+ */
 export function absenceBands(
   absences: AbsenceEntry[],
   dateNum: number,
@@ -152,13 +177,13 @@ export function absenceBands(
   const out: AbsenceBand[] = [];
   const sorted = lessons.filter((l) => l.endMinute > l.startMinute).sort((a, b) => a.startMinute - b.startMinute);
   for (const l of sorted) {
-    const mark = absenceMarkFor(absences, dateNum, l.startMinute, l.endMinute, nowDateNum, nowMinute);
-    if (!mark) continue;
+    const covered = lessonCoverage(absences, dateNum, l.startMinute, l.endMinute, nowDateNum, nowMinute);
+    if (!covered) continue;
     const last = out[out.length - 1];
-    if (last && last.mark === mark && l.startMinute <= last.endMinute + MERGE_GAP_MINUTES) {
-      last.endMinute = Math.max(last.endMinute, l.endMinute);
+    if (last && last.mark === covered.mark && covered.startMinute <= last.endMinute + MERGE_GAP_MINUTES) {
+      last.endMinute = Math.max(last.endMinute, covered.endMinute);
     } else {
-      out.push({ startMinute: l.startMinute, endMinute: l.endMinute, mark });
+      out.push(covered);
     }
   }
   return out;
