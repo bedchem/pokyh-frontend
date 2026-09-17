@@ -16,6 +16,17 @@ export function pcGetStale<T>(url: string): T | undefined {
   } catch { return undefined; }
 }
 
+/** Like `pcGetStale`, but also returns when the copy was saved (epoch ms). */
+export function pcGetWithTs<T>(url: string): { data: T; ts: number } | undefined {
+  const s = ls();
+  if (!s) return undefined;
+  try {
+    const raw = s.getItem(PREFIX + url);
+    if (!raw) return undefined;
+    return JSON.parse(raw) as { data: T; ts: number };
+  } catch { return undefined; }
+}
+
 export function pcIsStale(url: string): boolean {
   const s = ls();
   if (!s) return true;

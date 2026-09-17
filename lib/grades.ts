@@ -31,7 +31,7 @@ export function parseGrades(json: unknown): SubjectGrades[] {
           negativeCount: vals.filter((v) => v < 6).length,
         } as SubjectGrades;
       })
-      .filter((s) => s.subjectName && s.grades.length > 0)
+      .filter((s) => s.subjectName)
       .sort((a, b) => a.subjectName.localeCompare(b.subjectName));
   } catch {
     return [];

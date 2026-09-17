@@ -38,6 +38,14 @@ export interface TimetableEntry {
   homeworkText?: string;
   note?: string;
   examDescription?: string;
+  /** Teachers/subjects/rooms WebUntis flags as not regular (position*.current.status). */
+  addedTeachers?: string[];
+  addedSubjects?: string[];
+  addedRooms?: string[];
+  /** WebUntis's raw `icons` array for the period (HOMEWORK, NOTES, EXAM, …). */
+  icons?: string[];
+  substitutionText?: string;
+  lessonText?: string;
 }
 
 export interface GradeEntry {

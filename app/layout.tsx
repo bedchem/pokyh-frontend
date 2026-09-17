@@ -10,6 +10,7 @@ import LayoutShell from '@/components/LayoutShell';
 import CookieBanner from '@/components/CookieBanner';
 import AnalyticsLoader from '@/components/AnalyticsLoader';
 import PWAInit from '@/components/PWAInit';
+import SubjectImagePreloader from '@/components/SubjectImagePreloader';
 import AppIconApplier from '@/components/AppIconApplier';
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
@@ -268,6 +269,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <SidebarProvider>
                 <ActivityLoggerProvider>
                   <LayoutShell>{children}</LayoutShell>
+                  <SubjectImagePreloader />
                 </ActivityLoggerProvider>
               </SidebarProvider>
             </AppProvider>

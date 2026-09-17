@@ -10,6 +10,7 @@ import ErrorView from '@/components/ui/ErrorView';
 import EmptyView from '@/components/ui/EmptyView';
 import { fetchGrades } from '@/lib/api';
 import type { SubjectGrades } from '@/lib/types';
+import { subjectTone, toneVars } from '@/app/timetable/timetable-logic';
 import {
   parseGrades,
   fmtNum,
@@ -301,9 +302,9 @@ export default function GradesPage() {
     if (sortMode === 'name') {
       withMeta.sort((a, b) => a.subjectName.localeCompare(b.subjectName));
     } else if (sortMode === 'avg-desc') {
-      withMeta.sort((a, b) => b.avg - a.avg);
+      withMeta.sort((a, b) => Number(a.avg <= 0) - Number(b.avg <= 0) || b.avg - a.avg);
     } else if (sortMode === 'avg-asc') {
-      withMeta.sort((a, b) => a.avg - b.avg);
+      withMeta.sort((a, b) => Number(a.avg <= 0) - Number(b.avg <= 0) || a.avg - b.avg);
     } else if (sortMode === 'recent') {
       withMeta.sort((a, b) => b.latest - a.latest);
     }
@@ -652,7 +653,7 @@ export default function GradesPage() {
                     const subjectAvg = averageOf(
                       subject.grades.map((g) => g.markDisplayValue).filter((v) => v > 0)
                     );
-                    const avgClass = gradeClass(subjectAvg);
+                    const avgClass = subjectAvg > 0 ? gradeClass(subjectAvg) : '';
                     return (
                       <article key={subject.lessonId} className="timeline-item">
                         <button
@@ -663,11 +664,11 @@ export default function GradesPage() {
                           aria-label={`${subject.subjectName} ${isExpanded ? 'einklappen' : 'aufklappen'}`}
                         >
                           <div className="timeline-left">
-                            <span className="timeline-subject">{subject.subjectName}</span>
+                            <span className="timeline-subject" style={toneVars(subjectTone(subject.subjectName)) as React.CSSProperties}>{subject.subjectName}</span>
                             <span className="timeline-meta">{subject.grades.length} Note{subject.grades.length === 1 ? '' : 'n'}</span>
                           </div>
                           <span className="timeline-right">
-                            <span className={`timeline-avg ${avgClass}`}>{fmtNum(subjectAvg, 2)}</span>
+                            <span className={`timeline-avg ${avgClass}`}>{subjectAvg > 0 ? fmtNum(subjectAvg, 2) : '–'}</span>
                             <ChevronDown className="timeline-chevron" size={18} strokeWidth={2.2} style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
                           </span>
                         </button>
@@ -675,6 +676,9 @@ export default function GradesPage() {
                         {isExpanded && (
                           <div className="timeline-panel">
                             <div className="grade-list">
+                              {subject.grades.length === 0 && (
+                                <div className="grade-empty">Keine Einzelnoten vorhanden.</div>
+                              )}
                               {[...subject.grades]
                                 .sort((a, b) => b.date - a.date)
                                 .map((grade) => {
@@ -1152,8 +1156,25 @@ export default function GradesPage() {
           font-size: 15px;
           font-weight: 600;
           letter-spacing: -0.01em;
-          color: var(--g-ink);
+          color: var(--tone-ink-l);
+          background: var(--tone-fill-l);
+          padding: 4px 8px;
+          border-radius: 8px;
           white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          min-width: 0;
+        }
+
+        :global(.dark) .timeline-subject {
+          color: var(--tone-ink-d);
+          background: var(--tone-fill-d);
+        }
+
+        .grade-empty {
+          font-size: 13px;
+          color: var(--g-muted-2);
+          padding: 8px 0;
         }
 
         .timeline-meta {
