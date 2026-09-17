@@ -3,12 +3,17 @@
 //
 // The backend only accepts the API key as an X-API-Key header on these routes, so images are always
 // fetched via fetch() and shown as blob URLs — never by pointing an <img> at the network URL.
+//
+// Every image is checked against the server once per page load (a cheap 304 when unchanged), so an
+// image replaced in the admin panel reaches everyone on their next app start.
 
-const CACHE_NAME = 'pokyh-subject-images-v2';
+const CACHE_NAME = 'pokyh-subject-images-v3';
+const OLD_CACHES = ['pokyh-subject-images-v1', 'pokyh-subject-images-v2'];
 const CONCURRENCY = 3;
 
 const objectUrls = new Map<string, string>();
-const inflight = new Map<string, Promise<Blob | null>>();
+// One load per image per page load; later callers share its result.
+const loads = new Map<string, Promise<Blob | null>>();
 
 function hasCacheStorage(): boolean {
   return typeof window !== 'undefined' && 'caches' in window;
@@ -19,38 +24,48 @@ export function subjectImageKey(subjectLong: string, subjectName: string): strin
   return (subjectLong || subjectName || '').toLowerCase().trim();
 }
 
-async function download(url: string): Promise<Blob | null> {
-  const { api } = await import('@/lib/api-client');
-  const res = await api.subjectImages.fetchImage(url);
-  if (!res.ok) return null;
-  if (hasCacheStorage()) {
-    try {
-      const cache = await caches.open(CACHE_NAME);
-      await cache.put(url, res.clone());
-    } catch { /* quota or private mode — the in-memory blob URL still works */ }
+async function fetchFresh(url: string): Promise<Blob | null> {
+  const cache = hasCacheStorage() ? await caches.open(CACHE_NAME).catch(() => null) : null;
+  const cached = cache ? await cache.match(url).catch(() => undefined) : undefined;
+
+  let res: Response;
+  try {
+    const { api } = await import('@/lib/api-client');
+    res = await api.subjectImages.fetchImage(url);
+  } catch {
+    // Offline — the cached copy is better than nothing.
+    return cached ? cached.blob() : null;
   }
+
+  if (res.status === 404) {
+    await cache?.delete(url).catch(() => {});
+    return null;
+  }
+  if (!res.ok) return cached ? cached.blob() : null;
+
+  const unchanged = cached
+    && cached.headers.get('Last-Modified')
+    && cached.headers.get('Last-Modified') === res.headers.get('Last-Modified');
+  if (unchanged) return cached.blob();
+
+  await cache?.put(url, res.clone()).catch(() => { /* quota or private mode */ });
   return res.blob();
 }
 
-async function loadBlob(url: string): Promise<Blob | null> {
-  if (hasCacheStorage()) {
-    try {
-      const cache = await caches.open(CACHE_NAME);
-      const hit = await cache.match(url);
-      if (hit) return hit.blob();
-    } catch { /* fall through to network */ }
-  }
-  let p = inflight.get(url);
+function loadBlob(url: string): Promise<Blob | null> {
+  let p = loads.get(url);
   if (!p) {
-    p = download(url).catch(() => null).finally(() => inflight.delete(url));
-    inflight.set(url, p);
+    p = fetchFresh(url).catch(() => null);
+    loads.set(url, p);
   }
   return p;
 }
 
-async function preloadOne(url: string): Promise<void> {
-  if (objectUrls.has(url)) return;
-  await loadBlob(url);
+let oldCachesCleared = false;
+function clearOldCaches(): void {
+  if (oldCachesCleared || !hasCacheStorage()) return;
+  oldCachesCleared = true;
+  for (const name of OLD_CACHES) void caches.delete(name).catch(() => {});
 }
 
 /** Downloads every image the backend has for these subjects, a few at a time, in the background. */
@@ -58,6 +73,7 @@ export async function preloadSubjectImages(
   subjects: Array<{ subjectName: string; subjectLong: string }>,
 ): Promise<void> {
   if (typeof window === 'undefined') return;
+  clearOldCaches();
   const { api } = await import('@/lib/api-client');
   const available = await api.subjectImages.getCache();
   const urls = [...new Set(subjects.map(s => subjectImageKey(s.subjectLong, s.subjectName)))]
@@ -66,12 +82,12 @@ export async function preloadSubjectImages(
 
   let i = 0;
   const worker = async () => {
-    while (i < urls.length) await preloadOne(urls[i++]);
+    while (i < urls.length) await loadBlob(urls[i++]);
   };
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, urls.length) }, worker));
 }
 
-/** A blob URL for the image (from the persistent cache or freshly downloaded), or null if unavailable. */
+/** A blob URL for the image (checked against the server once per page load), or null if unavailable. */
 export async function resolveSubjectImageSrc(url: string): Promise<string | null> {
   const known = objectUrls.get(url);
   if (known) return known;

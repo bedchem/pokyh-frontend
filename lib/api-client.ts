@@ -554,7 +554,8 @@ export const api = {
     },
 
     fetchImage(url: string): Promise<Response> {
-      return fetch(url, { mode: 'cors', credentials: 'omit', headers: { 'X-API-Key': API_KEY } });
+      // no-cache: always revalidate (cheap 304 via ETag) so replaced images show up right away.
+      return fetch(url, { mode: 'cors', credentials: 'omit', cache: 'no-cache', headers: { 'X-API-Key': API_KEY } });
     },
 
     async reportSubjects(entries: Array<{ subjectName: string; subjectLong: string }>): Promise<void> {
