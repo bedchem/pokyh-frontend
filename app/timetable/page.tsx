@@ -8,7 +8,7 @@ import AuthGuard from '@/components/AuthGuard';
 import UntisGuard from '@/components/UntisGuard';
 import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
-import { fetchAbsences, fetchTimetable, getAbsencesStale } from '@/lib/api';
+import { areAbsencesStale, fetchAbsences, fetchAbsencesRange, fetchTimetable, getAbsencesStale } from '@/lib/api';
 import { parseAbsences } from '@/lib/absences';
 import { pcGetWithTs } from '@/lib/persist-cache';
 import type { AbsenceEntry, TimetableEntry } from '@/lib/types';
@@ -158,21 +158,50 @@ function TimetableContent() {
   // Loaded here on their own, so the grid marks Vorentschuldigung / Entschuldigt /
   // Unentschuldigt without the Abwesenheiten page ever having been opened.
 
-  const [absences, setAbsences] = useState<Record<number, AbsenceEntry[]>>({});
+  // Seeded from the stored copy *before the first paint*, so the overlay is on screen with the
+  // lessons instead of a second or two later: the Abwesenheiten request walks a whole school year
+  // page by page, which is far slower than one week of timetable.
+  const [absences, setAbsences] = useState<Record<number, AbsenceEntry[]>>(() => {
+    const year = schoolYearOfDate(dateOf(weekOffset, 3));
+    const stored = getAbsencesStale(year);
+    return stored ? { [year]: parseAbsences(stored) } : {};
+  });
   const absenceYear = schoolYearOfDate(dateOf(weekOffset, 3));
+
+  /** Merge new entries into a year, replacing the ones already known by id. */
+  const mergeAbsences = useCallback((year: number, entries: AbsenceEntry[]) => {
+    setAbsences(prev => {
+      const byId = new Map((prev[year] ?? []).map(a => [a.id, a]));
+      entries.forEach(a => byId.set(a.id, a));
+      return { ...prev, [year]: [...byId.values()] };
+    });
+  }, []);
+
+  // The displayed week alone — one page, so the overlay arrives with the lessons instead of after
+  // the whole school year below has been walked.
+  useEffect(() => {
+    let cancelled = false;
+    const ymd = (d: Date) => String(dateNumOf(d));
+    fetchAbsencesRange(ymd(mondayOf(weekOffset)), ymd(dateOf(weekOffset, 5)))
+      .then(res => { if (!cancelled) mergeAbsences(absenceYear, parseAbsences(res)); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [weekOffset, absenceYear, mergeAbsences]);
 
   useEffect(() => {
     let cancelled = false;
-    const load = () => {
-      const stale = getAbsencesStale(absenceYear);
-      if (stale) setAbsences(prev => (prev[absenceYear] ? prev : { ...prev, [absenceYear]: parseAbsences(stale) }));
+    const load = (force = false) => {
+      const stored = getAbsencesStale(absenceYear);
+      if (stored) setAbsences(prev => (prev[absenceYear] ? prev : { ...prev, [absenceYear]: parseAbsences(stored) }));
+      // A fresh stored copy is enough — don't spend the request again on every mount.
+      if (!force && stored && !areAbsencesStale(absenceYear)) return;
       fetchAbsences(absenceYear)
         .then(res => { if (!cancelled) setAbsences(prev => ({ ...prev, [absenceYear]: parseAbsences(res) })); })
         .catch(() => { /* no overlay rather than a wrong one */ });
     };
     load();
     // Back to the tab → re-read, so an absence excused in the meantime turns "Entschuldigt".
-    const onVisible = () => { if (document.visibilityState === 'visible') load(); };
+    const onVisible = () => { if (document.visibilityState === 'visible') load(true); };
     document.addEventListener('visibilitychange', onVisible);
     return () => { cancelled = true; document.removeEventListener('visibilitychange', onVisible); };
   }, [absenceYear]);

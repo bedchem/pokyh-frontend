@@ -174,6 +174,13 @@ export function getClassregEventsStale(year?: number): unknown | undefined {
   return pcGetStale(url);
 }
 
+/** True when the stored Abwesenheiten of that school year are older than the cache's TTL. */
+export function areAbsencesStale(year?: number): boolean {
+  const start = year ? `${year}0901` : schoolYearStart();
+  const end = year ? `${year + 1}0630` : schoolYearEnd();
+  return pcIsStale(`/api/webuntis/absences?startDate=${start}&endDate=${end}`);
+}
+
 export function isTimetableStale(date?: string): boolean {
   return pcIsStale(`/api/webuntis/timetable?date=${date ?? todayFormatted()}`);
 }
@@ -188,6 +195,16 @@ export function fetchTimetable(date?: string) {
 export function fetchGrades(year?: number) {
   const url = year ? `/api/webuntis/grades?year=${year}` : '/api/webuntis/grades';
   return apiFetchCached(url);
+}
+
+/**
+ * The Abwesenheiten of one date range (yyyyMMdd), for the timetable overlay.
+ *
+ * A school year walks 100 entries per page and takes noticeably longer than the one week of
+ * timetable it is drawn over; one week is a single page and lands with the lessons.
+ */
+export function fetchAbsencesRange(startDate: string, endDate: string) {
+  return apiFetchCached(`/api/webuntis/absences?startDate=${startDate}&endDate=${endDate}`);
 }
 
 export function fetchAbsences(year?: number) {
