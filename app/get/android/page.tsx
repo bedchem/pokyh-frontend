@@ -31,7 +31,7 @@ const STEPS = [
     title: 'Release öffnen',
     body: (
       <>
-        Gehe auf <strong><a href="https://github.com/bedchem/pokyh/releases" target="_blank" rel="noopener noreferrer">https://github.com/bedchem/pokyh/releases</a></strong> in deinem Browser.
+        Gehe auf <strong><a href="https://github.com/bedchem/POKYH_ANDROID/releases" target="_blank" rel="noopener noreferrer">https://github.com/bedchem/POKYH_ANDROID/releases</a></strong> in deinem Browser.
       </>
     ),
     icon: (

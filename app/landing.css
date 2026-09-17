@@ -1066,14 +1066,17 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
 .lp-nav-mensa {
   display: inline-flex; align-items: center; gap: 7px;
   padding: 8px 16px; border-radius: 100px;
-  background: color-mix(in srgb, #F59E0B 14%, transparent);
-  color: #B45309; font-size: 14px; font-weight: 600;
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--app-text-primary); font-size: 14px; font-weight: 600;
   text-decoration: none; white-space: nowrap;
   transition: background 0.2s ease;
 }
-.dark .lp-nav-mensa { color: #FBBF24; }
+.lp-nav-mensa svg { color: #F59E0B; }
 .lp-nav-mensa:hover,
-.lp-nav-mensa.active { background: color-mix(in srgb, #F59E0B 24%, transparent); }
+.lp-nav-mensa.active { background: rgba(0, 0, 0, 0.09); }
+.dark .lp-nav-mensa { background: rgba(255, 255, 255, 0.07); }
+.dark .lp-nav-mensa:hover,
+.dark .lp-nav-mensa.active { background: rgba(255, 255, 255, 0.12); }
 @media (min-width: 1200px) {
   .lp-nav-mensa { font-size: 15px; padding: 9px 18px; }
 }
@@ -1090,14 +1093,17 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
 
 .lp-mobile-nav-mensa {
   display: flex; align-items: center; gap: 10px;
-  color: #B45309; font-weight: 600;
-  background: color-mix(in srgb, #F59E0B 10%, transparent);
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.04);
 }
-.dark .lp-mobile-nav-mensa { color: #FBBF24; }
+.lp-mobile-nav-mensa svg { color: #F59E0B; }
+.dark .lp-mobile-nav-mensa { background: rgba(255, 255, 255, 0.06); }
+.dark .lp-mobile-nav-badge { background: rgba(255, 255, 255, 0.1); }
 .lp-mobile-nav-badge {
   margin-left: auto; padding: 2px 8px; border-radius: 100px;
   font-size: 11px; font-weight: 600;
-  background: color-mix(in srgb, #F59E0B 18%, transparent);
+  color: var(--app-text-secondary);
+  background: rgba(0, 0, 0, 0.07);
 }
 
 .lp-hero-mensa {

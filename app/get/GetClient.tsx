@@ -86,7 +86,10 @@ export default function GetClient() {
               <p className="get-eyebrow">Mobile App</p>
               <h1 className="get-h1">POKYH installieren</h1>
               <p className="get-sub">
-                Auf https://github.com/bedchem/pokyh kann man die mobile apk (android) und .ipa (ios) herunterladen bei Releases und dann ausführen.
+                Lade die App direkt von GitHub: die <strong>.apk</strong> für Android unter{' '}
+                <a href="https://github.com/bedchem/POKYH_ANDROID/releases" target="_blank" rel="noopener noreferrer">bedchem/POKYH_ANDROID</a>{' '}
+                und die <strong>.ipa</strong> für iOS unter{' '}
+                <a href="https://github.com/bedchem/POKYH_IOS/releases" target="_blank" rel="noopener noreferrer">bedchem/POKYH_IOS</a>.
               </p>
               <div className="get-platforms">
                 <Link href="/get/ios" className="get-platform-card">
