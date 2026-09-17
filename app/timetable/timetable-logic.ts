@@ -339,19 +339,15 @@ function baseDayKind(dayEntries: TimetableEntry[], hasOtherDayEntries: boolean):
   return 'normal';
 }
 
+/**
+ * A day of nothing but substitutions is **not** a special day: it is drawn lesson by lesson, each
+ * as the 75/25 pair of the lesson that happens and the one it replaced. A whole-day "Vertretung"
+ * card named no subject, teacher or room, so it said less than the cells it covered.
+ * ('allReplacement' is therefore never produced any more — [specialDaySpecFor] still knows it.)
+ */
 export function dayKind(dayEntries: TimetableEntry[], slots: MergedSlot[], hasOtherDayEntries: boolean, index: number): DayKind {
   if (index === 5 && dayEntries.length === 0) return 'weekend';
-  const base = baseDayKind(dayEntries, hasOtherDayEntries);
-  // Two slots at least: a single substituted lesson is drawn as a cell, not as a whole-day card.
-  if (base === 'normal' && slots.length >= 2 && slots.every(s => s.kind === 'replacement')) {
-    const first = slots[0].replacement;
-    const same = slots.every(s =>
-      s.replacement?.subjectName === first?.subjectName &&
-      s.replacement?.note === first?.note &&
-      s.replacement?.teacherName === first?.teacherName);
-    if (same) return 'allReplacement';
-  }
-  return base;
+  return baseDayKind(dayEntries, hasOtherDayEntries);
 }
 
 // ── Grid cells ────────────────────────────────────────────────────────────────
@@ -537,18 +533,84 @@ export interface Tone {
   fillDark: string; inkDark: string; barDark: string;
 }
 
-function subjectHue(name: string): number {
+/**
+ * The subject palette: 18 hues, 20° apart, all at the same lightness — the whole colour wheel, red
+ * and yellow included. A subject block is a soft pastel and a status (Entfall, Prüfung) is told by
+ * its outline and its chip, so the warm end of the wheel is free for subjects to use.
+ */
+const SUBJECT_HUES = [10, 30, 50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290, 310, 330, 350];
+
+/** The colours of the week last handed to [registerSubjects]. */
+let subjectHues = new Map<string, number>();
+
+const hueDistance = (a: number, b: number) => {
+  const d = Math.abs(a - b) % 360;
+  return Math.min(d, 360 - d);
+};
+
+/**
+ * The hue a subject would like on its own: the palette hue closest to its own colour — its fixed
+ * one, else the hue its name hashes to. Identical to the app's `preferredHue`, so both platforms
+ * start from the same wish before any collision is resolved.
+ */
+function preferredHue(name: string): number {
   const fixed = FIXED_SUBJECT_COLORS[name];
-  return fixed ? hexHue(fixed) : jsHash(name) % 360;
+  const own = fixed ? hexHue(fixed) : jsHash(name) % 360;
+  return SUBJECT_HUES.reduce((best, h) => (hueDistance(h, own) < hueDistance(best, own) ? h : best), SUBJECT_HUES[0]);
 }
 
-/** Pastel subject tone (HSL), light and dark variants. */
+/**
+ * Hand out the colours for one week's subjects.
+ *
+ * **Computed from the set of subjects alone**, never from the order the cells happen to render in
+ * and never carried over from an earlier screen: sorted by name, each subject takes its preferred
+ * hue if it is still free, otherwise the free hue farthest from the ones already taken. The Android
+ * app runs the identical routine over the identical set, so the same week is coloured the same way
+ * in both — a subject that was green in the app used to be orange on the web purely because the two
+ * had met their subjects in a different order.
+ */
+export function registerSubjects(names: Iterable<string>): void {
+  // Plain code-unit order (not localeCompare), identical to Kotlin's sorted() in the app.
+  const subjects = [...new Set([...names].filter(Boolean))].sort();
+  const next = new Map<string, number>();
+  const used: number[] = [];
+  for (const name of subjects) {
+    const preferred = preferredHue(name);
+    let hue = preferred;
+    if (used.includes(preferred)) {
+      const free = SUBJECT_HUES.filter(h => !used.includes(h));
+      if (free.length > 0) {
+        let best = free[0];
+        let bestGap = -1;
+        for (const candidate of free) {
+          const gap = Math.min(...used.map(u => hueDistance(u, candidate)));
+          if (gap > bestGap) {
+            best = candidate;
+            bestGap = gap;
+          }
+        }
+        hue = best;
+      }
+    }
+    next.set(name, hue);
+    used.push(hue);
+  }
+  subjectHues = next;
+}
+
+/** A subject's hue: the one this week gave it, else the one its name asks for. */
+function subjectHue(name: string): number {
+  return subjectHues.get(name) ?? preferredHue(name);
+}
+
+/** Pastel subject tone (HSL), light and dark — every subject at the same lightness. */
 export function subjectTone(name: string): Tone {
   const h = subjectHue(name);
   return {
-    // Light fill at 83% lightness: at 91% the pastels read as near-white on the page.
-    fill: hsl(h, 0.78, 0.83), ink: hsl(h, 0.65, 0.24), bar: hsl(h, 0.60, 0.55),
-    fillDark: hsl(h, 0.34, 0.21), inkDark: hsl(h, 0.85, 0.87), barDark: hsl(h, 0.60, 0.62),
+    // Softer than [statusTone]: a subject is a quiet block of colour, and the loud ones are
+    // reserved for what a colour *means* — Entfall, Prüfung, Vertretung.
+    fill: hsl(h, 0.74, 0.82), ink: hsl(h, 0.62, 0.24), bar: hsl(h, 0.55, 0.56),
+    fillDark: hsl(h, 0.36, 0.24), inkDark: hsl(h, 0.80, 0.87), barDark: hsl(h, 0.58, 0.62),
   };
 }
 

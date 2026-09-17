@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
-import { ArrowLeftRight, ArrowRight, Clock, MapPin, User, X } from 'lucide-react';
-import type { TimetableEntry } from '@/lib/types';
-import { BRAND, fmtTime, statusTone, subjectTone, toneVars, type MergedSlot, type Tone } from './timetable-logic';
+import { ArrowLeftRight, CornerDownRight, Clock, MapPin, User, UserX, FileText, X } from 'lucide-react';
+import type { AbsenceEntry, TimetableEntry } from '@/lib/types';
+import { ABSENCE_MARK_LABEL, absenceRangeText, lessonAbsence, type AbsenceMark } from '@/lib/absences';
+import { BRAND, fmtTime, toMins, statusTone, subjectTone, toneVars, type MergedSlot, type Tone } from './timetable-logic';
 import { TagChip } from './parts';
 import { resolveSubjectImageSrc, subjectImageKey } from '@/lib/subject-image-preload';
 import s from './timetable.module.css';
@@ -31,8 +32,28 @@ function detailTone(slot: MergedSlot): Tone {
   return subjectTone(d.subjectName);
 }
 
-export default function LessonDetailSheet({ slot, onClose }: { slot: MergedSlot; onClose: () => void }) {
+/**
+ * The lesson detail, built like the Android app's bottom sheet: the sheet is the page canvas and
+ * everything on it is a card — a hero card (subject photo or monogram, title, time pill), the
+ * Lehrer/Raum list with pastel icon tiles, then one card per note.
+ */
+export default function LessonDetailSheet({
+  slot,
+  onClose,
+  absences = [],
+  todayNum = 0,
+  minute = 0,
+}: {
+  slot: MergedSlot;
+  onClose: () => void;
+  absences?: AbsenceEntry[];
+  todayNum?: number;
+  minute?: number;
+}) {
   const d = slot.display;
+  const absence = d.isCancelled
+    ? null
+    : lessonAbsence(absences, d.date, toMins(d.startTime), toMins(d.endTime), todayNum, minute);
   const tone = detailTone(slot);
   const headerName = d.subjectLong || d.subjectName || d.note || 'Stunde';
   const short = d.subjectName;
@@ -99,37 +120,46 @@ export default function LessonDetailSheet({ slot, onClose }: { slot: MergedSlot;
         aria-modal="true"
         aria-label={headerName}
       >
-        <div className={s.sheetHeader}>
-          {/* Monogram is what shows while a photo is still on its way — the header is never blank. */}
-          <div className={s.monogram} aria-hidden="true">{(headerName.trim().slice(0, 2) || '?').toUpperCase()}</div>
-          {showPhoto && (
-            <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className={s.sheetImg} src={imageUrl!} alt="" aria-hidden="true" onError={() => setImageFailed(true)} />
-              <div className={s.sheetShade} />
-            </>
-          )}
-          {tags.length > 0 && (
-            <div className={s.sheetTags}>
-              {tags.map(([text, color]) => <TagChip key={text} text={text} color={color} large />)}
-            </div>
-          )}
-          <button type="button" className={s.sheetClose} onClick={onClose} aria-label="Schließen">
-            <X size={18} />
-          </button>
-        </div>
+        <div className={s.sheetHandle} aria-hidden="true" />
 
         <div className={s.sheetBody}>
-          <div className={s.sheetTitleBlock}>
-            <h2 className={s.sheetTitle}>{headerName}</h2>
-            {short && short.toLowerCase() !== headerName.toLowerCase() && <p className={s.sheetShort}>{short}</p>}
-            <div className={s.sheetTime}>
-              <Clock size={15} />
-              {fmtTime(d.startTime)} – {fmtTime(d.endTime)}
+          {/* Hero card: header image (or monogram), then title and time on the card itself. */}
+          <div className={s.heroCard}>
+            <div className={s.sheetHeader}>
+              {/* Monogram is what shows while a photo is still on its way — the header is never blank. */}
+              <div className={s.monogram} aria-hidden="true">{(headerName.trim().slice(0, 2) || '?').toUpperCase()}</div>
+              {showPhoto && (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img className={s.sheetImg} src={imageUrl!} alt="" aria-hidden="true" onError={() => setImageFailed(true)} />
+                  <div className={s.sheetShade} />
+                </>
+              )}
+              {tags.length > 0 && (
+                <div className={s.sheetTags}>
+                  {/* A card-coloured backing under each tinted chip, so it reads the same over a photo or the pastel. */}
+                  {tags.map(([text, color]) => (
+                    <span key={text} className={s.sheetTagBacking}><TagChip text={text} color={color} large /></span>
+                  ))}
+                </div>
+              )}
+              <button type="button" className={s.sheetClose} onClick={onClose} aria-label="Schließen">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className={s.sheetTitleBlock}>
+              <h2 className={s.sheetTitle}>{headerName}</h2>
+              {short && short.toLowerCase() !== headerName.toLowerCase() && <p className={s.sheetShort}>{short}</p>}
+              <span className={s.timePill}>
+                <Clock size={14} />
+                {fmtTime(d.startTime)} – {fmtTime(d.endTime)}
+              </span>
             </div>
           </div>
 
           <DetailsCard d={d} />
+          {absence && <AbsenceCard mark={absence.mark} covering={absence.covering} />}
           {slot.replacement && <InsteadCard other={slot.replacement} />}
           {d.note?.trim() && <SectionCard title="Notiz">{d.note}</SectionCard>}
           {d.lessonText?.trim() && d.lessonText !== d.note && <SectionCard title="Stundentext">{d.lessonText}</SectionCard>}
@@ -149,6 +179,41 @@ export default function LessonDetailSheet({ slot, onClose }: { slot: MergedSlot;
   );
 }
 
+/** "Abwesend" — the status (Vorentschuldigung / Entschuldigt / Unentschuldigt) and from when to when. */
+function AbsenceCard({ mark, covering }: { mark: AbsenceMark; covering: AbsenceEntry[] }) {
+  const color = mark === 'absent' ? 'var(--danger)' : 'var(--tint)';
+  const reasons = [...new Set(covering.map((a) => a.reasonName).filter(Boolean))] as string[];
+  return (
+    <div className={`${s.card} ${s.cardFlush}`}>
+      <div className={s.detailRow}>
+        <span className={s.detailTile} style={{ background: `color-mix(in srgb, ${color} 16%, transparent)`, color }}>
+          <UserX size={19} />
+        </span>
+        <div className={s.detailText}>
+          <p className={s.label}>Abwesend</p>
+          <p className={s.body} style={{ color, fontWeight: 600 }}>{ABSENCE_MARK_LABEL[mark]}</p>
+        </div>
+      </div>
+      <div className={s.detailRow}>
+        <span className={s.detailTile}><Clock size={19} /></span>
+        <div className={s.detailText}>
+          <p className={s.label}>Zeitraum</p>
+          {covering.map((a) => <p key={a.id} className={s.body}>{absenceRangeText(a)}</p>)}
+        </div>
+      </div>
+      {reasons.length > 0 && (
+        <div className={s.detailRow}>
+          <span className={s.detailTile}><FileText size={19} /></span>
+          <div className={s.detailText}>
+            <p className={s.label}>Grund</p>
+            <p className={s.body}>{reasons.join(', ')}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DetailsCard({ d }: { d: TimetableEntry }) {
   const teacher = d.teacherLongName || d.teacherName;
   const origTeacher = d.originalTeacherLong || d.originalTeacher || '';
@@ -161,19 +226,24 @@ function DetailsCard({ d }: { d: TimetableEntry }) {
   return (
     <div className={`${s.card} ${s.cardFlush}`}>
       {hasTeacher && (origTeacher && origTeacher !== teacher
-        ? <ChangeRow label="Lehrer" from={origTeacher} to={teacher} icon={<User size={20} />} />
-        : <DetailRow label="Lehrer" value={teacher || origTeacher} icon={<User size={20} />} />)}
+        ? <ChangeRow label="Lehrer" from={origTeacher} to={teacher} icon={<User size={19} />} />
+        : <DetailRow label="Lehrer" value={teacher || origTeacher} icon={<User size={19} />} />)}
       {hasRoom && (origRoom && origRoom !== room
-        ? <ChangeRow label="Raum" from={origRoom} to={room} icon={<MapPin size={20} />} />
-        : <DetailRow label="Raum" value={room || origRoom} icon={<MapPin size={20} />} />)}
+        ? <ChangeRow label="Raum" from={origRoom} to={room} icon={<MapPin size={19} />} />
+        : <DetailRow label="Raum" value={room || origRoom} icon={<MapPin size={19} />} />)}
     </div>
   );
+}
+
+/** The row's glyph on the subject's pastel, so the list belongs to the lesson it describes. */
+function DetailTile({ icon }: { icon: ReactNode }) {
+  return <span className={s.detailTile}>{icon}</span>;
 }
 
 function DetailRow({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
   return (
     <div className={s.detailRow}>
-      <span className={s.detailIcon}>{icon}</span>
+      <DetailTile icon={icon} />
       <div className={s.detailText}>
         <p className={s.label}>{label}</p>
         <p className={s.body}>{value}</p>
@@ -182,15 +252,16 @@ function DetailRow({ label, value, icon }: { label: string; value: string; icon:
   );
 }
 
+/** Old and new on their own lines: side by side, two full teacher names ran out of width. */
 function ChangeRow({ label, from, to, icon }: { label: string; from: string; to: string; icon: ReactNode }) {
   return (
     <div className={s.detailRow}>
-      <span className={s.detailIcon}>{icon}</span>
+      <DetailTile icon={icon} />
       <div className={s.detailText}>
         <p className={s.label}>{label}</p>
+        <p className={`${s.body} ${s.changeFrom}`}>{from}</p>
         <div className={s.changeLine}>
-          <span className={s.changeFrom}>{from}</span>
-          <ArrowRight size={13} style={{ color: 'var(--app-text-tertiary)' }} />
+          <CornerDownRight size={13} style={{ color: 'var(--app-text-tertiary)' }} />
           <span className={s.changeTo}>{to || '—'}</span>
         </div>
       </div>

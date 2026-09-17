@@ -99,7 +99,14 @@ export type AbsenceMark = 'preExcused' | 'excused' | 'absent';
 export const ABSENCE_MARK_LABEL: Record<AbsenceMark, string> = {
   preExcused: 'Vorentschuldigung',
   excused: 'Entschuldigt',
-  absent: 'Gefehlt',
+  absent: 'Unentschuldigt',
+};
+
+/** For narrow columns (a phone's week grid), where the full label would have to be tiny. */
+export const ABSENCE_MARK_SHORT_LABEL: Record<AbsenceMark, string> = {
+  preExcused: 'Vorentsch.',
+  excused: 'Entsch.',
+  absent: 'Unentsch.',
 };
 
 export interface AbsenceBand {
@@ -111,11 +118,9 @@ export interface AbsenceBand {
 const MINUTES_PER_DAY = 1440;
 /**
  * A lesson is only marked when the absence covers at least this much of it (or all of it, for a
- * shorter lesson). Arriving two minutes late shouldn't paint the whole lesson as "Gefehlt".
+ * shorter lesson). Arriving two minutes late shouldn't paint the whole lesson as "Unentschuldigt".
  */
 const MIN_COVERED_MINUTES = 15;
-/** Lessons closer than this share one band — a break is not the end of an absence. */
-const MERGE_GAP_MINUTES = 30;
 
 /**
  * The mark for one lesson, plus the part of it the absence actually covers (minutes of the day):
@@ -128,7 +133,7 @@ function lessonCoverage(
   endMinute: number,
   nowDateNum: number,
   nowMinute: number,
-): AbsenceBand | null {
+): (AbsenceBand & { covering: AbsenceEntry[] }) | null {
   const dayStart = dateNum * MINUTES_PER_DAY;
   const lessonStart = dayStart + startMinute;
   const lessonEnd = dayStart + endMinute;
@@ -148,7 +153,38 @@ function lessonCoverage(
   if (covering.length === 0) return null;
   const over = dateNum < nowDateNum || (dateNum === nowDateNum && endMinute <= nowMinute);
   const mark: AbsenceMark = !over ? 'preExcused' : covering.every((a) => a.isExcused) ? 'excused' : 'absent';
-  return { startMinute: from - dayStart, endMinute: to - dayStart, mark };
+  return { startMinute: from - dayStart, endMinute: to - dayStart, mark, covering };
+}
+
+/** The absence status of one lesson and the Abwesenheiten behind it — for the lesson popup. */
+export function lessonAbsence(
+  absences: AbsenceEntry[],
+  dateNum: number,
+  startMinute: number,
+  endMinute: number,
+  nowDateNum: number,
+  nowMinute: number,
+): { mark: AbsenceMark; covering: AbsenceEntry[] } | null {
+  const c = lessonCoverage(absences, dateNum, startMinute, endMinute, nowDateNum, nowMinute);
+  return c ? { mark: c.mark, covering: c.covering } : null;
+}
+
+function hhmmOf(t: number): string {
+  const m = toMinutes(t);
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+}
+
+function ddmmOf(d: number): string {
+  const s = String(d);
+  return `${s.slice(6, 8)}.${s.slice(4, 6)}.`;
+}
+
+/** "10:00 – 13:05", or with dates when the absence spans several days. */
+export function absenceRangeText(a: AbsenceEntry): string {
+  const from = a.startTime > 0 ? hhmmOf(a.startTime) : '';
+  const to = a.endTime > 0 ? hhmmOf(a.endTime) : '';
+  if (a.startDate === a.endDate) return from && to ? `${from} – ${to}` : 'Ganzer Tag';
+  return `${ddmmOf(a.startDate)}${from ? ` ${from}` : ''} – ${ddmmOf(a.endDate)}${to ? ` ${to}` : ''}`;
 }
 
 export function absenceMarkFor(
@@ -165,6 +201,9 @@ export function absenceMarkFor(
 /**
  * Continuous stretches of one day covered by the same mark, from exactly where the absence starts
  * to where it ends (never beyond the lessons it covers). Pass only lessons that take place.
+ *
+ * A stretch runs on through breaks and free periods of any length — only a lesson you were there
+ * for ends it. Merging by a maximum gap instead broke the band at lunch and at every free period.
  */
 export function absenceBands(
   absences: AbsenceEntry[],
@@ -176,14 +215,18 @@ export function absenceBands(
   if (absences.length === 0) return [];
   const out: AbsenceBand[] = [];
   const sorted = lessons.filter((l) => l.endMinute > l.startMinute).sort((a, b) => a.startMinute - b.startMinute);
+  let openBand: AbsenceBand | null = null;
   for (const l of sorted) {
     const covered = lessonCoverage(absences, dateNum, l.startMinute, l.endMinute, nowDateNum, nowMinute);
-    if (!covered) continue;
-    const last = out[out.length - 1];
-    if (last && last.mark === covered.mark && covered.startMinute <= last.endMinute + MERGE_GAP_MINUTES) {
-      last.endMinute = Math.max(last.endMinute, covered.endMinute);
+    if (!covered) {
+      openBand = null; // a lesson that was attended — the stretch ends here
+      continue;
+    }
+    if (openBand && openBand.mark === covered.mark) {
+      openBand.endMinute = Math.max(openBand.endMinute, covered.endMinute);
     } else {
-      out.push(covered);
+      openBand = { startMinute: covered.startMinute, endMinute: covered.endMinute, mark: covered.mark };
+      out.push(openBand);
     }
   }
   return out;

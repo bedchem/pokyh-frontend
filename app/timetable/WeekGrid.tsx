@@ -2,7 +2,7 @@
 
 import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { AbsenceEntry, TimetableEntry } from '@/lib/types';
-import { ABSENCE_MARK_LABEL, absenceBands } from '@/lib/absences';
+import { ABSENCE_MARK_LABEL, ABSENCE_MARK_SHORT_LABEL, absenceBands } from '@/lib/absences';
 import {
   CELL_GAP,
 
@@ -21,6 +21,7 @@ import {
   fieldParts,
   hhmm,
   monthShortDe,
+  registerSubjects,
   toMins,
   toneVars,
   type GridCell,
@@ -85,6 +86,8 @@ export default function WeekGrid({
     [dayEntries, daySlots, anyDayHasEntries],
   );
   const allEntries = useMemo(() => dayEntries.flat(), [dayEntries]);
+  // Colours are handed out for the whole week before any cell asks for one — see registerSubjects.
+  useMemo(() => registerSubjects(allEntries.map(e => e.subjectName)), [allEntries]);
 
   const minMins = allEntries.length ? Math.min(...allEntries.map(e => toMins(e.startTime))) : TIMETABLE_PERIODS[0].startMinute;
   const maxMins = allEntries.length ? Math.max(...allEntries.map(e => toMins(e.endTime))) : TIMETABLE_PERIODS[TIMETABLE_PERIODS.length - 1].endMinute;
@@ -234,7 +237,9 @@ function DayColumn({
           kind={kind}
           compact
           style={{ top: 2, height: height - 4 }}
-          onClick={slots[0] ? () => onTap(slots[0]) : undefined}
+          // A day that is cancelled outright opens nothing: the card already says everything the
+          // popup would, and every lesson behind it is an Entfall.
+          onClick={kind !== 'allCancelled' && slots[0] ? () => onTap(slots[0]) : undefined}
         />
       ) : (
         width > 0 && cells.map(cell => {
@@ -267,7 +272,8 @@ function DayColumn({
             style={{ top, height: h }}
             aria-label={ABSENCE_MARK_LABEL[band.mark]}
           >
-            <span className={s.absenceLabel}>{ABSENCE_MARK_LABEL[band.mark]}</span>
+            <span className={`${s.absenceLabel} ${s.absenceLabelFull}`}>{ABSENCE_MARK_LABEL[band.mark]}</span>
+            <span className={`${s.absenceLabel} ${s.absenceLabelShort}`} aria-hidden>{ABSENCE_MARK_SHORT_LABEL[band.mark]}</span>
           </div>
         );
       })}

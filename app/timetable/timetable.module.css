@@ -480,12 +480,22 @@
   padding: 20px;
   height: 340px;
 }
+/* In the week grid a whole special day fills its column: a tinted plate in the day's own
+   colour with a matching outline — red for Entfall, orange for Ferien — so the day reads as
+   one block at a glance, the same way a cancelled lesson does. */
 .specialCompact {
   position: absolute;
   left: 0;
   right: 0;
   padding: 4px;
   height: auto;
+  border-radius: calc(9px * var(--s));
+  background: color-mix(in srgb, var(--special-color) 12%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--special-color) 45%, transparent);
+}
+:global(.dark) .specialCompact {
+  background: color-mix(in srgb, var(--special-color) 20%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--special-color) 60%, transparent);
 }
 .specialInner {
   display: flex;
@@ -731,6 +741,9 @@ button.special { border: 0; background: transparent; font: inherit; cursor: poin
 }
 
 /* ── Detail sheet ─────────────────────────────────────────── */
+/* Same build as the Android app's LessonDetailSheet: the sheet is the page canvas
+   (--app-bg) and everything on it is a card — hero card, Lehrer/Raum list with
+   pastel icon tiles, one card per note. */
 
 .backdrop {
   position: fixed;
@@ -749,19 +762,38 @@ button.special { border: 0; background: transparent; font: inherit; cursor: poin
   max-width: 560px;
   max-height: 92dvh;
   overflow-y: auto;
-  background: var(--tt-card);
+  /* A step lighter than the page canvas, still clearly apart from the cards on it. */
+  background: color-mix(in srgb, var(--app-bg) 55%, var(--tt-card));
   color: var(--app-text-primary);
   border-radius: 32px 32px 0 0;
 }
 @media (min-width: 640px) {
   .sheet { border-radius: 32px; max-height: 90dvh; }
 }
+.sheetHandle {
+  width: 36px;
+  height: 4px;
+  margin: 12px auto;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-text-tertiary) 35%, transparent);
+}
+.sheetBody {
+  padding: 0 16px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.heroCard {
+  background: var(--tt-card);
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
 .sheetHeader {
   position: relative;
-  height: 168px;
+  height: 148px;
   background: var(--tone-fill);
   overflow: hidden;
-  border-radius: 32px 32px 0 0;
 }
 .sheetImg {
   position: absolute;
@@ -790,70 +822,95 @@ button.special { border: 0; background: transparent; font: inherit; cursor: poin
 }
 .sheetTags {
   position: absolute;
-  left: 16px;
-  bottom: 16px;
+  left: 12px;
+  bottom: 12px;
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
 }
+.sheetTagBacking {
+  display: inline-flex;
+  border-radius: 999px;
+  background: var(--tt-card);
+}
 .sheetClose {
   position: absolute;
-  top: 14px;
-  right: 14px;
-  width: 32px;
-  height: 32px;
+  top: 12px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
   border-radius: 999px;
   border: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.35);
-  color: #fff;
+  background: color-mix(in srgb, var(--tt-card) 92%, transparent);
+  color: var(--app-text-primary);
   cursor: pointer;
 }
-.sheetBody {
-  padding: 20px 20px 32px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
 .sheetTitleBlock {
+  padding: 16px 20px 20px;
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 4px;
 }
 .sheetTitle {
   margin: 0;
-  font-size: 24px;
-  line-height: 30px;
+  font-size: 22px;
+  line-height: 28px;
   font-weight: 700;
   letter-spacing: -0.015em;
   overflow-wrap: anywhere;
 }
-.sheetShort { margin: 0; font-size: 14px; line-height: 19px; color: var(--app-text-secondary); }
-.sheetTime {
-  display: flex;
+.sheetShort { margin: 0; font-size: 15px; line-height: 20px; color: var(--app-text-secondary); }
+.timePill {
+  margin-top: 8px;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 15px;
-  line-height: 21px;
-  color: var(--app-text-secondary);
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--tone-fill);
+  color: var(--tone-ink);
+  font-size: 13px;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
 }
 .card {
-  background: var(--app-bg);
+  background: var(--tt-card);
   border-radius: 24px;
   padding: 20px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
-:global(.dark) .card { background: var(--app-card-alt); }
 .cardFlush { padding: 0; }
 .detailRow {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 20px;
+  padding: 12px 20px;
 }
-.detailRow + .detailRow { border-top: 1px solid var(--app-separator); }
-.detailIcon { color: var(--tt-accent-text); flex-shrink: 0; }
+/* Hairline inset to where the row's text starts, as in the app's list cards. */
+.detailRow + .detailRow::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 72px;
+  right: 0;
+  border-top: 1px solid var(--app-separator);
+}
+.detailTile {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--tone-fill);
+  color: var(--tone-ink);
+}
 .detailText { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .label {
   margin: 0;
@@ -876,7 +933,6 @@ button.special { border: 0; background: transparent; font: inherit; cursor: poin
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
   font-size: 16px;
   line-height: 23px;
 }
@@ -891,8 +947,8 @@ button.special { border: 0; background: transparent; font: inherit; cursor: poin
 }
 .insteadTitle {
   margin: 0;
-  font-size: 16px;
-  line-height: 21px;
+  font-size: 17px;
+  line-height: 22px;
   font-weight: 600;
 }
 .insteadMeta { margin: 2px 0 0; font-size: 13px; line-height: 18px; color: var(--app-text-secondary); }
@@ -948,11 +1004,12 @@ button.special { border: 0; background: transparent; font: inherit; cursor: poin
 }
 .menuItemActive:hover { background: var(--accent); }
 
-/* Abwesenheit (Vorentschuldigung / Entschuldigt / Gefehlt): ONE grey block over the
-   column, from exactly where the absence starts to where it ends, with the label
-   in its middle. The label is always one line and never leaves the block: its
-   size follows the block's width (container query units), capped at the normal
-   cell text size. "Vorentschuldigung" is ~9.6em wide in bold, hence the /10.
+/* Abwesenheit (Vorentschuldigung / Entschuldigt / Unentschuldigt): ONE translucent grey
+   block over the column, from exactly where the absence starts to where it ends,
+   with the label in its middle — only the text colour says which: pastel green for
+   Vorentschuldigung/Entschuldigt, pastel red for Unentschuldigt. The label is always one line and never leaves the block: its size
+   follows the block's width (container query units). On a narrow column (a phone)
+   the short label is shown instead, so the text can stay readable.
    Clicks pass through to the lessons. */
 .absenceBand {
   position: absolute;
@@ -965,19 +1022,24 @@ button.special { border: 0; background: transparent; font: inherit; cursor: poin
   align-items: center;
   justify-content: center;
   border-radius: calc(9px * var(--s));
-  background: rgba(75, 85, 99, 0.82);
+  background: rgba(55, 65, 81, 0.78);
+  color: #4ade80;
 }
-:global(.dark) .absenceBand { background: rgba(32, 34, 42, 0.88); }
-.absenceBandAbsent { background: rgba(185, 28, 28, 0.8); }
-:global(.dark) .absenceBandAbsent { background: rgba(127, 29, 29, 0.88); }
+:global(.dark) .absenceBand { background: rgba(24, 26, 33, 0.82); color: #4ade80; }
+.absenceBandAbsent { color: #fca5a5; }
+:global(.dark) .absenceBandAbsent { color: #fca5a5; }
 .absenceLabel {
-  max-width: 100%;
+  max-width: calc(100% - 4px);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: clip;
-  color: #fff;
-  font-size: min(calc(11px * var(--s)), calc((100cqw - 6px) / 10));
-  font-weight: 700;
+  font-weight: 800;
   line-height: 1.2;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+/* "Vorentschuldigung" is ~9.6em wide in bold, "Vorentsch." ~5.4em. */
+.absenceLabelFull { font-size: min(calc(14px * var(--s)), calc((100cqw - 4px) / 9.8)); }
+.absenceLabelShort { display: none; font-size: min(calc(13px * var(--s)), calc((100cqw - 4px) / 5.6)); }
+@container (max-width: 120px) {
+  .absenceLabelFull { display: none; }
+  .absenceLabelShort { display: block; }
 }

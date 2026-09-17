@@ -48,9 +48,14 @@ const OFFLINE_WEEK_UNKNOWN =
 const timetableUrl = (iso: string) => `/api/webuntis/timetable?date=${iso}`;
 const clampOffset = (o: number) => Math.max(-PAGE_SPAN, Math.min(PAGE_SPAN, o));
 
-function initialOffsetFromUrl(): number {
-  if (typeof window === 'undefined') return 0;
-  const dateStr = new URLSearchParams(window.location.search).get('date');
+/**
+ * Week offset for a `?date=YYYYMMDD` link (e.g. "Im Stundenplan ansehen" on the Abwesenheiten page).
+ *
+ * Read from `useSearchParams`, not `window.location`: on a client-side navigation the page renders
+ * before the browser's address bar changes, so `window.location` still showed the previous page and
+ * every link opened on this week.
+ */
+function offsetForDateParam(dateStr: string | null): number {
   if (!dateStr || !/^\d{8}$/.test(dateStr)) return 0;
   const target = new Date(+dateStr.slice(0, 4), +dateStr.slice(4, 6) - 1, +dateStr.slice(6, 8));
   return clampOffset(Math.round((mondayOf(0, target).getTime() - mondayOf(0).getTime()) / (7 * 86400000)));
@@ -83,7 +88,7 @@ function TimetableContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [weekOffset, setWeekOffset] = useState(initialOffsetFromUrl);
+  const [weekOffset, setWeekOffset] = useState(() => offsetForDateParam(searchParams.get('date')));
   const [direction, setDirection] = useState(0);
   const [pages, setPages] = useState<Record<number, WeekPageState>>({});
   const pagesRef = useRef(pages);
@@ -151,7 +156,7 @@ function TimetableContent() {
 
   // ── Abwesenheiten (overlay) ─────────────────────────────────────────────────
   // Loaded here on their own, so the grid marks Vorentschuldigung / Entschuldigt /
-  // Gefehlt without the Abwesenheiten page ever having been opened.
+  // Unentschuldigt without the Abwesenheiten page ever having been opened.
 
   const [absences, setAbsences] = useState<Record<number, AbsenceEntry[]>>({});
   const absenceYear = schoolYearOfDate(dateOf(weekOffset, 3));
@@ -491,7 +496,7 @@ function TimetableContent() {
             </main>
           </div>
 
-          {shownSlot && <LessonDetailSheet key={shownSlot.id} slot={shownSlot} onClose={closeSheet} />}
+          {shownSlot && <LessonDetailSheet key={shownSlot.id} slot={shownSlot} onClose={closeSheet} absences={absences[absenceYear] ?? []} todayNum={todayNum} minute={minute} />}
         </div>
       </UntisGuard>
     </AuthGuard>

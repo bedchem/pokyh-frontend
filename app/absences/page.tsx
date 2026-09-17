@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronDown, CheckCircle, XCircle, UserX, Clock, ClockArrowUp, Plus, Check, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronDown, CheckCircle, XCircle, UserX, Clock, ClockArrowUp, Plus, CalendarDays } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
 import UntisGuard from '@/components/UntisGuard';
@@ -10,7 +11,7 @@ import ErrorView from '@/components/ui/ErrorView';
 import EmptyView from '@/components/ui/EmptyView';
 // Abwesenheit-melden deaktiviert (kein funktionierender WebUntis-Schreib-Endpunkt):
 // import ReportAbsenceSheet from '@/components/absences/ReportAbsenceSheet';
-import { fetchAbsences, fetchTimetable, getAbsencesStale, fetchPermissions, excuseAbsence } from '@/lib/api';
+import { fetchAbsences, fetchTimetable, getAbsencesStale, fetchPermissions } from '@/lib/api';
 import { useSession } from '@/providers/SessionProvider';
 import type { AbsenceEntry } from '@/lib/types';
 import { parseAbsences } from '@/lib/absences';
@@ -261,7 +262,6 @@ export default function AbsencesPage() {
   const [canReport, setCanReport] = useState(false);
   const [personName, setPersonName] = useState<string | null>(null);
   const [showReport, setShowReport] = useState(false);
-  const [excusingId, setExcusingId] = useState<number | null>(null);
 
   const fmt = (m: number) => exact ? formatMinutes(m) : roundHours(m);
 
@@ -357,24 +357,6 @@ export default function AbsencesPage() {
       .catch(() => { /* gating stays off on error */ });
     return () => { alive = false; };
   }, []);
-
-  async function handleExcuse(id: number) {
-    if (excusingId !== null) return;
-    setExcusingId(id);
-    setError('');
-    try {
-      await excuseAbsence([id]);
-      await load();
-    } catch (e: unknown) {
-      if (e instanceof Error && e.message === 'session_expired') {
-        window.location.replace('/login');
-      } else {
-        setError(e instanceof Error ? e.message : 'Entschuldigen fehlgeschlagen.');
-      }
-    } finally {
-      setExcusingId(null);
-    }
-  }
 
   useEffect(() => {
     function onDown(e: MouseEvent) {
@@ -692,19 +674,14 @@ export default function AbsencesPage() {
                                 </span>
                               </div>
                             )}
-                            {!entry.isExcused && canReport && (
-                              <button
-                                onClick={() => handleExcuse(entry.id)}
-                                disabled={excusingId === entry.id}
-                                className="mt-2.5 w-full h-9 rounded-xl text-[13px] font-semibold press-scale flex items-center justify-center gap-1.5 disabled:opacity-60"
-                                style={{ background: 'color-mix(in srgb, var(--tint) 14%, var(--app-card))', color: 'var(--tint)' }}
-                              >
-                                {excusingId === entry.id
-                                  ? <Loader2 size={14} className="animate-spin" />
-                                  : <Check size={14} />}
-                                Entschuldigen
-                              </button>
-                            )}
+                            <Link
+                              href={`/timetable?date=${entry.startDate}`}
+                              className="mt-2.5 w-full h-9 rounded-xl text-[13px] font-semibold press-scale flex items-center justify-center gap-1.5"
+                              style={{ background: 'var(--app-card)', color: 'var(--accent)' }}
+                            >
+                              <CalendarDays size={14} />
+                              Im Stundenplan ansehen
+                            </Link>
                           </div>
                         ))}
                       </div>
