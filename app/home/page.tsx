@@ -10,6 +10,7 @@ import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
 import {
   fetchTimetable, fetchGrades, fetchMensa, fetchMessages,
+  fetchExams,
   getTimetableStale, getGradesStale, getMessagesStale,
 } from '@/lib/api';
 import { subjectColor, averageColor } from '@/lib/colors';
@@ -150,6 +151,41 @@ function parseTimetableResult(json: unknown): TimetableEntry[] {
   } catch {
     return [];
   }
+}
+
+function parseExamResult(json: unknown): TimetableEntry[] {
+  const root = json && typeof json === 'object' ? json as Record<string, unknown> : {};
+  const data = root.data && typeof root.data === 'object' ? root.data as Record<string, unknown> : root;
+  const exams = Array.isArray(data.exams) ? data.exams : [];
+
+  return exams.map((raw, index) => {
+    const exam = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
+    const rooms = Array.isArray(exam.rooms) ? exam.rooms.filter((room): room is string => typeof room === 'string') : [];
+    const examDate = typeof exam.examDate === 'number' ? exam.examDate : 0;
+    const startTime = typeof exam.startTime === 'number' ? exam.startTime : 0;
+    const endTime = typeof exam.endTime === 'number' && exam.endTime > 0
+      ? exam.endTime
+      : (startTime > 0 ? startTime : 2359);
+    const subject = typeof exam.subject === 'string' ? exam.subject : '';
+    const id = typeof exam.id === 'number' ? exam.id : -(index + 1);
+
+    return {
+      id,
+      lessonId: id,
+      date: examDate,
+      startTime,
+      endTime,
+      subjectName: subject,
+      subjectLong: subject,
+      teacherName: '',
+      roomName: rooms[0] ?? '',
+      cellState: 'STANDARD',
+      isExam: true,
+      isCancelled: false,
+      isSubstitution: false,
+      isAdditional: false,
+    } satisfies TimetableEntry;
+  }).filter((exam) => exam.date > 0 && exam.subjectName.length > 0);
 }
 
 function parseGradesResult(json: unknown): { avg: number | null; subjectCount: number; recentGrades: RecentGrade[] } {
@@ -396,16 +432,26 @@ export default function HomePage() {
       setLoading(false);
 
       // Phase 2: mensa + extended timetable for exam detection (background)
-      const [menRes, tt1Res, tt2Res] = await Promise.allSettled([
+      const examEnd = format(addDays(new Date(), 14), 'yyyyMMdd');
+      const [menRes, tt1Res, tt2Res, examRes] = await Promise.allSettled([
         fetchMensa(),
         fetchTimetable(format(addDays(new Date(), 7), 'yyyy-MM-dd')),
         fetchTimetable(format(addDays(new Date(), 14), 'yyyy-MM-dd')),
+        fetchExams(format(new Date(), 'yyyyMMdd'), examEnd),
       ]);
 
-      const examEntries = [ttRes, tt1Res, tt2Res]
+      const timetableExamEntries = [ttRes, tt1Res, tt2Res]
         .filter((r): r is PromiseFulfilledResult<unknown> => r.status === 'fulfilled')
         .flatMap((r) => parseTimetableResult(r.value))
         .filter((e) => e.isExam && e.date >= todayNum);
+      const apiExamEntries = examRes.status === 'fulfilled' ? parseExamResult(examRes.value) : [];
+      const seenExams = new Set<string>();
+      const examEntries = [...timetableExamEntries, ...apiExamEntries].filter((exam) => {
+        const key = `${exam.date}-${exam.startTime}-${exam.subjectName}`;
+        if (seenExams.has(key)) return false;
+        seenExams.add(key);
+        return true;
+      });
       setExamCandidates(examEntries);
 
       if (menRes.status === 'fulfilled') {
@@ -419,7 +465,10 @@ export default function HomePage() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
 
   useEffect(() => {
     if (!stableUid || dishes.length === 0 || ratingsFetched.current) return;
