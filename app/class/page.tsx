@@ -65,6 +65,25 @@ type ClassregEvent = {
   creatorName: string;
 };
 
+function textValue(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
+function normalizeClassregEvent(value: unknown, index: number): ClassregEvent {
+  const event = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+  return {
+    id: typeof event.id === 'number' ? event.id : index,
+    elementName: textValue(event.elementName),
+    subjectName: textValue(event.subjectName),
+    categoryName: textValue(event.categoryName),
+    text: textValue(event.text),
+    eventReasonName: textValue(event.eventReasonName),
+    createDate: typeof event.createDate === 'number' ? event.createDate : 0,
+    createTime: typeof event.createTime === 'number' ? event.createTime : 0,
+    creatorName: textValue(event.creatorName),
+  };
+}
+
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 
 function getSchoolWeek(offsetWeeks: number) {
@@ -156,8 +175,8 @@ function parseHomework(raw: unknown): { homeworks: HomeworkRecord[]; lessons: Ho
 function parseClassregEvents(raw: unknown): ClassregEvent[] {
   const r = raw as Record<string, unknown>;
   const data = (r?.data ?? r) as Record<string, unknown>;
-  const rows = data?.rows as ClassregEvent[] | undefined;
-  return Array.isArray(rows) ? rows : [];
+  const rows = data?.rows;
+  return Array.isArray(rows) ? rows.map(normalizeClassregEvent) : [];
 }
 
 // ─── Badge colors for Klassenbuch ────────────────────────────────────────────
@@ -196,8 +215,8 @@ export default function ClassPage() {
     if (!stale) return [];
     const r = stale as Record<string, unknown>;
     const data = (r?.data ?? r) as Record<string, unknown>;
-    const rows = data?.rows as ClassregEvent[] | undefined;
-    const all = Array.isArray(rows) ? rows : [];
+    const rows = data?.rows;
+    const all = Array.isArray(rows) ? rows.map(normalizeClassregEvent) : [];
     const cutoff = (() => {
       const d = new Date();
       d.setMonth(d.getMonth() - 3);
@@ -290,7 +309,10 @@ export default function ClassPage() {
     }
   }, [router]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
 
   function subjectShort(lessonId: number): string {
     const lesson = hwLessons.find((l) => l.id === lessonId);

@@ -23,6 +23,26 @@ type ClassregEvent = {
   elemType: string;
 };
 
+function textValue(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
+function normalizeClassregEvent(value: unknown, index: number): ClassregEvent {
+  const event = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+  return {
+    id: typeof event.id === 'number' ? event.id : index,
+    elementName: textValue(event.elementName),
+    subjectName: textValue(event.subjectName),
+    creatorName: textValue(event.creatorName),
+    createDate: typeof event.createDate === 'number' ? event.createDate : 0,
+    createTime: typeof event.createTime === 'number' ? event.createTime : 0,
+    eventReasonName: textValue(event.eventReasonName),
+    categoryName: textValue(event.categoryName),
+    text: textValue(event.text),
+    elemType: textValue(event.elemType),
+  };
+}
+
 type FilterMode = 'all' | '1m' | '3m';
 type SortMode = 'date-desc' | 'date-asc' | 'subject' | 'category';
 
@@ -38,11 +58,6 @@ function parseCreateDate(d: number): Date {
   const month = parseInt(s.slice(4, 6)) - 1;
   const day = parseInt(s.slice(6, 8));
   return new Date(year, month, day);
-}
-
-function fmtDateShort(d: number): string {
-  const dt = parseCreateDate(d);
-  return `${dt.getDate()}. ${MONTH_SHORT[dt.getMonth()]}`;
 }
 
 function fmtDateLong(d: number): string {
@@ -83,8 +98,8 @@ function parseRows(raw: unknown): ClassregEvent[] {
   const r = raw as Record<string, unknown>;
   const data = r.data as Record<string, unknown> | undefined;
   if (!data) return [];
-  const rows = data.rows as ClassregEvent[] | undefined;
-  return Array.isArray(rows) ? rows : [];
+  const rows = data.rows;
+  return Array.isArray(rows) ? rows.map(normalizeClassregEvent) : [];
 }
 
 export default function ClassregEventsPage() {
@@ -147,7 +162,8 @@ export default function ClassregEventsPage() {
   }, [router, selectedYear]);
 
   useEffect(() => {
-    load();
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
   }, [load]);
 
   const schoolYearLabel = `${selectedYear} / ${selectedYear + 1}`;
