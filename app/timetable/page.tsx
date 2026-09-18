@@ -11,6 +11,7 @@ import ErrorView from '@/components/ui/ErrorView';
 import { areAbsencesStale, fetchAbsences, fetchAbsencesRange, fetchTimetable, getAbsencesStale } from '@/lib/api';
 import { parseAbsences } from '@/lib/absences';
 import { pcGetWithTs } from '@/lib/persist-cache';
+import { useTrackpadSwipe } from '@/lib/use-trackpad-swipe';
 import type { AbsenceEntry, TimetableEntry } from '@/lib/types';
 import {
   TIMETABLE_PERIODS,
@@ -106,6 +107,7 @@ function TimetableContent() {
   const menuRef = useRef<HTMLDivElement>(null);
   const [yearOpen, setYearOpen] = useState(false);
   const yearRef = useRef<HTMLDivElement>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
 
   const setPage = useCallback((offset: number, state: WeekPageState) => {
     pagesRef.current = { ...pagesRef.current, [offset]: state };
@@ -261,6 +263,11 @@ function TimetableContent() {
     setWeekOffset(o => clampOffset(o + by));
   }, []);
 
+  useTrackpadSwipe(hostRef, (direction) => {
+    if (shownSlot) return;
+    goWeek(direction === 'next' ? 1 : -1);
+  });
+
   const goToday = useCallback(() => {
     setDirection(weekOffset > 0 ? -1 : 1);
     setWeekOffset(0);
@@ -399,7 +406,7 @@ function TimetableContent() {
     <AuthGuard>
       <UntisGuard>
         <div className={s.wrap}>
-          <div className={s.host}>
+          <div ref={hostRef} className={s.host}>
             <main className={s.page}>
               {/* Week stepper */}
               <div className={`${s.inset} ${s.weekHeader}`}>
