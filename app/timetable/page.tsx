@@ -10,7 +10,7 @@ import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
 import { areAbsencesStale, fetchAbsences, fetchAbsencesRange, fetchTimetable, getAbsencesStale } from '@/lib/api';
 import { parseAbsences } from '@/lib/absences';
-import { pcGetWithTs } from '@/lib/persist-cache';
+import { pcGetWithTs, pcIsStale } from '@/lib/persist-cache';
 import { useTrackpadSwipe } from '@/lib/use-trackpad-swipe';
 import type { AbsenceEntry, TimetableEntry } from '@/lib/types';
 import {
@@ -39,6 +39,7 @@ type WeekPageState =
   | { status: 'error'; message: string };
 
 const EXAM_LOOKAHEAD_WEEKS = 12;
+const TIMETABLE_CACHE_TTL_MS = 5 * 60 * 1000;
 // Wide enough to reach the start of every selectable school year.
 const PAGE_SPAN = 260;
 const YEAR_COUNT = 4;
@@ -140,7 +141,9 @@ function TimetableContent() {
   const ensureWeek = useCallback((offset: number, force = false) => {
     const cached = pagesRef.current[offset];
     if (cached?.status === 'data' && !force) {
-      // Already have data → revalidate silently (no spinner flash).
+      // Fresh in-memory data is already the fastest possible response.
+      if (Date.now() - cached.savedAt <= TIMETABLE_CACHE_TTL_MS) return;
+      // Stale data stays visible while it is refreshed in the background.
       void fetchWeek(offset, true);
       return;
     }
@@ -148,7 +151,7 @@ function TimetableContent() {
       const disk = pcGetWithTs<unknown>(timetableUrl(isoDate(mondayOf(offset))));
       if (disk && !force) {
         setPage(offset, { status: 'data', entries: parseTimetable(disk.data), savedAt: disk.ts, stale: false });
-        void fetchWeek(offset, true);
+        if (pcIsStale(timetableUrl(isoDate(mondayOf(offset))))) void fetchWeek(offset, true);
         return;
       }
       if (cached?.status !== 'data') setPage(offset, LOADING);
@@ -208,14 +211,35 @@ function TimetableContent() {
     return () => { cancelled = true; document.removeEventListener('visibilitychange', onVisible); };
   }, [absenceYear]);
 
-  // Preload radius 2 → a 5-week window is always cached.
+  // Make the adjacent weeks instant, then warm a wider window when the browser is idle.
   useEffect(() => {
     ensureWeek(weekOffset);
-    for (let d = -2; d <= 2; d++) {
+    for (const d of [-1, 1]) {
       const off = weekOffset + d;
-      if (d === 0 || Math.abs(off) > PAGE_SPAN) continue;
-      if (!pagesRef.current[off]) ensureWeek(off);
+      if (Math.abs(off) <= PAGE_SPAN) ensureWeek(off);
     }
+
+    const warmFurtherWeeks = () => {
+      for (const d of [-2, 2]) {
+        const off = weekOffset + d;
+        if (Math.abs(off) <= PAGE_SPAN) ensureWeek(off);
+      }
+    };
+    const idleApi = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    let cancelWarm: () => void;
+    if (typeof idleApi.requestIdleCallback === 'function') {
+      const idleId = idleApi.requestIdleCallback(warmFurtherWeeks, { timeout: 1200 });
+      cancelWarm = () => idleApi.cancelIdleCallback?.(idleId);
+    } else {
+      const timeoutId = window.setTimeout(warmFurtherWeeks, 250);
+      cancelWarm = () => window.clearTimeout(timeoutId);
+    }
+    return () => {
+      cancelWarm();
+    };
   }, [weekOffset, ensureWeek]);
 
   // ── Clock / layout ─────────────────────────────────────────────────────────
