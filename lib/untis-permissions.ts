@@ -7,6 +7,7 @@
 
 import { webUntisHeaders } from './server-session';
 import type { Session } from './types';
+import { containsParentRoleTag } from './account-classification';
 
 export const WEBUNTIS_BASE =
   process.env.WEBUNTIS_BASE_URL || 'https://lbs-brixen.webuntis.com/WebUntis';
@@ -34,14 +35,11 @@ const ABSENCE_RIGHTS = (
   .map((s) => s.trim().toUpperCase())
   .filter(Boolean);
 
-// Tokens in the app-data that indicate a guardian/parent account. Overridable
-// via env so it works across WebUntis instances/locales out of the box.
-const PARENT_ROLES = (
-  process.env.WEBUNTIS_PARENT_ROLE ||
-  'PARENT,GUARDIAN,LEGAL_GUARDIAN,LEGALGUARDIAN,ERZIEHUNGSBERECHTIGT,PARENT_ROLE,PERSONTYPE_PARENT'
-)
+// Additional instance-specific parent tags. Built-in markers (including the
+// actual "Elternaccount" tag) always remain active when this is configured.
+const ADDITIONAL_PARENT_ROLES = (process.env.WEBUNTIS_PARENT_ROLE ?? '')
   .split(',')
-  .map((s) => s.trim().toUpperCase())
+  .map((s) => s.trim())
   .filter(Boolean);
 
 // DEV override: allow the feature even without the right (e.g. to test the flow
@@ -84,9 +82,7 @@ export function detectAbsenceRight(json: unknown): boolean {
 }
 
 export function detectParent(json: unknown): boolean {
-  const strs = new Set<string>();
-  collectStrings(json, strs);
-  return PARENT_ROLES.some((r) => strs.has(r));
+  return containsParentRoleTag(json, ADDITIONAL_PARENT_ROLES);
 }
 
 // Best-effort parent/guardian check from a session (used at login to hide the

@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { encryptSession } from '@/lib/session-crypto';
 import { fetchAppData, detectParent, extractChildStudentId, extractImageUrl } from '@/lib/untis-permissions';
+import {
+  accountClassForRole,
+  findStudentClassIdInData,
+  normalizedPositiveId,
+  resolveOwnStudentClassId,
+  studentClassId,
+  type WebUntisStudentClass,
+} from '@/lib/account-classification';
 
 const BASE = process.env.WEBUNTIS_BASE_URL ?? process.env.WEBUNTIS_BASE ?? 'https://lbs-brixen.webuntis.com/WebUntis';
 const SCHOOL = process.env.WEBUNTIS_SCHOOL ?? 'lbs-brixen';
@@ -51,7 +59,9 @@ async function deriveKlasseIdFromTimetable(
   const iso = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
   const now = new Date();
-  const startYear = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+  // The backend archives the old school year on August 1, so August already
+  // samples the upcoming September instead of reassigning last year's class.
+  const startYear = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
   const samples: Date[] = [new Date()];
   for (const m of [9, 10, 11, 12]) samples.push(new Date(startYear, m - 1, 15));
   for (const m of [1, 2, 3, 4, 5, 6]) samples.push(new Date(startYear + 1, m - 1, 15));
@@ -68,7 +78,8 @@ async function deriveKlasseIdFromTimetable(
       const name = extractClassNameFromTimetable(JSON.parse(text));
       if (name) {
         const match = klassen.find((k) => k.name?.toLowerCase() === name.toLowerCase());
-        if (match && match.id > 0) return match.id;
+        const matchId = normalizedPositiveId(match?.id);
+        if (matchId > 0) return matchId;
       }
     } catch {
       /* try next sample */
@@ -176,7 +187,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { personId: studentId, klasseId, personType } = rpcJson.result;
+    const { personId: rawStudentId, klasseId: rawKlasseId, personType } = rpcJson.result;
+    const studentId = normalizedPositiveId(rawStudentId);
+    const klasseId = normalizedPositiveId(rawKlasseId);
 
     // 2+3+4. Fetch bearer token, class name and the accessible students in parallel.
     const cookie = `JSESSIONID=${sessionId}; schoolname="${SCHOOL_COOKIE}"`;
@@ -204,21 +217,21 @@ export async function POST(req: NextRequest) {
         signal: AbortSignal.timeout(10000),
       })
         .then((r) => r.json())
-        .then((sj) => (Array.isArray(sj.result) ? (sj.result as Array<{ id: number; klasseId?: number }>) : []))
+        .then((sj) => (Array.isArray(sj.result) ? (sj.result as WebUntisStudentClass[]) : []))
         .catch(() => []),
     ]);
 
     // Class name resolved from the final klasseId once it's known (see below).
-    let klasseName = klassen.find((k) => k.id === klasseId)?.name ?? '';
+    let klasseName = klassen.find((k) => normalizedPositiveId(k.id) === klasseId)?.name ?? '';
 
     // Resolve the effective student. For a normal student login the logged-in
     // person IS a student (their id appears in getStudents). Guardian/other logins
     // need app-data to detect the parent role and resolve the child's student id.
     let resolvedStudentId = studentId;
-    let resolvedKlasseId = klasseId;
+    let resolvedKlasseId = resolveOwnStudentClassId(klasseId, studentId, students);
     let isParent = false;
     let imageUrl: string | undefined;
-    const isStudentSelf = students.some((s) => s.id === studentId);
+    const isStudentSelf = students.some((student) => normalizedPositiveId(student.id) === studentId);
 
     // Fetch app-data once here, where the WebUntis session is freshest — this is
     // the most reliable moment to read the profile-image URL (a later, separate
@@ -230,18 +243,29 @@ export async function POST(req: NextRequest) {
     ]);
     const appJson = 'ok' in appData && appData.ok ? appData.json : null;
 
-    if (!isStudentSelf) {
-      if (students.length) {
-        resolvedStudentId = students[0].id;
-        if (students[0].klasseId) resolvedKlasseId = students[0].klasseId;
-      }
-      if (appJson) {
-        isParent = detectParent(appJson);
-        if (!students.length) {
-          const childId = extractChildStudentId(appJson, studentId);
-          if (childId) resolvedStudentId = childId;
-        }
-      }
+    // Parent detection must not depend on getStudents: some WebUntis responses
+    // contain an id collision that makes a guardian look like the student.
+    if (appJson) isParent = detectParent(appJson);
+
+    if (isParent) {
+      const childId = appJson ? extractChildStudentId(appJson, studentId) : null;
+      const child = students.find((entry) => normalizedPositiveId(entry.id) === childId)
+        ?? students.find((entry) => normalizedPositiveId(entry.id) !== studentId)
+        ?? students[0];
+      if (childId) resolvedStudentId = childId;
+      else if (child) resolvedStudentId = normalizedPositiveId(child.id);
+      const childKlasseId = studentClassId(child);
+      if (childKlasseId > 0) resolvedKlasseId = childKlasseId;
+    } else if (!isStudentSelf && students.length) {
+      const accessibleStudent = students[0];
+      resolvedStudentId = normalizedPositiveId(accessibleStudent.id);
+      const accessibleKlasseId = studentClassId(accessibleStudent);
+      if (accessibleKlasseId > 0) resolvedKlasseId = accessibleKlasseId;
+    }
+
+    if (resolvedKlasseId <= 0 && appJson) {
+      const appDataKlasseId = findStudentClassIdInData(appJson, resolvedStudentId);
+      if (appDataKlasseId > 0) resolvedKlasseId = appDataKlasseId;
     }
 
     // Guardians (and students whose `authenticate` returned klasseId 0): the
@@ -258,7 +282,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Final class name from the resolved klasseId.
-    klasseName = klassen.find((k) => k.id === resolvedKlasseId)?.name ?? klasseName;
+    klasseName = klassen.find((k) => normalizedPositiveId(k.id) === resolvedKlasseId)?.name ?? klasseName;
+    // The encrypted WebUntis session may retain a child's class because its
+    // endpoints need it. The parent account itself must expose/store no class.
+    const accountClass = accountClassForRole(isParent, resolvedKlasseId, klasseName);
+    const accountKlasseId = accountClass.klasseId;
+    const accountKlasseName = accountClass.klasseName;
 
     // Diagnostic (no secrets) — shows exactly how the class was resolved in prod logs.
     console.log('[login] resolved', JSON.stringify({
@@ -275,7 +304,7 @@ export async function POST(req: NextRequest) {
     const encrypted = await encryptSession(sessionData);
 
     // 5. Non-sensitive user data for client (loginAt lets the client set a proactive expiry timer)
-    const userPublic = JSON.stringify({ username, studentId: resolvedStudentId, klasseId: resolvedKlasseId, klasseName, personType, isParent, loginAt: Date.now(), isUntisUser: true });
+    const userPublic = JSON.stringify({ username, studentId: resolvedStudentId, klasseId: accountKlasseId, klasseName: accountKlasseName, personType, isParent, loginAt: Date.now(), isUntisUser: true });
 
     // Register/login user with the Node.js backend.
     // pokyhSynced tells the client whether the POKYH session layer was refreshed
@@ -291,17 +320,12 @@ export async function POST(req: NextRequest) {
           'X-Server-Key': process.env.API_SERVER_KEY ?? '',
           'X-API-Key': process.env.API_BACKEND_KEY ?? '',
         },
-        // Parents are auto-assigned (invisibly) to their child's class — send the
-        // resolved child klasseId and the parent role so the backend creates a
-        // parent account (own todos, sees class name, no reminders, hidden member).
-        // klasseId is coerced to a non-negative number (0 = no class) so the
-        // backend never gets undefined/NaN and rejects a valid login with 422.
+        // Parent accounts are never assigned to their child's class. The
+        // backend repeats this normalization as the authoritative safeguard.
         body: JSON.stringify({
           username,
-          klasseId: Number.isFinite(Number(resolvedKlasseId)) && Number(resolvedKlasseId) > 0
-            ? Number(resolvedKlasseId)
-            : 0,
-          klasseName: klasseName ?? '',
+          klasseId: accountKlasseId,
+          klasseName: accountKlasseName,
           role: isParent ? 'parent' : 'student',
         }),
         signal: AbortSignal.timeout(10000),
@@ -317,7 +341,7 @@ export async function POST(req: NextRequest) {
           // pockyh_api_token cookie always carries a fresh, valid token. Returning
           // it without tokens (as before) left the client with an expired token →
           // /auth/me 401 → loginWithSession retried forever.
-          const res = NextResponse.json({ ok: true, pokyhSynced, username, studentId: resolvedStudentId, klasseId: resolvedKlasseId, klasseName });
+          const res = NextResponse.json({ ok: true, pokyhSynced, username, studentId: resolvedStudentId, klasseId: accountKlasseId, klasseName: accountKlasseName });
           res.cookies.set('pockyh_session', encrypted, COOKIE_OPTS);
           res.cookies.set('pockyh_user', userPublic, { ...COOKIE_OPTS, httpOnly: false });
           res.cookies.set('pockyh_api_token', backendData.token, {
@@ -349,7 +373,7 @@ export async function POST(req: NextRequest) {
     // still see timetable/grades, but pokyhSynced=false tells the client NOT to
     // dispatch pockyh-session-refreshed (which would re-run loginWithSession →
     // /auth/me 401 → infinite loop) and NOT to keep stale POKYH cookies around.
-    const resFallback = NextResponse.json({ ok: true, pokyhSynced, username, studentId: resolvedStudentId, klasseId: resolvedKlasseId, klasseName });
+    const resFallback = NextResponse.json({ ok: true, pokyhSynced, username, studentId: resolvedStudentId, klasseId: accountKlasseId, klasseName: accountKlasseName });
     resFallback.cookies.set('pockyh_session', encrypted, COOKIE_OPTS);
     resFallback.cookies.set('pockyh_user', userPublic, { ...COOKIE_OPTS, httpOnly: false });
     return resFallback;

@@ -51,7 +51,7 @@ touch the browser.
 - ✉️ **Nachrichten** — WebUntis message center (inbox / sent / drafts, attachments)
 - ✅ **To-dos** — personal tasks, realtime-synced across devices
 - 🔔 **Erinnerungen** — class-wide reminders with threaded comments
-- 👪 **Eltern-Accounts** — guardians log in and are auto-assigned (invisibly) to their child's class
+- 👪 **Eltern-Accounts** — guardians retain access to their child's WebUntis data but receive no Pokyh class assignment
 - 📲 **PWA** — installable, offline-aware, Web Push notifications
 - 🔐 **Passkey/credential** save for frictionless re-login
 

@@ -105,9 +105,8 @@ export default function Sidebar() {
   const [logoHref, setLogoHref] = useState('/');
   useEffect(() => { if (isPWA()) setLogoHref('/home'); }, []);
 
-  // Parent/guardian accounts have their own todos + see the class name, but get
-  // no class reminders → hide only reminders.
-  const HIDDEN_FOR_PARENT = ['/reminders'];
+  // Parent/guardian accounts have their own todos but no Pokyh class assignment.
+  const HIDDEN_FOR_PARENT = ['/class', '/reminders'];
   const navGroups = user?.isParent
     ? NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => !HIDDEN_FOR_PARENT.includes(i.href)) }))
     : NAV_GROUPS;
