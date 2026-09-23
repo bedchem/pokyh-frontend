@@ -38,14 +38,16 @@ function formatTime(t: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+// m is real clock time spent in lessons (breaks are never counted), so it is shown in 60-minute
+// hours: Mo 07:50–16:45 minus 1h 15m of breaks is 7h 40m, not "9h 10m" in 50-minute units.
 function formatMinutes(m: number): string {
-  const h = Math.floor(m / 50);
-  const min = m % 50;
+  const h = Math.floor(m / 60);
+  const min = m % 60;
   return min === 0 ? `${h}h` : `${h}h ${min}m`;
 }
 
 function roundHours(m: number): string {
-  return `${Math.round(m / 50)}h`;
+  return `${Math.round(m / 60)}h`;
 }
 
 // ─── Timetable helpers for exact absence minutes ───────────────────────────────

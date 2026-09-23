@@ -10,6 +10,7 @@ import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
 import EmptyView from '@/components/ui/EmptyView';
 import CommentSection from '@/components/ui/CommentSection';
+import GuestCommentsLock from '@/components/ui/GuestCommentsLock';
 import { fetchMensa } from '@/lib/api';
 import type { Dish } from '@/lib/types';
 import { useApp } from '@/providers/AppProvider';
@@ -74,6 +75,18 @@ function avgRating(ratings: Record<string, number>): number {
   const vals = Object.values(ratings);
   if (!vals.length) return 0;
   return vals.reduce((a, b) => a + b, 0) / vals.length;
+}
+
+async function loadMenuGroups(): Promise<GroupedDishes[]> {
+  const raw = await fetchMensa();
+  const r = raw as Record<string, unknown>;
+  const dishes: Dish[] = Array.isArray(raw)
+    ? (raw as Dish[])
+    : ((r?.menu as Record<string, unknown>)?.dishes as Dish[]) ??
+      (r?.dishes as Dish[]) ??
+      (r?.data as Dish[]) ??
+      [];
+  return groupDishes(dishes);
 }
 
 interface GroupedDishes {
@@ -518,16 +531,30 @@ function DishDetail({
 
           {/* Comments */}
           <div className="rounded-xl p-4" style={{ background: 'var(--app-card)' }}>
-            <CommentSection
-              comments={comments}
-              stableUid={stableUid}
-              isAdmin={isAdmin}
-              loading={commentsLoading}
-              onAdd={(body) => api.dishComments.create(dish.id, body).then(refreshComments)}
-              onEdit={(commentId, body) => api.dishComments.update(dish.id, commentId, body).then(refreshComments)}
-              onDelete={(commentId) => api.dishComments.delete(dish.id, commentId).then(refreshComments)}
-              onRequireLogin={isGuest ? requireLogin : undefined}
-            />
+            {isGuest ? (
+              <GuestCommentsLock loginHref={LOGIN_HREF}>
+                <CommentSection
+                  comments={comments}
+                  stableUid={null}
+                  isAdmin={false}
+                  loading={commentsLoading}
+                  onAdd={() => Promise.resolve()}
+                  onEdit={() => Promise.resolve()}
+                  onDelete={() => Promise.resolve()}
+                  onRequireLogin={requireLogin}
+                />
+              </GuestCommentsLock>
+            ) : (
+              <CommentSection
+                comments={comments}
+                stableUid={stableUid}
+                isAdmin={isAdmin}
+                loading={commentsLoading}
+                onAdd={(body) => api.dishComments.create(dish.id, body).then(refreshComments)}
+                onEdit={(commentId, body) => api.dishComments.update(dish.id, commentId, body).then(refreshComments)}
+                onDelete={(commentId) => api.dishComments.delete(dish.id, commentId).then(refreshComments)}
+              />
+            )}
           </div>
 
           <div className="h-4" />
@@ -557,28 +584,27 @@ export default function MensaPage() {
   // prevents double-fetch when both stableUid and groups become available together
   const ratingsFetched = useRef(false);
 
-  const loadMenu = useCallback(async () => {
+  // Bumped by the retry button; initial state is already "loading", so the
+  // effect itself never has to reset anything synchronously.
+  const [menuRequest, setMenuRequest] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadMenuGroups()
+      .then((g) => { if (!cancelled) setGroups(g); })
+      .catch((e: unknown) => {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Fehler beim Laden der Speisekarte');
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [menuRequest]);
+
+  const retryMenu = useCallback(() => {
     setLoading(true);
     setError('');
     ratingsFetched.current = false;
-    try {
-      const raw = await fetchMensa();
-      const r = raw as Record<string, unknown>;
-      const dishes: Dish[] = Array.isArray(raw)
-        ? (raw as Dish[])
-        : ((r?.menu as Record<string, unknown>)?.dishes as Dish[]) ??
-          (r?.dishes as Dish[]) ??
-          (r?.data as Dish[]) ??
-          [];
-      setGroups(groupDishes(dishes));
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Fehler beim Laden der Speisekarte');
-    } finally {
-      setLoading(false);
-    }
+    setMenuRequest((n) => n + 1);
   }, []);
-
-  useEffect(() => { loadMenu(); }, [loadMenu]);
 
   // Fetch ratings in batch once the menu is loaded AND stableUid is available
   // (guests fetch the anonymized ratings without waiting for a stableUid).
@@ -623,7 +649,7 @@ export default function MensaPage() {
   const menu = loading ? (
             <div className="flex justify-center py-16"><Spinner size={28} /></div>
           ) : error ? (
-            <ErrorView message={error} onRetry={loadMenu} />
+            <ErrorView message={error} onRetry={retryMenu} />
           ) : groups.length === 0 ? (
             <EmptyView
               icon={<Utensils size={56} color="var(--app-text-primary)" />}
