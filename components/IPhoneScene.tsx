@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useEffect, RefObject } from 'react';
+import { loadIphoneGlb } from '@/lib/iphone-glb';
 
 // ── Screen texture (needs DOM canvas API — must stay on main thread) ──────────
 function rrect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
@@ -119,9 +120,12 @@ export default function IPhoneScene({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const onReadyRef = useRef(onReady);
-  onReadyRef.current = onReady;
   const onGlbProgressRef = useRef(onGlbProgress);
-  onGlbProgressRef.current = onGlbProgress;
+  // Keep the latest callbacks without re-running the scene effect.
+  useEffect(() => {
+    onReadyRef.current = onReady;
+    onGlbProgressRef.current = onGlbProgress;
+  });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -147,7 +151,9 @@ export default function IPhoneScene({
       Promise.all([
         loadBitmap('/models/white.webp'),
         loadBitmap('/models/dark.webp'),
-      ]).then(([lightScreenBitmap, darkScreenBitmap]) => {
+        // Shared, preloaded download; null → worker fetches the URL itself.
+        loadIphoneGlb().catch(() => null),
+      ]).then(([lightScreenBitmap, darkScreenBitmap, glb]) => {
         if (!active || !canvasRef.current) return; // effect was cleaned up before promise resolved
 
         const offscreen = (canvasRef.current as HTMLCanvasElement & { transferControlToOffscreen: () => OffscreenCanvas })
@@ -172,9 +178,10 @@ export default function IPhoneScene({
         const noReducedMotion = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         const { clientWidth: width, clientHeight: height } = canvasRef.current!;
 
-        // Transfer offscreen canvas + both screen bitmaps (all transferable)
+        // Transfer offscreen canvas + both screen bitmaps. The GLB buffer is copied
+        // (not transferred) so the shared download stays usable for a remount.
         worker.postMessage(
-          { type: 'init', canvas: offscreen, lightScreenBitmap, darkScreenBitmap, dark, noReducedMotion, width, height, dpr: window.devicePixelRatio },
+          { type: 'init', canvas: offscreen, lightScreenBitmap, darkScreenBitmap, glb, dark, noReducedMotion, width, height, dpr: window.devicePixelRatio },
           [offscreen, lightScreenBitmap, darkScreenBitmap],
         );
 

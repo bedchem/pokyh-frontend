@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { preload } from 'react-dom';
 import Link from 'next/link';
 import LoadingCover from '@/components/LoadingCover';
+import { IPHONE_GLB_URL, loadIphoneGlb, onIphoneGlbProgress } from '@/lib/iphone-glb';
 import LandingNav from '@/components/LandingNav';
 import LandingFooter from '@/components/LandingFooter';
 import WeekGrid from '@/app/[lang]/timetable/WeekGrid';
@@ -13,9 +15,12 @@ import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { landingDict, type LandingKey } from '@/lib/i18n/dictionaries/landing';
 import { rich } from '@/lib/i18n/rich';
 
-// Three.js worker bundle + 5MB GLB — never block initial paint.
-// Chunk is preloaded on idle; GLB is prefetched via fetch() before user scrolls.
-const IPhoneScene = dynamic(() => import('@/components/IPhoneScene'), { ssr: false });
+// Three.js worker bundle + ~0.9MB meshopt GLB — never block initial paint.
+// GLB is preloaded from <head> and handed to the worker (lib/iphone-glb).
+const IPhoneScene = dynamic(() => import('@/components/IPhoneScene'), {
+  ssr: false,
+  loading: () => <div className="lp-phone-canvas lp-phone-skeleton" aria-hidden="true" />,
+});
 
 // Sample week rendered with the real timetable grid, so the tile always shows the
 // current timetable design. A fixed week keeps server and client output identical.
@@ -180,43 +185,32 @@ function reveal(td: number) {
 }
 
 export default function LandingClient() {
+  // Emits <link rel="preload"> into the SSR <head> so the GLB download starts
+  // with the HTML, before hydration. crossOrigin matches the worker's fetch mode.
+  preload(IPHONE_GLB_URL, { as: 'fetch', crossOrigin: 'anonymous', fetchPriority: 'high' });
   const t = useT(landingDict);
   const localize = useLocalizeHref();
   const phoneStageRef   = useRef<HTMLDivElement>(null);
   // Scroll progress for Three.js — updated on scroll, never triggers re-render
   const progressRef     = useRef<number>(0);
-  // GLB download progress (0→1) — written by IPhoneScene, read by LoadingCover each rAF
+  // GLB download progress (0→1) — written by lib/iphone-glb, read by LoadingCover each rAF
   const glbProgressRef  = useRef<number>(0);
-  // Three.js scene only renders after browser is idle (after LCP is done)
-  const [sceneReady, setSceneReady] = useState(false);
   // Tile-cover loader — dismissed when the 3D scene's first frame with the model renders
   const [pageLoading, setPageLoading]         = useState(true);
   const [sceneFirstFrame, setSceneFirstFrame] = useState(false);
 
 
-  /* Kick off chunk + asset prefetch immediately, but **delay** mounting the 3D
-     scene until after the unfold-in animation has played. Mounting earlier causes
-     visible jank — buildScreenCanvas() blocks the main thread for ~30ms and the
-     worker's WebGL/PMREM init pushes GPU commands that contend with the
-     compositor running the unfold animation. */
+  /* Load everything *during* the loading cover so the phone is fully rendered by
+     the time the last tiles clear — no extra wait before scroll/click unlock. */
   useEffect(() => {
-    (IPhoneScene as any).preload?.();
-    const assets = [
-      '/models/iphone.glb',
-      '/draco/gltf/draco_wasm_wrapper.js',
-      '/draco/gltf/draco_decoder.wasm',
-      '/models/white.webp',
-      '/models/dark.webp',
-    ];
-    for (const url of assets) {
-      fetch(url, { priority: 'low' } as RequestInit).catch(() => {});
-    }
-    // Mount the scene after the origami unfold has fully landed (~750ms).
-    const t = setTimeout(() => setSceneReady(true), 750);
+    (IPhoneScene as unknown as { preload?: () => void }).preload?.();
+    // Picks up the <head> preload; progress drives the loading cover's tiles.
+    const unsub = onIphoneGlbProgress((v) => { glbProgressRef.current = Math.max(glbProgressRef.current, v); });
+    loadIphoneGlb().catch(() => {});
     // Safety net: if onReady never fires (WebGL unavailable, worker crash, slow load),
     // force the loader to dismiss after 8 s so scroll is never permanently locked.
     const fallback = setTimeout(() => setSceneFirstFrame(true), 8000);
-    return () => { clearTimeout(t); clearTimeout(fallback); };
+    return () => { unsub(); clearTimeout(fallback); };
   }, []);
 
   /* Lock the body scroll while the loader is up. Using a class on <html> means
@@ -320,10 +314,7 @@ export default function LandingClient() {
             onReady fires after the worker renders the first frame containing the model,
             which is the signal LandingClient uses to fade the loader out. */}
         <div className="lp-phone-stage" ref={phoneStageRef}>
-          {sceneReady
-            ? <IPhoneScene progressRef={progressRef} className="lp-phone-canvas" onReady={() => setSceneFirstFrame(true)} onGlbProgress={(v) => { glbProgressRef.current = v; }} />
-            : <div className="lp-phone-canvas lp-phone-skeleton" aria-hidden="true" />
-          }
+          <IPhoneScene progressRef={progressRef} className="lp-phone-canvas" onReady={() => setSceneFirstFrame(true)} onGlbProgress={(v) => { glbProgressRef.current = Math.max(glbProgressRef.current, v); }} />
         </div>
       </header>
 

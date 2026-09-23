@@ -3,7 +3,8 @@
 import type { RefObject } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader }  from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import { IPHONE_GLB_URL } from './iphone-glb';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
 function rrect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
@@ -117,9 +118,9 @@ export function startScene(canvas: HTMLCanvasElement, progressRef: RefObject<num
   }
   loader.load('/models/white.webp', (tex) => { sharpTex(tex); lightTex = tex; applyScreen(); });
   loader.load('/models/dark.webp',  (tex) => { sharpTex(tex); darkTex  = tex; applyScreen(); });
-  const draco = new DRACOLoader(); draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
-  const gltf = new GLTFLoader(); gltf.setDRACOLoader(draco);
-  gltf.load('/models/iphone.glb', (g) => {
+  // Model is meshopt-compressed; the decoder is bundled JS, so no extra fetch.
+  const gltf = new GLTFLoader(); gltf.setMeshoptDecoder(MeshoptDecoder);
+  gltf.load(IPHONE_GLB_URL, (g) => {
     const model = g.scene;
     const box = new THREE.Box3().setFromObject(model);
     const sz = box.getSize(new THREE.Vector3()); const ct = box.getCenter(new THREE.Vector3());
@@ -154,5 +155,5 @@ export function startScene(canvas: HTMLCanvasElement, progressRef: RefObject<num
     if (phone && !firstFrameReported) { firstFrameReported = true; onReady?.(); }
   }
   frame();
-  return () => { cancelAnimationFrame(rafId); ro.disconnect(); moObs.disconnect(); renderer.dispose(); screenTex.dispose(); draco.dispose(); timer.dispose(); };
+  return () => { cancelAnimationFrame(rafId); ro.disconnect(); moObs.disconnect(); renderer.dispose(); screenTex.dispose();timer.dispose(); };
 }

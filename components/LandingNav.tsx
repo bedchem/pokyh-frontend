@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useLocalizeHref, useRoutePath, useT } from '@/providers/LocaleProvider';
 import { navDict, type NavKey } from '@/lib/i18n/dictionaries/nav';
@@ -14,12 +14,32 @@ const NAV_LINKS: { label: NavKey; href: string }[] = [
   { label: 'comparison', href: '/comparison' },
 ];
 
+// Keep in sync with the full-nav breakpoint in landing.css.
+const FULL_NAV_QUERY = '(min-width: 920px)';
+
 function MensaIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" />
       <path d="M7 2v20" />
       <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7" />
+    </svg>
+  );
+}
+
+function SunIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+    </svg>
+  );
+}
+
+function MoonIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
     </svg>
   );
 }
@@ -31,6 +51,14 @@ export default function LandingNav() {
   const t = useT(navDict);
   const localize = useLocalizeHref();
   const { resolved, toggleWithRipple } = useTheme();
+
+  // Close the drawer once the window is wide enough that the hamburger disappears.
+  useEffect(() => {
+    const mq = window.matchMedia(FULL_NAV_QUERY);
+    const onChange = () => { if (mq.matches) setMobileOpen(false); };
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
 
   return (
     <>
@@ -56,10 +84,18 @@ export default function LandingNav() {
                   </Link>
                 );
               })}
+              <Link
+                href={localize('/mensa')}
+                className={`lp-nav-link lp-nav-link-mensa ${pathname === '/mensa' ? 'active' : ''}`}
+                aria-label={t('viewMensaMenu')}
+              >
+                <MensaIcon />
+                {t('mensa')}
+              </Link>
             </div>
           </div>
 
-          {/* Right: theme toggle + Anmelden + CTA */}
+          {/* Right: theme toggle + language + Anmelden + CTA */}
           <div className="lp-nav-right">
             <input
               id="lp-theme-toggle"
@@ -85,15 +121,7 @@ export default function LandingNav() {
                 </svg>
               </div>
             </label>
-            <LanguageMenu />
-            <Link
-              href={localize('/mensa')}
-              className={`lp-nav-mensa ${pathname === '/mensa' ? 'active' : ''}`}
-              aria-label={t('viewMensaMenu')}
-            >
-              <MensaIcon />
-              <span className="lp-nav-mensa-label">{t('mensa')}</span>
-            </Link>
+            <LanguageMenu className="lp-nav-lang" />
             <Link href={localize('/login')} className="lp-nav-login">{t('login')}</Link>
             <Link href={localize('/get')} className="lp-nav-get">GET POKYH</Link>
           </div>
@@ -117,6 +145,19 @@ export default function LandingNav() {
         <>
           <div className="lp-mobile-nav-overlay open" onClick={close} />
           <div className="lp-mobile-nav-drawer open">
+            {/* Only what the bar can't show at this width (see landing.css) */}
+            <div className="lp-mobile-nav-settings">
+              <button
+                type="button"
+                className="lp-mobile-nav-theme"
+                onClick={(e) => toggleWithRipple(e)}
+              >
+                {resolved === 'dark' ? <SunIcon /> : <MoonIcon />}
+                {resolved === 'dark' ? t('lightMode') : t('darkMode')}
+              </button>
+              <LanguageMenu className="lp-mobile-nav-lang" />
+            </div>
+            <div className="lp-mobile-nav-sep" />
             <Link href={localize('/mensa')} className="lp-mobile-nav-item lp-mobile-nav-mensa" onClick={close}>
               <MensaIcon />
               {t('mensaMenu')}

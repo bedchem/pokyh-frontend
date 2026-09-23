@@ -1,8 +1,9 @@
 /// <reference lib="webworker" />
 
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import { IPHONE_GLB_URL } from '../lib/iphone-glb';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -49,6 +50,7 @@ function initScene(data: {
   canvas: OffscreenCanvas;
   lightScreenBitmap: ImageBitmap;
   darkScreenBitmap: ImageBitmap;
+  glb?: ArrayBuffer | null;
   dark: boolean;
   noReducedMotion: boolean;
   width: number;
@@ -138,14 +140,11 @@ function initScene(data: {
   }
 
   // Load the GLB model
-  const draco = new DRACOLoader();
-  draco.setDecoderPath('/draco/gltf/');
+  // Model is meshopt-compressed; the decoder is bundled JS, so no extra fetch.
   const gltfLoader = new GLTFLoader();
-  gltfLoader.setDRACOLoader(draco);
+  gltfLoader.setMeshoptDecoder(MeshoptDecoder);
 
-  gltfLoader.load(
-    '/models/iphone.glb',
-    (gltf) => {
+  const onModel = (gltf: GLTF) => {
       // Signal 100% to LoadingCover (handles the no-Content-Length case too)
       self.postMessage({ type: 'glbProgress', value: 1 });
       const model = gltf.scene;
@@ -174,13 +173,23 @@ function initScene(data: {
           mat.needsUpdate = true;
         }
       });
-    },
-    (progress) => {
-      const pct = progress.total > 0 ? progress.loaded / progress.total : 0;
-      if (pct > 0 && pct < 1) self.postMessage({ type: 'glbProgress', value: pct });
-    },
-    (err) => console.error('[IPhoneWorker] GLB load error', err),
-  );
+  };
+  const onError = (err: unknown) => console.error('[IPhoneWorker] GLB load error', err);
+
+  if (data.glb) {
+    // Bytes were already downloaded (and preloaded) by the main thread.
+    gltfLoader.parse(data.glb, '/models/', onModel, onError);
+  } else {
+    gltfLoader.load(
+      IPHONE_GLB_URL,
+      onModel,
+      (progress) => {
+        const pct = progress.total > 0 ? progress.loaded / progress.total : 0;
+        if (pct > 0 && pct < 1) self.postMessage({ type: 'glbProgress', value: pct });
+      },
+      onError,
+    );
+  }
 
   // Timer (THREE.Timer works in workers)
   timerObj = new THREE.Timer();
