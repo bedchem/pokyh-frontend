@@ -1,44 +1,49 @@
-import { AlertTriangle, WifiOff, Lock, RefreshCw } from 'lucide-react';
+'use client';
 
-// Maps any internal error to a short, user-readable German message.
+import { AlertTriangle, WifiOff, Lock, RefreshCw } from 'lucide-react';
+import { useT } from '@/providers/LocaleProvider';
+import { commonDict, type CommonKey } from '@/lib/i18n/dictionaries/common';
+
+// Maps any internal error to a short, user-readable message.
 // Never exposes status codes, endpoints, env var names or stack details.
-function classifyError(message: string): { icon: React.ReactNode; title: string; detail: string } {
+function classifyError(message: string): { icon: React.ReactNode; title: CommonKey; detail: CommonKey } {
   const m = (message || '').toLowerCase();
 
   if (m.includes('session') || m.includes('login') || m.includes('auth') || m.includes('unauthorized') || m.includes('angemeldet')) {
     return {
       icon: <Lock size={44} color="var(--warning)" strokeWidth={1.5} />,
-      title: 'Sitzung abgelaufen',
-      detail: 'Bitte melde dich erneut an.',
+      title: 'errSessionTitle',
+      detail: 'errSessionDetail',
     };
   }
 
   if (m.includes('network') || m.includes('fetch') || m.includes('offline') || m.includes('verbindung') || m.includes('timeout') || m.includes('econnrefused')) {
     return {
       icon: <WifiOff size={44} color="var(--app-text-tertiary)" strokeWidth={1.5} />,
-      title: 'Keine Verbindung',
-      detail: 'Überprüfe deine Internetverbindung und versuche es erneut.',
+      title: 'errOfflineTitle',
+      detail: 'errOfflineDetail',
     };
   }
 
   // Everything else (incl. 5xx, WebUntis upstream errors): generic, friendly.
   return {
     icon: <AlertTriangle size={44} color="var(--warning)" strokeWidth={1.5} />,
-    title: 'Daten konnten nicht geladen werden',
-    detail: 'WebUntis ist gerade nicht erreichbar. Bitte versuche es später erneut.',
+    title: 'errGenericTitle',
+    detail: 'errGenericDetail',
   };
 }
 
 export default function ErrorView({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  const t = useT(commonDict);
   const { icon, title, detail } = classifyError(message);
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-16 px-8 text-center">
       {icon}
       <p className="text-base font-semibold" style={{ color: 'var(--app-text-primary)' }}>
-        {title}
+        {t(title)}
       </p>
       <p className="text-sm" style={{ color: 'var(--app-text-secondary)' }}>
-        {detail}
+        {t(detail)}
       </p>
       {onRetry && (
         <button
@@ -47,7 +52,7 @@ export default function ErrorView({ message, onRetry }: { message: string; onRet
           style={{ background: 'var(--accent)', color: '#fff' }}
         >
           <RefreshCw size={14} />
-          Erneut versuchen
+          {t('retry')}
         </button>
       )}
     </div>

@@ -1,16 +1,19 @@
 'use client';
 
 import { SlidersHorizontal } from 'lucide-react';
+import { useT } from '@/providers/LocaleProvider';
+import { commonDict } from '@/lib/i18n/dictionaries/common';
 
 export const COOKIE_SETTINGS_EVENT = 'pokyh-open-cookie-settings';
 
 export function CookieSettingsButton({
-  label = 'Cookie-Einstellungen öffnen',
+  label,
   compact = false,
 }: {
   label?: string;
   compact?: boolean;
 }) {
+  const t = useT(commonDict);
   return (
     <button
       type="button"
@@ -19,7 +22,7 @@ export function CookieSettingsButton({
       style={compact ? { color: 'var(--accent)' } : { color: 'var(--app-text-secondary)', background: 'var(--app-card)', border: '1px solid var(--app-border)' }}
     >
       <SlidersHorizontal size={compact ? 14 : 15} />
-      {label}
+      {label ?? t('cookieOpenSettings')}
     </button>
   );
 }

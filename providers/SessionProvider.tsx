@@ -1,5 +1,6 @@
 'use client';
 
+import { stripLocale } from '@/lib/i18n/locale';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { logout as apiLogout } from '@/lib/api';
 import { clearSessionCredentials } from '@/lib/passkey';
@@ -69,7 +70,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         .catch(() => {})
         .finally(() => {
           const p = window.location.pathname;
-          if (p !== '/login') {
+          if (stripLocale(p) !== '/login') {
             window.location.replace('/login');
           }
         });

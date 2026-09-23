@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useT } from '@/providers/LocaleProvider';
+import { uiDict } from '@/lib/i18n/dictionaries/ui';
 import type { RefObject } from 'react';
 
 const VIO = '#4930a3';
@@ -70,6 +72,7 @@ interface Props {
 }
 
 export default function LoadingCover({ glbProgressRef, sceneReady, onDone }: Props) {
+  const t = useT(uiDict);
   const [mounted,  setMounted]  = useState(false);
   const [progress, setProgress] = useState(0);
   const [logoOp,   setLogoOp]   = useState(1);
@@ -196,7 +199,7 @@ export default function LoadingCover({ glbProgressRef, sceneReady, onDone }: Pro
     return (
       <div
         role="status"
-        aria-label="POKYH lädt"
+        aria-label={t('loadingPokyh')}
         style={{ position: 'fixed', inset: 0, zIndex: 9999, background: VIO, contain: 'strict' }}
       >
         {logoDiv}
@@ -233,7 +236,7 @@ export default function LoadingCover({ glbProgressRef, sceneReady, onDone }: Pro
   return (
     <div
       role="status"
-      aria-label="POKYH lädt"
+      aria-label={t('loadingPokyh')}
       style={{
         position: 'fixed', inset: 0, zIndex: 9999,
         contain: 'strict',

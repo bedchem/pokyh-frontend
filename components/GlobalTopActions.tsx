@@ -1,10 +1,10 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { useRoutePath } from '@/providers/LocaleProvider';
 import TopActions from './TopActions';
 
 export default function GlobalTopActions() {
-  const pathname = usePathname();
+  const pathname = useRoutePath();
   if (pathname === '/login') return null;
 
   return (

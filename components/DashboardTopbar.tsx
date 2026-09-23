@@ -1,35 +1,45 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { useEffect } from 'react';
+import { useRoutePath, useT } from '@/providers/LocaleProvider';
+import { navDict, type NavKey } from '@/lib/i18n/dictionaries/nav';
 import { MobileMenuButton } from './Sidebar';
 import TopActions from './TopActions';
 
-const ROUTE_TITLES: Record<string, string> = {
-  '/home':           'Dashboard',
-  '/class':          'Klasse',
-  '/timetable':      'Stundenplan',
-  '/grades':         'Noten',
-  '/messages':       'Nachrichten',
-  '/mensa':          'Mensa',
-  '/absences':       'Abwesenheiten',
-  '/classregevents': 'Klassenbuch',
-  '/reminders':      'Erinnerungen',
-  '/todos':          'Todos',
-  '/school':         'Schule',
-  '/profile':        'Profil',
+const ROUTE_TITLES: Record<string, NavKey> = {
+  '/home':           'dashboard',
+  '/class':          'class',
+  '/timetable':      'timetable',
+  '/grades':         'grades',
+  '/messages':       'messages',
+  '/mensa':          'mensa',
+  '/absences':       'absences',
+  '/classregevents': 'classregevents',
+  '/reminders':      'reminders',
+  '/todos':          'todos',
+  '/school':         'school',
+  '/profile':        'profile',
 };
 
-function getTitle(pathname: string): string {
+function getTitleKey(pathname: string): NavKey | null {
   if (ROUTE_TITLES[pathname]) return ROUTE_TITLES[pathname];
   for (const [route, title] of Object.entries(ROUTE_TITLES)) {
     if (pathname.startsWith(route + '/')) return title;
   }
-  return 'POKYH';
+  return null;
 }
 
 export default function DashboardTopbar() {
-  const pathname = usePathname();
-  const title = getTitle(pathname);
+  const pathname = useRoutePath();
+  const t = useT(navDict);
+  const titleKey = getTitleKey(pathname);
+  const title = titleKey ? t(titleKey) : 'POKYH';
+
+  // App pages are client components without their own metadata, so the tab
+  // title follows the page title in the current language.
+  useEffect(() => {
+    if (titleKey) document.title = `${title} | POKYH`;
+  }, [titleKey, title]);
 
   return (
     <header

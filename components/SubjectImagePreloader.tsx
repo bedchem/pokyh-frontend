@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useSession } from '@/providers/SessionProvider';
 import { fetchTimetable } from '@/lib/api';
 import { preloadSubjectImages } from '@/lib/subject-image-preload';
-import { isoDate, mondayOf, parseTimetable } from '@/app/timetable/timetable-logic';
+import { isoDate, mondayOf, parseTimetable } from '@/app/[lang]/timetable/timetable-logic';
 
 const REFRESH_MS = 6 * 60 * 60 * 1000;
 

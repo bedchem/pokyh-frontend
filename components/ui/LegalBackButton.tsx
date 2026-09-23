@@ -3,15 +3,19 @@
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { isPWA } from '@/lib/pwa';
+import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
+import { commonDict } from '@/lib/i18n/dictionaries/common';
 
-export default function LegalBackButton({ label = 'Zurück', fallbackUrl }: { label?: string; fallbackUrl?: string }) {
+export default function LegalBackButton({ label, fallbackUrl }: { label?: string; fallbackUrl?: string }) {
   const router = useRouter();
+  const t = useT(commonDict);
+  const localize = useLocalizeHref();
 
   function handleBack() {
     if (window.history.length > 1) {
       router.back();
     } else {
-      router.replace(fallbackUrl || (isPWA() ? '/home' : '/'));
+      router.replace(localize(fallbackUrl || (isPWA() ? '/home' : '/')));
     }
   }
 
@@ -27,7 +31,7 @@ export default function LegalBackButton({ label = 'Zurück', fallbackUrl }: { la
       }}
     >
       <ArrowLeft size={15} />
-      {label}
+      {label ?? t('back')}
     </button>
   );
 }

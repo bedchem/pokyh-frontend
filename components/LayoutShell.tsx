@@ -1,6 +1,7 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useRoutePath } from '@/providers/LocaleProvider';
 import { useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { isPWA } from '@/lib/pwa';
@@ -19,7 +20,7 @@ const LANDING_EXACT = ['/', '/login', '/legal', '/howto', '/about', '/faq', '/co
 const LANDING_PREFIX = ['/get'];
 
 export default function LayoutShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+  const pathname = useRoutePath();
   const router = useRouter();
   const { user, isLoading } = useSession();
 

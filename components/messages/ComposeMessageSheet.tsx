@@ -5,6 +5,9 @@ import { X, Send, ChevronRight, Check, Loader2, Pencil, Paperclip, FileText } fr
 import RecipientPicker from './RecipientPicker';
 import { fetchRecipients, sendMessage, saveDraft, deleteDraft } from '@/lib/api';
 import type { MessageRecipient } from '@/lib/types';
+import { useT } from '@/providers/LocaleProvider';
+import { messagesDict } from '@/lib/i18n/dictionaries/messages';
+import { commonDict } from '@/lib/i18n/dictionaries/common';
 
 export interface ComposeInitial {
   draftId?: number;
@@ -42,6 +45,8 @@ function initialsOf(name: string): string {
 // creates a fresh message and removes the old draft (WebUntis mints a new draft
 // id on every save, so this mirrors its own behaviour).
 export default function ComposeMessageSheet({ onClose, onSent, initial }: Props) {
+  const t = useT(messagesDict);
+  const tc = useT(commonDict);
   const [view, setView] = useState<View>('form');
   const [recipients, setRecipients] = useState<MessageRecipient[]>([]);
   const [recipientsErr, setRecipientsErr] = useState('');
@@ -72,7 +77,7 @@ export default function ComposeMessageSheet({ onClose, onSent, initial }: Props)
     let alive = true;
     fetchRecipients()
       .then((r) => { if (alive) setRecipients(r.recipients ?? []); })
-      .catch((e) => { if (alive) setRecipientsErr(e instanceof Error ? e.message : 'Fehler'); });
+      .catch((e) => { if (alive) setRecipientsErr(e instanceof Error ? e.message : 'error'); });
     return () => { alive = false; };
   }, []);
 
@@ -106,9 +111,9 @@ export default function ComposeMessageSheet({ onClose, onSent, initial }: Props)
 
   async function send() {
     if (sending) return;
-    if (selected.length === 0) { setError('Bitte mindestens eine Lehrkraft wählen.'); return; }
-    if (!subject.trim()) { setError('Bitte einen Betreff eingeben.'); return; }
-    if (!content.trim()) { setError('Bitte einen Text eingeben.'); return; }
+    if (selected.length === 0) { setError(t('errPickTeacher')); return; }
+    if (!subject.trim()) { setError(t('errSubject')); return; }
+    if (!content.trim()) { setError(t('errText')); return; }
 
     setSending(true);
     setError('');
@@ -124,7 +129,7 @@ export default function ComposeMessageSheet({ onClose, onSent, initial }: Props)
       setSuccess(true);
       setTimeout(() => { onSent?.(); onClose(); }, 950);
     } catch (e) {
-      setError(errMessage(e, 'Die Nachricht konnte nicht gesendet werden. Bitte versuche es später erneut.'));
+      setError(errMessage(e, t('errSend')));
       setSending(false);
     }
   }
@@ -132,7 +137,7 @@ export default function ComposeMessageSheet({ onClose, onSent, initial }: Props)
   async function storeDraft() {
     if (savingDraft || sending) return;
     if (!subject.trim() && !content.trim() && selected.length === 0 && files.length === 0 && existingAttachments.length === 0) {
-      setError('Bitte gib einen Betreff, Text, Empfänger oder Anhang an.');
+      setError(t('errDraftEmpty'));
       return;
     }
     setSavingDraft(true);
@@ -148,7 +153,7 @@ export default function ComposeMessageSheet({ onClose, onSent, initial }: Props)
       setDraftSaved(true);
       setTimeout(() => { onSent?.(); onClose(); }, 950);
     } catch (e) {
-      setError(errMessage(e, 'Der Entwurf konnte nicht gespeichert werden. Bitte versuche es später erneut.'));
+      setError(errMessage(e, t('errDraftSave')));
       setSavingDraft(false);
     }
   }
@@ -166,10 +171,10 @@ export default function ComposeMessageSheet({ onClose, onSent, initial }: Props)
 
   const recipientLabel =
     selected.length === 0
-      ? (recipientsErr ? 'Nicht verfügbar' : 'Wählen')
+      ? (recipientsErr ? t('unavailable') : t('choose'))
       : selected.length === 1
         ? selected[0].name
-        : `${selected.length} Empfänger`;
+        : t('nRecipients', { n: selected.length });
 
   return (
     <div
@@ -190,19 +195,19 @@ export default function ComposeMessageSheet({ onClose, onSent, initial }: Props)
             onClick={onClose}
             className="w-9 h-9 flex items-center justify-center rounded-full press-scale"
             style={{ background: 'var(--app-card)', color: 'var(--app-text-secondary)' }}
-            aria-label="Schließen"
+            aria-label={tc('close')}
           >
             <X size={18} />
           </button>
           <h3 className="text-[16px] font-bold" style={{ color: 'var(--app-text-primary)' }}>
-            {draftId != null ? 'Entwurf bearbeiten' : 'Mitteilung an Lehrkraft'}
+            {draftId != null ? t('editDraft') : t('composeTitle')}
           </h3>
           <button
             onClick={send}
             disabled={sending || success}
             className="w-9 h-9 flex items-center justify-center rounded-full press-scale disabled:opacity-50"
             style={{ background: success ? 'var(--tint)' : 'var(--accent)', color: '#fff' }}
-            aria-label="Senden"
+            aria-label={t('send')}
           >
             {sending ? <Loader2 size={18} className="animate-spin" /> : success ? <Check size={18} /> : <Send size={17} />}
           </button>
@@ -215,7 +220,7 @@ export default function ComposeMessageSheet({ onClose, onSent, initial }: Props)
             className="w-full flex items-center justify-between gap-3 px-4 py-3.5 rounded-2xl press-scale mb-3 text-left"
             style={{ background: 'var(--app-card)' }}
           >
-            <span className="text-[15px] font-medium flex-shrink-0" style={{ color: 'var(--app-text-primary)' }}>An</span>
+            <span className="text-[15px] font-medium flex-shrink-0" style={{ color: 'var(--app-text-primary)' }}>{t('toLabel')}</span>
             <span className="flex items-center gap-1 min-w-0">
               <span className="text-[14px] truncate" style={{ color: selected.length ? 'var(--app-text-secondary)' : 'var(--app-text-tertiary)' }}>
                 {recipientLabel}
@@ -229,7 +234,7 @@ export default function ComposeMessageSheet({ onClose, onSent, initial }: Props)
             <input
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              placeholder="Betreff"
+              placeholder={t('subject')}
               maxLength={255}
               className="w-full bg-transparent outline-none text-[15px] font-medium"
               style={{ color: 'var(--app-text-primary)' }}
@@ -241,7 +246,7 @@ export default function ComposeMessageSheet({ onClose, onSent, initial }: Props)
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="Text hier eingeben"
+              placeholder={t('textPlaceholder')}
               rows={8}
               maxLength={10000}
               className="w-full bg-transparent outline-none resize-none text-[15px]"
@@ -273,7 +278,7 @@ export default function ComposeMessageSheet({ onClose, onSent, initial }: Props)
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[14px] truncate" style={{ color: 'var(--app-text-primary)' }}>{a.name}</p>
-                    <p className="text-[12px]" style={{ color: 'var(--app-text-tertiary)' }}>Im Entwurf gespeichert</p>
+                    <p className="text-[12px]" style={{ color: 'var(--app-text-tertiary)' }}>{t('savedInDraft')}</p>
                   </div>
                 </div>
               ))}
@@ -302,7 +307,7 @@ export default function ComposeMessageSheet({ onClose, onSent, initial }: Props)
                     disabled={sending || savingDraft || success || draftSaved}
                     className="w-7 h-7 flex items-center justify-center rounded-full press-scale flex-shrink-0 disabled:opacity-50"
                     style={{ background: 'var(--app-surface)', color: 'var(--app-text-secondary)' }}
-                    aria-label={`${f.name} entfernen`}
+                    aria-label={t('removeFile', { name: f.name })}
                   >
                     <X size={15} />
                   </button>
@@ -319,7 +324,7 @@ export default function ComposeMessageSheet({ onClose, onSent, initial }: Props)
             style={{ background: 'var(--app-card)', color: 'var(--app-text-secondary)' }}
           >
             <Paperclip size={15} />
-            Anhang hinzufügen
+            {t('addAttachment')}
           </button>
 
           {/* Save as draft */}
@@ -330,12 +335,12 @@ export default function ComposeMessageSheet({ onClose, onSent, initial }: Props)
             style={{ background: 'var(--app-card)', color: 'var(--app-text-secondary)' }}
           >
             {savingDraft ? <Loader2 size={16} className="animate-spin" /> : <Pencil size={15} />}
-            Als Entwurf speichern
+            {t('saveDraft')}
           </button>
 
           {recipientsErr && (
             <p className="text-[12px] px-1 mb-2" style={{ color: 'var(--warning)' }}>
-              Empfänger konnten gerade nicht geladen werden. Bitte versuche es später erneut.
+              {t('recipientsLoadFailed')}
             </p>
           )}
           {error && (
@@ -345,12 +350,12 @@ export default function ComposeMessageSheet({ onClose, onSent, initial }: Props)
           )}
           {success && (
             <div className="rounded-xl px-4 py-3 text-[13px] flex items-center gap-2" style={{ background: 'color-mix(in srgb, var(--tint) 14%, var(--app-card))', color: 'var(--tint)' }}>
-              <Check size={16} /> Nachricht gesendet.
+              <Check size={16} /> {t('messageSent')}
             </div>
           )}
           {draftSaved && (
             <div className="rounded-xl px-4 py-3 text-[13px] flex items-center gap-2" style={{ background: 'color-mix(in srgb, var(--tint) 14%, var(--app-card))', color: 'var(--tint)' }}>
-              <Check size={16} /> Entwurf gespeichert.
+              <Check size={16} /> {t('draftSaved')}
             </div>
           )}
         </div>

@@ -3,6 +3,8 @@
 import { useMemo, useState } from 'react';
 import { ChevronLeft, Search, Check } from 'lucide-react';
 import type { MessageRecipient } from '@/lib/types';
+import { useT } from '@/providers/LocaleProvider';
+import { messagesDict } from '@/lib/i18n/dictionaries/messages';
 
 interface Props {
   recipients: MessageRecipient[];
@@ -15,6 +17,7 @@ interface Props {
 // grouped into Klassenlehrkraft / Andere, multi-select with avatar initials.
 export default function RecipientPicker({ recipients, selectedIds, onToggle, onBack }: Props) {
   const [query, setQuery] = useState('');
+  const t = useT(messagesDict);
   const sel = new Set(selectedIds);
 
   const { classTeachers, others } = useMemo(() => {
@@ -91,19 +94,19 @@ export default function RecipientPicker({ recipients, selectedIds, onToggle, onB
             onClick={onBack}
             className="w-9 h-9 flex items-center justify-center rounded-full press-scale flex-shrink-0"
             style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)' }}
-            aria-label="Fertig"
+            aria-label={t('done')}
           >
             <ChevronLeft size={18} />
           </button>
           <h3 className="flex-1 text-[17px] font-bold" style={{ color: 'var(--app-text-primary)' }}>
-            Empfänger
+            {t('recipients')}
           </h3>
           <button
             onClick={onBack}
             className="text-[14px] font-semibold press-scale"
             style={{ color: 'var(--accent)' }}
           >
-            Fertig{selectedIds.length ? ` (${selectedIds.length})` : ''}
+            {t('done')}{selectedIds.length ? ` (${selectedIds.length})` : ''}
           </button>
         </div>
 
@@ -115,7 +118,7 @@ export default function RecipientPicker({ recipients, selectedIds, onToggle, onB
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Lehrkraft suchen…"
+              placeholder={t('searchTeacher')}
               className="flex-1 bg-transparent outline-none text-[14px]"
               style={{ color: 'var(--app-text-primary)' }}
             />
@@ -126,13 +129,12 @@ export default function RecipientPicker({ recipients, selectedIds, onToggle, onB
         <div className="flex-1 overflow-y-auto px-2 pb-6">
           {recipients.length === 0 ? (
             <p className="text-center text-[13px] py-10 px-6 leading-relaxed" style={{ color: 'var(--app-text-tertiary)' }}>
-              Empfänger werden geladen … falls dauerhaft leer, sind für dieses Konto keine
-              Empfänger verfügbar.
+              {t('recipientsLoading')}
             </p>
           ) : (
             <>
-              <Group title="Klassenlehrkraft" items={classTeachers} />
-              <Group title="Andere" items={others} />
+              <Group title={t('classTeacher')} items={classTeachers} />
+              <Group title={t('others')} items={others} />
             </>
           )}
         </div>

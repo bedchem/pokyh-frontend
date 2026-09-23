@@ -3,6 +3,9 @@
 import { useMemo, useState } from 'react';
 import { ChevronLeft, Search, Check } from 'lucide-react';
 import type { AbsenceReason } from '@/lib/types';
+import { useT } from '@/providers/LocaleProvider';
+import { absencesDict } from '@/lib/i18n/dictionaries/absences';
+import { commonDict } from '@/lib/i18n/dictionaries/common';
 
 interface Props {
   reasons: AbsenceReason[];
@@ -14,6 +17,8 @@ interface Props {
 // Full-screen reason chooser (modelled on the WebUntis "Abwesenheitsgrund" list).
 export default function ReasonPicker({ reasons, value, onSelect, onBack }: Props) {
   const [query, setQuery] = useState('');
+  const t = useT(absencesDict);
+  const tc = useT(commonDict);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -40,12 +45,12 @@ export default function ReasonPicker({ reasons, value, onSelect, onBack }: Props
             onClick={onBack}
             className="w-9 h-9 flex items-center justify-center rounded-full press-scale flex-shrink-0"
             style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)' }}
-            aria-label="Zurück"
+            aria-label={tc('back')}
           >
             <ChevronLeft size={18} />
           </button>
           <h3 className="text-[17px] font-bold" style={{ color: 'var(--app-text-primary)' }}>
-            Abwesenheitsgrund
+            {t('reasonTitle')}
           </h3>
         </div>
 
@@ -60,7 +65,7 @@ export default function ReasonPicker({ reasons, value, onSelect, onBack }: Props
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Grund suchen…"
+              placeholder={t('searchReason')}
               className="flex-1 bg-transparent outline-none text-[14px]"
               style={{ color: 'var(--app-text-primary)' }}
             />
@@ -71,7 +76,7 @@ export default function ReasonPicker({ reasons, value, onSelect, onBack }: Props
         <div className="flex-1 overflow-y-auto px-3 pb-6">
           {filtered.length === 0 ? (
             <p className="text-center text-[13px] py-10" style={{ color: 'var(--app-text-tertiary)' }}>
-              Keine Gründe gefunden.
+              {t('noReasons')}
             </p>
           ) : (
             filtered.map((r) => {

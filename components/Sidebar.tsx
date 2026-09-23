@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useLocalizeHref, useRoutePath, useT } from '@/providers/LocaleProvider';
+import { navDict, type NavKey } from '@/lib/i18n/dictionaries/nav';
 import { useEffect, useState } from 'react';
 import { isPWA } from '@/lib/pwa';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -14,30 +15,30 @@ import { useSidebar } from '@/providers/SidebarProvider';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useSession } from '@/providers/SessionProvider';
 
-const NAV_GROUPS = [
+const NAV_GROUPS: { label: NavKey; items: { href: string; label: NavKey; Icon: typeof Home }[] }[] = [
   {
-    label: 'Übersicht',
+    label: 'groupOverview',
     items: [
-      { href: '/home',  label: 'Dashboard', Icon: Home },
-      { href: '/class', label: 'Klasse',    Icon: Users },
+      { href: '/home',  label: 'dashboard', Icon: Home },
+      { href: '/class', label: 'class', Icon: Users },
     ],
   },
   {
-    label: 'Unterricht',
+    label: 'groupLessons',
     items: [
-      { href: '/timetable',      label: 'Stundenplan',      Icon: Calendar },
-      { href: '/grades',         label: 'Noten',            Icon: BarChart2 },
-      { href: '/absences',       label: 'Abwesenheiten',    Icon: UserX },
-      { href: '/classregevents', label: 'Klassenbuch',      Icon: BookOpen },
+      { href: '/timetable',      label: 'timetable', Icon: Calendar },
+      { href: '/grades',         label: 'grades', Icon: BarChart2 },
+      { href: '/absences',       label: 'absences', Icon: UserX },
+      { href: '/classregevents', label: 'classregevents', Icon: BookOpen },
     ],
   },
   {
-    label: 'Mehr',
+    label: 'groupMore',
     items: [
-      { href: '/mensa',     label: 'Mensa',        Icon: Utensils },
-      { href: '/messages',  label: 'Nachrichten',  Icon: MessageCircle },
-      { href: '/reminders', label: 'Erinnerungen', Icon: Bell },
-      { href: '/todos',     label: 'Todos',        Icon: CheckSquare },
+      { href: '/mensa',     label: 'mensa', Icon: Utensils },
+      { href: '/messages',  label: 'messages', Icon: MessageCircle },
+      { href: '/reminders', label: 'reminders', Icon: Bell },
+      { href: '/todos',     label: 'todos', Icon: CheckSquare },
     ],
   },
 ];
@@ -101,7 +102,9 @@ export default function Sidebar() {
   const { collapsed, mobileOpen, toggle, closeMobile } = useSidebar();
   const { resolved, toggleWithRipple } = useTheme();
   const { user } = useSession();
-  const pathname = usePathname();
+  const pathname = useRoutePath();
+  const t = useT(navDict);
+  const localize = useLocalizeHref();
   const [logoHref, setLogoHref] = useState('/');
   useEffect(() => { if (isPWA()) setLogoHref('/home'); }, []);
 
@@ -115,7 +118,7 @@ export default function Sidebar() {
     <div className="flex flex-col h-full py-4">
       {/* Logo — clickable, goes to root or /home on PWA */}
       <Link
-        href={logoHref}
+        href={localize(logoHref)}
         onClick={closeMobile}
         className={`flex items-center px-4 mb-6 flex-shrink-0 press-scale ${isCollapsed ? 'justify-center' : ''}`}
       >
@@ -135,15 +138,15 @@ export default function Sidebar() {
           <div key={group.label} className={gi > 0 ? 'mt-3' : ''}>
             {!isCollapsed && (
               <p className="px-3 mb-0.5 text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--app-text-tertiary)' }}>
-                {group.label}
+                {t(group.label)}
               </p>
             )}
             <div className="flex flex-col gap-0.5">
               {group.items.map(({ href, label, Icon }) => (
                 <NavItem
                   key={href}
-                  href={href}
-                  label={label}
+                  href={localize(href)}
+                  label={t(label)}
                   Icon={Icon}
                   active={pathname === href || pathname.startsWith(href + '/')}
                   collapsed={isCollapsed}
@@ -158,8 +161,8 @@ export default function Sidebar() {
       {/* Bottom */}
       <div className="px-3 mt-2 flex flex-col gap-0.5 flex-shrink-0">
         <NavItem
-          href="/profile"
-          label="Profil"
+          href={localize('/profile')}
+          label={t('profile')}
           Icon={User}
           active={pathname === '/profile'}
           collapsed={isCollapsed}
@@ -181,7 +184,7 @@ export default function Sidebar() {
           }
           {!isCollapsed && (
             <span className="text-sm font-medium truncate leading-none">
-              {resolved === 'dark' ? 'Dark Mode' : 'White Mode'}
+              {resolved === 'dark' ? t('darkMode') : t('lightMode')}
             </span>
           )}
           {isCollapsed && (
@@ -189,13 +192,13 @@ export default function Sidebar() {
               className="pointer-events-none absolute left-full ml-2 z-50 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-medium shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
               style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)', border: '1px solid var(--app-border)' }}
             >
-              {resolved === 'dark' ? 'Dark Mode' : 'White Mode'}
+              {resolved === 'dark' ? t('darkMode') : t('lightMode')}
             </div>
           )}
         </button>
         <NavItem
-          href="/legal"
-          label="Rechtliches"
+          href={localize('/legal')}
+          label={t('legal')}
           Icon={Scale}
           active={pathname === '/legal'}
           collapsed={isCollapsed}
@@ -214,7 +217,7 @@ export default function Sidebar() {
             ? <ChevronRight size={16} strokeWidth={2} />
             : <ChevronLeft size={16} strokeWidth={2} />
           }
-          {!isCollapsed && <span className="text-xs font-medium">Einklappen</span>}
+          {!isCollapsed && <span className="text-xs font-medium">{t('collapse')}</span>}
         </button>
       </div>
     </div>

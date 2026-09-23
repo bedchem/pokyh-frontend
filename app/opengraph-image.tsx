@@ -78,7 +78,7 @@ export default async function Image() {
         </div>
 
         {/* URL */}
-        <p style={{ fontSize: 20, color: '#3d4055', marginTop: 48 }}>pokyh.app</p>
+        <p style={{ fontSize: 20, color: '#3d4055', marginTop: 48 }}>pokyh.com</p>
       </div>
     ),
     { ...size },

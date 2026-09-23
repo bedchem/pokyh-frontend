@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Megaphone, X } from 'lucide-react';
 import { fetchDuePopups, isDue, markSeen, type ActivePopup, type PopupAudience } from '@/lib/popups';
+import { useT } from '@/providers/LocaleProvider';
+import { uiDict } from '@/lib/i18n/dictionaries/ui';
+import { commonDict } from '@/lib/i18n/dictionaries/common';
 
 // Shows admin announcement popups one at a time, for signed-in users inside
 // the app and for guests on the public pages (the admin picks the audience).
@@ -13,6 +16,8 @@ const RECHECK_MS = 10 * 60 * 1000;
 
 export default function AnnouncementPopup({ audience }: { audience: PopupAudience }) {
   const [queue, setQueue] = useState<ActivePopup[]>([]);
+  const t = useT(uiDict);
+  const tc = useT(commonDict);
   const lastCheck = useRef(0);
   const current = queue[0];
 
@@ -82,7 +87,7 @@ export default function AnnouncementPopup({ audience }: { audience: PopupAudienc
             onClick={dismiss}
             className="w-9 h-9 flex items-center justify-center rounded-full press-scale flex-shrink-0"
             style={{ background: 'var(--app-card)', color: 'var(--app-text-secondary)' }}
-            aria-label="Schließen"
+            aria-label={tc('close')}
           >
             <X size={18} />
           </button>
@@ -98,7 +103,7 @@ export default function AnnouncementPopup({ audience }: { audience: PopupAudienc
             className="w-full h-11 rounded-xl press-scale text-[15px] font-semibold"
             style={{ background: 'var(--accent)', color: '#fff' }}
           >
-            {queue.length > 1 ? `Weiter (${queue.length - 1})` : 'Verstanden'}
+            {queue.length > 1 ? t('next', { n: queue.length - 1 }) : t('gotIt')}
           </button>
         </div>
       </div>

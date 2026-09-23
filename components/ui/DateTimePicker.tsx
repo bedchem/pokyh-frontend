@@ -2,6 +2,10 @@
 
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useDateLocale, useLocale, useT } from '@/providers/LocaleProvider';
+import { uiDict } from '@/lib/i18n/dictionaries/ui';
+import { commonDict } from '@/lib/i18n/dictionaries/common';
+import { dayAbbrMonSun, formatDate } from '@/lib/i18n/dateLocale';
 
 interface Props {
   value: string; // "YYYY-MM-DDTHH:MM" or ""
@@ -13,11 +17,6 @@ interface Props {
   minDateTime?: string;
 }
 
-const MONTH_NAMES = [
-  'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
-  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
-];
-const DAY_ABBR = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
 function toDs(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -39,6 +38,11 @@ function parseGermanDate(raw: string): string | null {
 }
 
 export default function DateTimePicker({ value, onChange, onBack, minDateTime }: Props) {
+  const t = useT(uiDict);
+  const tc = useT(commonDict);
+  const { locale } = useLocale();
+  const { tag } = useDateLocale();
+  const DAY_ABBR = dayAbbrMonSun(locale);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayDs = toDs(today);
@@ -126,7 +130,7 @@ export default function DateTimePicker({ value, onChange, onBack, minDateTime }:
   let preview = '';
   if (selDate && timeValid) {
     const d = new Date(`${selDate}T${timeText}`);
-    preview = d.toLocaleDateString('de', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + ', ' + timeText + ' Uhr';
+    preview = t('dtPreview', { date: formatDate(d, tag, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), time: timeText });
   }
 
   return (
@@ -146,12 +150,12 @@ export default function DateTimePicker({ value, onChange, onBack, minDateTime }:
             onClick={onBack}
             className="w-9 h-9 flex items-center justify-center rounded-full press-scale flex-shrink-0"
             style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)' }}
-            aria-label="Zurück"
+            aria-label={tc('back')}
           >
             <ChevronLeft size={18} />
           </button>
           <h3 className="text-[17px] font-bold" style={{ color: 'var(--app-text-primary)' }}>
-            Datum & Uhrzeit
+            {t('dtTitle')}
           </h3>
         </div>
 
@@ -160,7 +164,7 @@ export default function DateTimePicker({ value, onChange, onBack, minDateTime }:
           {/* Date */}
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-wider mb-3 px-0.5" style={{ color: 'var(--app-text-tertiary)' }}>
-              Datum
+              {t('dtDate')}
             </p>
 
             {/* Month nav */}
@@ -173,7 +177,7 @@ export default function DateTimePicker({ value, onChange, onBack, minDateTime }:
                 <ChevronLeft size={17} />
               </button>
               <span className="text-[15px] font-semibold" style={{ color: 'var(--app-text-primary)' }}>
-                {MONTH_NAMES[viewMonth]} {viewYear}
+                {formatDate(new Date(viewYear, viewMonth, 1), tag, { month: 'long', year: 'numeric' })}
               </span>
               <button
                 onClick={nextMonth}
@@ -237,7 +241,7 @@ export default function DateTimePicker({ value, onChange, onBack, minDateTime }:
             <div className="mt-3">
               <input
                 type="text"
-                placeholder="TT.MM.JJJJ"
+                placeholder={t('dtDatePlaceholder')}
                 value={dateText}
                 onChange={e => handleDateText(e.target.value)}
                 maxLength={10}
@@ -249,7 +253,7 @@ export default function DateTimePicker({ value, onChange, onBack, minDateTime }:
                 }}
               />
               {dateErr && (
-                <p className="text-[11px] mt-1 px-1" style={{ color: 'var(--danger)' }}>Format: TT.MM.JJJJ</p>
+                <p className="text-[11px] mt-1 px-1" style={{ color: 'var(--danger)' }}>{t('dtDateFormat')}</p>
               )}
             </div>
           </div>
@@ -257,7 +261,7 @@ export default function DateTimePicker({ value, onChange, onBack, minDateTime }:
           {/* Time */}
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-wider mb-2 px-0.5" style={{ color: 'var(--app-text-tertiary)' }}>
-              Uhrzeit
+              {t('dtTime')}
             </p>
             <input
               type="text"
@@ -275,11 +279,11 @@ export default function DateTimePicker({ value, onChange, onBack, minDateTime }:
               }}
             />
             {timeErr && (
-              <p className="text-[11px] mt-1 px-1" style={{ color: 'var(--danger)' }}>Format: HH:MM (z.B. 08:30)</p>
+              <p className="text-[11px] mt-1 px-1" style={{ color: 'var(--danger)' }}>{t('dtTimeFormat')}</p>
             )}
             {!timeErr && belowMin && (
               <p className="text-[11px] mt-1 px-1" style={{ color: 'var(--danger)' }}>
-                Das Ende muss nach dem Start liegen.
+                {t('dtEndAfterStart')}
               </p>
             )}
           </div>
@@ -294,7 +298,7 @@ export default function DateTimePicker({ value, onChange, onBack, minDateTime }:
               }}
             >
               <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--accent)' }}>
-                Ausgewählt
+                {t('dtSelected')}
               </p>
               <p className="text-[14px] font-bold" style={{ color: 'var(--app-text-primary)' }}>
                 {preview}
@@ -308,7 +312,7 @@ export default function DateTimePicker({ value, onChange, onBack, minDateTime }:
             className="h-12 rounded-xl font-semibold text-white press-scale disabled:opacity-40 text-[15px]"
             style={{ background: 'var(--accent)' }}
           >
-            Bestätigen
+            {t('dtConfirm')}
           </button>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import type { GradeEntry, SubjectGrades } from './types';
+import { formatDate } from './i18n/dateLocale';
 
 export function parseGrades(json: unknown): SubjectGrades[] {
   try {
@@ -54,19 +55,19 @@ export function fmtDateShort(date: number): string {
   return `${s.slice(6, 8)}.${s.slice(4, 6)}.${s.slice(2, 4)}`;
 }
 
-export function fmtDateLong(date: Date): string {
-  return date.toLocaleDateString('de-CH', {
+export function fmtDateLong(date: Date, tag = 'de-CH'): string {
+  return formatDate(date, tag, {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
   });
 }
 
-export function fmtUntisDateLong(date: number): string {
+export function fmtUntisDateLong(date: number, tag?: string): string {
   const s = String(date);
   if (s.length !== 8) return String(date);
   const d = new Date(Number(s.slice(0, 4)), Number(s.slice(4, 6)) - 1, Number(s.slice(6, 8)));
-  return fmtDateLong(d);
+  return fmtDateLong(d, tag);
 }
 
 export function untisDateToJs(date: number): Date | null {
@@ -80,11 +81,11 @@ export function monthKey(date: number): string {
   return s.slice(0, 6);
 }
 
-export function gradeDisplay(g: GradeEntry): string {
+export function gradeDisplay(g: GradeEntry, examLabel = 'Prüfung'): string {
   const raw = g.text?.trim() || g.markName?.trim() || g.examType?.trim();
   const normalized = (raw ?? '').replace(',', '.').replace(/[−–—]/g, '-').trim();
   const isGradeLike = /^(?:\d{1,2}(?:\.\d{1,2})?[+\-]?|\d{1,2}\/\d{1,2})$/.test(normalized);
-  if (!raw || isGradeLike) return 'Prüfung';
+  if (!raw || isGradeLike) return examLabel;
   return raw;
 }
 

@@ -1,0 +1,776 @@
+'use client';
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ChevronLeft, ChevronDown, CheckCircle, XCircle, UserX, Clock, ClockArrowUp, Plus, CalendarDays } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import AuthGuard from '@/components/AuthGuard';
+import UntisGuard from '@/components/UntisGuard';
+import Spinner from '@/components/ui/Spinner';
+import ErrorView from '@/components/ui/ErrorView';
+import EmptyView from '@/components/ui/EmptyView';
+// Abwesenheit-melden deaktiviert (kein funktionierender WebUntis-Schreib-Endpunkt):
+// import ReportAbsenceSheet from '@/components/absences/ReportAbsenceSheet';
+import { fetchAbsences, fetchTimetable, getAbsencesStale, fetchPermissions } from '@/lib/api';
+import { useSession } from '@/providers/SessionProvider';
+import type { AbsenceEntry } from '@/lib/types';
+import { parseAbsences } from '@/lib/absences';
+import { useLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
+import { absencesDict } from '@/lib/i18n/dictionaries/absences';
+import { monthShort } from '@/lib/i18n/dateLocale';
+
+// ─── Time helpers ─────────────────────────────────────────────────────────────
+
+// Convert WebUntis time value to minutes from midnight.
+// The classreg absences endpoint may return times as minutes-from-midnight
+// (e.g. 475 = 07:55) or as HHMM integers (e.g. 755 = 07:55).
+// Detection: if the last two digits exceed 59, the value cannot be valid HHMM,
+// so it must already be minutes-from-midnight.
+function toMinutes(t: number): number {
+  if (!t) return 0;
+  if (t > 2359) return t; // too large to be HHMM
+  if (t % 100 > 59) return t; // minutes part > 59 → already minutes
+  return Math.floor(t / 100) * 60 + (t % 100);
+}
+
+function formatTime(t: number): string {
+  if (!t) return '';
+  const mins = toMinutes(t);
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+// m is real clock time spent in lessons (breaks are never counted), so it is shown in 60-minute
+// hours: Mo 07:50–16:45 minus 1h 15m of breaks is 7h 40m, not "9h 10m" in 50-minute units.
+function formatMinutes(m: number): string {
+  const h = Math.floor(m / 60);
+  const min = m % 60;
+  return min === 0 ? `${h}h` : `${h}h ${min}m`;
+}
+
+function roundHours(m: number): string {
+  return `${Math.round(m / 60)}h`;
+}
+
+// ─── Timetable helpers for exact absence minutes ───────────────────────────────
+
+type DaySlot = { startMins: number; endMins: number };
+
+// Build a map of dateNum → deduplicated lesson slots from a timetable API response.
+// Only counts non-cancelled entries that have an actual subject (no breaks/free periods).
+function mergeTimetableIntoMap(
+  target: Map<number, Map<number, DaySlot>>,
+  json: unknown,
+): void {
+  try {
+    const root = json as { days?: any[] };
+    if (!root.days) return;
+    for (const day of root.days) {
+      if (!day.gridEntries?.length) continue;
+      const dateNum = parseInt(day.date.replace(/-/g, ''), 10);
+      if (!target.has(dateNum)) target.set(dateNum, new Map());
+      const timeMap = target.get(dateNum)!;
+      for (const ge of day.gridEntries) {
+        if (ge.status === 'CANCELLED') continue;
+        // Skip entries without any subject in position2 (e.g. breaks)
+        const pos2: any[] = ge.position2 ?? [];
+        const hasSub = pos2.some((p: any) => p.current || p.removed);
+        if (!hasSub) continue;
+        const timePart = ge.duration?.start?.split('T')[1];
+        const endPart  = ge.duration?.end?.split('T')[1];
+        if (!timePart || !endPart) continue;
+        const [startH, startM] = timePart.split(':').map(Number);
+        const [endH, endM]     = endPart.split(':').map(Number);
+        const startMins = startH * 60 + startM;
+        const endMins   = endH   * 60 + endM;
+        // Deduplicate by startMins so parallel subjects count as one period
+        if (!timeMap.has(startMins)) {
+          timeMap.set(startMins, { startMins, endMins });
+        }
+      }
+    }
+  } catch { /* ignore malformed responses */ }
+}
+
+// Returns one Monday date-string per calendar week from school-year start (Sep 1) to today.
+function getWeeksForSchoolYear(now: Date, sep: Date): string[] {
+  const dow = sep.getDay();
+  const mon = new Date(sep);
+  mon.setDate(sep.getDate() - (dow === 0 ? 6 : dow - 1));
+  const mondays: string[] = [];
+  const d = new Date(mon);
+  while (d <= now) {
+    mondays.push(
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
+    );
+    d.setDate(d.getDate() + 7);
+  }
+  return mondays;
+}
+
+// Returns one Monday date-string per calendar week that overlaps with any absence.
+function getWeeksForAbsences(absences: AbsenceEntry[]): string[] {
+  const mondays = new Set<string>();
+  function addWeekOf(d: Date) {
+    const dow = d.getDay();
+    const mon = new Date(d);
+    mon.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
+    mondays.add(
+      `${mon.getFullYear()}-${String(mon.getMonth() + 1).padStart(2, '0')}-${String(mon.getDate()).padStart(2, '0')}`,
+    );
+  }
+  for (const entry of absences) {
+    const s = entry.startDate.toString();
+    const e = entry.endDate.toString();
+    const start = new Date(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8));
+    const end   = new Date(+e.slice(0, 4), +e.slice(4, 6) - 1, +e.slice(6, 8));
+    const d = new Date(start);
+    while (d <= end) {
+      addWeekOf(d);
+      d.setDate(d.getDate() + 1);
+    }
+  }
+  return Array.from(mondays);
+}
+
+// Returns the exact lesson minutes for one absence entry by looking up the timetable.
+function calcAbsenceMinutes(
+  entry: AbsenceEntry,
+  dateMap: Map<number, DaySlot[]>,
+): number {
+  let total = 0;
+  const s = entry.startDate.toString();
+  const e = entry.endDate.toString();
+  const start = new Date(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8));
+  const end   = new Date(+e.slice(0, 4), +e.slice(4, 6) - 1, +e.slice(6, 8));
+  const isMultiDay  = entry.startDate !== entry.endDate;
+  const absStartMin = toMinutes(entry.startTime);
+  const absEndMin   = toMinutes(entry.endTime);
+
+  const d = new Date(start);
+  while (d <= end) {
+    const dow = d.getDay();
+    if (dow !== 0 && dow !== 6) {
+      const dateNum = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+      const slots = dateMap.get(dateNum) ?? [];
+      for (const slot of slots) {
+        // Clip the counted duration to the absence window
+        let countStart = slot.startMins;
+        let countEnd   = slot.endMins;
+        if (isMultiDay) {
+          if (absStartMin > 0 && dateNum === entry.startDate) countStart = Math.max(countStart, absStartMin);
+          if (absEndMin   > 0 && dateNum === entry.endDate)   countEnd   = Math.min(countEnd,   absEndMin);
+        } else {
+          if (absStartMin > 0) countStart = Math.max(countStart, absStartMin);
+          if (absEndMin   > 0) countEnd   = Math.min(countEnd,   absEndMin);
+        }
+        if (countEnd > countStart) total += countEnd - countStart;
+      }
+    }
+    d.setDate(d.getDate() + 1);
+  }
+  return total;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatDate(d: number): string {
+  const s = d.toString();
+  return `${s.slice(6, 8)}.${s.slice(4, 6)}.${s.slice(0, 4)}`;
+}
+
+function groupByMonth(
+  entries: AbsenceEntry[],
+  minutesMap: Map<number, number>,
+  months: string[],
+): Array<{ key: string; label: string; entries: AbsenceEntry[]; totalMinutes: number }> {
+  const map = new Map<string, AbsenceEntry[]>();
+  entries.forEach((e) => {
+    const s = e.startDate.toString();
+    const key = `${s.slice(0, 4)}-${s.slice(4, 6)}`;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(e);
+  });
+
+  const result: Array<{
+    key: string;
+    label: string;
+    entries: AbsenceEntry[];
+    totalMinutes: number;
+  }> = [];
+
+  map.forEach((es, key) => {
+    const [year, month] = key.split('-');
+    const label = `${months[parseInt(month) - 1]} ${year}`;
+    const totalMinutes = es.reduce((a, e) => a + (minutesMap.get(e.id) ?? e.hours * 50), 0);
+    result.push({ key, label, entries: es, totalMinutes });
+  });
+
+  return result.sort((a, b) => b.key.localeCompare(a.key));
+}
+
+// ─── Module-level constants ───────────────────────────────────────────────────
+
+const _nowDate = new Date();
+const CURRENT_SCHOOL_YEAR = _nowDate.getMonth() >= 8 ? _nowDate.getFullYear() : _nowDate.getFullYear() - 1;
+const AVAILABLE_YEARS = Array.from({ length: 4 }, (_, i) => CURRENT_SCHOOL_YEAR - i);
+
+// ─── Lokaler Berechnungs-Cache (nur localStorage) ───────────────────────────────
+// Die Fehlstunden-Berechnung (Stundenplan-Abgleich) ist teuer. Wir berechnen sie
+// einmal und cachen das Ergebnis lokal pro Schüler+Jahr — beim nächsten Mal lädt
+// die Seite sofort, ohne den Stundenplan erneut zu holen. Invalidiert automatisch,
+// wenn sich die Anzahl der Abwesenheiten ändert (neue Einträge) oder nach 7 Tagen.
+const CALC_CACHE_PREFIX = 'pockyh_abscalc_';
+const CALC_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
+interface CalcCache { minutes: [number, number][]; possible: number; count: number; ts: number }
+
+function readCalcCache(studentId: number, year: number): { minutes: Map<number, number>; possible: number; count: number } | null {
+  if (!studentId || typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(`${CALC_CACHE_PREFIX}${studentId}_${year}`);
+    if (!raw) return null;
+    const o = JSON.parse(raw) as CalcCache;
+    if (!o || !Array.isArray(o.minutes) || Date.now() - o.ts > CALC_CACHE_TTL) return null;
+    return { minutes: new Map(o.minutes), possible: o.possible, count: o.count };
+  } catch { return null; }
+}
+
+function writeCalcCache(studentId: number, year: number, minutes: Map<number, number>, possible: number, count: number): void {
+  if (!studentId || typeof window === 'undefined') return;
+  try {
+    const payload: CalcCache = { minutes: [...minutes], possible, count, ts: Date.now() };
+    window.localStorage.setItem(`${CALC_CACHE_PREFIX}${studentId}_${year}`, JSON.stringify(payload));
+  } catch { /* Quota/privat — ignorieren */ }
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default function AbsencesPage() {
+  const router = useRouter();
+  const { user } = useSession();
+  const t = useT(absencesDict);
+  const { locale } = useLocale();
+  const localize = useLocalizeHref();
+  const [selectedYear, setSelectedYear] = useState(CURRENT_SCHOOL_YEAR);
+  const [isYearOpen, setIsYearOpen] = useState(false);
+  const yearRef = useRef<HTMLDivElement>(null);
+  const [absences, setAbsences] = useState<AbsenceEntry[]>(() => {
+    const stale = getAbsencesStale(CURRENT_SCHOOL_YEAR);
+    return stale ? parseAbsences(stale) : [];
+  });
+  const [minutesMap, setMinutesMap] = useState<Map<number, number>>(new Map());
+  const [totalPossibleMins, setTotalPossibleMins] = useState(0);
+  const [loading, setLoading] = useState(() => !getAbsencesStale(CURRENT_SCHOOL_YEAR));
+  const [error, setError] = useState('');
+  const [exact, setExact] = useState(false);
+  const [canReport, setCanReport] = useState(false);
+  const [personName, setPersonName] = useState<string | null>(null);
+  const [showReport, setShowReport] = useState(false);
+
+  const fmt = (m: number) => exact ? formatMinutes(m) : roundHours(m);
+
+  const load = useCallback(async () => {
+    if (!getAbsencesStale(selectedYear)) setLoading(true);
+    setError('');
+    try {
+      const res = await fetchAbsences(selectedYear);
+      const parsed = parseAbsences(res);
+      setAbsences(parsed);
+
+      // Schneller Pfad: lokal gecachtes Berechnungs-Ergebnis verwenden, solange
+      // sich die Anzahl der Abwesenheiten nicht geändert hat → kein Stundenplan-Laden.
+      const studentId = user?.studentId ?? 0;
+      const cached = readCalcCache(studentId, selectedYear);
+      if (cached && cached.count === parsed.length) {
+        setMinutesMap(cached.minutes);
+        setTotalPossibleMins(Math.max(1, cached.possible));
+        return; // finally setzt loading=false
+      }
+
+      // Compute school year date range for selected year
+      const sep = new Date(selectedYear, 8, 1); // Sept 1 of selected year
+      const schoolYearEndDate = new Date(selectedYear + 1, 5, 30); // June 30 of next year
+      const now = selectedYear === CURRENT_SCHOOL_YEAR ? new Date() : schoolYearEndDate;
+
+      // Fetch timetable for absence weeks + all school-year weeks (for accurate rate denominator)
+      const allWeeks = Array.from(new Set([...getWeeksForAbsences(parsed), ...getWeeksForSchoolYear(now, sep)]));
+      const weekResults = await Promise.allSettled(allWeeks.map((d) => fetchTimetable(d)));
+
+      // If any timetable fetch was rejected due to session expiry, redirect now.
+      const sessionExpired = weekResults.some(
+        (r) => r.status === 'rejected' && r.reason instanceof Error && r.reason.message === 'session_expired',
+      );
+      if (sessionExpired) {
+        window.location.replace('/login');
+        return;
+      }
+
+      // Merge all weeks into a single date → slots map
+      const rawMap = new Map<number, Map<number, DaySlot>>();
+      weekResults.forEach((r) => {
+        if (r.status === 'fulfilled') mergeTimetableIntoMap(rawMap, r.value);
+      });
+      const dateMap = new Map<number, DaySlot[]>();
+      for (const [date, timeMap] of rawMap.entries()) {
+        dateMap.set(date, Array.from(timeMap.values()));
+      }
+
+      // Calculate exact lesson minutes per absence entry
+      const mins = new Map<number, number>();
+      for (const entry of parsed) {
+        mins.set(entry.id, calcAbsenceMinutes(entry, dateMap));
+      }
+      setMinutesMap(mins);
+
+      // Sum all lesson minutes since school-year start — accounts for Ferien, Feiertage, personal schedule
+      const nowNum = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
+      const sepNum = sep.getFullYear() * 10000 + (sep.getMonth() + 1) * 100 + sep.getDate();
+      let possibleMins = 0;
+      for (const [dateNum, slots] of dateMap.entries()) {
+        if (dateNum >= sepNum && dateNum <= nowNum) {
+          for (const slot of slots) possibleMins += slot.endMins - slot.startMins;
+        }
+      }
+      setTotalPossibleMins(Math.max(1, possibleMins));
+
+      // Ergebnis lokal cachen → nächster Aufruf rendert sofort.
+      writeCalcCache(user?.studentId ?? 0, selectedYear, mins, possibleMins, parsed.length);
+    } catch (e: unknown) {
+      if (e instanceof Error && e.message === 'session_expired') {
+        window.location.replace('/login');
+      } else {
+        setError(e instanceof Error ? e.message : 'Fehler');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [router, selectedYear, user?.studentId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  useEffect(() => {
+    let alive = true;
+    fetchPermissions()
+      .then((p) => {
+        if (!alive) return;
+        setCanReport(!!p.canReportAbsence);
+        setPersonName(p.personName ?? null);
+      })
+      .catch(() => { /* gating stays off on error */ });
+    return () => { alive = false; };
+  }, []);
+
+  useEffect(() => {
+    function onDown(e: MouseEvent) {
+      if (yearRef.current && !yearRef.current.contains(e.target as Node)) setIsYearOpen(false);
+    }
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, []);
+
+  const getMin = (e: AbsenceEntry) => minutesMap.get(e.id) ?? e.hours * 50;
+
+  const totalMinutes    = absences.reduce((a, e) => a + getMin(e), 0);
+  const excusedMinutes  = absences.filter((e) => e.isExcused).reduce((a, e) => a + getMin(e), 0);
+  const unexcusedMinutes = totalMinutes - excusedMinutes;
+
+  const rate      = totalPossibleMins > 0 ? Math.min((totalMinutes / totalPossibleMins) * 100, 100) : 0;
+  const rateColor = rate < 5 ? 'var(--tint)' : rate < 15 ? 'var(--warning)' : 'var(--danger)';
+
+  const groups = groupByMonth(absences, minutesMap, monthShort(locale));
+
+  return (
+    <AuthGuard>
+      <UntisGuard>
+      <div
+        className="h-full flex flex-col"
+        style={{ background: 'var(--app-bg)' }}
+      >
+        {/* Nav */}
+        <div className="px-5 pt-4 pb-4 flex items-center gap-3 fade-in flex-shrink-0" style={{ position: 'relative', zIndex: 10 }}>
+          <button
+            onClick={() => router.back()}
+            className="p-2 rounded-full press-scale"
+            style={{ background: 'var(--app-surface)' }}
+          >
+            <ChevronLeft size={20} color="var(--accent)" />
+          </button>
+          <h1
+            className="flex-1 text-[28px] font-bold tracking-tight"
+            style={{ color: 'var(--app-text-primary)' }}
+          >
+            {t('title')}
+          </h1>
+          {/* Year selector */}
+          <div className="custom-select-container" ref={yearRef}>
+            <button
+              className={`sort-select year-btn${isYearOpen ? ' open' : ''}`}
+              onClick={() => setIsYearOpen(!isYearOpen)}
+              type="button"
+              aria-haspopup="listbox"
+              aria-expanded={isYearOpen}
+            >
+              {selectedYear} / {selectedYear + 1}
+              <ChevronDown
+                size={14}
+                style={{
+                  transform: isYearOpen ? 'rotate(180deg)' : 'none',
+                  transition: 'transform 0.2s',
+                }}
+              />
+            </button>
+            {isYearOpen && (
+              <ul className="custom-select-dropdown fade-in" role="listbox">
+                {AVAILABLE_YEARS.map((y) => (
+                  <li
+                    key={y}
+                    role="option"
+                    aria-selected={selectedYear === y}
+                    className={`custom-select-item${selectedYear === y ? ' selected' : ''}`}
+                    onClick={() => { setSelectedYear(y); setIsYearOpen(false); }}
+                  >
+                    {y} / {y + 1}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <button
+            onClick={() => setExact((v) => !v)}
+            className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium press-scale"
+            style={{
+              background: exact ? 'var(--tint)' : 'transparent',
+              color: exact ? '#fff' : 'var(--tint)',
+              border: exact ? 'none' : '1.5px solid var(--tint)',
+              transition: 'background 0.2s, color 0.2s, border 0.2s',
+            }}
+          >
+            {exact
+              ? <ClockArrowUp size={15} />
+              : <Clock size={15} />}
+            {exact ? t('exact') : t('rounded')}
+          </button>
+          {/* ── Abwesenheit melden (auskommentiert) ─────────────────────────────
+              Deaktiviert, weil WebUntis an dieser Schule keinen funktionierenden
+              Schreib-Endpunkt zum Anlegen einer Abwesenheit bereitstellt
+              (classreg → 403, REST calendar-entry → 500). Zum Reaktivieren einfach
+              wieder einkommentieren (auch den Sheet-Render unten + die Importe).
+          {canReport && (
+            <button
+              onClick={() => setShowReport(true)}
+              className="w-10 h-10 flex items-center justify-center rounded-full press-scale flex-shrink-0"
+              style={{ background: 'var(--accent)', color: '#fff' }}
+              aria-label={t('report')}
+            >
+              <Plus size={20} />
+            </button>
+          )}
+          ──────────────────────────────────────────────────────────────────── */}
+        </div>
+
+        <div className="flex-1 px-4 pb-10 overflow-auto">
+          {loading ? (
+            <div className="flex justify-center py-16">
+              <Spinner size={28} />
+            </div>
+          ) : error ? (
+            <ErrorView message={error} onRetry={load} />
+          ) : (
+            <>
+              {/* Overview card */}
+              <div
+                className="rounded-2xl p-5 mb-4 fade-in delay-1"
+                style={{ background: 'var(--app-surface)' }}
+              >
+                <div className="flex items-center justify-between mb-5">
+                  <div>
+                    <p
+                      className="text-xs"
+                      style={{ color: 'var(--app-text-secondary)' }}
+                    >
+                      {t('totalMissed')}
+                    </p>
+                    <p
+                      className="text-3xl font-bold"
+                      style={{ color: 'var(--app-text-primary)' }}
+                    >
+                      {fmt(totalMinutes)}
+                    </p>
+                  </div>
+                  <div className="flex gap-5">
+                    <div className="text-center">
+                      <p
+                        className="text-xl font-bold"
+                        style={{ color: 'var(--tint)' }}
+                      >
+                        {fmt(excusedMinutes)}
+                      </p>
+                      <p
+                        className="text-xs"
+                        style={{ color: 'var(--app-text-secondary)' }}
+                      >
+                        {t('excused')}
+                      </p>
+                    </div>
+                    <div className="text-center">
+                      <p
+                        className="text-xl font-bold"
+                        style={{ color: 'var(--danger)' }}
+                      >
+                        {fmt(unexcusedMinutes)}
+                      </p>
+                      <p
+                        className="text-xs"
+                        style={{ color: 'var(--app-text-secondary)' }}
+                      >
+                        {t('unexcused')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Rate bar */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p
+                      className="text-xs"
+                      style={{ color: 'var(--app-text-secondary)' }}
+                    >
+                      {t('rate')}
+                    </p>
+                    <p
+                      className="text-xs font-semibold"
+                      style={{ color: rateColor }}
+                    >
+                      {rate.toFixed(1)}%
+                    </p>
+                  </div>
+                  <div
+                    className="h-2 rounded-full overflow-hidden"
+                    style={{ background: 'var(--app-card)' }}
+                  >
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${rate}%`,
+                        background: rateColor,
+                        transition: 'width 0.5s ease',
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {absences.length === 0 ? (
+                <EmptyView
+                  icon={<UserX size={56} color="var(--app-text-primary)" />}
+                  title={t('emptyTitle')}
+                  subtitle={t('emptySubtitle')}
+                />
+              ) : (
+                <div className="flex flex-col gap-4">
+                  {groups.map((group) => (
+                    <section key={group.key}>
+                      <div className="flex items-center justify-between mb-2 px-1">
+                        <p
+                          className="text-[15px] font-semibold"
+                          style={{ color: 'var(--app-text-primary)' }}
+                        >
+                          {group.label}
+                        </p>
+                        <p
+                          className="text-sm"
+                          style={{ color: 'var(--app-text-secondary)' }}
+                        >
+                          {fmt(group.totalMinutes)}
+                        </p>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        {group.entries.map((entry) => (
+                          <div
+                            key={entry.id}
+                            className="rounded-2xl p-4"
+                            style={{ background: 'var(--app-surface)' }}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <p
+                                  className="text-sm font-medium"
+                                  style={{ color: 'var(--app-text-primary)' }}
+                                >
+                                  {formatDate(entry.startDate)}
+                                  {entry.startDate !== entry.endDate
+                                    ? ` – ${formatDate(entry.endDate)}`
+                                    : ''}
+                                </p>
+                                <p
+                                  className="text-xs mt-0.5"
+                                  style={{ color: 'var(--app-text-secondary)' }}
+                                >
+                                  {formatTime(entry.startTime)} –{' '}
+                                  {formatTime(entry.endTime)}
+                                  {entry.subjectName
+                                    ? ` · ${entry.subjectName}`
+                                    : ''}
+                                  {entry.teacherName
+                                    ? ` · ${entry.teacherName}`
+                                    : ''}
+                                </p>
+                              </div>
+                              <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                                <span
+                                  className="text-sm font-semibold"
+                                  style={{ color: 'var(--app-text-secondary)' }}
+                                >
+                                  {fmt(getMin(entry))}
+                                </span>
+                                <span
+                                  className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                                  style={{
+                                    background: entry.isExcused
+                                      ? 'color-mix(in srgb, var(--tint) 14%, transparent)'
+                                      : 'color-mix(in srgb, var(--danger) 14%, transparent)',
+                                    color: entry.isExcused ? 'var(--tint)' : 'var(--danger)',
+                                  }}
+                                >
+                                  {entry.isExcused ? <CheckCircle size={12} /> : <XCircle size={12} />}
+                                  {entry.isExcused ? t('statusExcused') : t('statusOpen')}
+                                </span>
+                              </div>
+                            </div>
+                            {entry.reasonName && (
+                              <div
+                                className="flex items-baseline gap-2 mt-2 px-3 py-1.5 rounded-lg"
+                                style={{ background: 'var(--app-card)' }}
+                              >
+                                <span
+                                  className="shrink-0 font-semibold"
+                                  style={{ fontSize: '11px', color: 'var(--app-text-tertiary)' }}
+                                >
+                                  {t('reason')}
+                                </span>
+                                <span
+                                  className="text-xs"
+                                  style={{ color: 'var(--app-text-secondary)' }}
+                                >
+                                  {entry.reasonName}
+                                </span>
+                              </div>
+                            )}
+                            {entry.note && (
+                              <div
+                                className="flex items-baseline gap-2 mt-1.5 px-3 py-1.5 rounded-lg"
+                                style={{ background: 'var(--app-card)' }}
+                              >
+                                <span
+                                  className="shrink-0 font-semibold"
+                                  style={{ fontSize: '11px', color: 'var(--app-text-tertiary)' }}
+                                >
+                                  {t('text')}
+                                </span>
+                                <span
+                                  className="text-xs"
+                                  style={{ color: 'var(--app-text-secondary)' }}
+                                >
+                                  {entry.note}
+                                </span>
+                              </div>
+                            )}
+                            <Link
+                              href={localize(`/timetable?date=${entry.startDate}`)}
+                              className="mt-2.5 w-full h-9 rounded-xl text-[13px] font-semibold press-scale flex items-center justify-center gap-1.5"
+                              style={{ background: 'var(--app-card)', color: 'var(--accent)' }}
+                            >
+                              <CalendarDays size={14} />
+                              {t('viewInTimetable')}
+                            </Link>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+        <style jsx>{`
+          .custom-select-container {
+            position: relative;
+          }
+          .year-btn {
+            width: 140px;
+          }
+          .sort-select {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--app-text-primary);
+            background: var(--app-surface);
+            border: 1px solid var(--app-border);
+            border-radius: 8px;
+            padding: 6px 12px;
+            cursor: pointer;
+            transition: border-color 0.15s, background-color 0.15s;
+          }
+          .sort-select:hover {
+            background: color-mix(in srgb, var(--app-bg) 50%, transparent);
+            border-color: color-mix(in srgb, var(--app-border) 70%, var(--app-text-tertiary));
+          }
+          .sort-select:focus,
+          .sort-select.open {
+            outline: none;
+            border-color: color-mix(in srgb, var(--app-border) 70%, var(--app-text-tertiary));
+          }
+          .custom-select-dropdown {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            width: 140px;
+            background: var(--app-surface);
+            border: 1px solid color-mix(in srgb, var(--app-border) 70%, var(--app-text-tertiary));
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            z-index: 50;
+            padding: 6px;
+            list-style: none;
+            margin: 0;
+          }
+          .custom-select-item {
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--app-text-primary);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+          }
+          .custom-select-item:hover {
+            background: var(--app-bg);
+          }
+          .custom-select-item.selected {
+            background: var(--accent);
+            color: #fff;
+            font-weight: 600;
+          }
+        `}</style>
+        {/* ── Abwesenheit-melden-Sheet (auskommentiert, siehe Hinweis oben) ─────
+        {showReport && (
+          <ReportAbsenceSheet
+            personName={personName}
+            onClose={() => setShowReport(false)}
+            onCreated={load}
+          />
+        )}
+        ──────────────────────────────────────────────────────────────────── */}
+      </UntisGuard>
+    </AuthGuard>
+  );
+}

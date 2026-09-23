@@ -4,6 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import Spinner from '@/components/ui/Spinner';
 import { fetchTimetable } from '@/lib/api';
+import { useDateLocale, useT } from '@/providers/LocaleProvider';
+import { absencesDict } from '@/lib/i18n/dictionaries/absences';
+import { commonDict } from '@/lib/i18n/dictionaries/common';
+import { formatDate } from '@/lib/i18n/dateLocale';
 
 export interface PickedRange {
   startDate: string; // YYYYMMDD
@@ -25,7 +29,6 @@ interface Props {
   onBack: () => void;
 }
 
-const DOW = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
 
 function dateToStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -38,7 +41,7 @@ function timePart(iso?: string): string {
 
 // Extract the (deduplicated, time-sorted) lessons for one calendar day from the
 // timetable API response.
-function lessonsForDate(json: unknown, dateStr: string): Lesson[] {
+function lessonsForDate(json: unknown, dateStr: string, fallbackLabel: string): Lesson[] {
   try {
     const root = json as { days?: any[] };
     const day = root.days?.find((d) => d.date === dateStr);
@@ -51,7 +54,7 @@ function lessonsForDate(json: unknown, dateStr: string): Lesson[] {
       const pos2: any[] = ge.position2 ?? [];
       const sub = pos2.map((p) => p.current ?? p.removed).filter(Boolean)[0];
       if (!sub) continue; // skip breaks / empty slots
-      const label = sub.shortName ?? sub.longName ?? sub.displayName ?? sub.name ?? 'Stunde';
+      const label = sub.shortName ?? sub.longName ?? sub.displayName ?? sub.name ?? fallbackLabel;
       if (!byStart.has(start)) {
         byStart.set(start, { startHHMM: start, endHHMM: end, label, cancelled: ge.status === 'CANCELLED' });
       }
@@ -63,6 +66,9 @@ function lessonsForDate(json: unknown, dateStr: string): Lesson[] {
 }
 
 export default function TimetableLessonPicker({ initialDate, onConfirm, onBack }: Props) {
+  const t = useT(absencesDict);
+  const tc = useT(commonDict);
+  const { tag } = useDateLocale();
   const [day, setDay] = useState(() => {
     const d = initialDate ? new Date(initialDate) : new Date();
     d.setHours(0, 0, 0, 0);
@@ -79,13 +85,13 @@ export default function TimetableLessonPicker({ initialDate, onConfirm, onBack }
     setSelected(new Set());
     try {
       const res = await fetchTimetable(dateStr);
-      setLessons(lessonsForDate(res, dateStr));
+      setLessons(lessonsForDate(res, dateStr, t('lesson')));
     } catch {
       setLessons([]);
     } finally {
       setLoading(false);
     }
-  }, [dateStr]);
+  }, [dateStr, t]);
 
   useEffect(() => {
     load();
@@ -143,12 +149,12 @@ export default function TimetableLessonPicker({ initialDate, onConfirm, onBack }
             onClick={onBack}
             className="w-9 h-9 flex items-center justify-center rounded-full press-scale flex-shrink-0"
             style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)' }}
-            aria-label="Zurück"
+            aria-label={tc('back')}
           >
             <ChevronLeft size={18} />
           </button>
           <h3 className="text-[17px] font-bold" style={{ color: 'var(--app-text-primary)' }}>
-            Aus Stundenplan wählen
+            {t('fromTimetable')}
           </h3>
         </div>
 
@@ -162,7 +168,7 @@ export default function TimetableLessonPicker({ initialDate, onConfirm, onBack }
             <ChevronLeft size={17} />
           </button>
           <span className="text-[14px] font-semibold" style={{ color: 'var(--app-text-primary)' }}>
-            {DOW[day.getDay()]}, {day.toLocaleDateString('de', { day: 'numeric', month: 'long' })}
+            {formatDate(day, tag, { weekday: 'long', day: 'numeric', month: 'long' })}
           </span>
           <button
             onClick={() => shiftDay(1)}
@@ -181,7 +187,7 @@ export default function TimetableLessonPicker({ initialDate, onConfirm, onBack }
             </div>
           ) : lessons.length === 0 ? (
             <p className="text-center text-[13px] py-10" style={{ color: 'var(--app-text-tertiary)' }}>
-              Keine Stunden an diesem Tag.
+              {t('noLessons')}
             </p>
           ) : (
             <div className="flex flex-col gap-2">
@@ -209,7 +215,7 @@ export default function TimetableLessonPicker({ initialDate, onConfirm, onBack }
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[15px] font-medium" style={{ color: 'var(--app-text-primary)' }}>
-                        {l.label}{l.cancelled ? ' (entfällt)' : ''}
+                        {l.label}{l.cancelled ? t('cancelledSuffix') : ''}
                       </p>
                       <p className="text-[12px]" style={{ color: 'var(--app-text-secondary)' }}>
                         {l.startHHMM} – {l.endHHMM}
@@ -230,7 +236,7 @@ export default function TimetableLessonPicker({ initialDate, onConfirm, onBack }
             className="w-full h-12 rounded-xl font-semibold text-white press-scale disabled:opacity-40 text-[15px]"
             style={{ background: 'var(--accent)' }}
           >
-            {selected.size > 0 ? `${selected.size} Stunde${selected.size > 1 ? 'n' : ''} übernehmen` : 'Stunden auswählen'}
+            {selected.size > 1 ? t('takeLessons', { n: selected.size }) : selected.size === 1 ? t('takeLesson') : t('chooseLessons')}
           </button>
         </div>
       </div>

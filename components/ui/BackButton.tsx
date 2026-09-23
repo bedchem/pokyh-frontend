@@ -2,16 +2,20 @@
 
 import { useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
+import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
+import { commonDict } from '@/lib/i18n/dictionaries/common';
 
 export default function BackButton({ fallback = '/' }: { fallback?: string }) {
   const router = useRouter();
+  const t = useT(commonDict);
+  const localize = useLocalizeHref();
 
   function handleBack() {
     // If there's a browser history entry to go back to, use it
     if (window.history.length > 1) {
       router.back();
     } else {
-      router.replace(fallback);
+      router.replace(localize(fallback));
     }
   }
 
@@ -22,7 +26,7 @@ export default function BackButton({ fallback = '/' }: { fallback?: string }) {
       style={{ color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
     >
       <ChevronLeft size={16} />
-      Zurück
+      {t('back')}
     </button>
   );
 }

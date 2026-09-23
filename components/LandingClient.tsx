@@ -6,105 +6,165 @@ import Link from 'next/link';
 import LoadingCover from '@/components/LoadingCover';
 import LandingNav from '@/components/LandingNav';
 import LandingFooter from '@/components/LandingFooter';
+import WeekGrid from '@/app/[lang]/timetable/WeekGrid';
+import { isoWeekNumber } from '@/app/[lang]/timetable/timetable-logic';
+import type { TimetableEntry } from '@/lib/types';
+import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
+import { landingDict, type LandingKey } from '@/lib/i18n/dictionaries/landing';
+import { rich } from '@/lib/i18n/rich';
 
 // Three.js worker bundle + 5MB GLB — never block initial paint.
 // Chunk is preloaded on idle; GLB is prefetched via fetch() before user scrolls.
 const IPhoneScene = dynamic(() => import('@/components/IPhoneScene'), { ssr: false });
 
-const WEEK_DAYS = [
-  { abbr: 'Mo', num: 4, isToday: true  },
-  { abbr: 'Di', num: 5, isToday: false },
-  { abbr: 'Mi', num: 6, isToday: false },
-  { abbr: 'Do', num: 7, isToday: false },
-  { abbr: 'Fr', num: 8, isToday: false },
+// Sample week rendered with the real timetable grid, so the tile always shows the
+// current timetable design. A fixed week keeps server and client output identical.
+const SAMPLE_MONDAY = new Date(2026, 9, 19);
+const SAMPLE_DATES = Array.from({ length: 6 }, (_, i) => new Date(2026, 9, 19 + i));
+const SAMPLE_DAY_NUMS = SAMPLE_DATES.map((d) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate());
+const PERIODS: Array<[number, number]> = [
+  [750, 840], [840, 930], [930, 1020], [1035, 1125], [1125, 1215],
+  [1215, 1305], [1315, 1405], [1405, 1455], [1505, 1555], [1555, 1645],
 ];
-const WEEK_TIMES = ['07:50', '08:40', '09:30', 'pause', '10:35', '11:25'];
-// [period][day] — null row = pause, null cell = free slot
-const WEEK_GRID: Array<Array<{ s: string; t: string; oldT?: string; r: string; c: string; st: string } | null> | null> = [
-  // 07:50
+
+type SampleLesson = { s: string; long: string; t: string; r: string; st?: 'exam' | 'cancelled' | 'replacement'; oldT?: string; oldR?: string };
+// [period][day] (Mo–Fr); null = free period. Monday and Thursday run until 16:45.
+const SAMPLE_GRID: Array<Array<SampleLesson | null>> = [
   [
-    { s: 'R',       t: 'Fe-Ma',  r: 'c+2/03',  c: '#C6E84A', st: 'normal'      },
-    { s: 'IT',      t: 'Wi-So',  r: 'c+2/03',  c: '#E73BDF', st: 'normal'      },
-    { s: 'M',       t: 'Hu-Al',  r: 'c+2/03',  c: '#4ED87A', st: 'exam'        },
-    { s: 'ENGL',    t: 'Vo-Be',  r: 'c+2/03',  c: '#3DC4CE', st: 'normal'      },
-    { s: 'ENGL',    t: 'Vo-Be',  r: 'c+2/03',  c: '#3DC4CE', st: 'normal'      },
+    { s: 'St.t.Syst.', long: 'Statistik und Systeme', t: 'No-Ve', r: 'Inf II', st: 'exam' },
+    { s: 'M', long: 'Mathematik', t: 'Lu-Ka', r: 'a+1/04' },
+    { s: 'BS-NT', long: 'Betriebssysteme und Netzwerke', t: 'Sa-Ro', r: 'Inf I' },
+    { s: 'M', long: 'Mathematik', t: 'Lu-Ka', r: 'a+2/05' },
+    { s: 'Bew.Sport', long: 'Bewegung und Sport', t: 'Mi-Tu', r: 'Tu II' },
   ],
-  // 08:40
   [
-    { s: 'ENGL',    t: 'Vo-Be',  r: 'c+2/03',  c: '#3DC4CE', st: 'normal'      },
-    { s: 'M5-M7',   t: 'Gu-Lu',  r: 'Inf III', c: '#E08899', st: 'normal'      },
-    { s: 'D',       t: 'Ze-Ti',  r: 'c+2/03',  c: '#5AA0E8', st: 'normal'      },
-    { s: 'ENGL',    t: 'Vo-Be',  r: 'c+2/03',  c: '#3DC4CE', st: 'normal'      },
-    { s: 'D',       t: 'Ro-Fr',  r: 'c+2/03',  c: '#5AA0E8', st: 'normal'      },
+    { s: 'DB', long: 'Datenbanken', t: 'Bo-Na', r: 'Inf II' },
+    { s: 'DB', long: 'Datenbanken', t: 'Bo-Na', r: 'Inf II', st: 'cancelled' },
+    { s: 'BS-NT', long: 'Betriebssysteme und Netzwerke', t: 'Sa-Ro', r: 'Inf I' },
+    { s: 'ENGL', long: 'Englisch', t: 'Te-Ki', r: 'c+1/11' },
+    { s: 'Re-Wiku', long: 'Recht und Wirtschaftskunde', t: 'Va-No', r: 'c+1/11' },
   ],
-  // 09:30
   [
-    { s: 'IT',      t: 'Wi-So',  r: 'c+4/03',  c: '#E73BDF', st: 'normal'      },
-    null,
-    { s: 'Bew.',    t: 'Da-Mi',  r: 'Tu I',    c: '#AA8EE0', st: 'cancelled'   },
-    { s: 'Re-Wiku', t: 'Ro-Fr',  r: 'c+2/03',  c: '#6AB87A', st: 'normal'      },
-    null,
+    { s: 'IKE', long: 'IKE', t: 'Zi-Ma', r: 'Inf III' },
+    { s: 'GE-GL', long: 'Gesellschaftliche Grundlagen', t: 'Ra-Lu', r: 'a+2/20' },
+    { s: 'BS-NT', long: 'Betriebssysteme und Netzwerke', t: 'Sa-Ro', r: 'Inf I' },
+    { s: 'IT', long: 'Informationstechnologie', t: 'Jo-Se', r: 'a+2/05' },
+    { s: 'ENGL', long: 'Englisch', t: 'Te-Ki', r: 'c+1/11' },
   ],
-  // pause
-  null,
-  // 10:35
   [
-    { s: 'M5-M7',   t: 'Gu-Lu',  r: 'Inf III', c: '#E08899', st: 'normal'      },
-    { s: 'M5-M7',   t: 'Gu-Lu',  r: 'Inf III', c: '#E08899', st: 'normal'      },
-    { s: 'Bew.',    t: 'Da-Mi',  r: 'Tu I',    c: '#AA8EE0', st: 'cancelled'   },
-    { s: 'M8',      t: 'Li-An',  r: 'E-Lab',   c: '#E89E6E', st: 'normal'      },
-    { s: 'M',       t: 'Ne-Pe',  oldT: 'Hu-Al', r: 'c+2/03',  c: '#4ED87A', st: 'replacement' },
+    { s: 'IKE', long: 'IKE', t: 'Zi-Ma', r: 'Inf III' },
+    { s: 'GE-GL', long: 'Gesellschaftliche Grundlagen', t: 'Ra-Lu', r: 'a+2/20' },
+    { s: 'AE', long: 'Anwendungsentwicklung', t: 'Mo-Ke', r: 'Inf IV', st: 'replacement', oldT: 'Ke-Fo' },
+    { s: 'IT', long: 'Informationstechnologie', t: 'Jo-Se', r: 'a+2/05' },
+    { s: 'D', long: 'Deutsch', t: 'Ra-Lu', r: 'c+1/11' },
   ],
-  // 11:25
   [
-    null,
-    null,
-    { s: 'Re-Wiku', t: 'Ro-Fr',  r: 'c+2/03',  c: '#6AB87A', st: 'normal'      },
-    null,
-    null,
+    { s: 'IKE', long: 'IKE', t: 'Zi-Ma', r: 'Inf III' },
+    { s: 'D', long: 'Deutsch', t: 'Ra-Lu', r: 'a+2/20' },
+    { s: 'AE', long: 'Anwendungsentwicklung', t: 'Ke-Fo', r: 'Inf IV' },
+    { s: 'R', long: 'Religion', t: 'Pe-Li', r: 'a+2/05' },
+    { s: 'GE-GL', long: 'Gesellschaftliche Grundlagen', t: 'Ra-Lu', r: 'c+1/11' },
   ],
+  // Afternoon: 12:15–16:45
+  [null, { s: 'D', long: 'Deutsch', t: 'Ra-Lu', r: 'a+2/20' }, { s: 'AE', long: 'Anwendungsentwicklung', t: 'Ke-Fo', r: 'Inf IV' }, { s: 'R', long: 'Religion', t: 'Pe-Li', r: 'a+2/05' }, { s: 'GE-GL', long: 'Gesellschaftliche Grundlagen', t: 'Ra-Lu', r: 'c+1/11', st: 'cancelled' }],
+  [{ s: 'IKE', long: 'IKE', t: 'Zi-Ma', r: 'E-Lab' }, null, null, null, null],
+  [{ s: 'IKE', long: 'IKE', t: 'Zi-Ma', r: 'E-Lab' }, null, null, { s: 'BS-NT', long: 'Betriebssysteme und Netzwerke', t: 'Sa-Ro', r: 'Inf IV', st: 'replacement', oldR: 'Inf II' }, null],
+  [{ s: 'IKE', long: 'IKE', t: 'Zi-Ma', r: 'E-Lab' }, null, null, { s: 'BS-NT', long: 'Betriebssysteme und Netzwerke', t: 'Sa-Ro', r: 'Inf IV', st: 'replacement', oldR: 'Inf II' }, null],
+  [{ s: 'IKE', long: 'IKE', t: 'Zi-Ma', r: 'E-Lab' }, null, null, { s: 'BS-NT', long: 'Betriebssysteme und Netzwerke', t: 'Sa-Ro', r: 'Inf IV', st: 'replacement', oldR: 'Inf II' }, null],
 ];
 
-const GRADES = [
-  { subj: 'Mathematik', val: '9,1', cls: 'v-excellent' },
-  { subj: 'Deutsch',    val: '8,3', cls: 'v-positive'  },
-  { subj: 'Englisch',   val: '7,8', cls: 'v-positive'  },
-  { subj: 'Fachpraxis', val: '9,4', cls: 'v-excellent' },
-  { subj: 'Religion',   val: '5,2', cls: 'v-negative'  },
+const SAMPLE_WEEK: TimetableEntry[][] = SAMPLE_DAY_NUMS.map((date, day) => {
+  if (day > 4) return [];
+
+  const entries: TimetableEntry[] = [];
+  let previousPeriod = -1;
+  let previousKey = '';
+
+  SAMPLE_GRID.forEach((row, periodIndex) => {
+    const lesson = row[day];
+    if (!lesson) {
+      previousPeriod = -1;
+      previousKey = '';
+      return;
+    }
+
+    const lessonKey = `${lesson.s}|${lesson.long}|${lesson.t}|${lesson.r}|${lesson.st ?? ''}|${lesson.oldT ?? ''}|${lesson.oldR ?? ''}`;
+    const previousEntry = entries[entries.length - 1];
+    if (previousEntry && previousPeriod === periodIndex - 1 && previousKey === lessonKey) {
+      previousEntry.endTime = PERIODS[periodIndex][1];
+      previousPeriod = periodIndex;
+      return;
+    }
+
+    const id = day * 100 + periodIndex + 1;
+    entries.push({
+      id,
+      lessonId: id,
+      date,
+      startTime: PERIODS[periodIndex][0],
+      endTime: PERIODS[periodIndex][1],
+      subjectName: lesson.s,
+      subjectLong: lesson.long,
+      teacherName: lesson.t,
+      roomName: lesson.r,
+      cellState: lesson.st === 'cancelled' ? 'CANCEL' : lesson.st === 'replacement' ? 'SUBSTITUTION' : 'STANDARD',
+      isExam: lesson.st === 'exam',
+      isCancelled: lesson.st === 'cancelled',
+      isSubstitution: lesson.st === 'replacement',
+      isAdditional: false,
+      ...(lesson.st === 'exam' ? { icons: ['EXAM'] } : {}),
+      ...(lesson.oldT ? { originalTeacher: lesson.oldT, addedTeachers: [lesson.t] } : {}),
+      ...(lesson.oldR ? { originalRoom: lesson.oldR, addedRooms: [lesson.r] } : {}),
+    } satisfies TimetableEntry);
+    previousPeriod = periodIndex;
+    previousKey = lessonKey;
+  });
+
+  return entries;
+});
+
+const GRADES: Array<{ subj: LandingKey; val: string; cls: string }> = [
+  { subj: 'subjMath',     val: '9,1', cls: 'v-excellent' },
+  { subj: 'subjGerman',   val: '8,3', cls: 'v-positive'  },
+  { subj: 'subjEnglish',  val: '7,8', cls: 'v-positive'  },
+  { subj: 'subjPractice', val: '9,4', cls: 'v-excellent' },
+  { subj: 'subjReligion', val: '5,2', cls: 'v-negative'  },
 ];
 
-const DISHES = [
-  { name: 'Kalbsgulasch',   desc: 'Mit Eierspätzle',        tags: ['Fleisch'], imageUrl: 'https://www.kerrygold.de/wp-content/uploads/2021/11/Gulasch_Apfelrotkohl_Spa%CC%88tzle-30.jpg', stars: 4.1, count: 9 },
-  { name: 'Schollenfilet',  desc: 'Mit Kräuterkartoffeln',  tags: ['Fisch'],   imageUrl: 'https://marleyspoon.com/media/recipes/47231/main_photos/large/scholle_mit_sauerampferdip_und_kartoffeln-25ec74b05c4d390296db69f0ffcf28e8.jpeg', stars: 3.6, count: 5 },
-  { name: 'Vollkornnudeln', desc: 'Linsen-Gemüsesauce',     tags: ['Vegan'],   imageUrl: 'https://www.moeyskitchen.com/wp-content/uploads/2021/10/vegetarische-bolognese-sauce-7.jpg', stars: 0, count: 0 },
+// `cls` picks the tag colour in landing.css; the label is translated.
+const DISHES: Array<{ name: LandingKey; desc: LandingKey; tags: Array<{ cls: string; label: LandingKey }>; imageUrl: string; stars: number; count: number }> = [
+  { name: 'dish1', desc: 'dish1Desc', tags: [{ cls: 'fleisch', label: 'tagMeat' }], imageUrl: 'https://www.kerrygold.de/wp-content/uploads/2021/11/Gulasch_Apfelrotkohl_Spa%CC%88tzle-30.jpg', stars: 4.1, count: 9 },
+  { name: 'dish2', desc: 'dish2Desc', tags: [{ cls: 'fisch', label: 'tagFish' }],   imageUrl: 'https://marleyspoon.com/media/recipes/47231/main_photos/large/scholle_mit_sauerampferdip_und_kartoffeln-25ec74b05c4d390296db69f0ffcf28e8.jpeg', stars: 3.6, count: 5 },
+  { name: 'dish3', desc: 'dish3Desc', tags: [{ cls: 'vegan', label: 'tagVegan' }],   imageUrl: 'https://www.moeyskitchen.com/wp-content/uploads/2021/10/vegetarische-bolognese-sauce-7.jpg', stars: 0, count: 0 },
 ];
 
-const MESSAGES = [
-  { sender: 'Markus Hofer', init: 'MH', color: 'hsl(220,60%,50%)', subject: 'Mathe-Schularbeit verschoben', preview: 'Die Schularbeit von Mittwoch wird auf Freitag verschoben.', time: '08:42',   read: false, attach: true  },
-  { sender: 'Eva Mair',     init: 'EM', color: 'hsl(140,60%,42%)', subject: 'Lektüre für nächste Woche',   preview: 'Bitte lest Kapitel 8–10 bis Montag.',                    time: 'Gestern', read: false, attach: false },
-  { sender: 'Klaus Gruber',  init: 'KG', color: 'hsl(280,60%,50%)', subject: 'Werkzeug mitbringen',    preview: 'Denkt daran, morgen das Werkzeug mitzubringen.',  time: 'Di',  read: true,  attach: false },
-  { sender: 'Thomas Berger', init: 'TB', color: 'hsl(20,60%,50%)',  subject: 'Ausflug nächste Woche', preview: 'Bitte um 8:00 Uhr am Haupteingang sein.',           time: 'Mo',  read: true,  attach: false },
+// `time` is either a clock time or a translation key.
+const MESSAGES: Array<{ sender: string; init: string; color: string; subject: LandingKey; preview: LandingKey; time: string | LandingKey; read: boolean; attach: boolean }> = [
+  { sender: 'Markus Hofer',  init: 'MH', color: 'hsl(220,60%,50%)', subject: 'msg1Subject', preview: 'msg1Preview', time: '08:42',     read: false, attach: true  },
+  { sender: 'Eva Mair',      init: 'EM', color: 'hsl(140,60%,42%)', subject: 'msg2Subject', preview: 'msg2Preview', time: 'yesterday', read: false, attach: false },
+  { sender: 'Klaus Gruber',  init: 'KG', color: 'hsl(280,60%,50%)', subject: 'msg3Subject', preview: 'msg3Preview', time: 'dayTue',    read: true,  attach: false },
+  { sender: 'Thomas Berger', init: 'TB', color: 'hsl(20,60%,50%)',  subject: 'msg4Subject', preview: 'msg4Preview', time: 'dayMon',    read: true,  attach: false },
 ];
 
-const ABS_ENTRIES = [
-  { date: '05.04.25', time: '07:50 – 09:30', subj: 'Mathematik', hours: 2, excused: false },
-  { date: '17.03.25', time: '08:40 – 12:15', subj: 'Deutsch',    hours: 4, excused: true  },
+const ABS_ENTRIES: Array<{ date: string; time: string; subj: LandingKey; hours: number; excused: boolean }> = [
+  { date: '05.04.25', time: '07:50 – 09:30', subj: 'subjMath',   hours: 2, excused: false },
+  { date: '17.03.25', time: '08:40 – 12:15', subj: 'subjGerman', hours: 4, excused: true  },
 ];
 
-const REMINDERS = [
-  { title: 'Englisch Referat',   body: 'Präsentation fertig machen', time: 'Fällig',      date: 'Mi, 30. Apr · 08:00', creator: 'K.Pichler', overdue: true  },
-  { title: 'Mathe Schularbeit',  body: 'Kapitel 5–7 wiederholen',    time: 'in 2 Tagen',  date: 'Fr, 2. Mai · 08:00',  creator: 'L.Hofer',   overdue: false },
+const REMINDERS: Array<{ title: LandingKey; body: LandingKey; time: LandingKey; date: LandingKey; creator: string; overdue: boolean }> = [
+  { title: 'rm1Title', body: 'rm1Body', time: 'rm1Time', date: 'rm1Date', creator: 'K.Pichler', overdue: true  },
+  { title: 'rm2Title', body: 'rm2Body', time: 'rm2Time', date: 'rm2Date', creator: 'L.Hofer',   overdue: false },
 ];
 
-const COMPARE = [
-  { title:'Stundenplan',   sub:'Live aus WebUntis.',       rd:0,   icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg> },
-  { title:'Noten',         sub:'Schnitt automatisch.',     rd:60,  icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M5 20V10M12 20V4M19 20v-7"/></svg> },
-  { title:'Mensa',         sub:'Menü & Bewertungen.',        rd:120, icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 11h16l-1.5 9h-13z"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg> },
-  { title:'Vertretungen',  sub:'Sofort sichtbar.',         rd:180, icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M21 12a9 9 0 1 1-3.6-7.2L21 7"/><path d="M21 3v4h-4"/></svg> },
-  { title:'Nachrichten',   sub:'Mit Anhängen.',            rd:0,   icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M21 11.5a8.5 8.5 0 0 1-12.4 7.6L3 21l1.9-5.6A8.5 8.5 0 1 1 21 11.5z"/></svg> },
-  { title:'Abwesenheiten', sub:'Quote im Blick.',          rd:60,  icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M18 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M16 11l6 6M22 11l-6 6"/></svg> },
-  { title:'Erinnerungen',  sub:'Klassenweit, in Echtzeit.',rd:120, icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M14 21a2 2 0 0 1-4 0"/></svg> },
-  { title:'Todos',         sub:'Auf allen Geräten.',       rd:180, icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11"/></svg> },
+const COMPARE: Array<{ title: LandingKey; sub: LandingKey; rd: number; icon: React.ReactNode }> = [
+  { title:'cTimetable', sub:'cTimetableSub', rd:0,   icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg> },
+  { title:'cGrades',    sub:'cGradesSub',    rd:60,  icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M5 20V10M12 20V4M19 20v-7"/></svg> },
+  { title:'cMensa',     sub:'cMensaSub',     rd:120, icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 11h16l-1.5 9h-13z"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg> },
+  { title:'cSubst',     sub:'cSubstSub',     rd:180, icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M21 12a9 9 0 1 1-3.6-7.2L21 7"/><path d="M21 3v4h-4"/></svg> },
+  { title:'cMessages',  sub:'cMessagesSub',  rd:0,   icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M21 11.5a8.5 8.5 0 0 1-12.4 7.6L3 21l1.9-5.6A8.5 8.5 0 1 1 21 11.5z"/></svg> },
+  { title:'cAbsences',  sub:'cAbsencesSub',  rd:60,  icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M18 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M16 11l6 6M22 11l-6 6"/></svg> },
+  { title:'cReminders', sub:'cRemindersSub', rd:120, icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M14 21a2 2 0 0 1-4 0"/></svg> },
+  { title:'cTodos',     sub:'cTodosSub',     rd:180, icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11"/></svg> },
 ];
 
 function GhIcon() {
@@ -120,6 +180,8 @@ function reveal(td: number) {
 }
 
 export default function LandingClient() {
+  const t = useT(landingDict);
+  const localize = useLocalizeHref();
   const phoneStageRef   = useRef<HTMLDivElement>(null);
   // Scroll progress for Three.js — updated on scroll, never triggers re-render
   const progressRef     = useRef<number>(0);
@@ -228,19 +290,19 @@ export default function LandingClient() {
         <div className="lp-hero-text">
           <div className="lp-hero-eyebrow">POKYH</div>
           <h1 className="lp-hero-h1">
-            Deine Schule.<br />Übersichtlich.
+            {t('heroTitle1')}<br />{t('heroTitle2')}
           </h1>
           <p className="lp-hero-sub">
-            Stundenplan, Noten, Mensa und mehr — für alle Schüler der LBS Brixen.{' '}
-            <strong>Anmeldung mit deinem WebUntis‑Account.</strong>
+            {t('heroSub')}{' '}
+            <strong>{t('heroSubStrong')}</strong>
           </p>
           <div className="lp-hero-actions">
-            <Link href="/login"    className="lp-alink">Jetzt anmelden</Link>
-            <a    href="#funktionen" className="lp-alink">Alle Funktionen</a>
+            <Link href={localize('/login')} className="lp-alink">{t('loginNow')}</Link>
+            <a    href="#funktionen" className="lp-alink">{t('allFeatures')}</a>
           </div>
-          <Link href="/mensa" className="lp-hero-mensa">
-            <strong>Was gibt&apos;s heute in der Mensa?</strong>
-            <span className="lp-hero-mensa-sub"> Speiseplan ohne Anmeldung</span>
+          <Link href={localize('/mensa')} className="lp-hero-mensa">
+            <strong>{t('mensaQuestion')}</strong>
+            <span className="lp-hero-mensa-sub"> {t('mensaNoLogin')}</span>
             <span className="lp-hero-mensa-arrow" aria-hidden="true">›</span>
           </Link>
           {/* Scroll cue */}
@@ -271,78 +333,30 @@ export default function LandingClient() {
 
           {/* Stundenplan */}
           <article className="lp-tile lp-tile-a tall">
-            <div className="lp-tile-eyebrow lp-reveal">Stundenplan</div>
-            <h2 className="lp-tile-title lp-reveal" {...reveal(60)}>Die Woche.<br />Auf einen Blick.</h2>
-            <p  className="lp-tile-sub   lp-reveal" {...reveal(120)}>Tages‑ und Wochenansicht. Vertretungen und Entfall sind sofort erkennbar.</p>
+            <div className="lp-tile-eyebrow lp-reveal">{t('ttEyebrow')}</div>
+            <h2 className="lp-tile-title lp-reveal" {...reveal(60)}>{t('ttTitle1')}<br />{t('ttTitle2')}</h2>
+            <p  className="lp-tile-sub   lp-reveal" {...reveal(120)}>{t('ttSub')}</p>
             <div className="lp-tile-visual lp-reveal" {...reveal(180)}>
               <div className="lp-mock-tt">
-                {/* Day headers */}
-                <div className="lp-wk-hd">
-                  <div className="lp-wk-corner" />
-                  {WEEK_DAYS.map((d) => (
-                    <div key={d.abbr} className="lp-wk-hd-day">
-                      <span className="lp-wk-hd-abbr">{d.abbr}</span>
-                      <span className={`lp-wk-hd-num${d.isToday ? ' is-today' : ''}`}>{d.num}</span>
-                    </div>
-                  ))}
-                </div>
-                {/* Grid */}
-                <div className="lp-wk-body">
-                  {WEEK_TIMES.map((time, pi) => (
-                    time === 'pause' ? (
-                      <div key="pause" className="lp-wk-pause" />
-                    ) : (
-                    <div key={pi} className="lp-wk-row">
-                      <div className="lp-wk-time">{time}</div>
-                      {(WEEK_GRID[pi] as Array<{ s: string; t: string; oldT?: string; r: string; c: string; st: string } | null>).map((lesson, di) => (
-                        <div key={di} className="lp-wk-slot">
-                          {lesson && (
-                            <div className={`lp-wk-cell lp-wk-cell-${lesson.st}`}>
-                              <div className="lp-wk-cbar" style={{ background: lesson.st === 'cancelled' ? '#ef4444' : lesson.st === 'replacement' ? '#f97316' : lesson.st === 'exam' ? '#FFD60A' : lesson.c }} />
-                              <div className="lp-wk-cbody">
-                                <div className={`lp-wk-csubj${lesson.st === 'cancelled' ? ' is-struck' : ''}`}>{lesson.s}</div>
-                                {lesson.st === 'replacement' && lesson.oldT ? (
-                                  <div className="lp-wk-cmeta lp-wk-cmeta-repl">
-                                    <span style={{ color: 'color-mix(in srgb, #ef4444 70%, #a0a0b4)', textDecoration: 'line-through', textDecorationColor: '#ef4444', textDecorationThickness: '1.2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flexShrink: 1 }}>{lesson.oldT}</span>
-                                    <span style={{ color: 'var(--app-text-secondary)', flexShrink: 0 }}>»</span>
-                                    <span style={{ color: '#f97316', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lesson.t}</span>
-                                  </div>
-                                ) : (
-                                  <div className="lp-wk-cmeta">{lesson.t}</div>
-                                )}
-                                <div className="lp-wk-cmeta">{lesson.r}</div>
-                              </div>
-                              {lesson.st === 'cancelled' && (
-                                <span className="lp-wk-cicon">
-                                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                                </span>
-                              )}
-                              {lesson.st === 'replacement' && (
-                                <span className="lp-wk-cicon">
-                                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3L4 7l4 4"/><path d="M4 7h16"/><path d="M16 21l4-4-4-4"/><path d="M20 17H4"/></svg>
-                                </span>
-                              )}
-                              {lesson.st === 'exam' && (
-                                <span className="lp-wk-cicon">
-                                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,159,10,0.9)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    )))}
-                </div>
+                <WeekGrid
+                  dayEntries={SAMPLE_WEEK}
+                  dates={SAMPLE_DATES}
+                  dayNums={SAMPLE_DAY_NUMS}
+                  todayNum={SAMPLE_DAY_NUMS[0]}
+                  weekNumber={isoWeekNumber(SAMPLE_MONDAY)}
+                  minute={-1}
+                  scale={0.8}
+                  onTap={() => {}}
+                />
               </div>
             </div>
           </article>
 
           {/* Noten */}
           <article className="lp-tile lp-tile-b tall">
-            <div className="lp-tile-eyebrow lp-reveal">Noten &amp; Schnitt</div>
-            <h2 className="lp-tile-title lp-reveal" {...reveal(60)}>Dein Durchschnitt.<br />Immer aktuell.</h2>
-            <p  className="lp-tile-sub   lp-reveal" {...reveal(120)}>Alle Noten nach Fach. Gesamtschnitt automatisch berechnet — auf zwei Dezimalstellen.</p>
+            <div className="lp-tile-eyebrow lp-reveal">{t('grEyebrow')}</div>
+            <h2 className="lp-tile-title lp-reveal" {...reveal(60)}>{t('grTitle1')}<br />{t('grTitle2')}</h2>
+            <p  className="lp-tile-sub   lp-reveal" {...reveal(120)}>{t('grSub')}</p>
             <div className="lp-tile-visual lp-reveal" {...reveal(180)}>
               <div className="lp-mock-grade-dash">
                 {/* KPI row */}
@@ -351,8 +365,8 @@ export default function LandingClient() {
                   <div className="lp-gd-card">
                     <div className="lp-gd-card-hd">
                       <div>
-                        <div className="lp-gd-title">Durchschnitt</div>
-                        <div className="lp-gd-sub">Alle Fächer</div>
+                        <div className="lp-gd-title">{t('grAverage')}</div>
+                        <div className="lp-gd-sub">{t('grAllSubjects')}</div>
                       </div>
                       <span className="lp-gd-pill up">↗ 0,18</span>
                     </div>
@@ -378,8 +392,8 @@ export default function LandingClient() {
                   <div className="lp-gd-card">
                     <div className="lp-gd-card-hd">
                       <div>
-                        <div className="lp-gd-title">Verhältnis</div>
-                        <div className="lp-gd-sub">Positiv · Negativ</div>
+                        <div className="lp-gd-title">{t('grRatio')}</div>
+                        <div className="lp-gd-sub">{t('grPosNeg')}</div>
                       </div>
                       <span className="lp-gd-pill">80 %</span>
                     </div>
@@ -393,8 +407,8 @@ export default function LandingClient() {
                       <div className="lp-gd-ratio-n" style={{ width: '20%' }} />
                     </div>
                     <div className="lp-gd-foot">
-                      <span className="lp-gd-good">4 über 6,0</span>
-                      <span className="lp-gd-bad">1 unter 6,0</span>
+                      <span className="lp-gd-good">{t('grAbove')}</span>
+                      <span className="lp-gd-bad">{t('grBelow')}</span>
                     </div>
                   </div>
                 </div>
@@ -404,7 +418,7 @@ export default function LandingClient() {
                   {GRADES.map(({ subj, val, cls }, i) => (
                     <div className="lp-gd-row" key={subj} style={{ borderTop: i > 0 ? '1px solid var(--lp-card-border)' : 'none', background: i % 2 === 0 ? 'var(--lp-gd-alt)' : 'transparent' }}>
                       <div className="lp-gd-row-left">
-                        <span className="lp-gd-subj">{subj}</span>
+                        <span className="lp-gd-subj">{t(subj)}</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span className={`lp-gd-val ${cls}`}>{val}</span>
@@ -419,22 +433,22 @@ export default function LandingClient() {
 
           {/* Mensa */}
           <article className="lp-tile lp-tile-c">
-            <div className="lp-tile-eyebrow lp-reveal">Mensa</div>
-            <h2 className="lp-tile-title lp-reveal" {...reveal(60)}>Was gibt's heute?</h2>
-            <p  className="lp-tile-sub   lp-reveal" {...reveal(120)}>Tagesmenü mit Bewertungen und Allergenen — direkt im Klassenzimmer.</p>
+            <div className="lp-tile-eyebrow lp-reveal">{t('mnEyebrow')}</div>
+            <h2 className="lp-tile-title lp-reveal" {...reveal(60)}>{t('mnTitle')}</h2>
+            <p  className="lp-tile-sub   lp-reveal" {...reveal(120)}>{t('mnSub')}</p>
             <div className="lp-tile-link lp-reveal" {...reveal(150)}>
-              <Link href="/mensa" className="lp-alink">Speiseplan ansehen</Link>
+              <Link href={localize('/mensa')} className="lp-alink">{t('mnLink')}</Link>
             </div>
             <div className="lp-tile-visual lp-reveal" {...reveal(180)}>
               <div className="lp-mock-mensa">
                 {DISHES.map((d) => (
                   <div className="lp-mm-dish" key={d.name}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img className="lp-mm-thumb" src={d.imageUrl} alt={d.name} loading="lazy" width="100" height="100" decoding="async" onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden'; }} />
+                    <img className="lp-mm-thumb" src={d.imageUrl} alt={t(d.name)} loading="lazy" width="100" height="100" decoding="async" onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden'; }} />
                     <div className="lp-mm-content">
                       <div>
-                        <div className="lp-mm-dish-name">{d.name}</div>
-                        {d.desc && <div className="lp-mm-dish-desc">{d.desc}</div>}
+                        <div className="lp-mm-dish-name">{t(d.name)}</div>
+                        {d.desc && <div className="lp-mm-dish-desc">{t(d.desc)}</div>}
                       </div>
                       <div className="lp-mm-dish-bottom">
                         <div className="lp-mm-stars">
@@ -444,12 +458,12 @@ export default function LandingClient() {
                           {d.stars > 0 ? (
                             <><span className="lp-mm-stars-val">{d.stars.toFixed(1)}</span><span className="lp-mm-stars-ct">({d.count})</span></>
                           ) : (
-                            <span className="lp-mm-no-rating">Keine Bewertung</span>
+                            <span className="lp-mm-no-rating">{t('mnNoRating')}</span>
                           )}
                         </div>
                         <div className="lp-mm-tags">
                           {d.tags.map((tag) => (
-                            <span key={tag} className={`lp-mm-tag lp-mm-tag-${tag.toLowerCase()}`}>{tag}</span>
+                            <span key={tag.cls} className={`lp-mm-tag lp-mm-tag-${tag.cls}`}>{t(tag.label)}</span>
                           ))}
                         </div>
                       </div>
@@ -462,9 +476,9 @@ export default function LandingClient() {
 
           {/* Nachrichten */}
           <article className="lp-tile lp-tile-a">
-            <div className="lp-tile-eyebrow lp-reveal">Nachrichten</div>
-            <h2 className="lp-tile-title lp-reveal" {...reveal(60)}>Direkt aus<br />WebUntis.</h2>
-            <p  className="lp-tile-sub   lp-reveal" {...reveal(120)}>Mit Anhang‑Vorschau und klickbaren Links.</p>
+            <div className="lp-tile-eyebrow lp-reveal">{t('msEyebrow')}</div>
+            <h2 className="lp-tile-title lp-reveal" {...reveal(60)}>{t('msTitle1')}<br />{t('msTitle2')}</h2>
+            <p  className="lp-tile-sub   lp-reveal" {...reveal(120)}>{t('msSub')}</p>
             <div className="lp-tile-visual lp-reveal" style={{ alignItems: 'center', transitionDelay: '180ms' }}>
               <div className="lp-mock-msg">
                 {MESSAGES.map((m, i) => (
@@ -475,12 +489,12 @@ export default function LandingClient() {
                     </div>
                     <div className="lp-msg-content">
                       <div className="lp-msg-top">
-                        <span className="lp-msg-subject" style={{ fontWeight: m.read ? 400 : 700 }}>{m.subject}</span>
-                        <span className="lp-msg-time">{m.time}</span>
+                        <span className="lp-msg-subject" style={{ fontWeight: m.read ? 400 : 700 }}>{t(m.subject)}</span>
+                        <span className="lp-msg-time">{/^\d/.test(m.time) ? m.time : t(m.time as LandingKey)}</span>
                       </div>
                       <div className="lp-msg-bottom">
                         <span className="lp-msg-preview" style={{ fontWeight: m.read ? 400 : 500 }}>
-                          {m.sender} · {m.preview}
+                          {m.sender} · {t(m.preview)}
                         </span>
                         {m.attach && (
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--app-text-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -500,31 +514,31 @@ export default function LandingClient() {
 
           {/* Abwesenheiten */}
           <article className="lp-tile lp-tile-d">
-            <div className="lp-tile-eyebrow lp-reveal">Abwesenheiten</div>
-            <h2 className="lp-tile-title lp-reveal" {...reveal(60)}>Fehlstunden.<br />Pro Monat.</h2>
-            <p  className="lp-tile-sub   lp-reveal" {...reveal(120)}>Entschuldigt, unentschuldigt und Quote im Schuljahr.</p>
+            <div className="lp-tile-eyebrow lp-reveal">{t('abEyebrow')}</div>
+            <h2 className="lp-tile-title lp-reveal" {...reveal(60)}>{t('abTitle1')}<br />{t('abTitle2')}</h2>
+            <p  className="lp-tile-sub   lp-reveal" {...reveal(120)}>{t('abSub')}</p>
             <div className="lp-tile-visual lp-reveal" {...reveal(180)}>
               <div className="lp-mock-abs">
                 <div className="lp-abs-overview">
                   <div className="lp-abs-ov-row">
                     <div>
-                      <div className="lp-abs-ov-lbl">Fehlstunden gesamt</div>
+                      <div className="lp-abs-ov-lbl">{t('abTotal')}</div>
                       <div className="lp-abs-ov-total">12</div>
                     </div>
                     <div className="lp-abs-ov-split">
                       <div className="lp-abs-ov-item">
                         <div className="lp-abs-ov-num exc">10</div>
-                        <div className="lp-abs-ov-sub">Entschuldigt</div>
+                        <div className="lp-abs-ov-sub">{t('abExcused')}</div>
                       </div>
                       <div className="lp-abs-ov-item">
                         <div className="lp-abs-ov-num unexc">2</div>
-                        <div className="lp-abs-ov-sub">Unentschuldigt</div>
+                        <div className="lp-abs-ov-sub">{t('abUnexcused')}</div>
                       </div>
                     </div>
                   </div>
                   <div>
                     <div className="lp-abs-rate-hd">
-                      <span className="lp-abs-rate-lbl">Fehlquote</span>
+                      <span className="lp-abs-rate-lbl">{t('abRate')}</span>
                       <span className="lp-abs-rate-pct" style={{ color: '#30D158' }}>3,1%</span>
                     </div>
                     <div className="lp-abs-rate-bar">
@@ -533,14 +547,14 @@ export default function LandingClient() {
                   </div>
                 </div>
                 <div className="lp-abs-group-hd">
-                  <span className="lp-abs-group-label">Apr 2025</span>
-                  <span className="lp-abs-group-hrs">4 Std.</span>
+                  <span className="lp-abs-group-label">{t('abMonth')}</span>
+                  <span className="lp-abs-group-hrs">{t('abHours')}</span>
                 </div>
                 {ABS_ENTRIES.map((e, i) => (
                   <div className="lp-abs-entry" key={i}>
                     <div className="lp-abs-entry-left">
                       <div className="lp-abs-entry-date">{e.date}</div>
-                      <div className="lp-abs-entry-meta">{e.time} · {e.subj}</div>
+                      <div className="lp-abs-entry-meta">{e.time} · {t(e.subj)}</div>
                     </div>
                     <div className="lp-abs-entry-right">
                       <span className="lp-abs-entry-hrs">{e.hours}h</span>
@@ -558,36 +572,36 @@ export default function LandingClient() {
 
           {/* Erinnerungen & Todos */}
           <article className="lp-tile lp-tile-b">
-            <div className="lp-tile-eyebrow lp-reveal">Erinnerungen &amp; Todos</div>
-            <h2 className="lp-tile-title lp-reveal" {...reveal(60)}>Nichts mehr<br />vergessen.</h2>
-            <p  className="lp-tile-sub   lp-reveal" {...reveal(120)}>Klassenweite Erinnerungen für Prüfungen — und persönliche Todos für dich.</p>
+            <div className="lp-tile-eyebrow lp-reveal">{t('rmEyebrow')}</div>
+            <h2 className="lp-tile-title lp-reveal" {...reveal(60)}>{t('rmTitle1')}<br />{t('rmTitle2')}</h2>
+            <p  className="lp-tile-sub   lp-reveal" {...reveal(120)}>{t('rmSub')}</p>
             <div className="lp-tile-visual lp-reveal" {...reveal(180)}>
               <div className="lp-mock-rem">
-                <div className="lp-rem-sect-label" style={{ color: '#FF3B30' }}>FÄLLIG</div>
+                <div className="lp-rem-sect-label" style={{ color: '#FF3B30' }}>{t('rmDue')}</div>
                 {REMINDERS.filter((r) => r.overdue).map((r) => (
                   <div key={r.title} className="lp-rem-card" style={{ border: '1px solid rgba(255,59,48,0.22)' }}>
                     <div className="lp-rem-bell" style={{ background: 'rgba(255,59,48,0.13)' }}>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF3B30" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M14 21a2 2 0 0 1-4 0"/></svg>
                     </div>
                     <div className="lp-rem-body">
-                      <div className="lp-rem-title">{r.title}</div>
-                      <div className="lp-rem-desc">{r.body}</div>
-                      <div className="lp-rem-time" style={{ color: '#FF3B30' }}>{r.time} · {r.date}</div>
-                      <div className="lp-rem-creator">von {r.creator}</div>
+                      <div className="lp-rem-title">{t(r.title)}</div>
+                      <div className="lp-rem-desc">{t(r.body)}</div>
+                      <div className="lp-rem-time" style={{ color: '#FF3B30' }}>{t(r.time)} · {t(r.date)}</div>
+                      <div className="lp-rem-creator">{t('by', { name: r.creator })}</div>
                     </div>
                   </div>
                 ))}
-                <div className="lp-rem-sect-label" style={{ color: 'var(--app-text-secondary)', marginTop: 6 }}>KOMMEND</div>
+                <div className="lp-rem-sect-label" style={{ color: 'var(--app-text-secondary)', marginTop: 6 }}>{t('rmUpcoming')}</div>
                 {REMINDERS.filter((r) => !r.overdue).map((r) => (
                   <div key={r.title} className="lp-rem-card">
                     <div className="lp-rem-bell" style={{ background: 'rgba(255,159,10,0.13)' }}>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF9F0A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M14 21a2 2 0 0 1-4 0"/></svg>
                     </div>
                     <div className="lp-rem-body">
-                      <div className="lp-rem-title">{r.title}</div>
-                      <div className="lp-rem-desc">{r.body}</div>
-                      <div className="lp-rem-time">{r.time} · {r.date}</div>
-                      <div className="lp-rem-creator">von {r.creator}</div>
+                      <div className="lp-rem-title">{t(r.title)}</div>
+                      <div className="lp-rem-desc">{t(r.body)}</div>
+                      <div className="lp-rem-time">{t(r.time)} · {t(r.date)}</div>
+                      <div className="lp-rem-creator">{t('by', { name: r.creator })}</div>
                     </div>
                   </div>
                 ))}
@@ -599,21 +613,21 @@ export default function LandingClient() {
       </section>
 
       {/* ── COMPARE ── */}
-      <section className="lp-compare" aria-label="Funktionsübersicht">
+      <section className="lp-compare" aria-label={t('cmpAria')}>
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
           <h2 className="lp-h2 lp-reveal" style={{ fontSize: 'clamp(1.5rem, 4vw, 2.2rem)' }}>
-            Alles. An einem Ort.
+            {t('cmpTitle')}
           </h2>
           <p className="lp-lead lp-reveal" style={{ maxWidth: 520, margin: '12px auto 0', transitionDelay: '80ms' }}>
-            Alle Schulinformationen, die du täglich brauchst – schneller und übersichtlicher als je zuvor.
+            {t('cmpLead')}
           </p>
         </div>
         <div className="lp-compare-grid">
           {COMPARE.map(({ title, sub, icon, rd }) => (
             <div className="lp-compare-cell lp-reveal" style={{ transitionDelay: `${rd}ms` }} key={title}>
               <div className="lp-compare-icon">{icon}</div>
-              <div className="lp-compare-title">{title}</div>
-              <div className="lp-compare-sub">{sub}</div>
+              <div className="lp-compare-title">{t(title)}</div>
+              <div className="lp-compare-sub">{t(sub)}</div>
             </div>
           ))}
         </div>
@@ -622,19 +636,17 @@ export default function LandingClient() {
       {/* ── STEPS ── */}
       <section className="lp-steps" id="login-info">
         <div className="lp-steps-head">
-          <div className="lp-eyebrow lp-reveal" style={{ marginBottom: 8 }}>Anmeldung</div>
-          <h2 className="lp-h2 lp-reveal" {...reveal(80)}>In 30&nbsp;Sekunden eingeloggt.</h2>
+          <div className="lp-eyebrow lp-reveal" style={{ marginBottom: 8 }}>{t('stEyebrow')}</div>
+          <h2 className="lp-h2 lp-reveal" {...reveal(80)}>{t('stTitle')}</h2>
           <p className="lp-lead lp-reveal" style={{ maxWidth: 560, margin: '18px auto 0', transitionDelay: '160ms' }}>
-            POKYH nutzt deinen{' '}
-            <strong style={{ color: 'var(--app-text-primary)', fontWeight: 500 }}>WebUntis‑Account</strong>
-            {' '}— denselben, mit dem du dich auch in der WebUntis‑App anmeldest. Kein neues Passwort, keine Registrierung.
+            {rich(t('stLead'), { style: { color: 'var(--app-text-primary)', fontWeight: 500 } })}
           </p>
         </div>
         <div className="lp-steps-grid">
           {[
-            { num:'01', title:'BFS Tschuggmall',   body: <><strong>Momentan</strong> wird nur das Berufsbildungszentrum <strong>„Christian Josef Tschuggmall“</strong> unterstützt.</>,                                    rd:0   },
-            { num:'02', title:'WebUntis‑Login',  body: <>Gib deinen <strong>WebUntis‑Benutzernamen</strong> und dein Passwort ein — wie in der WebUntis‑App. Dein Passwort wird <strong>niemals gespeichert</strong>.</>, rd:100 },
-            { num:'03', title:'Loslegen',        body: <>Stundenplan, Noten und Mensa werden <strong>automatisch geladen</strong>.</>,                          rd:200 },
+            { num:'01', title: t('st1Title'), body: rich(t('st1Body')), rd:0   },
+            { num:'02', title: t('st2Title'), body: rich(t('st2Body')), rd:100 },
+            { num:'03', title: t('st3Title'), body: rich(t('st3Body')), rd:200 },
           ].map(({ num, title, body, rd }) => (
             <div className="lp-step lp-reveal" style={{ transitionDelay: `${rd}ms` }} key={num}>
               <div className="lp-step-num">{num}</div>
@@ -648,13 +660,13 @@ export default function LandingClient() {
       {/* ── MAKERS ── */}
       <section className="lp-makers">
         <div className="lp-makers-head">
-          <div className="lp-eyebrow lp-reveal" style={{ marginBottom: 8 }}>Made by Schülern</div>
-          <h2 className="lp-h2 lp-reveal" {...reveal(80)}>Von zwei aus der Klasse.</h2>
+          <div className="lp-eyebrow lp-reveal" style={{ marginBottom: 8 }}>{t('mkEyebrow')}</div>
+          <h2 className="lp-h2 lp-reveal" {...reveal(80)}>{t('mkTitle')}</h2>
           <p className="lp-lead lp-reveal" style={{ maxWidth: 520, margin: '18px auto 0', transitionDelay: '160ms' }}>
-            POKYH wird in der Freizeit von zwei Schülern der LBS Brixen entwickelt — als Open‑Source‑Projekt unter der{' '}
+            {t('mkLeadBefore')}{' '}
             <a href="https://github.com/bedchem" target="_blank" rel="noopener noreferrer" style={{ color: '#6366F1', textDecoration: 'none' }}>
               bedchem
-            </a>{' '}Organisation auf GitHub.
+            </a>{' '}{t('mkLeadAfter')}
           </p>
         </div>
         <div className="lp-makers-grid">
@@ -680,13 +692,13 @@ export default function LandingClient() {
 
       {/* ── CTA ── */}
       <section className="lp-cta" id="login">
-        <h2 className="lp-h2 lp-reveal">Bereit?</h2>
+        <h2 className="lp-h2 lp-reveal">{t('ctaTitle')}</h2>
         <p className="lp-lead lp-reveal" {...reveal(80)}>
-          Kostenlos. Ohne Registrierung. Mit deinem WebUntis‑Account.
+          {t('ctaLead')}
         </p>
         <div className="lp-reveal" style={{ transitionDelay: '160ms', marginTop: 32, display: 'inline-flex', gap: 22, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Link href="/login"    className="lp-btn">Mit WebUntis anmelden</Link>
-          <a    href="#login-info" className="lp-alink">So funktioniert's</a>
+          <Link href={localize('/login')} className="lp-btn">{t('ctaButton')}</Link>
+          <a    href="#login-info" className="lp-alink">{t('ctaHow')}</a>
         </div>
       </section>
 

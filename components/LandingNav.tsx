@@ -2,14 +2,16 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useLocalizeHref, useRoutePath, useT } from '@/providers/LocaleProvider';
+import { navDict, type NavKey } from '@/lib/i18n/dictionaries/nav';
 import { useTheme } from '@/providers/ThemeProvider';
+import LanguageMenu from '@/components/LanguageMenu';
 import '@/app/landing.css';
 
-const NAV_LINKS = [
-  { label: 'About',     href: '/about' },
-  { label: 'FAQ',       href: '/faq' },
-  { label: 'Vergleich', href: '/comparison' },
+const NAV_LINKS: { label: NavKey; href: string }[] = [
+  { label: 'about', href: '/about' },
+  { label: 'faq', href: '/faq' },
+  { label: 'comparison', href: '/comparison' },
 ];
 
 function MensaIcon() {
@@ -25,7 +27,9 @@ function MensaIcon() {
 export default function LandingNav() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const close = () => setMobileOpen(false);
-  const pathname = usePathname();
+  const pathname = useRoutePath();
+  const t = useT(navDict);
+  const localize = useLocalizeHref();
   const { resolved, toggleWithRipple } = useTheme();
 
   return (
@@ -34,7 +38,7 @@ export default function LandingNav() {
         <div className="lp-nav-inner">
           {/* Left: brand + nav links */}
           <div className="lp-nav-left">
-            <Link href="/" className="lp-nav-brand">
+            <Link href={localize('/')} className="lp-nav-brand">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/POKYH_Logo.png" alt="POKYH" className="lp-nav-logo-img" />
               POKYH
@@ -45,10 +49,10 @@ export default function LandingNav() {
                 return (
                   <Link 
                     key={link.href} 
-                    href={link.href} 
+                    href={localize(link.href)} 
                     className={`lp-nav-link ${isActive ? 'active' : ''}`}
                   >
-                    {link.label}
+                    {t(link.label)}
                   </Link>
                 );
               })}
@@ -81,23 +85,24 @@ export default function LandingNav() {
                 </svg>
               </div>
             </label>
+            <LanguageMenu />
             <Link
-              href="/mensa"
+              href={localize('/mensa')}
               className={`lp-nav-mensa ${pathname === '/mensa' ? 'active' : ''}`}
-              aria-label="Mensa-Speiseplan ansehen"
+              aria-label={t('viewMensaMenu')}
             >
               <MensaIcon />
-              <span className="lp-nav-mensa-label">Mensa</span>
+              <span className="lp-nav-mensa-label">{t('mensa')}</span>
             </Link>
-            <Link href="/login" className="lp-nav-login">Anmelden</Link>
-            <Link href="/get" className="lp-nav-get">GET POKYH</Link>
+            <Link href={localize('/login')} className="lp-nav-login">{t('login')}</Link>
+            <Link href={localize('/get')} className="lp-nav-get">GET POKYH</Link>
           </div>
 
           {/* Mobile hamburger */}
           <button
             className="lp-nav-ham"
             onClick={() => setMobileOpen(o => !o)}
-            aria-label={mobileOpen ? 'Menü schließen' : 'Menü öffnen'}
+            aria-label={mobileOpen ? t('closeMenu') : t('openMenu')}
           >
             {mobileOpen
               ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -112,23 +117,23 @@ export default function LandingNav() {
         <>
           <div className="lp-mobile-nav-overlay open" onClick={close} />
           <div className="lp-mobile-nav-drawer open">
-            <Link href="/mensa" className="lp-mobile-nav-item lp-mobile-nav-mensa" onClick={close}>
+            <Link href={localize('/mensa')} className="lp-mobile-nav-item lp-mobile-nav-mensa" onClick={close}>
               <MensaIcon />
-              Mensa-Speiseplan
-              <span className="lp-mobile-nav-badge">Ohne Login</span>
+              {t('mensaMenu')}
+              <span className="lp-mobile-nav-badge">{t('withoutLogin')}</span>
             </Link>
             <div className="lp-mobile-nav-sep" />
-            <div className="lp-mobile-nav-section">Seiten</div>
+            <div className="lp-mobile-nav-section">{t('pages')}</div>
             {NAV_LINKS.map(link => (
-              <Link key={link.href} href={link.href} className="lp-mobile-nav-item" onClick={close}>
-                {link.label}
+              <Link key={link.href} href={localize(link.href)} className="lp-mobile-nav-item" onClick={close}>
+                {t(link.label)}
               </Link>
             ))}
             <div className="lp-mobile-nav-sep" />
-            <Link href="/login" className="lp-mobile-nav-item" onClick={close}>
-              Anmelden
+            <Link href={localize('/login')} className="lp-mobile-nav-item" onClick={close}>
+              {t('login')}
             </Link>
-            <Link href="/get" className="lp-mobile-nav-item" style={{ color: '#6366F1', fontWeight: 700 }} onClick={close}>
+            <Link href={localize('/get')} className="lp-mobile-nav-item" style={{ color: '#6366F1', fontWeight: 700 }} onClick={close}>
               GET POKYH
             </Link>
           </div>

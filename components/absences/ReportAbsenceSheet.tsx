@@ -7,6 +7,9 @@ import ReasonPicker from './ReasonPicker';
 import TimetableLessonPicker, { type PickedRange } from './TimetableLessonPicker';
 import { fetchAbsenceReasons, createAbsence } from '@/lib/api';
 import type { AbsenceReason } from '@/lib/types';
+import { useT } from '@/providers/LocaleProvider';
+import { absencesDict } from '@/lib/i18n/dictionaries/absences';
+import { commonDict } from '@/lib/i18n/dictionaries/common';
 
 interface Props {
   personName?: string | null;
@@ -25,9 +28,9 @@ function dtToParts(dt: string): { ymd: string; hhmm: string } | null {
 function partsToDt(ymd: string, hhmm: string): string {
   return `${ymd.slice(0, 4)}-${ymd.slice(4, 6)}-${ymd.slice(6, 8)}T${hhmm.slice(0, 2)}:${hhmm.slice(2, 4)}`;
 }
-function displayDt(dt: string): string {
+function displayDt(dt: string, empty: string): string {
   const p = dtToParts(dt);
-  if (!p) return 'Wählen';
+  if (!p) return empty;
   return `${p.ymd.slice(6, 8)}.${p.ymd.slice(4, 6)}.${p.ymd.slice(0, 4)} ${p.hhmm.slice(0, 2)}:${p.hhmm.slice(2, 4)}`;
 }
 function defaultDt(hhmm: string): string {
@@ -37,6 +40,8 @@ function defaultDt(hhmm: string): string {
 }
 
 export default function ReportAbsenceSheet({ personName, onClose, onCreated }: Props) {
+  const t = useT(absencesDict);
+  const tc = useT(commonDict);
   const [view, setView] = useState<View>('form');
   const [start, setStart] = useState(() => defaultDt('0750'));
   const [end, setEnd] = useState(() => defaultDt('1645'));
@@ -54,7 +59,7 @@ export default function ReportAbsenceSheet({ personName, onClose, onCreated }: P
     let alive = true;
     fetchAbsenceReasons()
       .then((r) => { if (alive) setReasons(r.reasons ?? []); })
-      .catch((e) => { if (alive) setReasonsErr(e instanceof Error ? e.message : 'Fehler'); });
+      .catch((e) => { if (alive) setReasonsErr(e instanceof Error ? e.message : 'error'); });
     return () => { alive = false; };
   }, []);
 
@@ -79,9 +84,9 @@ export default function ReportAbsenceSheet({ personName, onClose, onCreated }: P
     if (submitting) return;
     const sp = dtToParts(start);
     const ep = dtToParts(end);
-    if (!sp || !ep) { setError('Bitte Start und Ende wählen.'); return; }
-    if (`${ep.ymd}${ep.hhmm}` < `${sp.ymd}${sp.hhmm}`) { setError('Ende muss nach dem Start liegen.'); return; }
-    if (!reason) { setError('Bitte einen Abwesenheitsgrund wählen.'); return; }
+    if (!sp || !ep) { setError(t('errChooseRange')); return; }
+    if (`${ep.ymd}${ep.hhmm}` < `${sp.ymd}${sp.hhmm}`) { setError(t('errEndAfterStart')); return; }
+    if (!reason) { setError(t('errChooseReason')); return; }
 
     setSubmitting(true);
     setError('');
@@ -97,7 +102,7 @@ export default function ReportAbsenceSheet({ personName, onClose, onCreated }: P
       setSuccess(true);
       setTimeout(() => { onCreated(); onClose(); }, 950);
     } catch {
-      setError('Die Abwesenheit konnte nicht gespeichert werden. Bitte versuche es später erneut.');
+      setError(t('errSave'));
       setSubmitting(false);
     }
   }
@@ -145,19 +150,19 @@ export default function ReportAbsenceSheet({ personName, onClose, onCreated }: P
             onClick={onClose}
             className="w-9 h-9 flex items-center justify-center rounded-full press-scale"
             style={{ background: 'var(--app-card)', color: 'var(--app-text-secondary)' }}
-            aria-label="Schließen"
+            aria-label={tc('close')}
           >
             <X size={18} />
           </button>
           <h3 className="text-[16px] font-bold" style={{ color: 'var(--app-text-primary)' }}>
-            Abwesenheit melden
+            {t('report')}
           </h3>
           <button
             onClick={submit}
             disabled={submitting || success}
             className="w-9 h-9 flex items-center justify-center rounded-full press-scale disabled:opacity-50"
             style={{ background: success ? 'var(--tint)' : 'var(--accent)', color: '#fff' }}
-            aria-label="Bestätigen"
+            aria-label={t('confirm')}
           >
             {submitting ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
           </button>
@@ -167,18 +172,18 @@ export default function ReportAbsenceSheet({ personName, onClose, onCreated }: P
           {/* Person */}
           <div className="rounded-2xl px-4 py-3 mb-3" style={{ background: 'var(--app-card)' }}>
             <p className="text-[11px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--app-text-tertiary)' }}>
-              Schüler/in
+              {t('student')}
             </p>
             <p className="text-[15px] font-medium" style={{ color: 'var(--app-text-primary)' }}>
-              {personName || 'Ich'}
+              {personName || t('me')}
             </p>
           </div>
 
           {/* Start / End */}
           <div className="rounded-2xl overflow-hidden mb-3" style={{ background: 'var(--app-card)' }}>
-            <Row label="Start" value={displayDt(start)} onClick={() => setView('start')} />
+            <Row label={t('start')} value={displayDt(start, t('choose'))} onClick={() => setView('start')} />
             <Separator />
-            <Row label="Ende" value={displayDt(end)} onClick={() => setView('end')} />
+            <Row label={t('end')} value={displayDt(end, t('choose'))} onClick={() => setView('end')} />
           </div>
 
           {/* From timetable */}
@@ -188,14 +193,14 @@ export default function ReportAbsenceSheet({ personName, onClose, onCreated }: P
             style={{ background: 'color-mix(in srgb, var(--accent) 12%, var(--app-card))', color: 'var(--accent)' }}
           >
             <CalendarClock size={16} />
-            Aus Stundenplan wählen
+            {t('fromTimetable')}
           </button>
 
           {/* Reason */}
           <div className="rounded-2xl overflow-hidden mb-3" style={{ background: 'var(--app-card)' }}>
             <Row
-              label="Abwesenheitsgrund"
-              value={reason?.name ?? (reasonsErr ? 'Nicht verfügbar' : 'Wählen')}
+              label={t('reasonTitle')}
+              value={reason?.name ?? (reasonsErr ? t('unavailable') : t('choose'))}
               valueColor={reason ? undefined : 'var(--app-text-tertiary)'}
               onClick={() => { if (reasons.length) setView('reason'); }}
               disabled={!reasons.length}
@@ -205,12 +210,12 @@ export default function ReportAbsenceSheet({ personName, onClose, onCreated }: P
           {/* Text */}
           <div className="rounded-2xl px-4 py-3 mb-3" style={{ background: 'var(--app-card)' }}>
             <p className="text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--app-text-tertiary)' }}>
-              Text (optional)
+              {t('textOptional')}
             </p>
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Text hier eingeben"
+              placeholder={t('textPlaceholder')}
               rows={3}
               maxLength={1000}
               className="w-full bg-transparent outline-none resize-none text-[15px]"
@@ -220,7 +225,7 @@ export default function ReportAbsenceSheet({ personName, onClose, onCreated }: P
 
           {reasonsErr && (
             <p className="text-[12px] px-1 mb-2" style={{ color: 'var(--warning)' }}>
-              Abwesenheitsgründe konnten gerade nicht geladen werden. Bitte versuche es später erneut.
+              {t('reasonsLoadFailed')}
             </p>
           )}
           {error && (
@@ -230,7 +235,7 @@ export default function ReportAbsenceSheet({ personName, onClose, onCreated }: P
           )}
           {success && (
             <div className="rounded-xl px-4 py-3 text-[13px] flex items-center gap-2" style={{ background: 'color-mix(in srgb, var(--tint) 14%, var(--app-card))', color: 'var(--tint)' }}>
-              <Check size={16} /> Abwesenheit gemeldet.
+              <Check size={16} /> {t('reported')}
             </div>
           )}
         </div>

@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { Lock } from 'lucide-react';
+import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
+import { commonDict } from '@/lib/i18n/dictionaries/common';
 
 const BLUR_PX = 10;
 const MIN_BLUR_PX = 5;
@@ -14,6 +16,8 @@ export default function GuestCommentsLock({ loginHref, children }: { loginHref: 
   const blurRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const [tampered, setTampered] = useState(false);
+  const t = useT(commonDict);
+  const localize = useLocalizeHref();
 
   useEffect(() => {
     if (tampered) return;
@@ -72,14 +76,14 @@ export default function GuestCommentsLock({ loginHref, children }: { loginHref: 
               <Lock size={20} color="var(--accent)" />
             </div>
             <p className="text-sm font-semibold" style={{ color: 'var(--app-text-primary)' }}>
-              Melde dich an, um die Kommentare zu sehen
+              {t('guestCommentsLocked')}
             </p>
             <Link
-              href={loginHref}
+              href={localize(loginHref)}
               className="px-5 py-2.5 rounded-xl font-semibold text-sm text-white press-scale"
               style={{ background: 'var(--accent)' }}
             >
-              Anmelden
+              {t('login')}
             </Link>
           </>
         )}
@@ -89,7 +93,7 @@ export default function GuestCommentsLock({ loginHref, children }: { loginHref: 
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={NOPE_SRC}
-          alt="Nö."
+          alt={t('nope')}
           className="absolute inset-0 w-full h-full object-cover"
           style={{ zIndex: 10 }}
         />

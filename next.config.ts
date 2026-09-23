@@ -25,9 +25,16 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   output: 'standalone',
 
+  // Pages always end with a slash (/de/about/). The proxy adds it — together
+  // with the locale prefix — for pages only, so API calls aren't redirected.
+  trailingSlash: true,
+  skipTrailingSlashRedirect: true,
+
   experimental: {
     // inlineCss deaktiviert weil es ::view-transition-* Pseudo-Elemente blockiert
     // inlineCss: true,
+    // Root layout lives in app/[lang], so unmatched URLs need their own full 404 document
+    globalNotFound: true,
   },
 
   // Allow LAN devices to access the dev server (e.g. mobile testing)

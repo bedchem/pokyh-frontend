@@ -4,6 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 import { MessageCircle, Pencil, Trash2, Send, X, Check } from 'lucide-react';
 import Spinner from './Spinner';
 import type { ApiComment } from '@/lib/api-client';
+import { useT } from '@/providers/LocaleProvider';
+import { uiDict } from '@/lib/i18n/dictionaries/ui';
+import type { UiKey } from '@/lib/i18n/dictionaries/ui';
 
 function avatarColor(name: string): string {
   let h = 0;
@@ -11,15 +14,15 @@ function avatarColor(name: string): string {
   return `hsl(${Math.abs(h) % 360}, 60%, 50%)`;
 }
 
-function timeAgo(iso: string): string {
+function timeAgo(iso: string, t: (key: UiKey, vars?: Record<string, number>) => string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const min = Math.floor(diff / 60000);
-  if (min < 1) return 'Gerade eben';
-  if (min < 60) return `vor ${min} Min.`;
+  if (min < 1) return t('justNow');
+  if (min < 60) return t('minutesAgo', { n: min });
   const h = Math.floor(min / 60);
-  if (h < 24) return `vor ${h} Std.`;
+  if (h < 24) return t('hoursAgo', { n: h });
   const d = Math.floor(h / 24);
-  return `vor ${d} Tag${d > 1 ? 'en' : ''}`;
+  return d > 1 ? t('daysAgo', { n: d }) : t('dayAgo');
 }
 
 interface Props {
@@ -35,6 +38,7 @@ interface Props {
 }
 
 export default function CommentSection({ comments, stableUid, isAdmin, loading, onAdd, onEdit, onDelete, onRequireLogin }: Props) {
+  const t = useT(uiDict);
   const guestPrompt = !stableUid && onRequireLogin ? onRequireLogin : null;
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
@@ -93,7 +97,7 @@ export default function CommentSection({ comments, stableUid, isAdmin, loading, 
       <div className="flex items-center gap-2 mb-3">
         <MessageCircle size={15} color="var(--app-text-secondary)" />
         <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--app-text-secondary)' }}>
-          Kommentare
+          {t('comments')}
           {comments.length > 0 && (
             <span className="ml-1.5 text-[11px] font-normal normal-case" style={{ color: 'var(--app-text-tertiary)' }}>
               ({comments.length})
@@ -133,13 +137,13 @@ export default function CommentSection({ comments, stableUid, isAdmin, loading, 
                   <p className="text-[13px] font-semibold flex-1 min-w-0 truncate" style={{ color: 'var(--app-text-primary)' }}>
                     {c.username}
                     {isMine && (
-                      <span className="ml-1.5 text-[10px] font-medium" style={{ color: 'var(--accent)' }}>Du</span>
+                      <span className="ml-1.5 text-[10px] font-medium" style={{ color: 'var(--accent)' }}>{t('you')}</span>
                     )}
                   </p>
                   <p className="text-[11px] flex-shrink-0" style={{ color: 'var(--app-text-tertiary)' }}>
-                    {timeAgo(c.createdAt)}
+                    {timeAgo(c.createdAt, t)}
                     {c.updatedAt !== c.createdAt && (
-                      <span className="ml-1" style={{ color: 'var(--app-text-tertiary)' }}>· bearbeitet</span>
+                      <span className="ml-1" style={{ color: 'var(--app-text-tertiary)' }}>· {t('edited')}</span>
                     )}
                   </p>
                   {/* Action buttons */}
@@ -232,7 +236,7 @@ export default function CommentSection({ comments, stableUid, isAdmin, loading, 
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
             }}
-            placeholder="Kommentar schreiben…"
+            placeholder={t('writeComment')}
             rows={1}
             className="flex-1 text-[14px] resize-none outline-none bg-transparent leading-relaxed"
             style={{

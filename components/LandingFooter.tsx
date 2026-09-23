@@ -1,30 +1,36 @@
+'use client';
+
 import Link from 'next/link';
+import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
+import { commonDict } from '@/lib/i18n/dictionaries/common';
 
 export default function LandingFooter() {
+  const t = useT(commonDict);
+  const localize = useLocalizeHref();
   return (
     <footer className="lp-footer">
       <div className="lp-footer-inner">
         <div className="lp-footer-disclaimer">
-          POKYH ist ein eigenständiges Schülerprojekt und steht in keiner offiziellen Verbindung zur LBS Brixen, zum Berufsbildungszentrum Christian Josef Tschuggmall oder zu WebUntis / Untis GmbH. Die Anmeldung erfolgt über die WebUntis-Schnittstelle der LBS Brixen. Marken und Logos sind Eigentum ihrer jeweiligen Inhaber.
+          {t('footerDisclaimer')}
         </div>
         <div className="lp-footer-bar">
           <div>
             © 2026{' '}
             <a href="https://github.com/bedchem" target="_blank" rel="noopener noreferrer">bedchem</a>
-            {' '}· POKYH · Made by{' '}
+            {' '}· POKYH · {t('footerMadeBy')}{' '}
             <a href="https://github.com/plattnericus" target="_blank" rel="noopener noreferrer">Plattnericus</a>
             {' '}&amp;{' '}
             <a href="https://github.com/ryhox" target="_blank" rel="noopener noreferrer">Ryhox</a>
           </div>
           <div className="lp-footer-links">
-            <Link href="/login">Anmelden</Link>
-            <Link href="/about">About</Link>
-            <Link href="/faq">FAQ</Link>
-            <Link href="/comparison">Comparison</Link>
-            <Link href="/howto">GET POKYH</Link>
-            <Link href="/legal?view=impressum">Impressum</Link>
-            <Link href="/legal?view=datenschutz">Datenschutz</Link>
-            <Link href="/legal?view=cookies">Cookies</Link>
+            <Link href={localize('/login')}>{t('login')}</Link>
+            <Link href={localize('/about')}>About</Link>
+            <Link href={localize('/faq')}>FAQ</Link>
+            <Link href={localize('/comparison')}>{t('footerComparison')}</Link>
+            <Link href={localize('/howto')}>GET POKYH</Link>
+            <Link href={localize('/legal?view=impressum')}>{t('footerImprint')}</Link>
+            <Link href={localize('/legal?view=datenschutz')}>{t('footerPrivacy')}</Link>
+            <Link href={localize('/legal?view=cookies')}>{t('footerCookies')}</Link>
           </div>
         </div>
       </div>

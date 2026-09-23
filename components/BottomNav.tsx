@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useLocalizeHref, useRoutePath, useT } from '@/providers/LocaleProvider';
+import { navDict, type NavKey } from '@/lib/i18n/dictionaries/nav';
 
 interface Tab {
   href: string;
-  label: string;
+  label: NavKey;
   icon: (active: boolean) => React.ReactNode;
 }
 
@@ -85,15 +86,17 @@ function BookIcon({ active }: { active: boolean }) {
 }
 
 const TABS: Tab[] = [
-  { href: '/home', label: 'Home', icon: (a) => <HomeIcon active={a} /> },
-  { href: '/timetable', label: 'Stundenplan', icon: (a) => <TimetableIcon active={a} /> },
-  { href: '/school', label: 'Schule', icon: (a) => <SchoolIcon active={a} /> },
-  { href: '/mensa', label: 'Mensa', icon: (a) => <MensaIcon active={a} /> },
-  { href: '/classregevents', label: 'Klassenbuch', icon: (a) => <BookIcon active={a} /> },
+  { href: '/home', label: 'home', icon: (a) => <HomeIcon active={a} /> },
+  { href: '/timetable', label: 'timetable', icon: (a) => <TimetableIcon active={a} /> },
+  { href: '/school', label: 'school', icon: (a) => <SchoolIcon active={a} /> },
+  { href: '/mensa', label: 'mensa', icon: (a) => <MensaIcon active={a} /> },
+  { href: '/classregevents', label: 'classregevents', icon: (a) => <BookIcon active={a} /> },
 ];
 
 export default function BottomNav() {
-  const path = usePathname();
+  const path = useRoutePath();
+  const t = useT(navDict);
+  const localize = useLocalizeHref();
 
   return (
     <nav
@@ -112,7 +115,7 @@ export default function BottomNav() {
           return (
             <Link
               key={tab.href}
-              href={tab.href}
+              href={localize(tab.href)}
               className="flex flex-1 flex-col items-center justify-center gap-1 press-scale"
             >
               {tab.icon(active)}
@@ -120,7 +123,7 @@ export default function BottomNav() {
                 className="text-[10px] font-medium tracking-tight"
                 style={{ color: active ? 'var(--accent)' : 'var(--app-text-tertiary)' }}
               >
-                {tab.label}
+                {t(tab.label)}
               </span>
             </Link>
           );

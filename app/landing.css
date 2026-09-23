@@ -13,7 +13,6 @@
   --lp-nav-border: rgba(0,0,0,0.09);
   --lp-nav-shadow: 0 2px 10px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.05);
   --lp-gd-alt:   color-mix(in srgb, var(--app-bg) 40%, var(--app-surface));
-  --lp-wk-cell:  #ffffff;
 }
 /* ── dark mode ── */
 .dark .lp-root {
@@ -28,7 +27,6 @@
   --lp-nav-border: rgba(255,255,255,0.1);
   --lp-nav-shadow: 0 2px 12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06);
   --lp-gd-alt:   color-mix(in srgb, var(--app-bg) 40%, var(--app-surface));
-  --lp-wk-cell:  #1c1c1e;
 }
 
 /* ── Reveal animation ── */
@@ -469,80 +467,7 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
 .lp-mock-tt {
   background: var(--lp-card-bg); border: 0.5px solid var(--lp-card-border);
   border-radius: 20px; width: 100%; max-width: 520px; text-align: left; overflow: hidden;
-}
-/* Day header row */
-.lp-wk-hd {
-  display: grid; grid-template-columns: 32px repeat(5, 1fr);
-  padding: 8px 8px 6px 6px; border-bottom: 0.5px solid var(--lp-card-border); gap: 3px;
-}
-.lp-wk-corner { /* spacer */ }
-.lp-wk-hd-day { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.lp-wk-hd-abbr {
-  font-size: 9px; font-weight: 700; letter-spacing: 0.05em;
-  color: var(--app-text-tertiary); text-transform: uppercase; line-height: 1;
-}
-.lp-wk-hd-num {
-  font-size: 13px; font-weight: 500; color: var(--app-text-primary);
-  width: 22px; height: 22px;
-  display: flex; align-items: center; justify-content: center; border-radius: 50%; line-height: 1;
-}
-.lp-wk-hd-num.is-today { background: #6366F1; color: #fff; font-weight: 700; }
-/* Body: rows of [time + 5 lesson slots] */
-.lp-wk-body { display: flex; flex-direction: column; gap: 3px; padding: 4px 8px 8px 6px; }
-.lp-wk-row { display: grid; grid-template-columns: 32px repeat(5, 1fr); gap: 3px; }
-.lp-wk-time {
-  font-size: 8px; color: var(--app-text-tertiary); font-variant-numeric: tabular-nums;
-  text-align: right; padding-right: 3px; padding-top: 3px; line-height: 1; white-space: nowrap;
-}
-.lp-wk-slot { height: 54px; }
-/* Lesson card — mirrors real lesson-cell */
-.lp-wk-cell {
-  height: 100%; display: flex; align-items: stretch;
-  border-radius: 7px; overflow: hidden; position: relative;
-  background: var(--lp-wk-cell); border: 1px solid var(--lp-card-border);
-}
-.lp-wk-cell-cancelled {
-  opacity: 0.78;
-  border: 1.5px solid rgba(239,68,68,0.6) !important;
-  background: repeating-linear-gradient(
-    -45deg,
-    rgba(239,68,68,0.06) 0 7px,
-    rgba(239,68,68,0.12) 7px 14px
-  ) !important;
-}
-.lp-wk-cell-replacement {
-  background: rgba(249,115,22,0.09) !important;
-  border-color: rgba(249,115,22,0.36) !important;
-}
-.lp-wk-cell-exam {
-  background: rgba(255,214,10,0.1) !important;
-  border-color: rgba(255,214,10,0.36) !important;
-}
-.lp-wk-pause { height: 10px; }
-.lp-wk-cbar { width: 3px; flex-shrink: 0; }
-.lp-wk-cbody {
-  flex: 1; min-width: 0; padding: 3px 2px 3px 4px;
-  display: flex; flex-direction: column; overflow: hidden;
-}
-.lp-wk-csubj {
-  font-size: 10.5px; font-weight: 700; letter-spacing: -0.01em;
-  color: var(--app-text-primary); white-space: nowrap; overflow: hidden;
-  text-overflow: ellipsis; line-height: 1.2;
-}
-.lp-wk-csubj.is-struck {
-  text-decoration: line-through;
-  text-decoration-color: #ef4444;
-  text-decoration-thickness: 1.5px;
-  color: rgba(220,50,50,0.7);
-}
-.lp-wk-cmeta {
-  font-size: 8.5px; color: var(--app-text-secondary);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;
-}
-.lp-wk-cmeta-repl { display: flex; align-items: center; gap: 2px; overflow: hidden; }
-.lp-wk-cicon {
-  position: absolute; bottom: 3px; right: 3px;
-  display: inline-flex; align-items: center; pointer-events: none;
+  padding-top: 16px;
 }
 
 /* ── Mock: Grade dashboard ── */
@@ -852,11 +777,6 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
   .lp-mock-rem,
   .lp-mock-tt,
   .lp-mock-grade-dash  { max-width: 100%; }
-  .lp-wk-hd,
-  .lp-wk-row           { grid-template-columns: 28px repeat(5, 1fr); }
-  .lp-wk-slot          { height: 46px; }
-  .lp-wk-csubj         { font-size: 9.5px; }
-  .lp-wk-cmeta         { font-size: 7.5px; }
 }
 
 /* Phone portrait (≤ 680px) */
@@ -1025,7 +945,8 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
   background: none; border: none; cursor: pointer;
   color: var(--app-text-primary);
 }
-@media (max-width: 720px) {
+/* Collapse before the full desktop navigation can become crowded. */
+@media (max-width: 1020px) {
   .lp-nav-drop-wrap  { display: none; }
   .lp-nav-links      { display: none; }
   .lp-nav-login      { display: none; }

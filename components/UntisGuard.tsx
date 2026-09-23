@@ -2,9 +2,13 @@
 
 import Link from 'next/link';
 import { useSession } from '@/providers/SessionProvider';
+import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
+import { commonDict } from '@/lib/i18n/dictionaries/common';
 
 export default function UntisGuard({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useSession();
+  const t = useT(commonDict);
+  const localize = useLocalizeHref();
 
   if (isLoading) return null;
 
@@ -16,13 +20,13 @@ export default function UntisGuard({ children }: { children: React.ReactNode }) 
       >
         <div style={{ fontSize: 40 }}>🎓</div>
         <h2 className="text-xl font-bold" style={{ color: 'var(--app-text-primary)' }}>
-          Schulaccount erforderlich
+          {t('untisTitle')}
         </h2>
         <p className="text-sm max-w-xs" style={{ color: 'var(--app-text-secondary)', lineHeight: 1.6 }}>
-          Diese Funktion ist nur mit einem WebUntis-Schulaccount verfügbar. Melde dich mit deinem Schulaccount an, um Stundenplan, Noten und mehr zu sehen.
+          {t('untisText')}
         </p>
         <Link
-          href="/login"
+          href={localize('/login')}
           className="text-sm font-semibold px-4 py-2 rounded-xl"
           style={{
             background: 'linear-gradient(135deg, #5B3FD4, #8B5CF6)',
@@ -30,7 +34,7 @@ export default function UntisGuard({ children }: { children: React.ReactNode }) 
             marginTop: 8,
           }}
         >
-          Mit Schulaccount anmelden
+          {t('untisLogin')}
         </Link>
       </div>
     );

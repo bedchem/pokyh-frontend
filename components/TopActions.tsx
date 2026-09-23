@@ -4,6 +4,9 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { MessageCircle } from 'lucide-react';
 import { useSession } from '@/providers/SessionProvider';
+import LanguageMenu from '@/components/LanguageMenu';
+import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
+import { navDict } from '@/lib/i18n/dictionaries/nav';
 
 // Module-level cache so the count persists across page navigations
 let _cachedUnread = 0;
@@ -46,6 +49,8 @@ export function invalidateUnreadCache() {
 
 export default function TopActions() {
   const { user } = useSession();
+  const t = useT(navDict);
+  const localize = useLocalizeHref();
   const [unread, setUnread] = useState(_cachedUnread);
   const refreshUnread = useCallback(() => {
     loadUnread().then(setUnread);
@@ -69,7 +74,8 @@ export default function TopActions() {
 
   return (
     <div className="flex items-center gap-3">
-      <Link href="/messages" className="relative press-scale" aria-label="Nachrichten">
+      <LanguageMenu />
+      <Link href={localize('/messages')} className="relative press-scale" aria-label={t('messages')}>
         <MessageCircle size={26} color="var(--accent)" />
         {unread > 0 && (
           <span
@@ -80,7 +86,7 @@ export default function TopActions() {
           </span>
         )}
       </Link>
-      <Link href="/profile" className="press-scale" aria-label="Profil">
+      <Link href={localize('/profile')} className="press-scale" aria-label={t('profile')}>
         <div
           className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center text-sm font-bold text-white"
           style={{ background: 'linear-gradient(135deg, #0A84FF, #5E5CE6)' }}
@@ -91,7 +97,7 @@ export default function TopActions() {
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src="/api/webuntis/profile-image"
-              alt={user?.username ?? 'Profil'}
+              alt={user?.username ?? t('profile')}
               className="w-full h-full object-cover"
               onError={() => setAvatarFailed(true)}
             />

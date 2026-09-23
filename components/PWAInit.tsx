@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { useRoutePath } from '@/providers/LocaleProvider';
 import { isPWA } from '@/lib/pwa';
 import { registerServiceWorker, requestPermissionAndSubscribe } from '@/lib/push';
 
 let _swRegistered = false;
 
 export default function PWAInit() {
-  const pathname = usePathname();
+  const pathname = useRoutePath();
 
   useEffect(() => {
     if (_swRegistered) return;

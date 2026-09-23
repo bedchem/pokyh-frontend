@@ -180,10 +180,10 @@ function ddmmOf(d: number): string {
 }
 
 /** "10:00 – 13:05", or with dates when the absence spans several days. */
-export function absenceRangeText(a: AbsenceEntry): string {
+export function absenceRangeText(a: AbsenceEntry, wholeDayLabel = 'Ganzer Tag'): string {
   const from = a.startTime > 0 ? hhmmOf(a.startTime) : '';
   const to = a.endTime > 0 ? hhmmOf(a.endTime) : '';
-  if (a.startDate === a.endDate) return from && to ? `${from} – ${to}` : 'Ganzer Tag';
+  if (a.startDate === a.endDate) return from && to ? `${from} – ${to}` : wholeDayLabel;
   return `${ddmmOf(a.startDate)}${from ? ` ${from}` : ''} – ${ddmmOf(a.endDate)}${to ? ` ${to}` : ''}`;
 }
 
