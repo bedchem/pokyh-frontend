@@ -60,6 +60,23 @@ function getRefreshToken(): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
+/**
+ * The account behind the current access token, read from the token's payload.
+ * Not a security check (the backend verifies every token); it only tells
+ * client code which account it is acting for.
+ */
+export function getSignedInUid(): string | null {
+  const part = getToken()?.split('.')[1];
+  if (!part) return null;
+  try {
+    const base64 = part.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(part.length / 4) * 4, '=');
+    const payload = JSON.parse(atob(base64)) as { stableUid?: unknown };
+    return typeof payload.stableUid === 'string' && payload.stableUid ? payload.stableUid : null;
+  } catch {
+    return null;
+  }
+}
+
 function clearTokens(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem('pockyh_api_token');
