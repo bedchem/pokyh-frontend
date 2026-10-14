@@ -12,19 +12,28 @@ import { isPWA } from './pwa';
 // - Guests and the public pages send nothing.
 // - One random id per visit, held in memory only: nothing is written to
 //   cookies or browser storage, and a reload starts a new visit.
-// - While the page is visible a ping goes out about once a minute with the
-//   foreground seconds and the number of opened screens since the last one,
-//   plus a final one when the page is hidden or closed.
+// - The visit starts the moment an account is signed in, and while the page
+//   is visible a ping goes out every PING_INTERVAL_MS with the foreground
+//   seconds and the number of opened screens since the last one, plus a final
+//   one when the page is hidden or closed.
+// - A page left alone stops counting IDLE_AFTER_MS after the last click, key,
+//   touch or scroll, and counts again with the next one: a tab forgotten in
+//   the background of a desk is not hours of use.
 // - A browser that sends the Global Privacy Control signal is not measured.
 
-const PING_INTERVAL_MS = 60_000;
+const PING_INTERVAL_MS = 30_000;
+// How often the page looks for a fresh sign-in (reading the token is cheap).
+const SIGN_IN_CHECK_MS = 1_000;
+const IDLE_AFTER_MS = 5 * 60_000;
 // Hidden for longer than this, the next foreground time is a new visit.
 const NEW_VISIT_AFTER_MS = 30 * 60_000;
 
 type Device = 'ios' | 'android' | 'desktop' | 'other';
 
 let visit: { id: string; uid: string } | null = null;
+// Start of the stretch of foreground time not yet added to pendingMs.
 let visibleSince: number | null = null;
+let lastInput = Date.now();
 let hiddenAt: number | null = null;
 let pendingMs = 0;
 let pendingScreens = 0;
@@ -59,12 +68,18 @@ function measuringAllowed(): boolean {
   return (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl !== true;
 }
 
-function send(final: boolean): void {
-  const now = Date.now();
+// Moves the foreground time up to `now` into pendingMs — but never past
+// IDLE_AFTER_MS after the last input — and starts the next stretch.
+function settle(now: number): void {
   if (visibleSince !== null) {
-    pendingMs += now - visibleSince;
-    visibleSince = document.visibilityState === 'visible' ? now : null;
+    const end = Math.min(now, lastInput + IDLE_AFTER_MS);
+    if (end > visibleSince) pendingMs += end - visibleSince;
   }
+  visibleSince = document.visibilityState === 'visible' ? now : null;
+}
+
+function send(final: boolean): void {
+  settle(Date.now());
 
   const uid = getSignedInUid();
   if (!uid || !measuringAllowed()) {
@@ -100,6 +115,13 @@ function send(final: boolean): void {
   }).catch(() => {});
 }
 
+function onInput(): void {
+  const now = Date.now();
+  // Back after a pause: the idle part is left out, counting starts again now.
+  if (now - lastInput > IDLE_AFTER_MS) settle(now);
+  lastInput = now;
+}
+
 function onVisibility(): void {
   if (document.visibilityState === 'hidden') {
     send(true);
@@ -109,6 +131,8 @@ function onVisibility(): void {
   }
   if (hiddenAt !== null && Date.now() - hiddenAt > NEW_VISIT_AFTER_MS) visit = null;
   hiddenAt = null;
+  // Coming back to the page counts as being there.
+  lastInput = Date.now();
   visibleSince = Date.now();
   send(false);
 }
@@ -120,11 +144,19 @@ export function startUsageTracking(): void {
   visibleSince = document.visibilityState === 'visible' ? Date.now() : null;
   document.addEventListener('visibilitychange', onVisibility);
   window.addEventListener('pagehide', () => send(true));
+  for (const event of ['pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'] as const) {
+    window.addEventListener(event, onInput, { passive: true, capture: true });
+  }
   window.setInterval(() => {
     if (document.visibilityState === 'visible') send(false);
   }, PING_INTERVAL_MS);
-  // A moment's delay, so a session restored on load has its token in place.
-  window.setTimeout(() => send(false), 2_000);
+  // A visit begins the moment someone is signed in — on load with a restored
+  // session, or right after signing in — so it shows up at once.
+  window.setInterval(() => {
+    if (document.visibilityState !== 'visible' || !measuringAllowed()) return;
+    const uid = getSignedInUid();
+    if (uid && (!visit || visit.uid !== uid)) send(false);
+  }, SIGN_IN_CHECK_MS);
 }
 
 /** One more screen opened in this visit. */
