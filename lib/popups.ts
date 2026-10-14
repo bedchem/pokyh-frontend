@@ -1,31 +1,15 @@
 'use client';
 
 import { apiFetch } from '@/lib/api-client';
+import { isDueIn, withSeen, type ActivePopup, type SeenMap } from '@/lib/popup-schedule';
 
-// Admin-authored announcement popups (pokyh-backend /popups/active).
-//
-// The backend returns every popup inside its time window; whether *this
-// device* should see it right now is decided here. A popup's window is split
-// into `showCount` equal slots (slotMs) and it is shown at most once per slot:
-// "7× in 7 days" = at most once a day. Missed slots are never caught up, and
-// nothing is shown once the window has ended. `slotMs === null` = show once.
+// Admin-authored announcement popups (pokyh-backend /popups/active). The
+// scheduling rules live in lib/popup-schedule.ts; this file keeps the
+// per-device "seen" record in localStorage and fetches the feed.
 
-export interface ActivePopup {
-  id: string;
-  revision: number;
-  title: string;
-  html: string;
-  showCount: number;
-  startsAt: string | null;
-  endsAt: string | null;
-  slotMs: number | null;
-}
-
-interface SeenEntry { slot: number; count: number; at: number }
-type SeenMap = Record<string, SeenEntry>;
+export type { ActivePopup } from '@/lib/popup-schedule';
 
 const STORAGE_KEY = 'pockyh_popups_seen';
-const PRUNE_AFTER_MS = 365 * 24 * 60 * 60 * 1000;
 
 function readSeen(): SeenMap {
   try {
@@ -42,35 +26,15 @@ function writeSeen(map: SeenMap): void {
   } catch { /* storage unavailable — worst case the popup shows again */ }
 }
 
-// A new revision (admin chose "show again") gets a fresh entry.
-const keyOf = (p: ActivePopup) => `${p.id}:${p.revision}`;
-
-function currentSlot(p: ActivePopup, now: number): number | null {
-  if (p.endsAt && Date.parse(p.endsAt) <= now) return null;
-  if (p.slotMs === null || !p.startsAt) return 0;
-  const slot = Math.floor((now - Date.parse(p.startsAt)) / p.slotMs);
-  if (slot < 0) return null;
-  return Math.min(slot, p.showCount - 1);
-}
-
 export function isDue(p: ActivePopup, now = Date.now()): boolean {
-  const slot = currentSlot(p, now);
-  if (slot === null) return false;
-  const entry = readSeen()[keyOf(p)];
-  if (!entry) return true;
-  return entry.count < p.showCount && slot > entry.slot;
+  return isDueIn(readSeen(), p, now);
 }
 
-export function markSeen(p: ActivePopup, now = Date.now()): void {
-  const slot = currentSlot(p, now);
-  if (slot === null) return;
-  const map = readSeen();
-  const prev = map[keyOf(p)];
-  map[keyOf(p)] = { slot, count: (prev?.count ?? 0) + 1, at: now };
-  for (const [k, v] of Object.entries(map)) {
-    if (now - v.at > PRUNE_AFTER_MS) delete map[k];
-  }
-  writeSeen(map);
+// Spends the current slot of every given popup that is still due — used when
+// one is put on screen and when the whole stack is closed, so popups the user
+// skipped by closing don't come back on the next page load or sign-in.
+export function markSeen(popups: ActivePopup[], now = Date.now()): void {
+  writeSeen(withSeen(readSeen(), popups, now));
 }
 
 export type PopupAudience = 'user' | 'guest';

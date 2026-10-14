@@ -43,23 +43,28 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
     (isMensaRoute(pathname) && (isLoading || !user));
 
   // Admin popups: guests see the "guests" audience on the public pages, signed-in
-  // users the "users" audience. Keyed so signing in/out starts a fresh check.
+  // users the "users" audience. Keyed so signing in/out starts a fresh check, and
+  // held back on the sign-in form so nothing covers it. Rendered at the same spot
+  // in both layouts below, so moving between public pages and the app doesn't
+  // remount it mid-stack.
   const popups = isLoading ? null : (
-    <AnnouncementPopup key={user ? 'user' : 'guest'} audience={user ? 'user' : 'guest'} />
+    <AnnouncementPopup key={user ? 'user' : 'guest'} audience={user ? 'user' : 'guest'} paused={pathname === '/login'} />
   );
 
   if (isLanding || isStandalone) return <>{children}{popups}</>;
 
   return (
-    <div className="flex h-dvh overflow-hidden">
-      <Sidebar />
-      <div className="flex flex-col flex-1 overflow-hidden min-w-0 min-h-0">
-        <DashboardTopbar />
-        <main className="flex-1 overflow-hidden min-h-0">
-          {children}
-        </main>
+    <>
+      <div className="flex h-dvh overflow-hidden">
+        <Sidebar />
+        <div className="flex flex-col flex-1 overflow-hidden min-w-0 min-h-0">
+          <DashboardTopbar />
+          <main className="flex-1 overflow-hidden min-h-0">
+            {children}
+          </main>
+        </div>
       </div>
       {popups}
-    </div>
+    </>
   );
 }

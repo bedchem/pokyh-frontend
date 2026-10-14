@@ -222,3 +222,27 @@ select:focus-visible {
 .popup-content mark { color: #0D0C1A; border-radius: 4px; padding: 0 3px; }
 .popup-content details { background: var(--app-card); border-radius: 14px; padding: 10px 14px; margin: 10px 0; }
 .popup-content summary { font-weight: 600; cursor: pointer; }
+
+/* ─── Announcement popup stack (components/AnnouncementPopup.tsx) ───────────
+   Feedback is colour only; motion is the step slide between popups. */
+.popup-layer { background: var(--app-card-alt); pointer-events: none; transition: opacity 0.25s ease; }
+.popup-dot { display: block; width: 7px; height: 7px; border-radius: 999px; background: var(--app-text-tertiary); transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease; }
+.popup-dot-hit:hover .popup-dot { background: var(--app-text-secondary); }
+.popup-dot[data-active='true'] { width: 22px; background: var(--accent); }
+.popup-primary-btn { background: var(--accent); color: #fff; transition: background-color 0.15s ease; }
+.popup-primary-btn:hover { background: color-mix(in srgb, var(--accent) 85%, #000); }
+.popup-ghost-btn { color: var(--app-text-secondary); transition: background-color 0.15s ease, color 0.15s ease; }
+.popup-ghost-btn:hover { background: var(--app-card); color: var(--app-text-primary); }
+.popup-icon-btn { background: var(--app-card); color: var(--app-text-secondary); transition: background-color 0.15s ease, color 0.15s ease; }
+.popup-icon-btn:hover { background: var(--app-card-alt); color: var(--app-text-primary); }
+.popup-primary-btn:focus-visible, .popup-ghost-btn:focus-visible, .popup-icon-btn:focus-visible, .popup-dot-hit:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 2px;
+}
+@keyframes popupStepNext { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+@keyframes popupStepBack { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
+.popup-step-next { animation: popupStepNext 0.28s cubic-bezier(0.4, 0, 0.2, 1) both; }
+.popup-step-back { animation: popupStepBack 0.28s cubic-bezier(0.4, 0, 0.2, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .popup-step-next, .popup-step-back { animation: none; }
+  .popup-layer, .popup-dot { transition: none; }
+}

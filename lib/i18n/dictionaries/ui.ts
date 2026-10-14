@@ -27,8 +27,10 @@ export type UiKey =
   | 'deleteComment'
   | 'send'
   // AnnouncementPopup
-  | 'next'
-  | 'gotIt'
+  | 'popupLabel'
+  | 'popupNext'
+  | 'popupDone'
+  | 'popupStep'
   // LoadingCover
   | 'loadingPokyh';
 
@@ -57,8 +59,10 @@ export const uiDict: Dictionary<UiKey> = {
     editComment: 'Bearbeiten',
     deleteComment: 'Löschen',
     send: 'Senden',
-    next: 'Weiter ({n})',
-    gotIt: 'Verstanden',
+    popupLabel: 'Mitteilung',
+    popupNext: 'Weiter',
+    popupDone: 'Fertig',
+    popupStep: 'Mitteilung {n} von {total}',
     loadingPokyh: 'POKYH lädt',
   },
   it: {
@@ -85,8 +89,10 @@ export const uiDict: Dictionary<UiKey> = {
     editComment: 'Modifica',
     deleteComment: 'Elimina',
     send: 'Invia',
-    next: 'Avanti ({n})',
-    gotIt: 'Ho capito',
+    popupLabel: 'Comunicazione',
+    popupNext: 'Avanti',
+    popupDone: 'Fatto',
+    popupStep: 'Comunicazione {n} di {total}',
     loadingPokyh: 'POKYH si sta caricando',
   },
   en: {
@@ -113,8 +119,10 @@ export const uiDict: Dictionary<UiKey> = {
     editComment: 'Edit',
     deleteComment: 'Delete',
     send: 'Send',
-    next: 'Next ({n})',
-    gotIt: 'Got it',
+    popupLabel: 'Announcement',
+    popupNext: 'Next',
+    popupDone: 'Done',
+    popupStep: 'Announcement {n} of {total}',
     loadingPokyh: 'POKYH is loading',
   },
   lld: {
@@ -141,8 +149,10 @@ export const uiDict: Dictionary<UiKey> = {
     editComment: "Mudé",
     deleteComment: "Scancelé",
     send: "Mandé",
-    next: "Inant ({n})",
-    gotIt: "Capì",
+    popupLabel: "Nutizia",
+    popupNext: "Inant",
+    popupDone: "Fat",
+    popupStep: "Nutizia {n} de {total}",
     loadingPokyh: "POKYH se cëria",
   },
 };
