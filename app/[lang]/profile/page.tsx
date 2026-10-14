@@ -10,6 +10,8 @@ import { useTheme } from '@/providers/ThemeProvider';
 import { useApp } from '@/providers/AppProvider';
 import { useT } from '@/providers/LocaleProvider';
 import { profileDict, type ProfileKey } from '@/lib/i18n/dictionaries/profile';
+import { privacyDict } from '@/lib/i18n/dictionaries/privacy';
+import PrivacySettings from '@/components/PrivacySettings';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
 
 type Theme = 'light' | 'dark' | 'system';
@@ -108,6 +110,7 @@ export default function ProfilePage() {
   const { stableUid, classId } = useApp();
   const t = useT(profileDict);
   const tc = useT(commonDict);
+  const tp = useT(privacyDict);
   const [loggingOut, setLoggingOut] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [avatarFailed, setAvatarFailed] = useState(false);
@@ -237,6 +240,12 @@ export default function ProfilePage() {
                   );
                 })}
               </div>
+            </section>
+
+            {/* Privacy: usage statistics consent and the notice */}
+            <section className="fade-in delay-3">
+              <SectionHeader label={tp('profileSection')} />
+              <PrivacySettings />
             </section>
 
             {/* App info */}

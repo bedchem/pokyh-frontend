@@ -7,7 +7,10 @@ import { COOKIE_SETTINGS_EVENT } from '@/components/CookieSettingsButton';
 import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
 
-export const COOKIE_CONSENT_STORAGE_KEY = 'pokyh_cookie_consent';
+// Versioned: raising it asks everyone again (done for the privacy update of
+// 14 Oct 2026). Earlier keys are removed when the new choice is made.
+export const COOKIE_CONSENT_STORAGE_KEY = 'pokyh_cookie_consent_v2';
+const LEGACY_CONSENT_KEYS = ['pokyh_cookie_consent'];
 
 export type CookieConsent = 'all' | 'necessary';
 
@@ -39,6 +42,7 @@ export default function CookieBanner({ analyticsEnabled = false }: { analyticsEn
 
   function accept(choice: CookieConsent) {
     localStorage.setItem(COOKIE_CONSENT_STORAGE_KEY, choice);
+    for (const key of LEGACY_CONSENT_KEYS) localStorage.removeItem(key);
     window.dispatchEvent(new CustomEvent('cookie-consent-changed', { detail: choice }));
     setShowDetails(false);
     setVisible(false);

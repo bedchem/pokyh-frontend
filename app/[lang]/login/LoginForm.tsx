@@ -15,12 +15,14 @@ import {
 import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { loginDict } from '@/lib/i18n/dictionaries/login';
 import LanguageMenu from '@/components/LanguageMenu';
-
-const STORAGE_KEY = 'pokyh_cookie_consent';
+import PrivacyChoices from '@/components/PrivacyChoices';
+import { COOKIE_CONSENT_STORAGE_KEY } from '@/components/CookieBanner';
+import { privacyDict } from '@/lib/i18n/dictionaries/privacy';
+import { rememberPendingAck } from '@/lib/privacy-consent';
 
 function hasCookieConsent(): boolean {
   if (typeof localStorage === 'undefined') return false;
-  return localStorage.getItem(STORAGE_KEY) !== null;
+  return localStorage.getItem(COOKIE_CONSENT_STORAGE_KEY) !== null;
 }
 
 // ── Inline SVG icons (no extra dep needed) ──────────────────────────────────
@@ -70,6 +72,12 @@ export default function LoginForm() {
   const [cookieError, setCookieError] = useState(false);
   const [autoFilling, setAutoFilling] = useState(false);
   const [consentGiven, setConsentGiven] = useState(false);
+  // The privacy notice must be read before signing in; the usage statistics
+  // are an optional, separate choice (never preset).
+  const tp = useT(privacyDict);
+  const [privacyRead, setPrivacyRead] = useState(false);
+  const [usageStats, setUsageStats] = useState(false);
+  const [privacyMissing, setPrivacyMissing] = useState(false);
 
   useEffect(() => {
     function checkConsent() { setConsentGiven(hasCookieConsent()); }
@@ -101,6 +109,14 @@ export default function LoginForm() {
       setError(t('errMissing'));
       return;
     }
+
+    if (!privacyRead) {
+      setPrivacyMissing(true);
+      setError(tp('ackRequired'));
+      return;
+    }
+    // Sent to the backend right after signing in (PrivacyGate).
+    rememberPendingAck(usageStats);
 
     setLoading(true);
     setLoadingMsg(t('loggingIn'));
@@ -325,6 +341,23 @@ export default function LoginForm() {
               >
                 {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
+            </div>
+
+            {/* Privacy notice (required) and usage statistics (optional) */}
+            <div className="mt-1 mb-3">
+              <PrivacyChoices
+                acknowledged={privacyRead}
+                onAcknowledged={(next) => {
+                  setPrivacyRead(next);
+                  if (next && privacyMissing) {
+                    setPrivacyMissing(false);
+                    setError('');
+                  }
+                }}
+                usageStats={usageStats}
+                onUsageStats={setUsageStats}
+                highlightAck={privacyMissing}
+              />
             </div>
 
             {/* Error */}

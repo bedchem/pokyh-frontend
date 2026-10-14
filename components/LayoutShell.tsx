@@ -11,6 +11,7 @@ import { isKnownPageRoute, isMensaRoute } from '@/lib/routes';
 const Sidebar = dynamic(() => import('./Sidebar'));
 const DashboardTopbar = dynamic(() => import('./DashboardTopbar'));
 const AnnouncementPopup = dynamic(() => import('./AnnouncementPopup'), { ssr: false });
+const PrivacyGate = dynamic(() => import('./PrivacyGate'), { ssr: false });
 
 // Landing pages that PWA users should never see
 const PWA_BLOCKED = ['/', '/about', '/faq', '/comparison', '/howto'];
@@ -70,6 +71,8 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
         </div>
       </div>
       {popups}
+      {/* The current privacy notice has to be acknowledged before the app is used. */}
+      {user && <PrivacyGate />}
     </>
   );
 }
