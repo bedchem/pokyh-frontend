@@ -1,15 +1,18 @@
 'use client';
 
 import { apiFetch, getSignedInUid } from './api-client';
+import { markCookieChoiceSynced, readCookieChoice, saveCookieChoice } from './cookie-consent';
 
-// The privacy notice a signed-in account has to have read, and its optional
-// consent to the usage statistics.
+// The privacy notice a signed-in account has to have read, and its consent to
+// the personal usage statistics.
 //
 // - The notice is acknowledged at sign-in (LoginForm) and again whenever this
 //   version changes (PrivacyGate). The acknowledgement only records that the
 //   notice was shown and read; it is not consent.
-// - The usage statistics are a separate opt-in (GDPR Art. 6(1)(a)): asked on
-//   the same screen, never preset, revocable in the profile at any time.
+// - The personal usage statistics (GDPR Art. 6(1)(a)) are chosen in the cookie
+//   banner ("Alle akzeptieren" or its settings), never preset, and can be
+//   changed there or in the profile at any time. Without them visits are only
+//   counted anonymously.
 //
 // Raise PRIVACY_NOTICE_VERSION whenever the privacy notice changes in a way
 // people should see again; everyone is then asked once more.
@@ -30,30 +33,24 @@ export interface PrivacyStatus {
   usageStatsAt: string | null;
 }
 
-interface PendingAck {
-  version: string;
-  usageStats: boolean;
-}
-
 // The sign-in form cannot reach the backend yet (its token arrives with the
-// sign-in), so it leaves the choice here and PrivacyGate sends it right after.
-export function rememberPendingAck(usageStats: boolean): void {
+// sign-in), so it leaves the acknowledgement here and PrivacyGate sends it
+// right after.
+export function rememberPendingAck(): void {
   try {
-    localStorage.setItem(PENDING_KEY, JSON.stringify({ version: PRIVACY_NOTICE_VERSION, usageStats } satisfies PendingAck));
+    localStorage.setItem(PENDING_KEY, JSON.stringify({ version: PRIVACY_NOTICE_VERSION }));
   } catch {
     // Storage blocked: PrivacyGate simply asks again after sign-in.
   }
 }
 
-export function takePendingAck(): PendingAck | null {
+export function hasPendingAck(): boolean {
   try {
     const raw = localStorage.getItem(PENDING_KEY);
-    if (!raw) return null;
-    const value = JSON.parse(raw) as Partial<PendingAck>;
-    if (value.version !== PRIVACY_NOTICE_VERSION || typeof value.usageStats !== 'boolean') return null;
-    return { version: value.version, usageStats: value.usageStats };
+    if (!raw) return false;
+    return (JSON.parse(raw) as { version?: unknown }).version === PRIVACY_NOTICE_VERSION;
   } catch {
-    return null;
+    return false;
   }
 }
 
@@ -85,22 +82,22 @@ export async function fetchPrivacyStatus(): Promise<PrivacyStatus | null> {
   }
 }
 
-export async function acknowledgePrivacy(usageStats: boolean): Promise<boolean> {
+// Records that the current notice was read; the statistics choice is left as
+// it is.
+export async function acknowledgePrivacy(): Promise<boolean> {
   if (!signedIn()) return false;
   try {
     const res = await apiFetch('/privacy/acknowledge', {
       method: 'POST',
-      body: JSON.stringify({ version: PRIVACY_NOTICE_VERSION, usageStats }),
+      body: JSON.stringify({ version: PRIVACY_NOTICE_VERSION }),
     });
-    if (res.ok) announce(usageStats);
     return res.ok;
   } catch {
     return false;
   }
 }
 
-export async function setUsageStatsConsent(enabled: boolean): Promise<boolean> {
-  if (!signedIn()) return false;
+async function putUsageStats(enabled: boolean): Promise<boolean> {
   try {
     const res = await apiFetch('/privacy/usage-stats', { method: 'PUT', body: JSON.stringify({ enabled }) });
     if (res.ok) announce(enabled);
@@ -108,4 +105,26 @@ export async function setUsageStatsConsent(enabled: boolean): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+// The profile switch: the account's consent, and this device's cookie choice
+// with it, so the banner shows the same.
+export async function setUsageStatsConsent(enabled: boolean): Promise<boolean> {
+  const uid = getSignedInUid();
+  if (!uid) return false;
+  const ok = await putUsageStats(enabled);
+  if (ok) markCookieChoiceSynced(saveCookieChoice(enabled, readCookieChoice()?.ga ?? false), uid);
+  return ok;
+}
+
+// Brings the signed-in account's consent in line with this device's cookie
+// choice — once per choice, and only for the account that made it (signed in
+// at the time, or the first to sign in after it). Someone else signing in on
+// the same device is never opted in by another person's click.
+export async function syncCookieChoice(): Promise<void> {
+  const uid = getSignedInUid();
+  const choice = readCookieChoice();
+  if (!uid || !choice || choice.synced) return;
+  if (choice.uid && choice.uid !== uid) return;
+  if (await putUsageStats(choice.stats)) markCookieChoiceSynced(choice, uid);
 }

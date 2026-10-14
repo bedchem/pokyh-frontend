@@ -41,6 +41,14 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ['192.168.178.90', '192.168.178.*'],
 
   // Security headers on all routes
+  // Short links used by the iOS app and App Store Connect; installed app
+  // versions keep working without an update.
+  async redirects() {
+    return [
+      { source: '/datenschutz', destination: '/legal?view=datenschutz', permanent: false },
+      { source: '/nutzungsbedingungen', destination: '/legal', permanent: false },
+    ];
+  },
   async headers() {
     return [
       {

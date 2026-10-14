@@ -13,25 +13,24 @@ import {
   acknowledgePrivacy,
   clearPendingAck,
   fetchPrivacyStatus,
-  takePendingAck,
+  hasPendingAck,
+  syncCookieChoice,
 } from '@/lib/privacy-consent';
 
-// Inside the app: the account must have acknowledged the current privacy
-// notice. A choice made on the sign-in form is sent here first (the backend
+// Inside the app: the account is told about the current privacy notice once.
+// The sign-in form already showed it and is recorded here first (the backend
 // token only exists after signing in); otherwise, when the server has no
-// acknowledgement of this version — first sign-in from another device, or the
-// notice changed — this asks for it before the app can be used. The usage
-// statistics are offered again, unticked; not ticking them withdraws consent.
+// record of this version — first sign-in from another device, or the notice
+// changed — this shows it before the app can be used, to be closed with
+// "Verstanden". The cookie banner's statistics choice reaches the account here
+// too.
 //
 // When the backend cannot be reached nothing is blocked: the app keeps
-// working and the question comes back on the next visit.
+// working and the notice comes back on the next visit.
 export default function PrivacyGate() {
-  const { user, logout } = useSession();
+  const { user } = useSession();
   const t = useT(privacyDict);
   const [open, setOpen] = useState(false);
-  const [acknowledged, setAcknowledged] = useState(false);
-  const [usageStats, setUsageStats] = useState(false);
-  const [highlight, setHighlight] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const account = user?.username ?? null;
@@ -40,26 +39,21 @@ export default function PrivacyGate() {
     if (!account) return;
     let alive = true;
     (async () => {
-      const pending = takePendingAck();
-      if (pending && await acknowledgePrivacy(pending.usageStats)) {
+      if (hasPendingAck() && await acknowledgePrivacy()) {
         clearPendingAck();
-        return;
+      } else {
+        const status = await fetchPrivacyStatus();
+        if (alive && status && status.acknowledgedVersion !== PRIVACY_NOTICE_VERSION) setOpen(true);
       }
-      const status = await fetchPrivacyStatus();
-      if (alive && status && status.acknowledgedVersion !== PRIVACY_NOTICE_VERSION) setOpen(true);
+      await syncCookieChoice();
     })();
     return () => { alive = false; };
   }, [account]);
 
   async function confirm() {
-    if (!acknowledged) {
-      setHighlight(true);
-      setError(t('ackRequired'));
-      return;
-    }
     setSaving(true);
     setError('');
-    const ok = await acknowledgePrivacy(usageStats);
+    const ok = await acknowledgePrivacy();
     setSaving(false);
     if (ok) {
       clearPendingAck();
@@ -90,30 +84,17 @@ export default function PrivacyGate() {
           <h2 id="privacy-gate-title" className="text-[19px] font-bold leading-snug" style={{ color: 'var(--app-text-primary)' }}>
             {t('gateTitle')}
           </h2>
-          <p className="mt-2 mb-4 text-[14px] leading-relaxed" style={{ color: 'var(--app-text-secondary)' }}>
+          <p className="mt-2 mb-3 text-[14px] leading-relaxed" style={{ color: 'var(--app-text-secondary)' }}>
             {t('gateIntro', { date: PRIVACY_NOTICE_DATE.toLocaleDateString('de-AT') })}
           </p>
 
-          <PrivacyChoices
-            acknowledged={acknowledged}
-            onAcknowledged={(next) => { setAcknowledged(next); if (next) setError(''); }}
-            usageStats={usageStats}
-            onUsageStats={setUsageStats}
-            highlightAck={highlight}
-          />
+          <PrivacyChoices />
 
           {error && (
             <p className="mt-3 text-[13px]" role="alert" style={{ color: 'var(--warning)' }}>{error}</p>
           )}
 
-          <div className="mt-5 flex items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={() => void logout()}
-              className="popup-ghost-btn h-11 px-3 rounded-xl text-[14px] font-semibold"
-            >
-              {t('logout')}
-            </button>
+          <div className="mt-5 flex justify-end">
             <button
               type="button"
               onClick={() => void confirm()}

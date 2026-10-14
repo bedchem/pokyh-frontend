@@ -2,14 +2,13 @@
 
 import { apiFetch, getSignedInUid } from './api-client';
 import { isPWA } from './pwa';
-import { USAGE_CONSENT_EVENT, fetchPrivacyStatus } from './privacy-consent';
 
 // Usage statistics for the admin panel ("how long is Pokyh open, on which
 // kind of device"). Described in the privacy notice under "Nutzungsstatistik".
 //
-// - Only for a signed-in account that consented to the usage statistics
-//   (opt-in at sign-in, revocable in the profile); without that consent
-//   nothing is measured, not even in memory. The server checks it again.
+// - For every signed-in visit. The server stores it anonymously — a day-scoped
+//   key instead of the account — unless the account consented to the personal
+//   usage statistics (cookie banner or profile); only then is it named.
 // - Guests and the public pages send nothing.
 // - One random id per visit, held in memory only: nothing is written to
 //   cookies or browser storage, and a reload starts a new visit.
@@ -30,23 +29,6 @@ let hiddenAt: number | null = null;
 let pendingMs = 0;
 let pendingScreens = 0;
 let started = false;
-
-// The account's consent as the server knows it, asked once per account and
-// again after CONSENT_TTL_MS; a change made on this page applies at once.
-const CONSENT_TTL_MS = 5 * 60_000;
-let consent: { uid: string; usage: boolean; at: number } | null = null;
-let asking = false;
-
-function consentFor(uid: string): boolean | null {
-  if (consent && consent.uid === uid && Date.now() - consent.at < CONSENT_TTL_MS) return consent.usage;
-  if (!asking) {
-    asking = true;
-    void fetchPrivacyStatus()
-      .then((status) => { if (status) consent = { uid, usage: status.usageStats, at: Date.now() }; })
-      .finally(() => { asking = false; });
-  }
-  return consent && consent.uid === uid ? consent.usage : null;
-}
 
 function reset(): void {
   visit = null;
@@ -85,8 +67,7 @@ function send(final: boolean): void {
   }
 
   const uid = getSignedInUid();
-  // Unknown consent counts as none until the server has answered.
-  if (!uid || !measuringAllowed() || consentFor(uid) !== true) {
+  if (!uid || !measuringAllowed()) {
     reset();
     return;
   }
@@ -137,12 +118,6 @@ export function startUsageTracking(): void {
   if (started || typeof window === 'undefined') return;
   started = true;
   visibleSince = document.visibilityState === 'visible' ? Date.now() : null;
-  window.addEventListener(USAGE_CONSENT_EVENT, (event) => {
-    const usage = (event as CustomEvent<{ usageStats: boolean }>).detail?.usageStats === true;
-    const uid = getSignedInUid();
-    if (uid) consent = { uid, usage, at: Date.now() };
-    if (!usage) reset();
-  });
   document.addEventListener('visibilitychange', onVisibility);
   window.addEventListener('pagehide', () => send(true));
   window.setInterval(() => {

@@ -2,21 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import Script from 'next/script';
-import { COOKIE_CONSENT_STORAGE_KEY, type CookieConsent } from '@/components/CookieBanner';
+import { COOKIE_CONSENT_EVENT, readCookieChoice, type CookieChoice } from '@/lib/cookie-consent';
 
 function isGoogleMeasurementId(value: string | undefined): value is string {
   return Boolean(value && /^G-[A-Z0-9]+$/i.test(value));
 }
 
-function readStoredConsent(): CookieConsent | null {
-  try {
-    const stored = localStorage.getItem(COOKIE_CONSENT_STORAGE_KEY);
-    return stored === 'all' || stored === 'necessary' ? stored : null;
-  } catch {
-    // localStorage can throw in private/blocked contexts – treat as no consent yet.
-    return null;
-  }
-}
 
 function removeAnalyticsCookies() {
   const names = document.cookie.split(';').map((item) => item.trim().split('=')[0]).filter((name) => name === '_ga' || name.startsWith('_ga_'));
@@ -33,42 +24,43 @@ function removeAnalyticsCookies() {
  * revoking analytics takes effect immediately without a page reload.
  */
 export default function AnalyticsLoader({ gaId }: { gaId?: string }) {
-  const [consent, setConsent] = useState<CookieConsent | null>(null);
+  // Whether Google Analytics may run; null until the stored choice is read.
+  const [consent, setConsent] = useState<boolean | null>(null);
   const enabled = isGoogleMeasurementId(gaId);
 
   useEffect(() => {
     // Read browser storage after hydration, so analytics is never rendered
     // from a server-side guess about a visitor's consent.
     const initialConsentCheck = window.requestAnimationFrame(() => {
-      setConsent(readStoredConsent());
+      setConsent(readCookieChoice()?.ga ?? null);
     });
 
     function handleConsentChanged(event: Event) {
-      const detail = (event as CustomEvent<CookieConsent>).detail;
-      setConsent(detail === 'all' || detail === 'necessary' ? detail : null);
+      const allowed = (event as CustomEvent<CookieChoice>).detail?.ga === true;
+      setConsent(allowed);
 
       // An already-injected gtag script tag cannot be un-injected. As a
       // belt-and-braces measure, tell gtag.js to stop sending hits when the
       // visitor downgrades to "necessary only" after GA had already loaded.
-      if (detail === 'necessary' && enabled && gaId) {
+      if (!allowed && enabled && gaId) {
         (window as unknown as Record<string, boolean>)[`ga-disable-${gaId}`] = true;
         const gtag = (window as unknown as { gtag?: (...args: unknown[]) => void }).gtag;
         gtag?.('consent', 'update', { analytics_storage: 'denied' });
         removeAnalyticsCookies();
       }
-      if (detail === 'all' && enabled && gaId) {
+      if (allowed && enabled && gaId) {
         (window as unknown as Record<string, boolean>)[`ga-disable-${gaId}`] = false;
       }
     }
 
-    window.addEventListener('cookie-consent-changed', handleConsentChanged);
+    window.addEventListener(COOKIE_CONSENT_EVENT, handleConsentChanged);
     return () => {
       window.cancelAnimationFrame(initialConsentCheck);
-      window.removeEventListener('cookie-consent-changed', handleConsentChanged);
+      window.removeEventListener(COOKIE_CONSENT_EVENT, handleConsentChanged);
     };
   }, [enabled, gaId]);
 
-  if (!enabled || !gaId || consent !== 'all') return null;
+  if (!enabled || !gaId || consent !== true) return null;
 
   return (
     <>

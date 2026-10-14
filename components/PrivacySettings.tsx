@@ -8,9 +8,10 @@ import { useDateLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider
 import { privacyDict } from '@/lib/i18n/dictionaries/privacy';
 import { fetchPrivacyStatus, setUsageStatsConsent, type PrivacyStatus } from '@/lib/privacy-consent';
 
-// The profile's privacy block: the usage-statistics consent as a switch
-// (withdrawing deletes what was measured), when the notice was acknowledged,
-// and the notice itself.
+// The profile's privacy block: the personal usage statistics as a switch
+// (turning it off removes the account's name from what was measured; visits
+// are still counted anonymously), when the notice was acknowledged, and the
+// notice itself.
 export default function PrivacySettings() {
   const t = useT(privacyDict);
   const localize = useLocalizeHref();

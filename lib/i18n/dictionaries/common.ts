@@ -30,11 +30,17 @@ export type CommonKey =
   | 'cookieText'
   | 'cookieTextAnalytics'
   | 'cookieMore'
+  | 'cookiePolicyLink'
+  | 'cookiePrivacyLink'
   | 'cookieCloseNecessary'
-  | 'cookieChoice'
-  | 'cookieChoiceText'
-  | 'cookieChoiceAnalytics'
-  | 'cookieChoiceNoAnalytics'
+  | 'cookieNecessaryTitle'
+  | 'cookieNecessaryDesc'
+  | 'cookieAlwaysOn'
+  | 'cookieStatsTitle'
+  | 'cookieStatsDesc'
+  | 'cookieGaTitle'
+  | 'cookieGaDesc'
+  | 'cookieSaveSelection'
   | 'cookieSettings'
   | 'cookieNecessaryOnly'
   | 'cookieAcceptAll'
@@ -71,17 +77,23 @@ export const commonDict: Dictionary<CommonKey> = {
     nope: 'Nö.',
     cookieDialog: 'Cookie-Einstellungen',
     cookieTitle: 'Cookies & Datenschutz',
-    cookieText: 'Wir verwenden notwendige Cookies für den Betrieb der App.',
-    cookieTextAnalytics: 'Wir verwenden notwendige Cookies für den Betrieb der App sowie optionale Analytics-Cookies zur Verbesserung unseres Dienstes.',
+    cookieText: 'POKYH nutzt notwendige Cookies für Anmeldung und Sicherheit und zählt anonym, wie es genutzt wird – ohne deinen Namen. Mit „Alle akzeptieren“ erlaubst du zusätzlich die persönliche Nutzungsstatistik; das hilft uns, POKYH zu verbessern.',
+    cookieTextAnalytics: 'POKYH nutzt notwendige Cookies für Anmeldung und Sicherheit und zählt anonym, wie es genutzt wird – ohne deinen Namen. Mit „Alle akzeptieren“ erlaubst du zusätzlich die persönliche Nutzungsstatistik und Google Analytics; das hilft uns, POKYH zu verbessern.',
     cookieMore: 'Mehr erfahren',
+    cookiePolicyLink: 'Cookie-Richtlinie',
+    cookiePrivacyLink: 'Datenschutzerklärung',
     cookieCloseNecessary: 'Nur notwendige Cookies verwenden und schließen',
-    cookieChoice: 'Deine Auswahl',
-    cookieChoiceText: 'Notwendige Cookies bleiben für Anmeldung, Sicherheit und die gewählten Einstellungen aktiv.',
-    cookieChoiceAnalytics: 'Analytics bleibt nur mit deiner ausdrücklichen Zustimmung aktiv und kann hier jederzeit wieder deaktiviert werden.',
-    cookieChoiceNoAnalytics: 'Analytics ist für diese Bereitstellung nicht aktiviert.',
+    cookieNecessaryTitle: 'Notwendig',
+    cookieNecessaryDesc: 'Anmeldung, Sicherheit, deine Einstellungen und die anonyme Zählung ohne Namen.',
+    cookieAlwaysOn: 'Immer aktiv',
+    cookieStatsTitle: 'Persönliche Nutzungsstatistik',
+    cookieStatsDesc: 'Administratoren sehen für dein Konto, wie lange und auf welcher Plattform du POKYH nutzt und welche Seiten du öffnest. Jederzeit widerrufbar. Unter 14 nur mit Erlaubnis deiner Eltern.',
+    cookieGaTitle: 'Google Analytics',
+    cookieGaDesc: 'Statistik über Google mit Cookies; Daten können in die USA übertragen werden.',
+    cookieSaveSelection: 'Auswahl speichern',
     cookieSettings: 'Einstellungen',
     cookieNecessaryOnly: 'Nur notwendige',
-    cookieAcceptAll: 'Alles akzeptieren',
+    cookieAcceptAll: 'Alle akzeptieren',
     cookieOpenSettings: 'Cookie-Einstellungen öffnen',
     footerDisclaimer: 'POKYH ist ein eigenständiges Schülerprojekt und steht in keiner offiziellen Verbindung zur LBS Brixen, zum Berufsbildungszentrum Christian Josef Tschuggmall oder zu WebUntis / Untis GmbH. Die Anmeldung erfolgt über die WebUntis-Schnittstelle der LBS Brixen. Marken und Logos sind Eigentum ihrer jeweiligen Inhaber.',
     footerMadeBy: 'Made by',
@@ -113,14 +125,20 @@ export const commonDict: Dictionary<CommonKey> = {
     nope: 'Eh no.',
     cookieDialog: 'Impostazioni cookie',
     cookieTitle: 'Cookie e privacy',
-    cookieText: 'Utilizziamo cookie necessari per il funzionamento dell’app.',
-    cookieTextAnalytics: 'Utilizziamo cookie necessari per il funzionamento dell’app e cookie analitici facoltativi per migliorare il nostro servizio.',
+    cookieText: 'POKYH usa cookie necessari per l’accesso e la sicurezza e conta in forma anonima come viene usato, senza il tuo nome. Con «Accetta tutto» consenti anche le statistiche di utilizzo personali, che ci aiutano a migliorare POKYH.',
+    cookieTextAnalytics: 'POKYH usa cookie necessari per l’accesso e la sicurezza e conta in forma anonima come viene usato, senza il tuo nome. Con «Accetta tutto» consenti anche le statistiche di utilizzo personali e Google Analytics, che ci aiutano a migliorare POKYH.',
     cookieMore: 'Scopri di più',
+    cookiePolicyLink: 'Informativa sui cookie',
+    cookiePrivacyLink: 'Informativa sulla privacy',
     cookieCloseNecessary: 'Usa solo i cookie necessari e chiudi',
-    cookieChoice: 'La tua scelta',
-    cookieChoiceText: 'I cookie necessari restano attivi per accesso, sicurezza e impostazioni scelte.',
-    cookieChoiceAnalytics: 'Gli analytics restano attivi solo con il tuo consenso esplicito e possono essere disattivati qui in qualsiasi momento.',
-    cookieChoiceNoAnalytics: 'Gli analytics non sono attivi per questa installazione.',
+    cookieNecessaryTitle: 'Necessari',
+    cookieNecessaryDesc: 'Accesso, sicurezza, le tue impostazioni e il conteggio anonimo senza nome.',
+    cookieAlwaysOn: 'Sempre attivi',
+    cookieStatsTitle: 'Statistiche di utilizzo personali',
+    cookieStatsDesc: 'Gli amministratori vedono per il tuo account per quanto tempo e su quale piattaforma usi POKYH e quali pagine apri. Revocabile in qualsiasi momento. Sotto i 14 anni solo con il permesso dei genitori.',
+    cookieGaTitle: 'Google Analytics',
+    cookieGaDesc: 'Statistiche tramite Google con cookie; i dati possono essere trasferiti negli USA.',
+    cookieSaveSelection: 'Salva selezione',
     cookieSettings: 'Impostazioni',
     cookieNecessaryOnly: 'Solo necessari',
     cookieAcceptAll: 'Accetta tutto',
@@ -155,14 +173,20 @@ export const commonDict: Dictionary<CommonKey> = {
     nope: 'Nope.',
     cookieDialog: 'Cookie settings',
     cookieTitle: 'Cookies & privacy',
-    cookieText: 'We use necessary cookies to run the app.',
-    cookieTextAnalytics: 'We use necessary cookies to run the app and optional analytics cookies to improve our service.',
+    cookieText: 'POKYH uses necessary cookies for sign-in and security and counts anonymously how it is used — without your name. With “Accept all” you also allow the personal usage statistics, which help us improve POKYH.',
+    cookieTextAnalytics: 'POKYH uses necessary cookies for sign-in and security and counts anonymously how it is used — without your name. With “Accept all” you also allow the personal usage statistics and Google Analytics, which help us improve POKYH.',
     cookieMore: 'Learn more',
+    cookiePolicyLink: 'Cookie policy',
+    cookiePrivacyLink: 'Privacy notice',
     cookieCloseNecessary: 'Use necessary cookies only and close',
-    cookieChoice: 'Your choice',
-    cookieChoiceText: 'Necessary cookies stay active for login, security and your chosen settings.',
-    cookieChoiceAnalytics: 'Analytics only stays active with your explicit consent and can be turned off here at any time.',
-    cookieChoiceNoAnalytics: 'Analytics isn’t enabled for this deployment.',
+    cookieNecessaryTitle: 'Necessary',
+    cookieNecessaryDesc: 'Sign-in, security, your settings and the anonymous count without names.',
+    cookieAlwaysOn: 'Always on',
+    cookieStatsTitle: 'Personal usage statistics',
+    cookieStatsDesc: 'Administrators see for your account how long and on which platform you use POKYH and which pages you open. Can be withdrawn at any time. Under 14 only with your parents’ permission.',
+    cookieGaTitle: 'Google Analytics',
+    cookieGaDesc: 'Statistics through Google with cookies; data may be transferred to the USA.',
+    cookieSaveSelection: 'Save selection',
     cookieSettings: 'Settings',
     cookieNecessaryOnly: 'Necessary only',
     cookieAcceptAll: 'Accept all',
@@ -197,14 +221,20 @@ export const commonDict: Dictionary<CommonKey> = {
     nope: "No.",
     cookieDialog: "Mpustazions di cookies",
     cookieTitle: "Cookies y privacy",
-    cookieText: "Nëus adurvon cookies necessars per l funzionamënt dl’app.",
-    cookieTextAnalytics: "Nëus adurvon cookies necessars per l funzionamënt dl’app y cookies de analisa facoltatives per miuré nosc servisc.",
+    cookieText: "POKYH adurvea cookies necessars per jì ite y per la segurëza y conta anonimamënter coche l vën adurvà – zënza ti inuem. Cun „Azeté dut“ permëtes nce la statistica de adurvanza persunela, che nes juda a miuré POKYH.",
+    cookieTextAnalytics: "POKYH adurvea cookies necessars per jì ite y per la segurëza y conta anonimamënter coche l vën adurvà – zënza ti inuem. Cun „Azeté dut“ permëtes nce la statistica de adurvanza persunela y Google Analytics, che nes juda a miuré POKYH.",
     cookieMore: "Plu nfurmazions",
+    cookiePolicyLink: "Regules di cookies",
+    cookiePrivacyLink: "Nfurmazion sun la privacy",
     cookieCloseNecessary: "Adurvé mé cookies necessars y stlù",
-    cookieChoice: "Tia cërnuda",
-    cookieChoiceText: "I cookies necessars resta atifs per jì ite, per la segurëza y per la mpustazions cernudes.",
-    cookieChoiceAnalytics: "L’analisa resta atira mé cun ti cunsëntimënt esplizit y tu la pos destudé chilò uni mumënt.",
-    cookieChoiceNoAnalytics: "L’analisa ne n’ie nia atira per chësta nstalazion.",
+    cookieNecessaryTitle: "Necessars",
+    cookieNecessaryDesc: "Jì ite, segurëza, tia mpustazions y la cunta anonima zënza inuem.",
+    cookieAlwaysOn: "For atif",
+    cookieStatsTitle: "Statistica de adurvanza persunela",
+    cookieStatsDesc: "I aministradëures ued per ti account tan giut y sun ciuna plataforma che tu adurveies POKYH y ciuna plates che tu daurjes. Tu la pos tò zeruch uni mumënt. Sota i 14 ani mé cun l permës de ti genitores.",
+    cookieGaTitle: "Google Analytics",
+    cookieGaDesc: "Statistica tres Google cun cookies; i dac po unì trasferii ti USA.",
+    cookieSaveSelection: "Salvé la cërnuda",
     cookieSettings: "Mpustazions",
     cookieNecessaryOnly: "Mé necessars",
     cookieAcceptAll: "Azeté dut",
