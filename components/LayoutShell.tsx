@@ -48,7 +48,12 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
   // in both layouts below, so moving between public pages and the app doesn't
   // remount it mid-stack.
   const popups = isLoading ? null : (
-    <AnnouncementPopup key={user ? 'user' : 'guest'} audience={user ? 'user' : 'guest'} paused={pathname === '/login'} />
+    <AnnouncementPopup
+      key={user ? 'user' : 'guest'}
+      audience={user ? 'user' : 'guest'}
+      route={pathname}
+      paused={pathname === '/login'}
+    />
   );
 
   if (isLanding || isStandalone) return <>{children}{popups}</>;

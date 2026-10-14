@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useT } from '@/providers/LocaleProvider';
 import { uiDict } from '@/lib/i18n/dictionaries/ui';
+import { holdPageCover } from '@/lib/page-cover';
 import type { RefObject } from 'react';
 
 const VIO = '#4930a3';
@@ -89,6 +90,9 @@ export default function LoadingCover({ glbProgressRef, sceneReady, onDone }: Pro
   // Minimum duration for the animation — even a cached GLB shows a real transition.
   // On slow connections the tiles clear proportionally to the download progress.
   const MIN_DURATION = 1.5;
+
+  // Lets overlays (announcement popups) wait until the cover is gone.
+  useEffect(() => holdPageCover(), []);
 
   // Mount: measure viewport, build tiles, start rAF loop
   useEffect(() => {

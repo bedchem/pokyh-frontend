@@ -31,6 +31,7 @@ export type UiKey =
   | 'popupNext'
   | 'popupDone'
   | 'popupStep'
+  | 'popupWait'
   // LoadingCover
   | 'loadingPokyh';
 
@@ -63,6 +64,7 @@ export const uiDict: Dictionary<UiKey> = {
     popupNext: 'Weiter',
     popupDone: 'Fertig',
     popupStep: 'Mitteilung {n} von {total}',
+    popupWait: 'Schließen in {n} Sekunden möglich',
     loadingPokyh: 'POKYH lädt',
   },
   it: {
@@ -93,6 +95,7 @@ export const uiDict: Dictionary<UiKey> = {
     popupNext: 'Avanti',
     popupDone: 'Fatto',
     popupStep: 'Comunicazione {n} di {total}',
+    popupWait: 'Chiudibile tra {n} secondi',
     loadingPokyh: 'POKYH si sta caricando',
   },
   en: {
@@ -123,6 +126,7 @@ export const uiDict: Dictionary<UiKey> = {
     popupNext: 'Next',
     popupDone: 'Done',
     popupStep: 'Announcement {n} of {total}',
+    popupWait: 'Can be closed in {n} seconds',
     loadingPokyh: 'POKYH is loading',
   },
   lld: {
