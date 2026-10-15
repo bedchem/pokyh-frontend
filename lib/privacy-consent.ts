@@ -2,6 +2,7 @@
 
 import { apiFetch, getSignedInUid } from './api-client';
 import { markCookieChoiceSynced, readCookieChoice, saveCookieChoice } from './cookie-consent';
+import { PRIVACY_NOTICE_DAY, PRIVACY_NOTICE_VERSION } from './privacy-notice';
 
 // The privacy notice a signed-in account has to have read, and its consent to
 // the personal usage statistics.
@@ -14,12 +15,11 @@ import { markCookieChoiceSynced, readCookieChoice, saveCookieChoice } from './co
 //   changed there or in the profile at any time. Without them visits are only
 //   counted anonymously.
 //
-// Raise PRIVACY_NOTICE_VERSION whenever the privacy notice changes in a way
-// people should see again; everyone is then asked once more.
+// The version itself is set in lib/privacy-notice.ts, which the apps read too.
 
-export const PRIVACY_NOTICE_VERSION = '2026-10-15';
+export { PRIVACY_NOTICE_VERSION };
 // The date shown with the notice ("Stand").
-export const PRIVACY_NOTICE_DATE = new Date('2026-10-15T12:00:00');
+export const PRIVACY_NOTICE_DATE = new Date(`${PRIVACY_NOTICE_DAY}T12:00:00`);
 
 // Fired on window with { usageStats: boolean } whenever the choice changes.
 export const USAGE_CONSENT_EVENT = 'pokyh-usage-consent-changed';
@@ -59,6 +59,39 @@ export function clearPendingAck(): void {
     localStorage.removeItem(PENDING_KEY);
   } catch {
     // nothing to clear
+  }
+}
+
+// PrivacyGate, once shown for an account, stays until "Verstanden" — also when
+// a navigation (the installed app opening on the landing page, a WebUntis
+// session running out) or a reload remounts it before the server answers
+// again. Kept for this tab only.
+const OPEN_GATE_KEY = 'pokyh_privacy_gate_open';
+
+export function rememberOpenGate(account: string): void {
+  try {
+    sessionStorage.setItem(OPEN_GATE_KEY, JSON.stringify({ account, version: PRIVACY_NOTICE_VERSION }));
+  } catch {
+    // Storage blocked: the gate asks the server again after a remount.
+  }
+}
+
+export function isGateOpen(account: string): boolean {
+  try {
+    const raw = sessionStorage.getItem(OPEN_GATE_KEY);
+    if (!raw) return false;
+    const open = JSON.parse(raw) as { account?: unknown; version?: unknown };
+    return open.account === account && open.version === PRIVACY_NOTICE_VERSION;
+  } catch {
+    return false;
+  }
+}
+
+export function forgetOpenGate(): void {
+  try {
+    sessionStorage.removeItem(OPEN_GATE_KEY);
+  } catch {
+    // nothing to forget
   }
 }
 

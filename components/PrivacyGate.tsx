@@ -1,19 +1,23 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ShieldCheck } from 'lucide-react';
+import Link from 'next/link';
+import { ExternalLink, ShieldCheck } from 'lucide-react';
 import Spinner from '@/components/ui/Spinner';
-import PrivacyChoices from '@/components/PrivacyChoices';
 import { useSession } from '@/providers/SessionProvider';
-import { useT } from '@/providers/LocaleProvider';
+import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { privacyDict } from '@/lib/i18n/dictionaries/privacy';
+import { COOKIE_CONSENT_EVENT, cookieChoiceNeeded } from '@/lib/cookie-consent';
 import {
   PRIVACY_NOTICE_DATE,
   PRIVACY_NOTICE_VERSION,
   acknowledgePrivacy,
   clearPendingAck,
   fetchPrivacyStatus,
+  forgetOpenGate,
   hasPendingAck,
+  isGateOpen,
+  rememberOpenGate,
   syncCookieChoice,
 } from '@/lib/privacy-consent';
 
@@ -21,19 +25,26 @@ import {
 // The sign-in form already showed it and is recorded here first (the backend
 // token only exists after signing in); otherwise, when the server has no
 // record of this version — first sign-in from another device, or the notice
-// changed — this shows it before the app can be used, to be closed with
-// "Verstanden". The cookie banner's statistics choice reaches the account here
-// too.
+// changed — a banner says it was updated, with the way to the notice, until
+// "Verstanden". It informs (GDPR Art. 13), so it asks nothing and blocks
+// nothing; the optional statistics are chosen in the cookie banner, whose
+// choice reaches the account here too, and which goes first when both are due.
 //
-// When the backend cannot be reached nothing is blocked: the app keeps
-// working and the notice comes back on the next visit.
-export default function PrivacyGate() {
+// When the backend cannot be reached nothing is shown and the notice comes
+// back on the next visit. Once shown it stays until "Verstanden", whatever
+// navigation or reload comes in between (rememberOpenGate); `paused` only hides
+// it — on the sign-in form and on the privacy notice itself.
+export default function PrivacyGate({ paused = false }: { paused?: boolean }) {
   const { user } = useSession();
   const t = useT(privacyDict);
-  const [open, setOpen] = useState(false);
+  const localize = useLocalizeHref();
+  const account = user?.username ?? null;
+  // Shown before in this tab and not confirmed yet: back at once (the layout
+  // keys this component by account).
+  const [open, setOpen] = useState(() => (account ? isGateOpen(account) : false));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const account = user?.username ?? null;
+  const [cookieBannerOpen, setCookieBannerOpen] = useState(() => cookieChoiceNeeded());
 
   useEffect(() => {
     if (!account) return;
@@ -41,14 +52,28 @@ export default function PrivacyGate() {
     (async () => {
       if (hasPendingAck() && await acknowledgePrivacy()) {
         clearPendingAck();
+        forgetOpenGate();
+        if (alive) setOpen(false);
       } else {
         const status = await fetchPrivacyStatus();
-        if (alive && status && status.acknowledgedVersion !== PRIVACY_NOTICE_VERSION) setOpen(true);
+        if (alive && status) {
+          const due = status.acknowledgedVersion !== PRIVACY_NOTICE_VERSION;
+          if (due) rememberOpenGate(account);
+          else forgetOpenGate();
+          setOpen(due);
+        }
       }
       await syncCookieChoice();
     })();
     return () => { alive = false; };
   }, [account]);
+
+  // One banner at a time: this one waits for the cookie choice.
+  useEffect(() => {
+    const chosen = () => setCookieBannerOpen(false);
+    window.addEventListener(COOKIE_CONSENT_EVENT, chosen);
+    return () => window.removeEventListener(COOKIE_CONSENT_EVENT, chosen);
+  }, []);
 
   async function confirm() {
     setSaving(true);
@@ -57,55 +82,68 @@ export default function PrivacyGate() {
     setSaving(false);
     if (ok) {
       clearPendingAck();
+      forgetOpenGate();
       setOpen(false);
     } else {
       setError(t('saveError'));
     }
   }
 
-  if (!open) return null;
+  if (!open || paused || cookieBannerOpen) return null;
 
   return (
     <div
-      className="fixed inset-0 z-[90] flex items-end sm:items-center justify-center sm:px-4 sm:py-8 fade-backdrop"
-      style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)' }}
+      role="region"
+      aria-labelledby="privacy-banner-title"
+      className="fixed bottom-0 left-0 right-0 z-[95] px-4 pt-0 sm:px-6 slide-up"
+      style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
     >
       <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="privacy-gate-title"
-        className="relative w-full sm:max-w-lg max-h-[92dvh] overflow-y-auto rounded-t-[28px] sm:rounded-[28px] slide-up"
-        style={{ background: 'var(--app-surface)', boxShadow: '0 24px 64px rgba(0,0,0,0.3)' }}
+        className="mx-auto max-w-2xl rounded-2xl p-4 sm:p-5 shadow-2xl flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4"
+        style={{
+          background: 'var(--app-surface)',
+          border: '1px solid var(--app-border)',
+          backdropFilter: 'blur(20px)',
+        }}
       >
-        <div className="px-5 pt-5" style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
-          <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--accent)' }}>
-            <ShieldCheck size={12} /> POKYH
-          </p>
-          <h2 id="privacy-gate-title" className="text-[19px] font-bold leading-snug" style={{ color: 'var(--app-text-primary)' }}>
-            {t('gateTitle')}
-          </h2>
-          <p className="mt-2 mb-3 text-[14px] leading-relaxed" style={{ color: 'var(--app-text-secondary)' }}>
-            {t('gateIntro', { date: PRIVACY_NOTICE_DATE.toLocaleDateString('de-AT') })}
-          </p>
-
-          <PrivacyChoices />
-
-          {error && (
-            <p className="mt-3 text-[13px]" role="alert" style={{ color: 'var(--warning)' }}>{error}</p>
-          )}
-
-          <div className="mt-5 flex justify-end">
-            <button
-              type="button"
-              onClick={() => void confirm()}
-              disabled={saving}
-              className="popup-primary-btn h-11 px-5 rounded-xl inline-flex items-center gap-2 text-[15px] font-semibold"
-            >
-              {saving && <Spinner size={16} />}
-              {saving ? t('saving') : t('confirm')}
-            </button>
+        <div className="flex items-start gap-3 flex-1 min-w-0">
+          <div
+            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: 'color-mix(in srgb, var(--accent) 14%, transparent)' }}
+          >
+            <ShieldCheck size={17} color="var(--accent)" />
+          </div>
+          <div className="min-w-0">
+            <p id="privacy-banner-title" className="text-[15px] font-bold leading-snug" style={{ color: 'var(--app-text-primary)' }}>
+              {t('gateTitle')}
+            </p>
+            <p className="text-[13px] mt-0.5 leading-relaxed" style={{ color: 'var(--app-text-secondary)' }}>
+              {t('gateIntro', { date: PRIVACY_NOTICE_DATE.toLocaleDateString('de-AT') })}{' '}
+              <Link
+                href={localize('/legal?view=datenschutz')}
+                target="_blank"
+                rel="noopener"
+                className="inline-flex items-center gap-1 font-semibold hover:underline"
+                style={{ color: 'var(--accent)' }}
+              >
+                {t('readPolicy')}
+                <ExternalLink size={12} />
+              </Link>
+            </p>
+            {error && (
+              <p className="mt-1.5 text-[13px]" role="alert" style={{ color: 'var(--warning)' }}>{error}</p>
+            )}
           </div>
         </div>
+        <button
+          type="button"
+          onClick={() => void confirm()}
+          disabled={saving}
+          className="popup-primary-btn h-11 px-5 rounded-xl inline-flex items-center justify-center gap-2 text-[15px] font-semibold flex-shrink-0"
+        >
+          {saving && <Spinner size={16} />}
+          {saving ? t('saving') : t('confirm')}
+        </button>
       </div>
     </div>
   );

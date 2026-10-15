@@ -22,6 +22,7 @@ const PUBLIC_PREFIXES = [
   '/POKYH_Logo',
   '/api/webuntis/login',
   '/api/mensa',
+  '/api/privacy-notice',
   '/models',
   '/draco',
   '/og-image',

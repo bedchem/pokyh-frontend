@@ -57,7 +57,14 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
     />
   );
 
-  if (isLanding || isStandalone) return <>{children}{popups}</>;
+  // The current privacy notice has to be acknowledged before the app is used.
+  // At the same spot in both layouts as well: the installed app opens on the
+  // landing page and moves on to /home at once, and a remount on the way must
+  // not close the notice. Hidden, not closed, on the sign-in form and on the
+  // privacy notice itself.
+  const gate = user ? <PrivacyGate key={user.username} paused={pathname === '/login' || pathname === '/legal'} /> : null;
+
+  if (isLanding || isStandalone) return <>{children}{popups}{gate}</>;
 
   return (
     <>
@@ -71,8 +78,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
         </div>
       </div>
       {popups}
-      {/* The current privacy notice has to be acknowledged before the app is used. */}
-      {user && <PrivacyGate />}
+      {gate}
     </>
   );
 }
