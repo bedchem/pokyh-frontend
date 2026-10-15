@@ -3,12 +3,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import FlagIcon from '@/components/FlagIcon';
-import LadinWarningBadge from '@/components/LadinWarningBadge';
 import { LEGAL_LOCALES, type LegalLocale, type LegalView } from './legalLocale';
 
 export type { LegalLocale, LegalView };
 
-const LOCALE_LABELS: Record<LegalLocale, string> = { it: 'IT', de: 'DE', lld: 'LD', en: 'EN' };
+const LOCALE_LABELS: Record<LegalLocale, string> = { it: 'IT', de: 'DE', en: 'EN' };
 
 // Per-locale accessible name for this widget, so every view (not just
 // whichever call site remembered to pass one) gets a correctly localised
@@ -17,7 +16,6 @@ const SWITCHER_ARIA_LABEL: Record<LegalLocale, string> = {
   de: 'Sprache',
   it: 'Lingua',
   en: 'Language',
-  lld: 'Rujeneda',
 };
 
 /**
@@ -83,7 +81,6 @@ export default function LocaleSwitcher({
               >
                 <FlagIcon locale={item} size={16} className="rounded-[2px]" />
                 {LOCALE_LABELS[item]}
-                {item === 'lld' && <LadinWarningBadge />}
               </a>
             </li>
           ))}

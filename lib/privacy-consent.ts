@@ -17,9 +17,9 @@ import { markCookieChoiceSynced, readCookieChoice, saveCookieChoice } from './co
 // Raise PRIVACY_NOTICE_VERSION whenever the privacy notice changes in a way
 // people should see again; everyone is then asked once more.
 
-export const PRIVACY_NOTICE_VERSION = '2026-10-14';
+export const PRIVACY_NOTICE_VERSION = '2026-10-15';
 // The date shown with the notice ("Stand").
-export const PRIVACY_NOTICE_DATE = new Date('2026-10-14T12:00:00');
+export const PRIVACY_NOTICE_DATE = new Date('2026-10-15T12:00:00');
 
 // Fired on window with { usageStats: boolean } whenever the choice changes.
 export const USAGE_CONSENT_EVENT = 'pokyh-usage-consent-changed';
