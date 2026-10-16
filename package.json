@@ -7,9 +7,9 @@
   },
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "dev": "next dev -H 0.0.0.0",
+    "dev": "next dev -H 0.0.0.0 -p 3011",
     "build": "next build",
-    "start": "next start -H 0.0.0.0",
+    "start": "next start -H 0.0.0.0 -p 3011",
     "lint": "eslint"
   },
   "dependencies": {
