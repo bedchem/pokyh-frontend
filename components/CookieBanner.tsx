@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Cookie, X } from 'lucide-react';
+import { X } from '@phosphor-icons/react';
 import { COOKIE_SETTINGS_EVENT } from '@/components/CookieSettingsButton';
 import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
@@ -62,68 +62,43 @@ export default function CookieBanner({ analyticsEnabled = false }: { analyticsEn
   // COOKIE_SETTINGS_EVENT to reopen this banner, and in the profile.
   if (!visible) return null;
 
-  const buttonBase = 'min-w-[9rem] flex-1 h-11 rounded-xl text-[14px] font-semibold transition-opacity';
+  const buttonBase = 'min-w-[9rem] flex-1 h-12 rounded-full text-[15px] font-semibold press transition-colors';
 
   return (
     <div
       role="dialog"
       aria-label={t('cookieDialog')}
-      className="fixed bottom-0 left-0 right-0 z-[999] px-4 pb-4 pt-0 sm:px-6 sm:pb-6"
+      className="fixed inset-x-0 bottom-0 z-[999] p-3 sm:p-6 sm:right-auto sm:max-w-[480px]"
+      style={{ paddingBottom: 'max(12px, var(--safe-bottom))' }}
     >
-      <div
-        className="mx-auto max-w-2xl max-h-[85dvh] overflow-y-auto rounded-2xl p-5 shadow-2xl"
-        style={{
-          background: 'var(--app-surface)',
-          border: '1px solid var(--app-border)',
-          backdropFilter: 'blur(20px)',
-        }}
-      >
-        {/* Header */}
-        <div className="flex items-start gap-3 mb-3">
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
-            style={{ background: 'color-mix(in srgb, var(--accent) 14%, transparent)' }}
-          >
-            <Cookie size={17} color="var(--accent)" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[15px] font-bold leading-snug" style={{ color: 'var(--app-text-primary)' }}>
-              {t('cookieTitle')}
-            </p>
-            <p className="text-[13px] mt-1 leading-relaxed" style={{ color: 'var(--app-text-secondary)' }}>
-              {analyticsEnabled ? t('cookieTextAnalytics') : t('cookieText')}
-            </p>
-            <p className="text-[13px] mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
-              <Link
-                href={localize('/legal?view=cookies')}
-                className="underline underline-offset-2 transition-opacity hover:opacity-70"
-                style={{ color: 'var(--accent)' }}
-              >
-                {t('cookiePolicyLink')}
-              </Link>
-              <Link
-                href={localize('/legal?view=datenschutz')}
-                className="underline underline-offset-2 transition-opacity hover:opacity-70"
-                style={{ color: 'var(--accent)' }}
-              >
-                {t('cookiePrivacyLink')}
-              </Link>
-            </p>
-          </div>
+      <div className="squircle max-h-[85dvh] overflow-y-auto rounded-[28px] bg-surface p-5 sm:p-6 text-ink shadow-[var(--shadow-float)]">
+        <div className="flex items-start justify-between gap-4">
+          <p className="text-[19px] font-extrabold leading-tight tracking-[-0.025em]">{t('cookieTitle')}</p>
           <button
+            type="button"
             onClick={() => choose(false, false)}
-            className="flex-shrink-0 p-1.5 rounded-lg transition-opacity hover:opacity-60"
-            style={{ color: 'var(--app-text-tertiary)' }}
+            className="-mr-1 -mt-1 grid size-9 shrink-0 place-items-center rounded-full text-ink-2 hover:bg-inset hover:text-ink transition-colors"
             aria-label={t('cookieCloseNecessary')}
           >
-            <X size={16} />
+            <X size={18} weight="bold" />
           </button>
         </div>
+        <p className="mt-2 text-[14px] leading-[1.55] text-ink-2">
+          {analyticsEnabled ? t('cookieTextAnalytics') : t('cookieText')}
+        </p>
+        <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[14px] font-semibold">
+          <Link href={localize('/legal?view=cookies')} className="text-accent-ink underline-offset-4 hover:underline">
+            {t('cookiePolicyLink')}
+          </Link>
+          <Link href={localize('/legal?view=datenschutz')} className="text-accent-ink underline-offset-4 hover:underline">
+            {t('cookiePrivacyLink')}
+          </Link>
+        </p>
 
         {showDetails && (
-          <div className="flex flex-col gap-2">
+          <div className="mt-4 divide-y divide-line border-y border-line">
             <Purpose title={t('cookieNecessaryTitle')} desc={t('cookieNecessaryDesc')}>
-              <span className="text-[12px] font-semibold" style={{ color: 'var(--app-text-tertiary)' }}>{t('cookieAlwaysOn')}</span>
+              <span className="text-[12px] font-semibold text-ink-3">{t('cookieAlwaysOn')}</span>
             </Purpose>
             <Purpose title={t('cookieStatsTitle')} desc={t('cookieStatsDesc')}>
               <Switch checked={stats} onChange={setStats} label={t('cookieStatsTitle')} />
@@ -136,38 +111,31 @@ export default function CookieBanner({ analyticsEnabled = false }: { analyticsEn
           </div>
         )}
 
-        <div className="mt-4 flex flex-wrap items-center gap-2.5">
-          {!showDetails && (
-            <button
-              type="button"
-              onClick={() => setShowDetails(true)}
-              className="text-[13px] font-semibold transition-opacity hover:opacity-70"
-              style={{ color: 'var(--accent)' }}
-            >
-              {t('cookieSettings')}
-            </button>
-          )}
+        <div className="mt-5 flex flex-wrap items-center gap-2.5">
           <button
             type="button"
             onClick={() => (showDetails ? choose(stats, ga) : choose(false, false))}
-            className={`${buttonBase} hover:opacity-80`}
-            style={{
-              background: 'var(--app-card)',
-              color: 'var(--app-text-primary)',
-              border: '1px solid var(--app-border)',
-            }}
+            className={`${buttonBase} bg-ink text-canvas hover:bg-[color-mix(in_srgb,var(--ink)_86%,var(--canvas))]`}
           >
             {showDetails ? t('cookieSaveSelection') : t('cookieNecessaryOnly')}
           </button>
           <button
             type="button"
             onClick={() => choose(true, true)}
-            className={`${buttonBase} text-white hover:opacity-90`}
-            style={{ background: 'var(--accent)', border: '1px solid var(--accent)' }}
+            className={`${buttonBase} bg-accent text-on-accent hover:bg-[color-mix(in_srgb,var(--accent)_88%,#000)]`}
           >
             {t('cookieAcceptAll')}
           </button>
         </div>
+        {!showDetails && (
+          <button
+            type="button"
+            onClick={() => setShowDetails(true)}
+            className="mt-3 text-[14px] font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline"
+          >
+            {t('cookieSettings')}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -175,12 +143,12 @@ export default function CookieBanner({ analyticsEnabled = false }: { analyticsEn
 
 function Purpose({ title, desc, children }: { title: string; desc: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-3 rounded-xl px-3.5 py-3" style={{ background: 'var(--app-card)' }}>
-      <div className="flex-1 min-w-0">
-        <p className="text-[13.5px] font-semibold leading-snug" style={{ color: 'var(--app-text-primary)' }}>{title}</p>
-        <p className="mt-0.5 text-[12px] leading-relaxed" style={{ color: 'var(--app-text-secondary)' }}>{desc}</p>
+    <div className="flex items-start gap-4 py-3.5">
+      <div className="min-w-0 flex-1">
+        <p className="text-[14px] font-semibold leading-snug text-ink">{title}</p>
+        <p className="mt-0.5 text-[13px] leading-relaxed text-ink-2">{desc}</p>
       </div>
-      <div className="flex-shrink-0 pt-0.5">{children}</div>
+      <div className="shrink-0 pt-0.5">{children}</div>
     </div>
   );
 }
@@ -193,12 +161,11 @@ function Switch({ checked, onChange, label }: { checked: boolean; onChange: (nex
       aria-checked={checked}
       aria-label={label}
       onClick={() => onChange(!checked)}
-      className="relative h-[28px] w-[46px] rounded-full transition-colors duration-200"
-      style={{ background: checked ? 'var(--accent)' : 'var(--app-card-alt)', border: '1px solid var(--app-border)' }}
+      className={`relative h-[30px] w-[50px] rounded-full transition-colors duration-200 ${checked ? 'bg-accent' : 'bg-inset'}`}
     >
       <span
-        className="absolute top-[2px] h-[22px] w-[22px] rounded-full bg-white shadow transition-[left] duration-200"
-        style={{ left: checked ? 20 : 2 }}
+        className="absolute top-[3px] size-6 rounded-full bg-white shadow-[0_1px_3px_rgb(0_0_0/0.25)] transition-[left] duration-200 ease-[var(--ease-out)]"
+        style={{ left: checked ? 23 : 3 }}
       />
     </button>
   );

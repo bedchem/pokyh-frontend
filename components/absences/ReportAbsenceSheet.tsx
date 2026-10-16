@@ -101,8 +101,10 @@ export default function ReportAbsenceSheet({ personName, onClose, onCreated }: P
       });
       setSuccess(true);
       setTimeout(() => { onCreated(); onClose(); }, 950);
-    } catch {
-      setError(t('errSave'));
+    } catch (err) {
+      // WebUntis' own reason (e.g. an overlapping absence) when it gives one.
+      const msg = err instanceof Error ? err.message : '';
+      setError(msg && msg !== 'session_expired' && !/^HTTP \d+$/.test(msg) ? msg : t('errSave'));
       setSubmitting(false);
     }
   }

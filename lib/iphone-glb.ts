@@ -1,7 +1,7 @@
 // Single shared download of the landing-page iPhone model.
 //
 // The request matches the <link rel="preload" as="fetch" crossorigin> emitted by
-// LandingClient, so the browser reuses the bytes already in flight from the HTML
+// the landing page, so the browser reuses the bytes already in flight from the HTML
 // instead of downloading twice. The worker then gets the buffer via postMessage
 // (a worker's own fetch can't see the page's preload cache).
 

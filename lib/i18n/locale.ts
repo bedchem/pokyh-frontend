@@ -1,14 +1,17 @@
 /**
- * Single source of truth for the app's locale. `lld` (Ladin) is part of the
- * type from day one so every dictionary/date-locale shape is Ladin-ready, but
- * it is deliberately excluded from `ACTIVE_LOCALES` — the one gate that
- * controls whether it's selectable anywhere in the UI — until it ships.
+ * Single source of truth for the app's locale. `lld` (Ladin) stays in the
+ * type so existing dictionaries keep compiling, but it is not offered anywhere:
+ * only `ACTIVE_LOCALES` can be selected, and the proxy sends /lld/ URLs to
+ * the German version.
  */
 export type Locale = 'de' | 'it' | 'en' | 'lld';
 
 export const DEFAULT_LOCALE: Locale = 'de';
 
-export const ACTIVE_LOCALES: readonly Locale[] = ['de', 'it', 'en', 'lld'];
+export const ACTIVE_LOCALES: readonly Locale[] = ['de', 'it', 'en'];
+
+/** Locales that exist in the type but are retired from the UI and URLs. */
+export const RETIRED_LOCALES: readonly Locale[] = ['lld'];
 
 export const LOCALE_LABELS: Record<Locale, string> = {
   de: 'DE',

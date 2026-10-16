@@ -1,77 +1,113 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from '@/lib/server-session';
-import { canReportAbsence, writeHeaders, firstWorkingPost } from '@/lib/untis-permissions';
+import { untis, untisClassicWrite } from '@/lib/server/untis';
+import { absenceWriteOutcome, conflictTexts } from '@/lib/server/absences';
 
-// Modern WebUntis excuses via the REST calendar-entry API (legacy classreg write
-// path is 403-blocked). Env-overridable + self-healing across candidates.
-function candidates(): string[] {
-  return [
-    process.env.WEBUNTIS_API_PATH_ABSENCE_EXCUSE,
-    '/api/rest/view/v2/calendar-entry/absences/excuse',
-    '/api/rest/view/v1/calendar-entry/absences/excuse',
-  ].filter(Boolean) as string[];
-}
+export const runtime = 'nodejs';
+
+// Giving a reason and a note for an existing absence: what "entschuldigen" is for a
+// student in WebUntis. The excuse status itself is set by the school.
+//
+// As the official edit dialog does it (classreg/absences/widget/absence.ts):
+//   1. GET  /api/classreg/absences/student?absenceId=…   → { data: { absence, meta } }
+//      only when absence.canEdit is true
+//   2. POST /api/classreg/absences/students/edit
+//      { absenceId, startDate, startTime, endDate, endTime, text, reasonId }
+//      keeping the absence's own dates and times.
 
 interface Body {
-  absenceIds?: number[];
-  reasonId?: number | string;
-  text?: string;
+  absenceIds?: unknown;
+  reasonId?: unknown;
+  text?: unknown;
 }
 
-// Excuse one or more existing (open) absences. Re-checks the 18+ right server-side.
+interface UntisAbsence {
+  id?: number;
+  startDate?: number;
+  startTime?: number;
+  endDate?: number;
+  endTime?: number;
+  canEdit?: boolean;
+}
+
 export async function POST(req: NextRequest) {
   const session = await getServerSession();
-  if (!session) return NextResponse.json({ error: 'Nicht angemeldet.' }, { status: 401 });
-
-  if (!(await canReportAbsence(session))) {
-    return NextResponse.json(
-      { error: 'Entschuldigen ist nur für volljährige Schüler verfügbar.' },
-      { status: 403 },
-    );
-  }
+  if (!session) return NextResponse.json({ error: 'session_expired' }, { status: 401 });
 
   let body: Body;
   try {
     body = (await req.json()) as Body;
   } catch {
-    return NextResponse.json({ error: 'Ungültige Anfrage.' }, { status: 400 });
+    return NextResponse.json({ error: 'Ungültige Anfrage.', code: 'invalid_request' }, { status: 400 });
   }
 
-  const ids = Array.isArray(body.absenceIds)
-    ? body.absenceIds.filter((n) => Number.isFinite(n)).map(Number)
-    : [];
-  if (ids.length === 0) {
-    return NextResponse.json({ error: 'Keine Abwesenheiten ausgewählt.' }, { status: 400 });
-  }
-  const reasonId = String(body.reasonId ?? '0');
-  const text = (body.text ?? '').toString().slice(0, 1000);
+  const ids = (Array.isArray(body.absenceIds) ? body.absenceIds : [])
+    .map(Number)
+    .filter((n) => Number.isInteger(n) && n > 0)
+    .slice(0, 20);
+  if (ids.length === 0) return NextResponse.json({ error: 'Keine Abwesenheit ausgewählt.', code: 'no_absence' }, { status: 400 });
+  const reasonRaw = String(body.reasonId ?? '-1');
+  if (!/^-?\d{1,9}$/.test(reasonRaw)) return NextResponse.json({ error: 'Ungültiger Grund.', code: 'invalid_reason' }, { status: 400 });
+  const reasonId = Number(reasonRaw);
+  const text = String(body.text ?? '').slice(0, 1000);
 
-  const payload = {
-    studentId: session.studentId,
-    absenceIds: ids,
-    absenceReasonId: Number(reasonId),
-    text,
-  };
+  const results: { id: number; ok: boolean; code?: string; error?: string; conflicts?: string[] }[] = [];
 
-  try {
-    const res = await firstWorkingPost(session, candidates(), {
-      headers: writeHeaders(session, 'application/json'),
-      body: JSON.stringify(payload),
-    });
+  for (const id of ids) {
+    try {
+      const current = await untis(session, `/api/classreg/absences/student?absenceId=${id}`, { rest: false, timeoutMs: 12000 });
+      if (current.expired) return NextResponse.json({ error: 'session_expired' }, { status: 401 });
+      const absence = ((current.json as { data?: { absence?: UntisAbsence } } | null)?.data?.absence) ?? null;
+      if (!current.ok || !absence) {
+        results.push({ id, ok: false, code: 'not_found' });
+        continue;
+      }
+      if (!absence.canEdit) {
+        results.push({ id, ok: false, code: 'not_editable' });
+        continue;
+      }
 
-    if (res.ok) return NextResponse.json({ ok: true, data: res.data, endpoint: res.path });
-    if (res.reason === 'expired') return NextResponse.json({ error: 'session_expired' }, { status: 401 });
-    if (res.reason === 'error') {
-      console.error('[absence/excuse] API error:', res.status, res.body);
-      return NextResponse.json({ error: 'Die Abwesenheit konnte nicht entschuldigt werden. Bitte versuche es später erneut.' }, { status: 502 });
+      const res = await untisClassicWrite(session, '/api/classreg/absences/students/edit', {
+        method: 'POST',
+        json: {
+          absenceId: id,
+          startDate: absence.startDate,
+          startTime: absence.startTime,
+          endDate: absence.endDate,
+          endTime: absence.endTime,
+          text,
+          reasonId,
+        },
+      });
+      if (res.expired) return NextResponse.json({ error: 'session_expired' }, { status: 401 });
+      const outcome = absenceWriteOutcome(res);
+      if (outcome.ok) results.push({ id, ok: true });
+      else {
+        if (!outcome.conflicts.length) console.error('[absences/excuse] WebUntis rejected the edit:', res.status, outcome.code ?? '');
+        results.push({
+          id,
+          ok: false,
+          code: outcome.conflicts.length ? 'conflict' : (outcome.code ?? 'edit_failed'),
+          error: outcome.error,
+          conflicts: outcome.conflicts.length ? conflictTexts(outcome.conflicts) : undefined,
+        });
+      }
+    } catch {
+      results.push({ id, ok: false, code: 'edit_failed' });
     }
-    return NextResponse.json(
-      { error: 'Die Abwesenheit konnte nicht entschuldigt werden. Bitte versuche es später erneut.' },
-      { status: 502 },
-    );
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : 'Fehler';
-    console.error('[absence/excuse] Error:', msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
   }
+
+  const saved = results.filter((r) => r.ok).length;
+  if (saved === results.length) return NextResponse.json({ ok: true, results });
+
+  const first = results.find((r) => !r.ok);
+  const message =
+    first?.code === 'not_editable'
+      ? 'WebUntis erlaubt dir bei dieser Abwesenheit keine Änderung.'
+      : first?.code === 'not_found'
+        ? 'Die Abwesenheit wurde in WebUntis nicht gefunden.'
+        : first?.code === 'conflict'
+          ? 'WebUntis meldet eine Überschneidung mit einer anderen Abwesenheit.'
+          : first?.error ?? 'Die Abwesenheit konnte nicht gespeichert werden.';
+  return NextResponse.json({ ok: false, saved, results, error: message, code: first?.code }, { status: saved > 0 ? 207 : 422 });
 }

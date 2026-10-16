@@ -31,10 +31,11 @@ const nextConfig: NextConfig = {
   skipTrailingSlashRedirect: true,
 
   experimental: {
-    // inlineCss deaktiviert weil es ::view-transition-* Pseudo-Elemente blockiert
-    // inlineCss: true,
+    // inlineCss stays off: it blocks the ::view-transition-* pseudo-elements.
     // Root layout lives in app/[lang], so unmatched URLs need their own full 404 document
     globalNotFound: true,
+    // Only the icons that are used end up in the bundle
+    optimizePackageImports: ['@phosphor-icons/react'],
   },
 
   // Allow LAN devices to access the dev server (e.g. mobile testing)

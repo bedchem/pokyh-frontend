@@ -1,118 +1,538 @@
 @import "tailwindcss";
 
-:root {
-  /* Light theme */
-  --app-bg: #F1F0F8;
-  --app-surface: #FAFAFA;
-  --app-card: #F5F4FC;
-  --app-card-alt: #ECEAF6;
-  --app-text-primary: #0D0C1A;
-  --app-text-secondary: #5A5870;
-  --app-text-tertiary: #9A98B0;
-  --app-border: #E0DEEE;
-  --app-separator: #D8D6EA;
+/* dark: utilities follow the .dark class set by the theme switch */
+@custom-variant dark (&:where(.dark, .dark *));
 
-  /* Accent (indigo) */
+/* ═══════════════════════════════════════════════════════════════════════════
+   POKYH design tokens
+   Colours come from the Android app (ui/theme/Palette.kt): the warm paper
+   canvas, the blue-grey dark ramp, indigo as the one accent, the status trio,
+   and four category tones used as solid blocks. Nothing else invents a colour.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  color-scheme: light;
+
+  /* Neutral ramp: canvas → surface → inset */
+  --canvas: #F5F2ED;
+  --surface: #FFFFFF;
+  --inset: #EEEAE3;
+  --nested: #ECECEB;
+  --nav: #EBE7E0;
+  --line: #E2DCD2;
+  --line-soft: #EDE8E0;
+
+  /* Text ramp */
+  --ink: #1C1A17;
+  --ink-2: #625B52;
+  --ink-3: #8C8478;
+
+  /* The accent: fills and large glyphs; -ink for small accent text */
   --accent: #6366F1;
-  --accent-soft: #8B5CF6;
-  --tint: #10B981;
-  --success-mid: #10B981;
+  --accent-ink: #4F46E5;
+  --accent-tint: #EDECFD;
+  --on-accent: #FFFFFF;
+
+  /* Status: only ever encodes state */
+  --success: #10B981;
   --warning: #F59E0B;
   --danger: #EF4444;
   --orange: #F97316;
+  --star: #F5B301;
+  --success-ink: #047857;
+  --warning-ink: #A15C07;
+  --danger-ink: #B91C1C;
+  --orange-ink: #C2410C;
 
-  /* Layout */
-  --sidebar-w: 280px;
+  /* Category tones: fill + the ink that reads on it */
+  --periwinkle: #DEDDFB;
+  --periwinkle-ink: #4A46A6;
+  --butter: #F7E7AC;
+  --butter-ink: #7A5B14;
+  --sage: #D5E4D0;
+  --sage-ink: #44653F;
+  --blush: #F7D9D3;
+  --blush-ink: #94493E;
+
+  --shadow-soft: 0 1px 2px rgb(60 40 10 / 0.04), 0 4px 16px rgb(60 40 10 / 0.05);
+  --shadow-float: 0 10px 40px rgb(40 28 8 / 0.12), 0 2px 6px rgb(40 28 8 / 0.05);
+
+  --r-xs: 8px;
+  --r-sm: 12px;
+  --r-md: 16px;
+  --r-lg: 20px;
+  --r-xl: 24px;
+  --r-2xl: 28px;
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  --app-font-sans: var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --app-font-mono: var(--font-dm-mono), ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  /* ── Legacy names, still read by screens that are not rebuilt yet ── */
+  --app-bg: var(--canvas);
+  --app-surface: var(--surface);
+  --app-card: var(--surface);
+  --app-card-alt: var(--inset);
+  --app-text-primary: var(--ink);
+  --app-text-secondary: var(--ink-2);
+  --app-text-tertiary: var(--ink-3);
+  --app-border: var(--line);
+  --app-separator: var(--line-soft);
+  --accent-soft: #8B5CF6;
+  --tint: var(--success);
+  --success-mid: var(--success);
+  --sidebar-w: 272px;
   --sidebar-collapsed-w: 72px;
-  --topbar-h: 64px;
+  --topbar-h: 56px;
   --nav-h: 0px;
 }
 
 .dark {
-  --app-bg: #09090C;
-  --app-surface: #111116;
-  --app-card: #18181E;
-  --app-card-alt: #20202A;
-  --app-text-primary: #F0F0F8;
-  --app-text-secondary: #8A8A9C;
-  --app-text-tertiary: #52525F;
-  --app-border: #222230;
-  --app-separator: #1C1C28;
+  color-scheme: dark;
+
+  --canvas: #111114;
+  --surface: #1B1B1F;
+  --inset: #26262B;
+  --nested: #232323;
+  --nav: #1E1E23;
+  --line: #2E2E34;
+  --line-soft: #232327;
+
+  --ink: #F2F2F4;
+  --ink-2: #A2A2A8;
+  --ink-3: #74747B;
+
+  --accent-ink: #8B8DF9;
+  --accent-tint: #22223E;
+
+  --success-ink: #34D399;
+  --warning-ink: #FBBF24;
+  --danger-ink: #F87171;
+  --orange-ink: #FB923C;
+
+  --periwinkle: #24244C;
+  --periwinkle-ink: #BAB8F4;
+  --butter: #473B16;
+  --butter-ink: #EBD79A;
+  --sage: #23351E;
+  --sage-ink: #B4D0AD;
+  --blush: #46241F;
+  --blush-ink: #EFC1B8;
+
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);
+  --shadow-float: 0 14px 44px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.3);
 }
 
 @theme inline {
-  --color-bg: var(--app-bg);
-  --color-surface: var(--app-surface);
-  --color-card: var(--app-card);
-  --color-card-alt: var(--app-card-alt);
-  --color-text-primary: var(--app-text-primary);
-  --color-text-secondary: var(--app-text-secondary);
-  --color-text-tertiary: var(--app-text-tertiary);
-  --color-border: var(--app-border);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-inset: var(--inset);
+  --color-nested: var(--nested);
+  --color-nav: var(--nav);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
   --color-accent: var(--accent);
-  --color-tint: var(--tint);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-tint: var(--accent-tint);
+  --color-on-accent: var(--on-accent);
+  --color-success: var(--success);
   --color-warning: var(--warning);
   --color-danger: var(--danger);
   --color-orange: var(--orange);
+  --color-star: var(--star);
+  --color-success-ink: var(--success-ink);
+  --color-warning-ink: var(--warning-ink);
+  --color-danger-ink: var(--danger-ink);
+  --color-orange-ink: var(--orange-ink);
+  --color-periwinkle: var(--periwinkle);
+  --color-periwinkle-ink: var(--periwinkle-ink);
+  --color-butter: var(--butter);
+  --color-butter-ink: var(--butter-ink);
+  --color-sage: var(--sage);
+  --color-sage-ink: var(--sage-ink);
+  --color-blush: var(--blush);
+  --color-blush-ink: var(--blush-ink);
+
+  --font-sans: var(--app-font-sans);
+  --font-mono: var(--app-font-mono);
+
+  --radius-xs: var(--r-xs);
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+  --radius-xl: var(--r-xl);
+  --radius-2xl: var(--r-2xl);
+
+  --ease-out-soft: var(--ease-out);
+
+  /* Legacy utility names (bg-bg, text-text-primary, …) */
+  --color-bg: var(--canvas);
+  --color-card: var(--surface);
+  --color-card-alt: var(--inset);
+  --color-text-primary: var(--ink);
+  --color-text-secondary: var(--ink-2);
+  --color-text-tertiary: var(--ink-3);
+  --color-border: var(--line);
+  --color-tint: var(--success);
 }
 
-* {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  box-sizing: border-box;
+/* ═══ Base ═══════════════════════════════════════════════════════════════ */
+
+/* In the base layer so Tailwind utilities can override element defaults. */
+@layer base {
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    height: 100%;
+    background-color: var(--canvas);
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  /* The body stays transparent and above z-index 1: the theme switch grows the
+     new canvas colour as a circle on that layer (providers/ThemeProvider.tsx). */
+  body {
+    position: relative;
+    z-index: 2;
+    min-height: 100%;
+    margin: 0;
+    background-color: transparent;
+    color: var(--ink);
+    font-family: var(--app-font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--accent) 28%, transparent);
+    color: var(--ink);
+  }
+
+  h1, h2, h3, h4 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  img, svg, video, canvas {
+    display: block;
+    max-width: 100%;
+  }
+
+  button {
+    font: inherit;
+    color: inherit;
+  }
+
+  /* Keyboard focus: always visible, never on mouse click */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: none;
+  }
+
+  /* Thin scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--ink) 22%, transparent) transparent;
+  }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--ink) 22%, transparent); border-radius: 999px; }
+
+  /* Squircle corners where the browser supports them (matches the Android shapes) */
+  @supports (corner-shape: squircle) {
+    .squircle { corner-shape: squircle; }
+  }
 }
 
-html {
-  height: 100%;
-  background-color: var(--app-bg);
+/* ═══ Type helpers ═══════════════════════════════════════════════════════ */
+
+@layer components {
+
+  .font-mono,
+  .mono {
+    font-family: var(--app-font-mono);
+    font-feature-settings: 'tnum' 1, 'zero' 0;
+    letter-spacing: -0.01em;
+  }
+
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .display {
+    font-weight: 800;
+    letter-spacing: -0.045em;
+    line-height: 0.92;
+  }
+
+  .visually-hidden {
+    position: absolute !important;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .skip-link {
+    position: fixed;
+    left: 16px;
+    top: 12px;
+    z-index: 100;
+    padding: 10px 16px;
+    border-radius: 999px;
+    background: var(--ink);
+    color: var(--canvas);
+    font-weight: 600;
+    transform: translateY(-160%);
+    transition: transform 0.2s var(--ease-out);
+  }
+  .skip-link:focus {
+    transform: none;
+  }
 }
 
-body {
-  background-color: transparent;
+/* ═══ Motion ════════════════════════════════════════════════════════════ */
+
+.press {
+  transition: transform 0.14s var(--ease-out);
+}
+.press:active {
+  transform: scale(0.97);
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.rise {
+  animation: rise 0.5s var(--ease-out) both;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* Only page content animates on route changes, never the whole viewport */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
+/* Route changes inside the app crossfade (React <ViewTransition>) */
+::view-transition-old(.page-out) {
+  animation: 140ms ease-in both vt-fade-out;
+}
+::view-transition-new(.page-in) {
+  animation: 260ms var(--ease-out) 60ms both vt-rise-in;
+}
+@keyframes vt-fade-out {
+  to { opacity: 0; }
+}
+@keyframes vt-rise-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Lenis smooth scroll (public pages only) */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+  overflow: clip;
+}
+
+/* ═══ Public site ═══════════════════════════════════════════════════════
+   The public pages keep one fixed palette whatever the app theme is: paper
+   sections and night sections, switched while scrolling. The header reads
+   the tone of the section beneath it ([data-tone]). */
+
+.site {
+  /* Android palette (POKYH_ANDROID ui/theme/Palette.kt): light canvas, the
+     blue-grey dark ramp, the logo's indigo and the four category tones. */
+  --paper: #F5F2ED;
+  --night: #111114;
+  --night-2: #1B1B1F;
+  --night-3: #26262B;
+  --indigo: #534AB7;
+  --indigo-deep: #3F3994;
+  --lilac: #DEDDFB;
+  --lilac-ink: #4A46A6;
+  --glow: #BAB8F4;
+  --mute: #9C9CA2;
+
+  --canvas: var(--paper);
+  --surface: #FFFFFF;
+  --inset: #EEEAE3;
+  --line: #E7E2D9;
+  --line-soft: #F0ECE5;
+  --ink: #1C1A17;
+  --ink-2: #6C655C;
+  --ink-3: #A39B90;
+  --accent-ink: #4F46E5;
+  --accent-tint: #EDECFD;
+  --periwinkle: #DEDDFB;
+  --periwinkle-ink: #4A46A6;
+  --butter: #F7E7AC;
+  --butter-ink: #7A5B14;
+  --sage: #D5E4D0;
+  --sage-ink: #44653F;
+  --blush: #F7D9D3;
+  --blush-ink: #94493E;
+
+  color-scheme: light;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+/* Display type: the app's own Plus Jakarta Sans, heavy and tight, set very large. */
+.font-display {
+  font-family: var(--app-font-sans);
+  font-weight: 700;
+  letter-spacing: -0.055em;
+  font-kerning: normal;
+}
+
+/* Rounded objects of the homepage (hero tiles, carousel items) */
+.tile {
+  container-type: size;
+  border-radius: clamp(16px, 1.9vw, 30px);
+  overflow: hidden;
+}
+@supports (corner-shape: squircle) {
+  .tile { corner-shape: squircle; border-radius: clamp(26px, 3vw, 48px); }
+}
+
+/* ═══ Homepage ═══════════════════════════════════════════════════════════ */
+
+/* Hover roll: the label leaves upwards, its copy arrives from below. */
+.roll {
   position: relative;
-  z-index: 2;
-  color: var(--app-text-primary);
-  font-family: var(--font-inter, 'Inter'), -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  min-height: 100%;
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+}
+.roll-a,
+.roll-b {
+  display: block;
+  transition: transform 0.65s var(--ease-out);
+}
+.roll-b {
+  position: absolute;
+  inset: 0;
+  transform: translateY(105%);
+  user-select: none;
+}
+:is(a, button):hover > .roll .roll-a,
+:is(a, button):focus-visible > .roll .roll-a,
+.group:hover .roll .roll-a { transform: translateY(-105%); }
+:is(a, button):hover > .roll .roll-b,
+:is(a, button):focus-visible > .roll .roll-b,
+.group:hover .roll .roll-b { transform: translateY(0); }
+
+/* Intro curtain: shown once per visit, gone by itself if scripts are late. */
+.home-intro {
+  animation: home-intro-fallback 0.6s ease 4.5s forwards;
+}
+html[data-intro='skip'] .home-intro { display: none; }
+@keyframes home-intro-fallback {
+  to { opacity: 0; visibility: hidden; }
 }
 
-/* Thin custom scrollbar */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.38); border-radius: 9999px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.55); }
-.dark::-webkit-scrollbar-thumb { background: rgba(160,165,200,0.4); }
-.dark::-webkit-scrollbar-thumb:hover { background: rgba(160,165,200,0.6); }
-* { scrollbar-width: thin; scrollbar-color: rgba(0,0,0,0.38) transparent; }
-.dark { scrollbar-color: rgba(160,165,200,0.4) transparent; }
+/* Outlined display type */
+.type-outline {
+  color: transparent;
+  -webkit-text-stroke: 1.5px currentColor;
+}
+@supports not (-webkit-text-stroke: 1px black) {
+  .type-outline { color: inherit; opacity: 0.3; }
+}
 
-/* Tap highlight */
-* { -webkit-tap-highlight-color: transparent; }
+@keyframes home-scroll-cue {
+  0% { transform: scaleY(0); transform-origin: top; }
+  45% { transform: scaleY(1); transform-origin: top; }
+  55% { transform: scaleY(1); transform-origin: bottom; }
+  100% { transform: scaleY(0); transform-origin: bottom; }
+}
+.home-scroll-cue { animation: home-scroll-cue 2.2s var(--ease-in-out) infinite; }
 
-/* Press scale */
+@keyframes home-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+.home-blink { animation: home-blink 1.6s ease-in-out infinite; }
+
+/* Without motion the scroll scenes become plain, stacked sections. */
+@media (prefers-reduced-motion: reduce) {
+  .home-hero { height: 100svh !important; }
+  .home-manifest { height: auto !important; }
+  .home-manifest > div { position: relative !important; }
+  .home-day-stage { height: auto !important; }
+  .home-day-track { flex-direction: column; width: 100% !important; transform: none !important; }
+  .home-day-track > * { width: 100% !important; min-height: 100svh; }
+  .home-day-chrome { display: none !important; }
+}
+
+/* ═══ Kept for screens that are not rebuilt yet ═════════════════════════ */
+
 .press-scale { transition: transform 0.12s ease; }
 .press-scale:active { transform: scale(0.97); }
+.card-hover { transition: transform 0.18s ease, box-shadow 0.18s ease; }
+.card-hover:hover { transform: translateY(-1px); box-shadow: var(--shadow-soft); }
 
-/* Card hover */
-.card-hover {
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
-}
-.card-hover:hover {
-  transform: translateY(-1px) scale(1.005);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-}
-.dark .card-hover:hover {
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-}
-
-/* Fade-in animation */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; transform: translateY(0); }
 }
-.fade-in {
-  animation: fadeIn 0.32s ease both;
-}
+.fade-in { animation: fadeIn 0.32s ease both; }
 .delay-1 { animation-delay: 50ms; }
 .delay-2 { animation-delay: 100ms; }
 .delay-3 { animation-delay: 150ms; }
@@ -120,93 +540,58 @@ body {
 .delay-5 { animation-delay: 250ms; }
 .delay-6 { animation-delay: 300ms; }
 
-/* Slide-up (for sheets) */
 @keyframes slideUp {
   from { transform: translateY(100%); }
-  to   { transform: translateY(0); }
+  to { transform: translateY(0); }
 }
-.slide-up {
-  animation: slideUp 0.26s cubic-bezier(0.4, 0, 0.2, 1) both;
-}
+.slide-up { animation: slideUp 0.26s cubic-bezier(0.4, 0, 0.2, 1) both; }
 
-/* Backdrop fade */
 @keyframes fadeBackdrop {
   from { opacity: 0; }
-  to   { opacity: 1; }
+  to { opacity: 1; }
 }
-.fade-backdrop {
-  animation: fadeBackdrop 0.18s ease both;
-}
+.fade-backdrop { animation: fadeBackdrop 0.18s ease both; }
 
-/* Skeleton loader */
 @keyframes shimmer {
-  0%   { background-position: -400px 0; }
+  0% { background-position: -400px 0; }
   100% { background-position: 400px 0; }
 }
 .skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--app-card) 25%,
-    var(--app-card-alt) 50%,
-    var(--app-card) 75%
-  );
+  background: linear-gradient(90deg, var(--inset) 25%, var(--line-soft) 50%, var(--inset) 75%);
   background-size: 800px 100%;
   animation: shimmer 1.4s ease infinite;
 }
 
-/* Glass effect */
-.glass {
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-}
-
-/* Message HTML body — prose-like styles for rendered HTML from WebUntis */
+/* Message HTML body: prose for rendered WebUntis HTML */
 .message-html-body p { margin-bottom: 0.75em; }
 .message-html-body p:last-child { margin-bottom: 0; }
-.message-html-body br { display: block; content: ''; margin-top: 0.25em; }
 .message-html-body b, .message-html-body strong { font-weight: 600; }
 .message-html-body i, .message-html-body em { font-style: italic; }
 .message-html-body ul { list-style: disc; padding-left: 1.25em; margin-bottom: 0.75em; }
 .message-html-body ol { list-style: decimal; padding-left: 1.25em; margin-bottom: 0.75em; }
 .message-html-body li { margin-bottom: 0.2em; }
-.message-html-body a { color: var(--accent); text-decoration: underline; cursor: pointer; }
+.message-html-body a { color: var(--accent-ink); text-decoration: underline; cursor: pointer; }
 .message-html-body h1, .message-html-body h2, .message-html-body h3 { font-weight: 700; margin-bottom: 0.5em; }
 .message-html-body h1 { font-size: 1.2em; }
 .message-html-body h2 { font-size: 1.1em; }
 .message-html-body h3 { font-size: 1em; }
 
-/* Focus ring — only for keyboard navigation, not for inputs (they handle focus via their wrapper) */
-:focus-visible:not(input):not(textarea):not(select) {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: 6px;
-}
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible {
-  outline: none;
-}
-
-/* View Transitions deaktiviert — Theme-Ripple läuft über Overlay + CSS mask */
-::view-transition-old(root),
-::view-transition-new(root) { animation: none; }
-
-/* ─── Announcement popup content ──────────────────────────────────────────────
+/* ─── Announcement popup content ──────────────────────────────────────────
    Backend-rendered Markdown/HTML (components/AnnouncementPopup.tsx). Mirrored
    by the admin preview in pokyh-backend/admin/src/components/popups/PopupPreview.tsx. */
-.popup-content { font-size: 14.5px; line-height: 1.6; color: var(--app-text-primary); overflow-wrap: anywhere; }
+.popup-content { font-size: 14.5px; line-height: 1.6; color: var(--ink); overflow-wrap: anywhere; }
 .popup-content > :first-child { margin-top: 0; }
 .popup-content > :last-child { margin-bottom: 0; }
 .popup-content h1 { font-size: 22px; line-height: 1.3; font-weight: 700; letter-spacing: -0.02em; margin: 18px 0 8px; }
 .popup-content h2 { font-size: 18px; line-height: 1.35; font-weight: 600; letter-spacing: -0.01em; margin: 16px 0 6px; }
 .popup-content h3 { font-size: 15.5px; font-weight: 600; margin: 14px 0 4px; }
 .popup-content p { margin: 0 0 10px; }
-.popup-content a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.popup-content a { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 2px; }
 .popup-content img { max-width: 100%; height: auto; border-radius: 16px; display: block; margin: 10px 0; }
-.popup-content blockquote { margin: 10px 0; padding: 8px 14px; border-left: 3px solid var(--accent); background: var(--app-card); border-radius: 0 12px 12px 0; color: var(--app-text-secondary); }
+.popup-content blockquote { margin: 10px 0; padding: 8px 14px; border-left: 3px solid var(--accent); background: var(--surface); border-radius: 0 12px 12px 0; color: var(--ink-2); }
 .popup-content blockquote p { margin: 0; }
-.popup-content code { background: var(--app-card-alt); padding: 1px 6px; border-radius: 6px; font-size: 0.88em; }
-.popup-content pre { background: var(--app-card); padding: 12px 14px; border-radius: 14px; overflow-x: auto; }
+.popup-content code { background: var(--inset); padding: 1px 6px; border-radius: 6px; font-size: 0.88em; }
+.popup-content pre { background: var(--surface); padding: 12px 14px; border-radius: 14px; overflow-x: auto; }
 .popup-content pre code { background: none; padding: 0; }
 .popup-content ul, .popup-content ol { padding-left: 22px; margin: 0 0 10px; }
 .popup-content ul { list-style: disc; }
@@ -214,29 +599,28 @@ select:focus-visible {
 .popup-content li { margin: 3px 0; }
 .popup-content li:has(> input[type=checkbox]) { list-style: none; margin-left: -20px; }
 .popup-content input[type=checkbox] { accent-color: var(--accent); margin: 0 6px 0 0; vertical-align: -2px; }
-.popup-content hr { border: 0; border-top: 1px solid var(--app-border); margin: 14px 0; }
-.popup-content table { border-collapse: separate; border-spacing: 0; width: 100%; margin: 10px 0; font-size: 13.5px; border-radius: 14px; overflow: hidden; background: var(--app-card); }
+.popup-content hr { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
+.popup-content table { border-collapse: separate; border-spacing: 0; width: 100%; margin: 10px 0; font-size: 13.5px; border-radius: 14px; overflow: hidden; background: var(--surface); }
 .popup-content th, .popup-content td { padding: 7px 12px; text-align: left; }
-.popup-content th { background: var(--app-card-alt); font-weight: 600; }
-.popup-content tr + tr td { border-top: 1px solid var(--app-border); }
-.popup-content mark { color: #0D0C1A; border-radius: 4px; padding: 0 3px; }
-.popup-content details { background: var(--app-card); border-radius: 14px; padding: 10px 14px; margin: 10px 0; }
+.popup-content th { background: var(--inset); font-weight: 600; }
+.popup-content tr + tr td { border-top: 1px solid var(--line); }
+.popup-content mark { color: #1C1A17; border-radius: 4px; padding: 0 3px; }
+.popup-content details { background: var(--surface); border-radius: 14px; padding: 10px 14px; margin: 10px 0; }
 .popup-content summary { font-weight: 600; cursor: pointer; }
 
-/* ─── Announcement popup stack (components/AnnouncementPopup.tsx) ───────────
-   Feedback is colour only; motion is the step slide between popups. */
-.popup-layer { background: var(--app-card-alt); pointer-events: none; transition: opacity 0.25s ease; }
-.popup-dot { display: block; width: 7px; height: 7px; border-radius: 999px; background: var(--app-text-tertiary); transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease; }
-.popup-dot-hit:hover:not(:disabled) .popup-dot { background: var(--app-text-secondary); }
+/* ─── Announcement popup stack (components/AnnouncementPopup.tsx) ─────── */
+.popup-layer { background: var(--inset); pointer-events: none; transition: opacity 0.25s ease; }
+.popup-dot { display: block; width: 7px; height: 7px; border-radius: 999px; background: var(--ink-3); transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease; }
+.popup-dot-hit:hover:not(:disabled) .popup-dot { background: var(--ink-2); }
 .popup-dot-hit:disabled { cursor: default; }
 .popup-dot[data-active='true'] { width: 22px; background: var(--accent); }
 .popup-primary-btn { background: var(--accent); color: #fff; transition: background-color 0.15s ease, opacity 0.25s ease; }
 .popup-primary-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 85%, #000); }
 .popup-primary-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.popup-ghost-btn { color: var(--app-text-secondary); transition: background-color 0.15s ease, color 0.15s ease; }
-.popup-ghost-btn:hover { background: var(--app-card); color: var(--app-text-primary); }
-.popup-icon-btn { background: var(--app-card); color: var(--app-text-secondary); transition: background-color 0.15s ease, color 0.15s ease; }
-.popup-icon-btn:hover { background: var(--app-card-alt); color: var(--app-text-primary); }
+.popup-ghost-btn { color: var(--ink-2); transition: background-color 0.15s ease, color 0.15s ease; }
+.popup-ghost-btn:hover { background: var(--surface); color: var(--ink); }
+.popup-icon-btn { background: var(--surface); color: var(--ink-2); transition: background-color 0.15s ease, color 0.15s ease; }
+.popup-icon-btn:hover { background: var(--inset); color: var(--ink); }
 .popup-primary-btn:focus-visible, .popup-ghost-btn:focus-visible, .popup-icon-btn:focus-visible, .popup-dot-hit:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 2px;
 }
@@ -246,7 +630,16 @@ select:focus-visible {
 .popup-fade { animation: popupFade 0.2s ease both; }
 .popup-step-next { animation: popupStepNext 0.28s cubic-bezier(0.4, 0, 0.2, 1) both; }
 .popup-step-back { animation: popupStepBack 0.28s cubic-bezier(0.4, 0, 0.2, 1) both; }
-@media (prefers-reduced-motion: reduce) {
-  .popup-step-next, .popup-step-back, .popup-fade { animation: none; }
-  .popup-layer, .popup-dot { transition: none; }
+
+@keyframes scroll-hint {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(220%); }
 }
+
+/* Subject/status tones from lib/timetable-logic.ts (toneVars): light and dark pairs */
+.tone-fill { background-color: var(--tone-fill-l); color: var(--tone-ink-l); }
+.dark .tone-fill { background-color: var(--tone-fill-d); color: var(--tone-ink-d); }
+.tone-bar { background-color: var(--tone-bar-l); }
+.dark .tone-bar { background-color: var(--tone-bar-d); }
+.tone-ink { color: var(--tone-ink-l); }
+.dark .tone-ink { color: var(--tone-ink-d); }

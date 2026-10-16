@@ -1,5 +1,8 @@
 'use client';
 
+import Sheet from '@/components/ui/Sheet';
+import ForgotPasswordForm from '@/components/account/ForgotPasswordForm';
+import { untisActionsDict } from '@/lib/i18n/dictionaries/untisActions';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Cookie, Info } from 'lucide-react';
@@ -72,6 +75,8 @@ export default function LoginForm() {
   const [cookieError, setCookieError] = useState(false);
   const [autoFilling, setAutoFilling] = useState(false);
   const [consentGiven, setConsentGiven] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const ta = useT(untisActionsDict);
 
   useEffect(() => {
     function checkConsent() { setConsentGiven(hasCookieConsent()); }
@@ -333,6 +338,17 @@ export default function LoginForm() {
               </button>
             </div>
 
+            <div className="-mt-1 mb-3 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setForgotOpen(true)}
+                className="text-[13px] font-semibold underline-offset-4 hover:underline"
+                style={{ color: 'var(--accent)' }}
+              >
+                {ta('forgot')}
+              </button>
+            </div>
+
             {/* Privacy notice (GDPR Art. 13): shown, nothing to tick */}
             <div className="mt-1 mb-3">
               <PrivacyChoices />
@@ -368,6 +384,11 @@ export default function LoginForm() {
                 : t('login')}
             </button>
           </form>
+          <Sheet open={forgotOpen} onClose={() => setForgotOpen(false)} title={ta('resetTitle')} description={ta('resetLead')} closeLabel={ta('close')}>
+            <div className="pb-2">
+              <ForgotPasswordForm initialUsername={username} />
+            </div>
+          </Sheet>
 
           {/* Hint box */}
           <div

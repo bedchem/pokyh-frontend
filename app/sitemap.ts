@@ -9,7 +9,7 @@ type Page = {
   lastModified: string;
   changeFrequency: MetadataRoute.Sitemap[number]['changeFrequency'];
   priority: number;
-  // Languages the page exists in, when not all of them (the legal texts have no Ladin).
+  // Languages the page exists in, when not all of them.
   locales?: readonly Locale[];
 };
 
@@ -26,7 +26,7 @@ const PAGES: Page[] = [
   { path: '/about', lastModified: '2026-09-23', changeFrequency: 'monthly', priority: 0.8 },
   { path: '/faq', lastModified: '2026-09-23', changeFrequency: 'monthly', priority: 0.8 },
   { path: '/comparison', lastModified: '2026-09-23', changeFrequency: 'monthly', priority: 0.75 },
-  { path: '/legal', lastModified: '2026-10-15', changeFrequency: 'yearly', priority: 0.3, locales: ['de', 'it', 'en'] },
+  { path: '/legal', lastModified: '2026-10-15', changeFrequency: 'yearly', priority: 0.3 },
 ];
 
 /** One entry per page and language, each listing all its language versions (hreflang). */

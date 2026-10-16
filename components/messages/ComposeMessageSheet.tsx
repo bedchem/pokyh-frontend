@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { X, Send, ChevronRight, Check, Loader2, Pencil, Paperclip, FileText } from 'lucide-react';
 import RecipientPicker from './RecipientPicker';
-import { fetchRecipients, sendMessage, saveDraft, deleteDraft } from '@/lib/api';
+import { fetchRecipients, sendMessage, saveDraft, deleteDraft, sendReply } from '@/lib/api';
+import { untisActionsDict } from '@/lib/i18n/dictionaries/untisActions';
 import type { MessageRecipient } from '@/lib/types';
 import { useT } from '@/providers/LocaleProvider';
 import { messagesDict } from '@/lib/i18n/dictionaries/messages';
@@ -21,6 +22,8 @@ interface Props {
   onClose: () => void;
   onSent?: () => void;
   initial?: ComposeInitial;
+  /** Reply to a received message (POST /v2/messages/{id}/reply); the recipient is fixed. */
+  reply?: { messageId: number; subject: string; recipientName: string };
 }
 
 type View = 'form' | 'recipients';
@@ -44,8 +47,11 @@ function initialsOf(name: string): string {
 // When `initial` carries a draftId the sheet opens in edit mode: saving/sending
 // creates a fresh message and removes the old draft (WebUntis mints a new draft
 // id on every save, so this mirrors its own behaviour).
-export default function ComposeMessageSheet({ onClose, onSent, initial }: Props) {
+export default function ComposeMessageSheet({ onClose, onSent, initial, reply }: Props) {
   const t = useT(messagesDict);
+  const ta = useT(untisActionsDict);
+  // WebUntis takes exactly one teacher per message for the TEACHER option.
+  const [single, setSingle] = useState(true);
   const tc = useT(commonDict);
   const [view, setView] = useState<View>('form');
   const [recipients, setRecipients] = useState<MessageRecipient[]>([]);
@@ -59,7 +65,7 @@ export default function ComposeMessageSheet({ onClose, onSent, initial }: Props)
       category: 'other' as const,
     })),
   );
-  const [subject, setSubject] = useState(initial?.subject ?? '');
+  const [subject, setSubject] = useState(reply?.subject ?? initial?.subject ?? '');
   const [content, setContent] = useState(initial?.content ?? '');
   const [files, setFiles] = useState<File[]>([]);
   // Attachments already stored on the draft (kept automatically when re-saving).
@@ -76,12 +82,23 @@ export default function ComposeMessageSheet({ onClose, onSent, initial }: Props)
   useEffect(() => {
     let alive = true;
     fetchRecipients()
-      .then((r) => { if (alive) setRecipients(r.recipients ?? []); })
+      .then((r) => {
+        if (!alive) return;
+        setRecipients(r.recipients ?? []);
+        const one = r.single !== false;
+        setSingle(one);
+        if (one) setSelected((prev) => prev.slice(0, 1));
+      })
       .catch((e) => { if (alive) setRecipientsErr(e instanceof Error ? e.message : 'error'); });
     return () => { alive = false; };
   }, []);
 
   function toggle(r: MessageRecipient) {
+    if (single) {
+      setSelected((prev) => (prev.some((x) => x.id === r.id) ? [] : [r]));
+      setView('form');
+      return;
+    }
     setSelected((prev) =>
       prev.some((x) => x.id === r.id && x.type === r.type)
         ? prev.filter((x) => !(x.id === r.id && x.type === r.type))
@@ -111,19 +128,23 @@ export default function ComposeMessageSheet({ onClose, onSent, initial }: Props)
 
   async function send() {
     if (sending) return;
-    if (selected.length === 0) { setError(t('errPickTeacher')); return; }
+    if (!reply && selected.length === 0) { setError(t('errPickTeacher')); return; }
     if (!subject.trim()) { setError(t('errSubject')); return; }
     if (!content.trim()) { setError(t('errText')); return; }
 
     setSending(true);
     setError('');
     try {
-      await sendMessage({
-        recipients: selected.map((r) => ({ id: r.id, type: r.type })),
-        subject: subject.trim(),
-        content: content.trim(),
-        files,
-      });
+      if (reply) {
+        await sendReply(reply.messageId, { subject: subject.trim(), content: content.trim(), files });
+      } else {
+        await sendMessage({
+          recipients: selected.map((r) => ({ id: r.id, type: r.type })),
+          subject: subject.trim(),
+          content: content.trim(),
+          files,
+        });
+      }
       // The message is sent — remove the source draft if we were editing one.
       if (draftId != null) { try { await deleteDraft(draftId); } catch { /* best-effort */ } }
       setSuccess(true);
@@ -200,7 +221,7 @@ export default function ComposeMessageSheet({ onClose, onSent, initial }: Props)
             <X size={18} />
           </button>
           <h3 className="text-[16px] font-bold" style={{ color: 'var(--app-text-primary)' }}>
-            {draftId != null ? t('editDraft') : t('composeTitle')}
+            {reply ? ta('reply') : draftId != null ? t('editDraft') : t('composeTitle')}
           </h3>
           <button
             onClick={send}
@@ -215,6 +236,12 @@ export default function ComposeMessageSheet({ onClose, onSent, initial }: Props)
 
         <div className="flex-1 overflow-y-auto px-4 pb-6" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
           {/* Recipients */}
+          {reply ? (
+            <div className="w-full flex items-center justify-between gap-3 px-4 py-3.5 rounded-2xl mb-3" style={{ background: 'var(--app-card)' }}>
+              <span className="text-[15px] font-medium" style={{ color: 'var(--app-text-primary)' }}>{t('toLabel')}</span>
+              <span className="text-[14px] truncate" style={{ color: 'var(--app-text-secondary)' }}>{reply.recipientName}</span>
+            </div>
+          ) : (
           <button
             onClick={() => setView('recipients')}
             className="w-full flex items-center justify-between gap-3 px-4 py-3.5 rounded-2xl press-scale mb-3 text-left"
@@ -228,6 +255,10 @@ export default function ComposeMessageSheet({ onClose, onSent, initial }: Props)
               <ChevronRight size={16} color="var(--app-text-tertiary)" className="flex-shrink-0" />
             </span>
           </button>
+          )}
+          {!reply && single && (
+            <p className="-mt-1 mb-3 px-1 text-[12px]" style={{ color: 'var(--app-text-tertiary)' }}>{ta('oneTeacher')}</p>
+          )}
 
           {/* Subject */}
           <div className="rounded-2xl px-4 py-3 mb-3" style={{ background: 'var(--app-card)' }}>
@@ -327,7 +358,8 @@ export default function ComposeMessageSheet({ onClose, onSent, initial }: Props)
             {t('addAttachment')}
           </button>
 
-          {/* Save as draft */}
+          {/* Save as draft (not for replies: WebUntis keeps no reply drafts) */}
+          {!reply && (
           <button
             onClick={storeDraft}
             disabled={sending || savingDraft || success || draftSaved}
@@ -337,6 +369,7 @@ export default function ComposeMessageSheet({ onClose, onSent, initial }: Props)
             {savingDraft ? <Loader2 size={16} className="animate-spin" /> : <Pencil size={15} />}
             {t('saveDraft')}
           </button>
+          )}
 
           {recipientsErr && (
             <p className="text-[12px] px-1 mb-2" style={{ color: 'var(--warning)' }}>

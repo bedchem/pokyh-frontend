@@ -72,8 +72,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const { clientX: x, clientY: y } = e;
     const r = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
     const isDark = nextResolved === 'dark';
-    const oldBgColor = oldResolved === 'dark' ? '#09090C' : '#F1F0F8';
-    const newBg = nextResolved === 'dark' ? '#09090C' : '#F1F0F8';
+    const oldBgColor = oldResolved === 'dark' ? '#111114' : '#F5F2ED';
+    const newBg = nextResolved === 'dark' ? '#111114' : '#F5F2ED';
 
     document.documentElement.classList.toggle('dark', isDark);
     localStorage.setItem('pockyh_theme', next);

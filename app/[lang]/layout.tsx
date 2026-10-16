@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Plus_Jakarta_Sans, DM_Mono } from 'next/font/google';
 import '../globals.css';
 import { notFound } from 'next/navigation';
 import { LocaleProvider } from '@/providers/LocaleProvider';
@@ -11,9 +11,8 @@ import { metaDict } from '@/lib/i18n/dictionaries/meta';
 import { ThemeProvider } from '@/providers/ThemeProvider';
 import { SessionProvider } from '@/providers/SessionProvider';
 import { AppProvider } from '@/providers/AppProvider';
-import { SidebarProvider } from '@/providers/SidebarProvider';
 import { ActivityLoggerProvider } from '@/providers/ActivityLoggerProvider';
-import LayoutShell from '@/components/LayoutShell';
+import GlobalOverlays from '@/components/shell/GlobalOverlays';
 import CookieBanner from '@/components/CookieBanner';
 import AnalyticsLoader from '@/components/AnalyticsLoader';
 import PWAInit from '@/components/PWAInit';
@@ -24,9 +23,17 @@ import AppIconApplier from '@/components/AppIconApplier';
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 const analyticsEnabled = /^G-[A-Z0-9]+$/i.test(GA_ID ?? '');
 
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
+// Plus Jakarta Sans is the Android app's typeface; DM Mono sets tabular data
+// (times, periods, rooms) only.
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ['latin', 'latin-ext'],
+  variable: '--font-jakarta',
+  display: 'swap',
+});
+const dmMono = DM_Mono({
+  subsets: ['latin', 'latin-ext'],
+  weight: ['400', '500'],
+  variable: '--font-dm-mono',
   display: 'swap',
 });
 
@@ -191,8 +198,8 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: dark)', color: '#09090C' },
-    { media: '(prefers-color-scheme: light)', color: '#F0F0F5' },
+    { media: '(prefers-color-scheme: dark)', color: '#111114' },
+    { media: '(prefers-color-scheme: light)', color: '#F5F2ED' },
   ],
   width: 'device-width',
   initialScale: 1,
@@ -202,7 +209,7 @@ export const viewport: Viewport = {
 
 function structuredData(locale: Locale) {
   const t = makeT(metaDict, locale);
-  const inLanguage = ['de', 'it', 'en', 'lld'];
+  const inLanguage = ['de', 'it', 'en'];
   return [
   {
     '@context': 'https://schema.org',
@@ -274,7 +281,7 @@ export default async function RootLayout({
   if (!isLocale(lang)) notFound();
 
   return (
-    <html lang={htmlLang(lang)} className={inter.variable} suppressHydrationWarning>
+    <html lang={htmlLang(lang)} className={`${jakarta.variable} ${dmMono.variable}`} suppressHydrationWarning>
       <head>
         <ThemeScript />
         <script
@@ -285,11 +292,8 @@ export default async function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData(lang)[1]) }}
         />
-        {/* Preconnect to external APIs used at auth time */}
-        <link rel="preconnect" href="https://lbs-brixen.webuntis.com" />
+        {/* Dish photos are served from the Mensa image host */}
         <link rel="preconnect" href="https://mensa.plattnericus.dev" />
-        {/* Draco decoder CDN — full preconnect (TLS handshake included) */}
-        <link rel="preconnect" href="https://www.gstatic.com" crossOrigin="anonymous" />
         {GA_ID && <link rel="preconnect" href="https://www.googletagmanager.com" />}
       </head>
       <body suppressHydrationWarning={true}>
@@ -297,12 +301,11 @@ export default async function RootLayout({
           <ThemeProvider>
             <SessionProvider>
               <AppProvider>
-                <SidebarProvider>
-                  <ActivityLoggerProvider>
-                    <LayoutShell>{children}</LayoutShell>
-                    <SubjectImagePreloader />
-                  </ActivityLoggerProvider>
-                </SidebarProvider>
+                <ActivityLoggerProvider>
+                  {children}
+                  <GlobalOverlays />
+                  <SubjectImagePreloader />
+                </ActivityLoggerProvider>
               </AppProvider>
             </SessionProvider>
           </ThemeProvider>

@@ -301,8 +301,17 @@ export function fetchAbsenceReasons(): Promise<{ reasons: AbsenceReason[] }> {
   return apiFetchCached('/api/webuntis/absence-reasons') as Promise<{ reasons: AbsenceReason[] }>;
 }
 
-export function fetchRecipients(): Promise<{ recipients: MessageRecipient[] }> {
-  return apiFetchCached('/api/webuntis/messages/recipients') as Promise<{ recipients: MessageRecipient[] }>;
+export interface RecipientList {
+  recipients: MessageRecipient[];
+  recipientOption?: string;
+  /** WebUntis takes exactly one recipient per message (TEACHER option). */
+  single?: boolean;
+  maxFileCount?: number;
+  maxFileSize?: number;
+}
+
+export function fetchRecipients(): Promise<RecipientList> {
+  return apiFetchCached('/api/webuntis/messages/recipients') as Promise<RecipientList>;
 }
 
 export async function createAbsence(input: ReportAbsenceInput): Promise<unknown> {
@@ -320,12 +329,14 @@ export async function excuseAbsence(
   reasonId?: number,
   text?: string,
 ): Promise<unknown> {
-  const res = await apiFetch('/api/webuntis/absences/excuse', {
+  const res = (await apiFetch('/api/webuntis/absences/excuse', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ absenceIds, reasonId, text }),
-  });
+  })) as { ok?: boolean; error?: string };
   invalidateAbsences();
+  // 207: only some of the absences were saved; report it rather than "done".
+  if (res && res.ok === false) throw new Error(res.error || 'excuse_failed');
   return res;
 }
 
@@ -380,6 +391,81 @@ export async function deleteDraft(id: number): Promise<void> {
 function invalidateDrafts() {
   cacheDel('/api/webuntis/messages?folder=drafts');
   pcDel('/api/webuntis/messages?folder=drafts');
+}
+
+// ─── Absence actions (WebUntis classic absence API) ──────────────────────────
+
+export interface AbsenceMeta {
+  reasons: AbsenceReason[];
+  defaultReasonId: number | null;
+  defaultDate: number | null;
+  defaultStartTime: number | null;
+  defaultEndTime: number | null;
+}
+
+export function fetchAbsenceMeta(): Promise<AbsenceMeta> {
+  return apiFetchCached('/api/webuntis/absences/meta') as Promise<AbsenceMeta>;
+}
+
+/** Removes absences the account reported itself (WebUntis decides what may go). */
+export async function deleteAbsences(absenceIds: number[]): Promise<void> {
+  await apiFetch('/api/webuntis/absences/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ absenceIds }),
+  });
+  invalidateAbsences();
+}
+
+/** URL of the excuse letter PDF WebUntis generates (per lesson = 1, per day = 2). */
+export function excuseLetterUrl(start: string, end: string, absenceIds: number[] = [], group: 1 | 2 = 1): string {
+  const p = new URLSearchParams({ start, end, group: String(group) });
+  if (absenceIds.length) p.set('ids', absenceIds.join(','));
+  return `/api/webuntis/absences/excuse-letter?${p.toString()}`;
+}
+
+// ─── Replies ─────────────────────────────────────────────────────────────────
+
+export interface ReplyForm {
+  subject: string;
+  recipient: { name: string; id: number | null } | null;
+}
+
+export function fetchReplyForm(messageId: number): Promise<ReplyForm> {
+  return apiFetch(`/api/webuntis/messages/reply?id=${messageId}`) as Promise<ReplyForm>;
+}
+
+export function sendReply(messageId: number, input: { subject: string; content: string; files?: File[] }): Promise<unknown> {
+  const fd = new FormData();
+  fd.append('subject', input.subject);
+  fd.append('content', input.content);
+  for (const f of input.files ?? []) fd.append('attachments', f, f.name);
+  return apiFetch(`/api/webuntis/messages/reply?id=${messageId}`, { method: 'POST', body: fd });
+}
+
+// ─── WebUntis password ───────────────────────────────────────────────────────
+
+/** Changes the WebUntis password; the error text is WebUntis' own reason. */
+export async function changeUntisPassword(oldPassword: string, newPassword: string): Promise<void> {
+  await apiFetch('/api/webuntis/password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ oldPassword, newPassword }),
+  });
+}
+
+/** Starts WebUntis' own "forgot password" e-mail. Works without a session. */
+export async function requestPasswordReset(username: string, email: string): Promise<void> {
+  const res = await fetch('/api/webuntis/password-reset', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, email }),
+    credentials: 'same-origin',
+  });
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(data.error ?? `HTTP ${res.status}`);
+  }
 }
 
 export async function logout() {

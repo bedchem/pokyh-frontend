@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 import { decryptSession } from '@/lib/session-crypto';
 import { isMensaRoute, isProtectedAppRoute } from '@/lib/routes';
 
-import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale, localizePath, type Locale } from '@/lib/i18n/locale';
+import { DEFAULT_LOCALE, LOCALE_COOKIE, RETIRED_LOCALES, isLocale, localizePath, type Locale } from '@/lib/i18n/locale';
 
 // Assets and public APIs: never localised, never require a session
 const PUBLIC_PREFIXES = [
@@ -21,6 +21,7 @@ const PUBLIC_PREFIXES = [
   '/opengraph-image',
   '/POKYH_Logo',
   '/api/webuntis/login',
+  '/api/webuntis/password-reset',
   '/api/mensa',
   '/api/privacy-notice',
   '/models',
@@ -34,12 +35,14 @@ const PUBLIC_PREFIXES = [
 const PUBLIC_PAGE_PREFIXES = ['/legal', '/about', '/faq', '/comparison', '/howto', '/get'];
 
 function preferredLocale(request: NextRequest): Locale {
+  const usable = (value: string | undefined): value is Locale =>
+    isLocale(value) && !(RETIRED_LOCALES as readonly string[]).includes(value);
   const saved = request.cookies.get(LOCALE_COOKIE)?.value;
-  if (isLocale(saved)) return saved;
+  if (usable(saved)) return saved;
   const accept = request.headers.get('accept-language') ?? '';
   for (const part of accept.split(',')) {
     const code = part.split(';')[0].trim().toLowerCase().split('-')[0];
-    if (isLocale(code)) return code;
+    if (usable(code)) return code;
   }
   return DEFAULT_LOCALE;
 }
@@ -98,6 +101,10 @@ export async function proxy(request: NextRequest) {
 
   // Every page lives under a locale prefix with a trailing slash: /about → /de/about/
   const segments = pathname.split('/').filter(Boolean);
+  // Retired languages (Ladin) keep working as links but land on the German page.
+  if ((RETIRED_LOCALES as readonly string[]).includes(segments[0] ?? '')) {
+    return redirectTo(request, localizePath('/' + segments.slice(1).join('/'), DEFAULT_LOCALE));
+  }
   if (!isLocale(segments[0])) {
     return redirectTo(request, localizePath(pathname, preferredLocale(request)));
   }
