@@ -111,11 +111,11 @@ npm install
 cp .env.example .env.local     # or create .env.local (see below)
 
 # 3. Run
-npm run dev                    # http://localhost:3000
+npm run dev                    # http://localhost:<PORT>
 ```
 
-> The dev server runs on **port 3000**. Make sure the backend's `CORS_ORIGIN` includes
-> `http://localhost:3000`.
+> The dev server uses the `PORT` value from `.env.local` (default: `3001`). Make sure the
+> backend's `CORS_ORIGIN` includes `http://localhost:<PORT>`.
 
 ---
 
@@ -188,7 +188,7 @@ public/               # PWA assets, icons, models
 ## Scripts
 
 ```bash
-npm run dev      # start the dev server (http://localhost:3000)
+npm run dev      # start the dev server (the port is read from PORT)
 npm run build    # production build
 npm run start    # serve the production build
 npm run lint     # ESLint

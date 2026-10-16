@@ -9,9 +9,10 @@ services:
         - NEXT_PUBLIC_API_BACKEND_URL
     restart: unless-stopped
     ports:
-      - "3001:3001"
+      - "${PORT:-3001}:${PORT:-3001}"
     environment:
       - NODE_ENV=production
+      - PORT
       - SESSION_SECRET
       - API_BACKEND_URL
       - API_BACKEND_KEY
