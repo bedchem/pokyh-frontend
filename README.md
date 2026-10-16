@@ -111,11 +111,11 @@ npm install
 cp .env.example .env.local     # or create .env.local (see below)
 
 # 3. Run
-npm run dev                    # http://localhost:<PORT>
+npm run dev                    # http://localhost:3011
 ```
 
-> The dev server uses the `PORT` value from `.env.local` (default: `3001`). Make sure the
-> backend's `CORS_ORIGIN` includes `http://localhost:<PORT>`.
+> The dev and production scripts listen on port `3011`. Make sure the backend's `CORS_ORIGIN`
+> includes `http://localhost:3011`.
 
 ---
 
@@ -188,9 +188,9 @@ public/               # PWA assets, icons, models
 ## Scripts
 
 ```bash
-npm run dev      # start the dev server (the port is read from PORT)
+npm run dev      # start the dev server on port 3011
 npm run build    # production build
-npm run start    # serve the production build
+npm run start    # serve the production build on port 3011
 npm run lint     # ESLint
 ```
 
@@ -212,6 +212,8 @@ npm ci
 npm run build
 npm run start
 ```
+
+For Docker Compose, `http://localhost:3011` is published to the container's port `3011`.
 
 ---
 
