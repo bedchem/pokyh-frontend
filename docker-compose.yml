@@ -9,7 +9,7 @@ services:
         - NEXT_PUBLIC_API_BACKEND_URL
     restart: unless-stopped
     ports:
-      - "${PORT:-3001}:${PORT:-3001}"
+      - "${PORT:-3011}:${PORT:-3011}"
     environment:
       - NODE_ENV=production
       - PORT
