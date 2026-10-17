@@ -5,7 +5,7 @@ import { getDict, type GetKey } from '@/lib/i18n/dictionaries/get';
 import { rich } from '@/lib/i18n/rich';
 import type { Locale } from '@/lib/i18n/locale';
 import PageIntro from '@/components/site/PageIntro';
-import RevealScope from '@/components/site/RevealScope';
+import PhoneSteps from '@/components/site/PhoneSteps';
 
 const ShareGlyph = (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="inline -mt-1">
@@ -45,7 +45,7 @@ function stepBody(text: string) {
   );
 }
 
-/** Home-screen install guide (shared by /get/pwa/ios and /get/pwa/android). */
+/** Home-screen install guide of the web app (shared by /get/pwa/ios and /get/pwa/android), with the screenshots in a phone of that platform. */
 export default function PwaInstallGuide({ platform, locale }: { platform: 'ios' | 'android'; locale: Locale }) {
   const t = makeT(getDict, locale);
   const ios = platform === 'ios';
@@ -70,38 +70,24 @@ export default function PwaInstallGuide({ platform, locale }: { platform: 'ios' 
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(howToSchema) }} />
       <PageIntro title={ios ? t('pwaIosTitle') : t('pwaAndroidTitle')} lead={ios ? t('pwaIosLead') : t('pwaAndroidLead')}>
-        <Link href={`/${locale}/get/`} className="inline-flex items-center gap-1.5 text-[15px] font-semibold text-ink underline-offset-[6px] decoration-2 hover:underline">
+        <Link href={`/${locale}/get/`} className="key key-sm key-lilac">
           <ArrowLeft size={15} weight="bold" aria-hidden="true" />
           {t('back')}
         </Link>
       </PageIntro>
 
-      <RevealScope>
-        <section className="bg-canvas">
-          <ol className="mx-auto max-w-[1440px] px-5 md:px-10 pb-24 md:pb-36">
-            {steps.map((s, i) => {
-              const alt = t('stepAlt', { num: s.num, title: s.title });
-              return (
-                <li key={s.key} data-reveal className="grid items-center gap-8 border-t border-line py-12 md:grid-cols-2 md:gap-16">
-                  <div className={i % 2 === 1 ? 'md:order-2' : ''}>
-                    <span className="block font-extrabold leading-none tracking-[-0.05em] text-ink-3 text-[64px] md:text-[96px] tnum">{s.num}</span>
-                    <h2 className="mt-4 text-ink text-[30px] md:text-[44px] font-extrabold tracking-[-0.04em] leading-[1.02]">{s.title}</h2>
-                    <p className="mt-4 max-w-[44ch] text-[17px] md:text-[19px] leading-[1.6] text-ink-2">{stepBody(s.body)}</p>
-                  </div>
-                  <div className="flex justify-center">
-                    <div className="squircle w-[min(72vw,300px)] overflow-hidden rounded-[40px] border-[6px] border-ink bg-ink shadow-[var(--shadow-float)]">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={s.imgLight} alt={alt} loading={i === 0 ? 'eager' : 'lazy'} decoding="async" className="block w-full dark:hidden" />
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={s.imgDark} alt={alt} loading="lazy" decoding="async" className="hidden w-full dark:block" />
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-        </section>
-      </RevealScope>
+      <PhoneSteps
+        platform={platform}
+        steps={steps.map((st) => ({
+          key: st.key,
+          num: st.num,
+          title: st.title,
+          body: stepBody(st.body),
+          imgLight: st.imgLight,
+          imgDark: st.imgDark,
+          alt: t('stepAlt', { num: st.num, title: st.title }),
+        }))}
+      />
     </>
   );
 }

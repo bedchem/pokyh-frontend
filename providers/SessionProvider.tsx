@@ -32,7 +32,7 @@ const Ctx = createContext<SessionCtx>({
 
 function readUserCookie(): UserInfo | null {
   if (typeof document === 'undefined') return null;
-  const match = document.cookie.match(/(?:^|;\s*)pockyh_user=([^;]*)/);
+  const match = document.cookie.match(/(?:^|;\s*)pokyh_user=([^;]*)/);
   if (!match) return null;
   try {
     return JSON.parse(decodeURIComponent(match[1])) as UserInfo;
@@ -44,9 +44,9 @@ function readUserCookie(): UserInfo | null {
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  // Prevents pockyh-session-refreshed from overwriting user=null once logout starts.
+  // Prevents pokyh-session-refreshed from overwriting user=null once logout starts.
   // Without this guard a concurrent re-login event can undo the setUser(null) that
-  // pockyh-session-expired set, leaving the app stuck with an expired session.
+  // pokyh-session-expired set, leaving the app stuck with an expired session.
   const loggingOut = useRef(false);
 
   const refreshUser = useCallback(() => {
@@ -65,7 +65,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       loggingOut.current = true;
       setUser(null);
       setIsLoading(false);
-      // Clear server-side pockyh_session cookie so middleware allows /login
+      // Clear server-side pokyh_session cookie so middleware allows /login
       fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' })
         .catch(() => {})
         .finally(() => {
@@ -75,18 +75,18 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           }
         });
     };
-    window.addEventListener('pockyh-session-expired', handler);
-    return () => window.removeEventListener('pockyh-session-expired', handler);
+    window.addEventListener('pokyh-session-expired', handler);
+    return () => window.removeEventListener('pokyh-session-expired', handler);
   }, []);
 
-  // After a silent WebUntis re-login, re-read the updated pockyh_user cookie
+  // After a silent WebUntis re-login, re-read the updated pokyh_user cookie
   // so the proactive logout timer resets with the new loginAt.
-  // Guarded by loggingOut so a pockyh-session-refreshed that fires concurrently
-  // with pockyh-session-expired cannot overwrite the user=null state.
+  // Guarded by loggingOut so a pokyh-session-refreshed that fires concurrently
+  // with pokyh-session-expired cannot overwrite the user=null state.
   useEffect(() => {
     const handler = () => refreshUser();
-    window.addEventListener('pockyh-session-refreshed', handler);
-    return () => window.removeEventListener('pockyh-session-refreshed', handler);
+    window.addEventListener('pokyh-session-refreshed', handler);
+    return () => window.removeEventListener('pokyh-session-refreshed', handler);
   }, [refreshUser]);
 
   const logout = useCallback(async () => {

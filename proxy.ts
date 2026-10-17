@@ -31,6 +31,16 @@ const PUBLIC_PREFIXES = [
   '/pokyh_ion',
 ];
 
+// Cookie names before the rename, with the options they are set with
+// (api/webuntis/login, api/auth/*, LocaleProvider).
+const LEGACY_COOKIES = [
+  { name: 'session', httpOnly: true, maxAge: 4 * 60 * 60 },
+  { name: 'user', httpOnly: false, maxAge: 4 * 60 * 60 },
+  { name: 'api_token', httpOnly: false, maxAge: 8 * 60 * 60 },
+  { name: 'api_refresh', httpOnly: true, maxAge: 30 * 24 * 60 * 60 },
+  { name: 'locale', httpOnly: false, maxAge: 365 * 24 * 60 * 60 },
+];
+
 // Pages that are public (checked on the path without the locale prefix)
 const PUBLIC_PAGE_PREFIXES = ['/legal', '/about', '/faq', '/comparison', '/howto', '/get'];
 
@@ -55,7 +65,7 @@ function redirectTo(request: NextRequest, pathname: string, search = request.nex
 const SESSION_MAX_MS = 4 * 60 * 60 * 1000; // 4 hours — must match COOKIE_OPTS.maxAge in login/route.ts
 
 async function hasValidSession(request: NextRequest): Promise<boolean> {
-  const cookie = request.cookies.get('pockyh_session')?.value;
+  const cookie = request.cookies.get('pokyh_session')?.value;
   if (!cookie) return false;
   const session = await decryptSession<{ sessionId: string; loginAt?: number }>(cookie);
   if (!session?.sessionId) return false;
@@ -81,8 +91,8 @@ export async function proxy(request: NextRequest) {
     // attachment previews and any other in-frame fetch).
     if (!(await hasValidSession(request))) {
       const res = NextResponse.json({ error: 'session_expired' }, { status: 401 });
-      res.cookies.delete('pockyh_session');
-      res.cookies.delete('pockyh_user');
+      res.cookies.delete('pokyh_session');
+      res.cookies.delete('pokyh_user');
       return res;
     }
     return NextResponse.next();
@@ -97,6 +107,28 @@ export async function proxy(request: NextRequest) {
   // no trailing slash and no login, so link-preview crawlers get them directly.
   if (/\/(opengraph-image|twitter-image|icon|apple-icon)(-[\w-]+)?$/.test(pathname)) {
     return NextResponse.next();
+  }
+
+  // Cookies from before the rename (pockyh_* → pokyh_*): moved over once on the
+  // next page load, so nobody is signed out by the new names.
+  if (request.method === 'GET') {
+    const legacy = LEGACY_COOKIES.filter((c) => request.cookies.has(`pockyh_${c.name}`));
+    if (legacy.length) {
+      const res = NextResponse.redirect(request.url, 307);
+      for (const c of legacy) {
+        if (!request.cookies.has(`pokyh_${c.name}`)) {
+          res.cookies.set(`pokyh_${c.name}`, request.cookies.get(`pockyh_${c.name}`)!.value, {
+            path: '/',
+            httpOnly: c.httpOnly,
+            secure: c.name !== 'locale' && process.env.NODE_ENV === 'production',
+            sameSite: c.name === 'locale' ? 'lax' : 'strict',
+            maxAge: c.maxAge,
+          });
+        }
+        res.cookies.delete(`pockyh_${c.name}`);
+      }
+      return res;
+    }
   }
 
   // Every page lives under a locale prefix with a trailing slash: /about → /de/about/
@@ -144,9 +176,9 @@ async function handlePage(request: NextRequest, path: string, locale: Locale): P
   // hitting 401s and bouncing to /login.
   if (isMensaRoute(path)) {
     const res = NextResponse.next();
-    if (!authenticated && request.cookies.has('pockyh_user')) {
-      res.cookies.delete('pockyh_session');
-      res.cookies.delete('pockyh_user');
+    if (!authenticated && request.cookies.has('pokyh_user')) {
+      res.cookies.delete('pokyh_session');
+      res.cookies.delete('pokyh_user');
     }
     return res;
   }
@@ -165,8 +197,8 @@ async function handlePage(request: NextRequest, path: string, locale: Locale): P
       : '';
     const res = redirectTo(request, `/${locale}/login/`, search);
     // Clear any stale cookies
-    res.cookies.delete('pockyh_session');
-    res.cookies.delete('pockyh_user');
+    res.cookies.delete('pokyh_session');
+    res.cookies.delete('pokyh_user');
     return res;
   }
 

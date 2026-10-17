@@ -49,6 +49,12 @@ export function isTodayKey(key: string, now = new Date()): boolean {
   return key === localDayKey(now);
 }
 
+/** Whole days from today to `date` (0 = today, 1 = tomorrow). */
+export function daysFromToday(date: Date, now = new Date()): number {
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime() - start.getTime()) / 86_400_000);
+}
+
 export function localized(raw: unknown, locale: Locale): string {
   if (!raw) return '';
   if (typeof raw === 'string') return raw;

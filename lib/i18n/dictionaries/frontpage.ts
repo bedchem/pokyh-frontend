@@ -1,11 +1,10 @@
 import type { Dictionary } from '../dictionary';
 
-// Copy of the public homepage (components/home). German only for now; the
-// other locales fall back to it until they are translated. The carousel of
-// the school day keeps its own copy in homepage.ts.
+// Copy of the public homepage (components/home) in German, Italian and
+// English. The carousel of the school day keeps its own copy in homepage.ts.
 // Words between *asterisks* are highlighted.
 export type FrontpageKey =
-  // Intro
+  // Intro (former curtain, components/home/Intro.tsx)
   | 'introMorning' | 'introDay' | 'introEvening' | 'introNight' | 'introLoading'
   // Hero
   | 'heroTitle' | 'heroHidden' | 'heroGithub' | 'heroScroll' | 'heroRight'
@@ -14,7 +13,8 @@ export type FrontpageKey =
   // Manifest
   | 'manifestText' | 'manifestNote' | 'manifestCta'
   // Mensa
-  | 'mensaTitle' | 'mensaToday' | 'mensaNext' | 'mensaEmpty' | 'mensaVotes' | 'mensaNoVotes' | 'mensaLink'
+  | 'mensaTitle' | 'mensaTitleTomorrow' | 'mensaTitleDay' | 'mensaTitleDate' | 'mensaEmptyTitle' | 'mensaEmpty'
+  | 'mensaVotes' | 'mensaNoVotes' | 'mensaLink'
   // Get
   | 'getTitleA' | 'getTitleB' | 'getLensA' | 'getLensB' | 'getNote'
   | 'getWeb' | 'getAndroid' | 'getIos' | 'getPwa'
@@ -49,9 +49,11 @@ export const frontpageDict: Dictionary<FrontpageKey> = {
     manifestCta: 'Jetzt anmelden',
 
     mensaTitle: 'Heute in der Mensa',
-    mensaToday: 'Heute',
-    mensaNext: 'Als Nächstes',
-    mensaEmpty: 'Heute gibt es kein Mensa-Menü.',
+    mensaTitleTomorrow: 'Morgen in der Mensa',
+    mensaTitleDay: '{day} in der Mensa',
+    mensaTitleDate: 'Am {date} in der Mensa',
+    mensaEmptyTitle: 'Die Mensa macht Pause',
+    mensaEmpty: 'Der nächste Speiseplan ist noch nicht online. Sobald er da ist, steht er hier.',
     mensaVotes: '{n} Bewertungen',
     mensaNoVotes: 'Noch keine Bewertung',
     mensaLink: 'Ganzes Menü',
@@ -67,5 +69,101 @@ export const frontpageDict: Dictionary<FrontpageKey> = {
     getPwa: 'Web-App',
 
     tabAway: 'Die Pause ist gleich vorbei.',
+  },
+  it: {
+    introMorning: 'Buongiorno.',
+    introDay: 'Ciao.',
+    introEvening: 'Buonasera.',
+    introNight: 'Buonanotte.',
+    introLoading: 'Stiamo caricando la tua giornata a scuola',
+
+    heroTitle: 'POKYH',
+    heroHidden: 'POKYH, l’app scolastica della LBS Bressanone',
+    heroGithub: 'GitHub',
+    heroScroll: 'Scorri',
+    heroRight: 'L’app scolastica della LBS Bressanone',
+    tileTimetable: 'Orario',
+    tileGrades: 'Voti',
+    tileMessages: 'Messaggi',
+    tileExams: 'Verifiche',
+    tileAbsences: 'Assenze',
+    tileCancel: 'Ora saltata',
+    tileWeek: 'Settimana',
+    tileTodos: 'To-do',
+    tileReminders: 'Promemoria',
+
+    manifestText: 'La scuola è già complicata. La tua *app scolastica* non deve esserlo.',
+    manifestNote: 'Con il tuo account WebUntis. Gratis, senza pubblicità.',
+    manifestCta: 'Accedi ora',
+
+    mensaTitle: 'Oggi in mensa',
+    mensaTitleTomorrow: 'Domani in mensa',
+    mensaTitleDay: '{day} in mensa',
+    mensaTitleDate: 'Il {date} in mensa',
+    mensaEmptyTitle: 'La mensa è in pausa',
+    mensaEmpty: 'Il prossimo menù non è ancora online. Appena c’è, lo trovi qui.',
+    mensaVotes: '{n} valutazioni',
+    mensaNoVotes: 'Ancora nessuna valutazione',
+    mensaLink: 'Menù completo',
+
+    getTitleA: 'Scarica',
+    getTitleB: 'POKYH.',
+    getLensA: 'Non ti costa',
+    getLensB: 'niente.',
+    getNote: 'Con il tuo account WebUntis, senza pubblicità. Uguale su ogni dispositivo.',
+    getWeb: 'Apri nel browser',
+    getAndroid: 'Android',
+    getIos: 'iPhone',
+    getPwa: 'Web app',
+
+    tabAway: 'La ricreazione sta per finire.',
+  },
+  en: {
+    introMorning: 'Good morning.',
+    introDay: 'Hello.',
+    introEvening: 'Good evening.',
+    introNight: 'Good night.',
+    introLoading: 'Loading your school day',
+
+    heroTitle: 'POKYH',
+    heroHidden: 'POKYH, the school app of LBS Brixen',
+    heroGithub: 'GitHub',
+    heroScroll: 'Scroll',
+    heroRight: 'The school app of LBS Brixen',
+    tileTimetable: 'Timetable',
+    tileGrades: 'Grades',
+    tileMessages: 'Messages',
+    tileExams: 'Exams',
+    tileAbsences: 'Absences',
+    tileCancel: 'Cancelled',
+    tileWeek: 'Week',
+    tileTodos: 'To-dos',
+    tileReminders: 'Reminders',
+
+    manifestText: 'School is complicated enough. Your *school app* doesn’t have to be.',
+    manifestNote: 'With your WebUntis account. Free, no ads.',
+    manifestCta: 'Sign in now',
+
+    mensaTitle: 'Today in the cafeteria',
+    mensaTitleTomorrow: 'Tomorrow in the cafeteria',
+    mensaTitleDay: '{day} in the cafeteria',
+    mensaTitleDate: 'In the cafeteria on {date}',
+    mensaEmptyTitle: 'The cafeteria is taking a break',
+    mensaEmpty: 'The next menu isn’t online yet. As soon as it is, you’ll find it here.',
+    mensaVotes: '{n} ratings',
+    mensaNoVotes: 'No ratings yet',
+    mensaLink: 'Full menu',
+
+    getTitleA: 'Get',
+    getTitleB: 'POKYH.',
+    getLensA: 'Costs you',
+    getLensB: 'nothing.',
+    getNote: 'With your WebUntis account, no ads. The same on every device.',
+    getWeb: 'Open in the browser',
+    getAndroid: 'Android',
+    getIos: 'iPhone',
+    getPwa: 'Web app',
+
+    tabAway: 'Break is almost over.',
   },
 };

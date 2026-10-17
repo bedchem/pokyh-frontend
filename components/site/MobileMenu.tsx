@@ -9,6 +9,7 @@ import { ensureGsap, prefersReducedMotion } from '@/lib/motion';
 import Image from 'next/image';
 import { useLenis } from './SmoothScroll';
 import { SITE_NAV } from './SiteHeader';
+import { ThemeSegments } from './ThemeToggle';
 
 export default function MobileMenu({
   open,
@@ -91,18 +92,12 @@ export default function MobileMenu({
       aria-label={t('menu')}
       aria-hidden={!open}
       inert={!open}
-      className="fixed inset-0 z-[60] flex flex-col bg-[var(--night)] text-white lg:hidden"
+      className="fixed inset-0 z-[60] flex flex-col bg-[var(--night)] text-[#F2F2F4] lg:hidden"
       style={{ visibility: 'hidden', clipPath: 'inset(0 0 100% 0)', paddingTop: 'var(--safe-top)', paddingBottom: 'var(--safe-bottom)' }}
     >
       <div className="flex h-[76px] items-center justify-between px-5">
         <Image src="/POKYH_Logo.png" alt="POKYH" width={44} height={44} className="size-10" />
-        <button
-          ref={closeBtn}
-          type="button"
-          onClick={onClose}
-          aria-label={t('close')}
-          className="grid size-11 place-items-center rounded-full bg-[#D9D9D9] text-ink press"
-        >
+        <button ref={closeBtn} type="button" onClick={onClose} aria-label={t('close')} className="key key-sm key-glass !px-0 w-11">
           <span aria-hidden="true" className="relative block size-[16px]">
             <span className="absolute left-0 top-1/2 h-[1.5px] w-full -translate-y-1/2 rotate-45 rounded-full bg-current" />
             <span className="absolute left-0 top-1/2 h-[1.5px] w-full -translate-y-1/2 -rotate-45 rounded-full bg-current" />
@@ -118,7 +113,7 @@ export default function MobileMenu({
                 data-menu-item
                 href={localize(item.href)}
                 onClick={onClose}
-                className="font-display block py-1 text-[clamp(52px,15vw,84px)] leading-[1.05] lowercase"
+                className="font-display block py-1 text-[clamp(44px,13vw,76px)] leading-[1.05] lowercase"
               >
                 {t(item.key)}
               </Link>
@@ -128,27 +123,25 @@ export default function MobileMenu({
       </nav>
 
       <div className="flex flex-col gap-6 px-5 pb-8 pt-4">
-        <div data-menu-item role="group" aria-label={t('language')} className="flex items-center gap-2 text-[16px] font-semibold">
-          {ACTIVE_LOCALES.map((l) => (
-            <button
-              key={l}
-              type="button"
-              lang={l}
-              onClick={() => setLocale(l)}
-              aria-pressed={l === locale}
-              aria-label={LOCALE_NAMES[l]}
-              className={`h-10 rounded-md px-2 transition-opacity ${l === locale ? 'opacity-100' : 'opacity-45'}`}
-            >
-              {LOCALE_LABELS[l]}
-            </button>
-          ))}
+        <div data-menu-item className="flex flex-wrap items-center justify-between gap-3">
+          <div role="group" aria-label={t('language')} className="flex items-center gap-2 text-[16px] font-semibold">
+            {ACTIVE_LOCALES.map((l) => (
+              <button
+                key={l}
+                type="button"
+                lang={l}
+                onClick={() => setLocale(l)}
+                aria-pressed={l === locale}
+                aria-label={LOCALE_NAMES[l]}
+                className={`h-10 rounded-md px-2 transition-opacity ${l === locale ? 'opacity-100' : 'opacity-45'}`}
+              >
+                {LOCALE_LABELS[l]}
+              </button>
+            ))}
+          </div>
+          <ThemeSegments />
         </div>
-        <Link
-          data-menu-item
-          href={localize(cta.href)}
-          onClick={onClose}
-          className="flex h-14 items-center justify-center rounded-full bg-[var(--lilac)] text-[17px] font-medium text-[var(--lilac-ink)] press"
-        >
+        <Link data-menu-item href={localize(cta.href)} onClick={onClose} className="key key-lg key-lilac w-full">
           {cta.label}
         </Link>
       </div>

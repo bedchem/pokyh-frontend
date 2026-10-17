@@ -4,7 +4,7 @@ import { makeT } from '@/lib/i18n/dictionary';
 import { routeLocale } from '@/lib/i18n/server';
 import { localeAlternates, localizedUrl, ogLocale, pageKeywords } from '@/lib/i18n/seo';
 import { comparisonDict, type ComparisonKey } from '@/lib/i18n/dictionaries/comparison';
-import PageIntro from '@/components/site/PageIntro';
+import PageIntro, { TONE, type SiteTone } from '@/components/site/PageIntro';
 import RevealScope from '@/components/site/RevealScope';
 import CtaBand from '@/components/site/CtaBand';
 
@@ -83,15 +83,15 @@ function Mark({ value, label, strong }: { value: Val; label: string; strong?: bo
   return (
     <span className="flex justify-center">
       {value === 'yes' ? (
-        <span className={`grid size-9 place-items-center rounded-full ${strong ? 'bg-accent text-on-accent' : 'bg-ink text-canvas'}`}>
+        <span className={`grid size-9 place-items-center rounded-full ${strong ? 'bg-sage text-sage-ink' : 'bg-inset text-ink'}`}>
           <Check size={17} weight="bold" aria-hidden="true" />
         </span>
       ) : value === 'partial' ? (
-        <span className="grid size-9 place-items-center rounded-full border-2 border-ink-3" aria-hidden="true">
-          <svg viewBox="0 0 16 16" width="14" height="14"><path d="M8 1a7 7 0 0 0 0 14Z" fill="var(--ink-3)" /></svg>
+        <span className="grid size-9 place-items-center rounded-full bg-butter text-butter-ink" aria-hidden="true">
+          <svg viewBox="0 0 16 16" width="14" height="14"><path d="M8 1a7 7 0 0 0 0 14Z" fill="currentColor" /><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" strokeWidth="1.6" /></svg>
         </span>
       ) : (
-        <span className="grid size-9 place-items-center rounded-full bg-inset text-ink-3">
+        <span className="grid size-9 place-items-center rounded-full text-ink-3">
           <Minus size={17} weight="bold" aria-hidden="true" />
         </span>
       )}
@@ -99,6 +99,12 @@ function Mark({ value, label, strong }: { value: Val; label: string; strong?: bo
     </span>
   );
 }
+
+const SUMMARY: { title: ComparisonKey; body: ComparisonKey; tone: SiteTone }[] = [
+  { title: 'sumPokyhTitle', body: 'sumPokyhBody', tone: 'periwinkle' },
+  { title: 'sumWebuntisTitle', body: 'sumWebuntisBody', tone: 'butter' },
+  { title: 'sumTogetherTitle', body: 'sumTogetherBody', tone: 'sage' },
+];
 
 export default async function ComparisonPage({ params }: PageProps) {
   const locale = await routeLocale(params);
@@ -110,59 +116,53 @@ export default async function ComparisonPage({ params }: PageProps) {
       <PageIntro title={t('title')} lead={t('lead')} />
 
       <RevealScope>
-        <section className="bg-canvas">
-          <div className="mx-auto max-w-[1440px] px-5 md:px-10 pb-24 md:pb-36">
+        <section className="wrap pb-20 md:pb-28">
+          <div data-reveal className="card px-4 pb-4 pt-2 md:px-10 md:pb-8 md:pt-4">
             <table className="w-full border-collapse text-left">
               <caption className="visually-hidden">{t('title')}</caption>
-              <thead className="sticky top-16 md:top-[72px] z-10 bg-canvas">
-                <tr className="border-b-2 border-ink">
+              <thead>
+                <tr className="border-b border-line">
                   <th scope="col" className="py-5 pr-4 align-bottom"><span className="visually-hidden">{t('title')}</span></th>
-                  <th scope="col" className="w-24 md:w-56 py-5 text-center align-bottom">
-                    <span className="block text-[17px] md:text-[22px] font-extrabold tracking-[-0.03em] text-ink">POKYH</span>
-                    <span className="hidden md:block text-[13px] font-medium text-ink-2">{t('pokyhSub')}</span>
+                  <th scope="col" className="w-20 py-5 text-center align-bottom md:w-48">
+                    <span className="block text-[16px] font-extrabold tracking-[-0.02em] text-ink md:text-[20px]">POKYH</span>
+                    <span className="hidden text-[13px] font-medium text-ink-2 md:block">{t('pokyhSub')}</span>
                   </th>
-                  <th scope="col" className="w-24 md:w-56 py-5 text-center align-bottom">
-                    <span className="block text-[17px] md:text-[22px] font-extrabold tracking-[-0.03em] text-ink-2">WebUntis</span>
-                    <span className="hidden md:block text-[13px] font-medium text-ink-3">{t('webuntisSub')}</span>
+                  <th scope="col" className="w-20 py-5 text-center align-bottom md:w-48">
+                    <span className="block text-[16px] font-extrabold tracking-[-0.02em] text-ink-2 md:text-[20px]">WebUntis</span>
+                    <span className="hidden text-[13px] font-medium text-ink-3 md:block">{t('webuntisSub')}</span>
                   </th>
                 </tr>
               </thead>
               {SECTIONS.map((section) => (
-                <tbody key={section.title} data-reveal>
+                <tbody key={section.title}>
                   <tr>
-                    <th scope="colgroup" colSpan={3} className="pt-12 pb-3 text-[14px] font-bold text-ink-2">{t(section.title)}</th>
+                    <th scope="colgroup" colSpan={3} className="pb-2 pt-9 text-[15px] font-bold text-ink-3">{t(section.title)}</th>
                   </tr>
                   {section.rows.map((row) => (
-                    <tr key={row.key} className="border-t border-line">
-                      <th scope="row" className="py-4 pr-4 text-[17px] md:text-[20px] font-semibold tracking-[-0.01em] text-ink">{t(row.key)}</th>
-                      <td className="py-4"><Mark value={row.pokyh} label={label(row.pokyh)} strong /></td>
-                      <td className="py-4"><Mark value={row.untis} label={label(row.untis)} /></td>
+                    <tr key={row.key} className="border-t border-line-soft">
+                      <th scope="row" className="py-3.5 pr-4 text-[16px] font-semibold leading-[1.35] text-ink md:text-[18px]">{t(row.key)}</th>
+                      <td className="py-3.5"><Mark value={row.pokyh} label={label(row.pokyh)} strong /></td>
+                      <td className="py-3.5"><Mark value={row.untis} label={label(row.untis)} /></td>
                     </tr>
                   ))}
                 </tbody>
               ))}
             </table>
-            <p data-reveal className="mt-10 max-w-[62ch] text-[15px] leading-[1.6] text-ink-2">{t('note')}</p>
           </div>
+          <p data-reveal className="mt-6 max-w-[64ch] text-[15px] leading-[1.6] text-ink-2">{t('note')}</p>
         </section>
 
-        <section aria-labelledby="summary-title" className="bg-canvas">
-          <div className="mx-auto max-w-[1440px] px-5 md:px-10 pb-24 md:pb-36">
-            <h2 id="summary-title" data-reveal className="text-ink font-extrabold leading-[0.98] tracking-[-0.045em] text-[clamp(36px,8vw,52px)] lg:text-[clamp(44px,4vw,68px)]">
-              {t('sumTitle')}
-            </h2>
-            <div className="mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
-              {([
-                ['sumPokyhTitle', 'sumPokyhBody'],
-                ['sumWebuntisTitle', 'sumWebuntisBody'],
-                ['sumTogetherTitle', 'sumTogetherBody'],
-              ] as const).map(([title, body], i) => (
-                <div key={title} data-reveal className="border-t-2 border-ink pt-6">
-                  <h3 className={`text-[24px] md:text-[28px] font-extrabold tracking-[-0.03em] ${i === 0 ? 'text-accent-ink' : 'text-ink'}`}>{t(title)}</h3>
-                  <p className="mt-3 text-[16px] md:text-[17px] leading-[1.6] text-ink-2">{t(body)}</p>
-                </div>
-              ))}
-            </div>
+        <section aria-labelledby="summary-title" className="wrap pb-20 md:pb-28">
+          <h2 id="summary-title" data-reveal className="text-[clamp(34px,5vw,68px)] font-extrabold leading-[1.04] tracking-[-0.05em]">
+            {t('sumTitle')}
+          </h2>
+          <div className="mt-10 grid gap-4 md:grid-cols-3">
+            {SUMMARY.map((s) => (
+              <div key={s.title} data-reveal className={`squircle rounded-[24px] p-7 md:rounded-[32px] md:p-8 ${TONE[s.tone]}`}>
+                <h3 className="text-[22px] font-extrabold tracking-[-0.03em] md:text-[26px]">{t(s.title)}</h3>
+                <p className="mt-3 text-[16px] leading-[1.6] opacity-85 md:text-[17px]">{t(s.body)}</p>
+              </div>
+            ))}
           </div>
         </section>
       </RevealScope>
@@ -172,7 +172,7 @@ export default async function ComparisonPage({ params }: PageProps) {
         lead={t('ctaLead')}
         primary={{ label: t('ctaLogin'), href: '/login' }}
         secondary={{ label: t('ctaFaq'), href: '/faq' }}
-        tone="sage"
+        tone="periwinkle"
       />
     </>
   );

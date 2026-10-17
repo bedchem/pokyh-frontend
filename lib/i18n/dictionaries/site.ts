@@ -30,8 +30,9 @@ export type SiteKey =
   | 'github'
   | 'disclaimer'
   | 'toTop'
-  | 'footerTitle'
-  | 'footerText';
+  | 'endTitle'
+  | 'endText'
+  | 'tilesHint';
 
 export const siteDict: Dictionary<SiteKey> = {
   de: {
@@ -63,8 +64,9 @@ export const siteDict: Dictionary<SiteKey> = {
     github: 'GitHub',
     disclaimer: 'POKYH ist ein Schülerprojekt und kein offizielles Produkt der Untis GmbH.',
     toTop: 'Nach oben',
-    footerTitle: 'bis morgen früh',
-    footerText: 'Melde dich mit deinem WebUntis-Konto an. Mehr brauchst du nicht.',
+    endTitle: 'Deine Schule. Übersichtlich.',
+    endText: 'Stundenplan, Noten, Mensa und Nachrichten an einem Ort. Kostenlos, mit deinem WebUntis-Konto.',
+    tilesHint: 'Tipp die Buchstaben an.',
   },
   it: {
     skip: 'Vai al contenuto',
@@ -95,8 +97,9 @@ export const siteDict: Dictionary<SiteKey> = {
     github: 'GitHub',
     disclaimer: 'POKYH è un progetto di studenti e non un prodotto ufficiale di Untis GmbH.',
     toTop: 'Torna su',
-    footerTitle: 'a domani mattina',
-    footerText: 'Accedi con il tuo account WebUntis. Non serve altro.',
+    endTitle: 'La tua scuola. In ordine.',
+    endText: 'Orario, voti, mensa e messaggi in un unico posto. Gratis, con il tuo account WebUntis.',
+    tilesHint: 'Tocca le lettere.',
   },
   en: {
     skip: 'Skip to content',
@@ -127,7 +130,8 @@ export const siteDict: Dictionary<SiteKey> = {
     github: 'GitHub',
     disclaimer: 'POKYH is a student project and not an official product of Untis GmbH.',
     toTop: 'Back to top',
-    footerTitle: 'see you in the morning',
-    footerText: 'Sign in with your WebUntis account. That’s all you need.',
+    endTitle: 'Your school. At a glance.',
+    endText: 'Timetable, grades, cafeteria and messages in one place. Free, with your WebUntis account.',
+    tilesHint: 'Tap the letters.',
   },
 };

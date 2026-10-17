@@ -40,36 +40,29 @@ export default function AppInstallGuide({ platform, locale }: { platform: 'ios' 
     <>
       <PageIntro title={ios ? t('appIosTitle') : t('appAndroidTitle')} lead={ios ? t('appIosLead') : t('appAndroidLead')}>
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-          <a
-            href={releases}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex h-14 items-center gap-2.5 rounded-full bg-accent px-7 text-[16px] font-semibold text-on-accent press transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_88%,#000)]"
-          >
+          <a href={releases} target="_blank" rel="noopener noreferrer" className="key key-lg">
             {t('releases')}
             <ArrowUpRight size={18} weight="bold" aria-hidden="true" />
           </a>
-          <Link href={`/${locale}/get/`} className="inline-flex items-center gap-1.5 text-[15px] font-semibold text-ink underline-offset-[6px] decoration-2 hover:underline">
-            <ArrowLeft size={15} weight="bold" aria-hidden="true" />
+          <Link href={`/${locale}/get/`} className="key key-lg key-lilac">
+            <ArrowLeft size={16} weight="bold" aria-hidden="true" />
             {t('back')}
           </Link>
         </div>
       </PageIntro>
 
       <RevealScope>
-        <section className="bg-canvas">
-          <ol className="mx-auto max-w-[1440px] px-5 md:px-10 pb-24 md:pb-36">
-            {steps.map((s, i) => (
-              <li key={s.title} data-reveal className="grid gap-4 border-t border-line py-10 md:py-12 lg:grid-cols-12 lg:gap-10">
-                <span className="lg:col-span-2 font-extrabold leading-none tracking-[-0.05em] text-ink-3 text-[56px] md:text-[80px] tnum">
-                  {String(i + 1).padStart(2, '0')}
-                </span>
-                <h2 className="lg:col-span-4 text-ink text-[28px] md:text-[38px] font-extrabold tracking-[-0.04em] leading-[1.05] lg:pt-3">{s.title}</h2>
-                <p className="lg:col-span-6 text-[17px] md:text-[19px] leading-[1.6] text-ink-2 lg:pt-4">{s.body}</p>
-              </li>
-            ))}
-          </ol>
-        </section>
+        <ol className="wrap grid gap-4 pb-24 md:pb-32">
+          {steps.map((st, i) => (
+            <li key={st.title} data-reveal className="card grid gap-4 p-7 md:grid-cols-[auto_minmax(0,1fr)_minmax(0,1.3fr)] md:items-start md:gap-10 md:p-10">
+              <span aria-hidden="true" className="grid size-11 place-items-center rounded-full bg-ink text-[16px] font-bold text-[var(--paper)] tnum">
+                {i + 1}
+              </span>
+              <h2 className="text-[clamp(24px,2.6vw,34px)] font-extrabold leading-[1.1] tracking-[-0.035em] text-ink md:pt-1">{st.title}</h2>
+              <p className="text-[17px] leading-[1.7] text-ink-2 md:pt-2 md:text-[18px]">{st.body}</p>
+            </li>
+          ))}
+        </ol>
       </RevealScope>
     </>
   );

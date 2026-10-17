@@ -4,7 +4,7 @@ import type { Session } from './types';
 
 export async function getServerSession(): Promise<Session | null> {
   const cookieStore = await cookies();
-  const token = cookieStore.get('pockyh_session')?.value;
+  const token = cookieStore.get('pokyh_session')?.value;
   if (!token) return null;
   return decryptSession<Session>(token);
 }

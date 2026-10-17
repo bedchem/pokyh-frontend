@@ -391,14 +391,16 @@ html.lenis body {
 }
 
 /* ═══ Public site ═══════════════════════════════════════════════════════
-   The public pages keep one fixed palette whatever the app theme is: paper
-   sections and night sections, switched while scrolling. The header reads
-   the tone of the section beneath it ([data-tone]). */
+   The public pages have their own palette, in a light and a dark version
+   (the theme switch and the system setting decide, see ThemeProvider):
+   paper sections and night sections, plus the four category tones. The
+   header reads the tone of the section beneath it ([data-tone]). */
 
 .site {
   /* Android palette (POKYH_ANDROID ui/theme/Palette.kt): light canvas, the
      blue-grey dark ramp, the logo's indigo and the four category tones. */
   --paper: #F5F2ED;
+  --paper-2: #EDE8E0;
   --night: #111114;
   --night-2: #1B1B1F;
   --night-3: #26262B;
@@ -408,29 +410,89 @@ html.lenis body {
   --lilac-ink: #4A46A6;
   --glow: #BAB8F4;
   --mute: #9C9CA2;
+  --mint: #CFEBDD;
+  --mint-ink: #047857;
 
   --canvas: var(--paper);
   --surface: #FFFFFF;
-  --inset: #EEEAE3;
-  --line: #E7E2D9;
-  --line-soft: #F0ECE5;
+  --inset: #EBE6DE;
+  --line: #E2DCD2;
+  --line-soft: #ECE7DF;
   --ink: #1C1A17;
-  --ink-2: #6C655C;
-  --ink-3: #A39B90;
+  --ink-2: #625B52;
+  --ink-3: #8F877B;
   --accent-ink: #4F46E5;
   --accent-tint: #EDECFD;
   --periwinkle: #DEDDFB;
   --periwinkle-ink: #4A46A6;
   --butter: #F7E7AC;
-  --butter-ink: #7A5B14;
+  --butter-ink: #6E5112;
   --sage: #D5E4D0;
-  --sage-ink: #44653F;
+  --sage-ink: #3E5D39;
   --blush: #F7D9D3;
-  --blush-ink: #94493E;
+  --blush-ink: #8A4237;
+
+  /* The screens that still read the old names get the site's values too, so
+     nothing on these pages follows the app theme by accident. */
+  --app-bg: var(--paper);
+  --app-surface: var(--surface);
+  --app-card: var(--surface);
+  --app-card-alt: var(--inset);
+  --app-text-primary: var(--ink);
+  --app-text-secondary: var(--ink-2);
+  --app-text-tertiary: var(--ink-3);
+  --app-border: var(--line);
+  --app-separator: var(--line-soft);
+  --tint: var(--sage-ink);
+
+  /* The plain button: ink on paper; indigo in the dark theme (never white). */
+  --key-default-bg: var(--ink);
+  --key-default-fg: var(--paper);
 
   color-scheme: light;
   background: var(--paper);
   color: var(--ink);
+}
+
+/* Dark: no light surface anywhere; the pastels turn into deep tints with
+   their light ink. */
+.dark .site {
+  --paper: #121215;
+  --paper-2: #18181C;
+  --night: #0A0A0C;
+  --night-2: #151518;
+  --night-3: #1F1F24;
+  --indigo: #4D45AD;
+  --indigo-deep: #2F2A75;
+  --lilac: #2C2A5C;
+  --lilac-ink: #D3D1FB;
+  --glow: #BAB8F4;
+  --mute: #8E8E96;
+  --mint: #15332A;
+  --mint-ink: #9FE0C2;
+
+  --surface: #1B1B20;
+  --inset: #232329;
+  --line: #2B2B31;
+  --line-soft: #212126;
+  --ink: #F2F2F4;
+  --ink-2: #ABABB2;
+  --ink-3: #7A7A82;
+  --accent-ink: #9B9DFA;
+  --accent-tint: #22223E;
+  --periwinkle: #26254F;
+  --periwinkle-ink: #C9C7F8;
+  --butter: #382F14;
+  --butter-ink: #EFDB9E;
+  --sage: #1D2C1A;
+  --sage-ink: #B9D4B2;
+  --blush: #3D221D;
+  --blush-ink: #F2C6BD;
+
+  --key-default-bg: var(--indigo);
+  --key-default-fg: #FFFFFF;
+
+  color-scheme: dark;
 }
 
 /* Display type: the app's own Plus Jakarta Sans, heavy and tight, set very large. */
@@ -441,60 +503,214 @@ html.lenis body {
   font-kerning: normal;
 }
 
-/* Rounded objects of the homepage (hero tiles, carousel items) */
-.tile {
-  container-type: size;
-  border-radius: clamp(16px, 1.9vw, 30px);
-  overflow: hidden;
+/* Everything clickable on the public pages shows the hand (Tailwind 4's
+   preflight leaves buttons on the default cursor). In the base layer, so
+   cursor utilities still win. */
+@layer base {
+  .site :is(a[href], button, [role='button'], [role='tab'], summary, label:has(input)):not(:disabled, [aria-disabled='true']) {
+    cursor: pointer;
+  }
 }
-@supports (corner-shape: squircle) {
-  .tile { corner-shape: squircle; border-radius: clamp(26px, 3vw, 48px); }
+
+/* Component classes of the public pages. In the components layer, so
+   Tailwind utilities (hidden, lg:hidden, …) still win over them. */
+@layer components {
+  /* ── Buttons ──────────────────────────────────────────────────────────────
+     Flat, solid and slightly squared. Hover deepens the colour a touch and
+     nudges the arrow, pressing gives a small give. */
+  .key {
+    --key-bg: var(--key-default-bg);
+    --key-fg: var(--key-default-fg);
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6em;
+    height: 52px;
+    padding: 0 24px;
+    border-radius: 16px;
+    background: var(--key-bg);
+    color: var(--key-fg);
+    font-size: 16px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    /* `scale`, not `transform`: GSAP animates the transform of some keys */
+    transition:
+      scale 0.2s var(--ease-out),
+      filter 0.25s ease,
+      background-color 0.25s ease,
+      color 0.25s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  @supports (corner-shape: squircle) {
+    .key { corner-shape: squircle; border-radius: 24px; }
+  }
+  .key:hover { filter: brightness(0.94); }
+  .dark .key:hover { filter: brightness(1.12); }
+  .key:active { scale: 0.97; transition-duration: 0.08s; }
+  .key:focus-visible { outline-offset: 4px; }
+  .key-arrow { transition: transform 0.25s var(--ease-out); }
+  .key:hover .key-arrow { transform: translateX(3px); }
+  
+  .key-sm { height: 44px; padding: 0 18px; font-size: 15px; border-radius: 13px; }
+  .key-lg { height: 60px; padding: 0 30px; font-size: 17px; border-radius: 18px; }
+  @supports (corner-shape: squircle) {
+    .key-sm { border-radius: 20px; }
+    .key-lg { border-radius: 28px; }
+  }
+  
+  .key-lilac { --key-bg: var(--lilac); --key-fg: var(--lilac-ink); }
+  .key-indigo { --key-bg: var(--indigo); --key-fg: #FFFFFF; }
+  .key-paper { --key-bg: var(--paper); --key-fg: var(--ink); }
+  .key-night { --key-bg: var(--night-3); --key-fg: #F2F2F4; }
+  /* On dark sections and in the dark theme: a translucent face, never white. */
+  .key-glass {
+    --key-bg: rgb(255 255 255 / 0.13);
+    --key-fg: #F2F2F4;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+  .key-glass:hover { filter: none; background: rgb(255 255 255 / 0.2); }
+  /* On a coloured background: a flat outline that fills a little on hover. */
+  .key-line {
+    --key-bg: transparent;
+    --key-fg: currentColor;
+    box-shadow: inset 0 0 0 1.5px color-mix(in srgb, currentColor 40%, transparent);
+  }
+  .key-line:hover { filter: none; background: color-mix(in srgb, currentColor 8%, transparent); box-shadow: inset 0 0 0 1.5px currentColor; }
+  
+  /* ── Subpages ─────────────────────────────────────────────────────────── */
+  
+  .wrap {
+    width: 100%;
+    max-width: 1200px;
+    margin-inline: auto;
+    padding-inline: 20px;
+  }
+  @media (min-width: 768px) { .wrap { padding-inline: 40px; } }
+  .wrap-narrow { max-width: 820px; }
+  
+  /* Long text set for reading. */
+  .prose-site { color: var(--ink-2); font-size: 18px; line-height: 1.7; }
+  .prose-site strong { color: var(--ink); font-weight: 650; }
+  .prose-site p + p { margin-top: 1em; }
+  
+  /* A rounded card on the page. */
+  .card {
+    background: var(--surface);
+    border-radius: 24px;
+  }
+  @supports (corner-shape: squircle) {
+    .card { corner-shape: squircle; border-radius: 40px; }
+  }
+  
+  /* GitHub-style grid of the About page (components/site/GithubCard.tsx) */
+  .gh-cell {
+    background: color-mix(in srgb, currentColor 9%, transparent);
+    transition: background-color 0.35s ease, transform 0.35s var(--ease-out);
+  }
+  .gh-l1 { background: color-mix(in srgb, currentColor 20%, transparent); }
+  .gh-l2 { background: color-mix(in srgb, currentColor 36%, transparent); }
+  .gh-l4 { background: color-mix(in srgb, currentColor 72%, transparent); }
+  .gh-card:hover .gh-cell:not([data-on]) { background: color-mix(in srgb, currentColor 7%, transparent); }
+  .gh-card:hover .gh-cell[data-on] { background: currentColor; transform: scale(1.12); }
 }
+
+/* Under the fixed header: page content dissolves towards the top instead of
+   running into the navigation (SiteHeader). */
+.header-fade {
+  background: linear-gradient(to bottom, var(--fade) 0%, color-mix(in srgb, var(--fade) 82%, transparent) 45%, transparent 100%);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  -webkit-mask-image: linear-gradient(to bottom, #000 40%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 40%, transparent 100%);
+}
+
+/* Plate and cutlery of the Mensa page: glazed ceramic with a rim, a well and
+   a highlight; polished steel (gradient stops read by the SVGs). In the dark
+   theme a dark stoneware plate and slightly darker steel. */
+.site {
+  --plate-1: #FFFFFF;
+  --plate-2: #F4F2EE;
+  --plate-3: #DEDAD2;
+  --steel-1: #7C7C85;
+  --steel-2: #F1F1F4;
+  --steel-3: #ABABB4;
+  --steel-4: #FFFFFF;
+  --steel-5: #6C6C75;
+}
+.dark .site {
+  --plate-1: #4B4B53;
+  --plate-2: #2F2F35;
+  --plate-3: #1D1D22;
+  --steel-1: #5A5A62;
+  --steel-2: #D7D7DD;
+  --steel-3: #8A8A93;
+  --steel-4: #F0F0F4;
+  --steel-5: #4E4E56;
+}
+.plate {
+  background: radial-gradient(circle at 34% 26%, var(--plate-1) 0%, var(--plate-2) 42%, var(--plate-3) 100%);
+  box-shadow:
+    0 34px 60px -30px rgb(0 0 0 / 0.55),
+    0 10px 20px -12px rgb(0 0 0 / 0.25),
+    inset 0 2px 2px rgb(255 255 255 / 0.7),
+    inset 0 -8px 16px rgb(0 0 0 / 0.12);
+}
+.dark .plate {
+  box-shadow:
+    0 34px 60px -30px rgb(0 0 0 / 0.85),
+    inset 0 1px 1px rgb(255 255 255 / 0.18),
+    inset 0 -8px 16px rgb(0 0 0 / 0.35);
+}
+.plate-well {
+  box-shadow:
+    inset 0 4px 10px rgb(0 0 0 / 0.16),
+    inset 0 -2px 4px rgb(255 255 255 / 0.6),
+    0 1px 0 rgb(255 255 255 / 0.5);
+}
+.dark .plate-well {
+  box-shadow:
+    inset 0 4px 10px rgb(0 0 0 / 0.45),
+    inset 0 -1px 3px rgb(255 255 255 / 0.1);
+}
+/* The glaze catches the light on the rim only, not on the food. */
+.plate-glaze {
+  background: radial-gradient(ellipse 60% 40% at 30% 16%, rgb(255 255 255 / 0.9), transparent 70%);
+  opacity: 0.5;
+  -webkit-mask-image: radial-gradient(circle closest-side, transparent 77%, #000 79%);
+  mask-image: radial-gradient(circle closest-side, transparent 77%, #000 79%);
+}
+.dark .plate-glaze { opacity: 0.22; }
+.cutlery {
+  filter: drop-shadow(0 12px 12px rgb(0 0 0 / 0.22)) drop-shadow(0 2px 2px rgb(0 0 0 / 0.16));
+}
+
+/* Mensa (app/[lang]/(site)/mensa): a dish is served, the plate turns in
+   between fork and knife; the dish sheet rises. */
+@keyframes plate-in {
+  from { opacity: 0; transform: rotate(-40deg) scale(0.86); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes cutlery-l {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes cutlery-r {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes sheet-in {
+  from { opacity: 0; transform: translateY(48px); }
+  to { opacity: 1; transform: none; }
+}
+.plate-in { animation: plate-in 0.8s var(--ease-out) both; }
+.plate-cutlery-l { animation: cutlery-l 0.7s var(--ease-out) 0.12s both; }
+.plate-cutlery-r { animation: cutlery-r 0.7s var(--ease-out) 0.12s both; }
+.sheet-in { animation: sheet-in 0.45s var(--ease-out) both; }
 
 /* ═══ Homepage ═══════════════════════════════════════════════════════════ */
-
-/* Hover roll: the label leaves upwards, its copy arrives from below. */
-.roll {
-  position: relative;
-  display: inline-block;
-  overflow: hidden;
-  vertical-align: top;
-}
-.roll-a,
-.roll-b {
-  display: block;
-  transition: transform 0.65s var(--ease-out);
-}
-.roll-b {
-  position: absolute;
-  inset: 0;
-  transform: translateY(105%);
-  user-select: none;
-}
-:is(a, button):hover > .roll .roll-a,
-:is(a, button):focus-visible > .roll .roll-a,
-.group:hover .roll .roll-a { transform: translateY(-105%); }
-:is(a, button):hover > .roll .roll-b,
-:is(a, button):focus-visible > .roll .roll-b,
-.group:hover .roll .roll-b { transform: translateY(0); }
-
-/* Intro curtain: shown once per visit, gone by itself if scripts are late. */
-.home-intro {
-  animation: home-intro-fallback 0.6s ease 4.5s forwards;
-}
-html[data-intro='skip'] .home-intro { display: none; }
-@keyframes home-intro-fallback {
-  to { opacity: 0; visibility: hidden; }
-}
-
-/* Outlined display type */
-.type-outline {
-  color: transparent;
-  -webkit-text-stroke: 1.5px currentColor;
-}
-@supports not (-webkit-text-stroke: 1px black) {
-  .type-outline { color: inherit; opacity: 0.3; }
-}
 
 @keyframes home-scroll-cue {
   0% { transform: scaleY(0); transform-origin: top; }
@@ -504,21 +720,32 @@ html[data-intro='skip'] .home-intro { display: none; }
 }
 .home-scroll-cue { animation: home-scroll-cue 2.2s var(--ease-in-out) infinite; }
 
-@keyframes home-blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.25; }
+/* The opening: until the script takes over, the name waits invisible; if
+   scripts are late it shows by itself. */
+@media (prefers-reduced-motion: no-preference) {
+  .home-hero [data-letter],
+  .home-hero [data-chrome] {
+    opacity: 0;
+    animation: home-open-fallback 0.5s ease 3s forwards;
+  }
 }
-.home-blink { animation: home-blink 1.6s ease-in-out infinite; }
+@keyframes home-open-fallback {
+  to { opacity: 1; }
+}
 
 /* Without motion the scroll scenes become plain, stacked sections. */
 @media (prefers-reduced-motion: reduce) {
   .home-hero { height: 100svh !important; }
-  .home-manifest { height: auto !important; }
+  .home-manifest { height: auto !important; margin-top: 0 !important; }
   .home-manifest > div { position: relative !important; }
-  .home-day-stage { height: auto !important; }
-  .home-day-track { flex-direction: column; width: 100% !important; transform: none !important; }
-  .home-day-track > * { width: 100% !important; min-height: 100svh; }
-  .home-day-chrome { display: none !important; }
+}
+
+/* Theme switch on the public pages: the new colours grow as a circle from
+   the button (View Transitions; without them the switch is instant). */
+html.theme-switching::view-transition-old(root),
+html.theme-switching::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
 }
 
 /* ═══ Kept for screens that are not rebuilt yet ═════════════════════════ */

@@ -12,8 +12,10 @@ import {
 
 // The hero's tunnel: thick tiles of a school day (timetable, grades,
 // messages, exams …) hang in depth around the headline. The camera flies
-// through them as you scroll; tiles lean towards the pointer, lift when
-// hovered and turn over when clicked to show their name on the back.
+// through them as you scroll, towards a dark screen that comes out of the
+// haze in the middle of the tunnel, with tiles around and behind it, until it
+// fills the view. Tiles lean towards the pointer, lift when hovered and turn
+// over when clicked to show their name on the back.
 
 export type HeroItem =
   | { type: 'tile'; art: TileKind; portrait: boolean; label: string }
@@ -29,8 +31,9 @@ export interface HeroFrame {
   /** 0..1 how far the tiles have arrived (entrance). */
   arrive: number;
   background: THREE.ColorRepresentation;
-  /** 0..1 how much of the dark screen at the end of the tunnel shows. */
-  portal: number;
+  /** Haze: where it starts and where it swallows everything. */
+  fogNear: number;
+  fogFar: number;
   time: number;
 }
 
@@ -41,14 +44,22 @@ export interface HeroScene {
   pick(clientX: number, clientY: number): number | null;
   setHover(index: number | null): void;
   flip(index: number): void;
+  /** Where the dark screen is on the canvas (CSS pixels) after the last frame. */
+  portalRect(): { left: number; top: number; right: number; bottom: number };
+  /** Colours of the theme: the dark screen, and dimmer tiles in the dark theme. */
+  setTheme(theme: { night: THREE.ColorRepresentation; dark: boolean }): void;
   dispose(): void;
 }
 
 /** Where the camera rests once the entrance is over. */
 export const CAMERA_REST = 12;
-/** The dark screen at the end of the tunnel, and the distance at which it fills the view. */
-export const PORTAL_Z = -104;
+/** The dark screen in the tunnel, and the distance at which it exactly fills the view. */
+export const PORTAL_Z = -72;
 export const PORTAL_FILL = 1.2;
+/** How far the tunnel goes on behind the dark screen (seen around its edges). */
+export const BEYOND = 18;
+/** Haze on the bright side of the tunnel. */
+export const FOG = { near: 9, far: 34 };
 const FOV = 36;
 
 const TILE_W = { portrait: 1.9, landscape: 2.5, poster: 2.2 };
@@ -138,12 +149,13 @@ export function createHeroScene(
   const aniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
 
   const scene = new THREE.Scene();
-  const fog = new THREE.Fog(0xf5f2ed, 9, 34);
+  const fog = new THREE.Fog(0xf5f2ed, FOG.near, FOG.far);
   scene.fog = fog;
   const camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 200);
   camera.position.set(0, 0, CAMERA_REST);
 
-  scene.add(new THREE.AmbientLight(0xffffff, 1.9));
+  const ambient = new THREE.AmbientLight(0xffffff, 1.9);
+  scene.add(ambient);
   const sun = new THREE.DirectionalLight(0xffffff, 1.5);
   sun.position.set(-5, 7, 10);
   scene.add(sun);
@@ -157,6 +169,7 @@ export function createHeroScene(
     return tex;
   };
 
+  const faces: THREE.MeshBasicMaterial[] = [];
   const tiles: Tile[] = items.map((item, i) => {
     let w: number;
     let h: number;
@@ -193,16 +206,13 @@ export function createHeroScene(
     bodyGeo.translate(0, 0, -(depth + bevel));
     const body = new THREE.Mesh(bodyGeo, new THREE.MeshStandardMaterial({ color: bg, roughness: 0.62, metalness: 0 }));
 
-    const front = new THREE.Mesh(
-      faceGeometry(shape, w, h),
-      new THREE.MeshBasicMaterial({ map: texture(face), alphaTest: 0.5, toneMapped: false }),
-    );
+    const frontMat = new THREE.MeshBasicMaterial({ map: texture(face), alphaTest: 0.5, toneMapped: false });
+    const front = new THREE.Mesh(faceGeometry(shape, w, h), frontMat);
     front.position.z = 0.002;
 
-    const back = new THREE.Mesh(
-      faceGeometry(shape, w, h),
-      new THREE.MeshBasicMaterial({ map: texture(drawBack(item.label, bg, ink, w, h, fonts)), toneMapped: false }),
-    );
+    const backMat = new THREE.MeshBasicMaterial({ map: texture(drawBack(item.label, bg, ink, w, h, fonts)), toneMapped: false });
+    const back = new THREE.Mesh(faceGeometry(shape, w, h), backMat);
+    faces.push(frontMat, backMat);
     back.rotation.y = Math.PI;
     back.position.z = -(depth + bevel * 2) - 0.002;
 
@@ -231,25 +241,33 @@ export function createHeroScene(
 
   const halfH = (d: number) => d * Math.tan(THREE.MathUtils.degToRad(FOV / 2));
 
-  // The end of the tunnel: a dark screen the camera flies into.
-  const portalMat = new THREE.MeshBasicMaterial({ color: 0x111114, transparent: true, opacity: 0, fog: false, toneMapped: false });
+  // The dark screen in the tunnel. Only its place is kept here: the page
+  // draws it in HTML on top of the canvas (with the next section on it), at
+  // the rectangle portalRect() reports.
+  const portalMat = new THREE.MeshBasicMaterial({ color: 0x111114, toneMapped: false });
   const portal = new THREE.Mesh(new THREE.ShapeGeometry(roundedShape(1, 1, 0.08), 16), portalMat);
   portal.position.z = PORTAL_Z;
+  portal.visible = false;
   scene.add(portal);
+  const corner = new THREE.Vector3();
 
-  // Positions depend on the aspect ratio: hand-placed near tiles, then a
-  // tunnel of constant radius behind them.
+  // Positions depend on the aspect ratio: a tunnel of constant radius, about
+  // three quarters of the tiles in front of the dark screen (the last ones
+  // just before it), the rest behind it, where they show around its edges.
+  const ahead = Math.round(tiles.length * 0.75);
   const place = () => {
     const scale = camera.aspect >= 1 ? 1 : 0.72;
     const hRest = halfH(CAMERA_REST);
     const rx = hRest * camera.aspect * 1.08;
     const ry = hRest * 1.04;
-    const cover = halfH(PORTAL_FILL) * 2.12;
+    const cover = halfH(PORTAL_FILL) * 2;
     portal.scale.set(cover * camera.aspect, cover, 1);
     tiles.forEach((tile, i) => {
       tile.group.scale.setScalar(scale);
       // Beyond the fog at rest: the tunnel only appears once you fly.
-      const z = -26 - i * 2.6;
+      const z = i < ahead
+        ? -22 + (i / (ahead - 1)) * (PORTAL_Z + 3 + 22)
+        : PORTAL_Z - 2 - ((i - ahead) / Math.max(1, tiles.length - ahead - 1)) * BEYOND;
       const a = i * 2.39996 + 0.5;
       const f = 0.8 + ((i * 37) % 10) / 28;
       const x = Math.cos(a) * rx * f;
@@ -284,13 +302,13 @@ export function createHeroScene(
     bgColor.set(f.background);
     renderer.setClearColor(bgColor, 1);
     fog.color.copy(bgColor);
+    fog.near = f.fogNear;
+    fog.far = f.fogFar;
 
     camera.position.x += (f.px * 0.9 - camera.position.x) * 0.05;
     camera.position.y += (f.py * 0.55 - camera.position.y) * 0.05;
     camera.position.z = f.camZ;
     camera.lookAt(camera.position.x * 0.25, camera.position.y * 0.25, f.camZ - 30);
-    portalMat.opacity = f.portal;
-    portal.visible = f.portal > 0.001;
     portal.position.x = camera.position.x * 0.25;
     portal.position.y = camera.position.y * 0.25;
 
@@ -344,7 +362,28 @@ export function createHeroScene(
     resize,
     pick,
     setHover: (index) => { hovered = index; },
+    portalRect: () => {
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      const r = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
+      for (const [sx, sy] of [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]]) {
+        corner.set(portal.position.x + sx * portal.scale.x, portal.position.y + sy * portal.scale.y, PORTAL_Z).project(camera);
+        const x = ((corner.x + 1) / 2) * w;
+        const y = ((1 - corner.y) / 2) * h;
+        r.left = Math.min(r.left, x);
+        r.right = Math.max(r.right, x);
+        r.top = Math.min(r.top, y);
+        r.bottom = Math.max(r.bottom, y);
+      }
+      return r;
+    },
     flip,
+    setTheme: ({ night, dark }) => {
+      portalMat.color.set(night);
+      ambient.intensity = dark ? 1.35 : 1.9;
+      sun.intensity = dark ? 1.05 : 1.5;
+      faces.forEach((m) => m.color.set(dark ? 0xd2d2d8 : 0xffffff));
+    },
     dispose: () => {
       tiles.forEach((t) => { if (t.flipTimer) clearTimeout(t.flipTimer); });
       scene.traverse((o) => {

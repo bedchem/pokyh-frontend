@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
   const session = await getServerSession();
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
-  const apiToken = request.cookies.get('pockyh_api_token')?.value;
+  const apiToken = request.cookies.get('pokyh_api_token')?.value;
   if (!apiToken) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const { endpoint, p256dh, auth } = await request.json() as {

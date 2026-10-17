@@ -159,9 +159,9 @@ export async function POST(req: NextRequest) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        id: 'pockyh-web',
+        id: 'pokyh-web',
         method: 'authenticate',
-        params: { user: username, password, client: 'pockyh' },
+        params: { user: username, password, client: 'pokyh' },
         jsonrpc: '2.0',
       }),
       signal: AbortSignal.timeout(15000),
@@ -204,7 +204,7 @@ export async function POST(req: NextRequest) {
       fetch(`${BASE}/jsonrpc.do?school=${SCHOOL}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Cookie: cookie },
-        body: JSON.stringify({ id: 'pockyh-klassen', method: 'getKlassen', params: {}, jsonrpc: '2.0' }),
+        body: JSON.stringify({ id: 'pokyh-klassen', method: 'getKlassen', params: {}, jsonrpc: '2.0' }),
         signal: AbortSignal.timeout(10000),
       })
         .then((r) => r.json())
@@ -213,7 +213,7 @@ export async function POST(req: NextRequest) {
       fetch(`${BASE}/jsonrpc.do?school=${SCHOOL}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Cookie: cookie },
-        body: JSON.stringify({ id: 'pockyh-students', method: 'getStudents', params: {}, jsonrpc: '2.0' }),
+        body: JSON.stringify({ id: 'pokyh-students', method: 'getStudents', params: {}, jsonrpc: '2.0' }),
         signal: AbortSignal.timeout(10000),
       })
         .then((r) => r.json())
@@ -309,7 +309,7 @@ export async function POST(req: NextRequest) {
     // Register/login user with the Node.js backend.
     // pokyhSynced tells the client whether the POKYH session layer was refreshed
     // (not only the WebUntis session) so it knows whether to dispatch
-    // pockyh-session-refreshed (which re-runs loginWithSession).
+    // pokyh-session-refreshed (which re-runs loginWithSession).
     let pokyhSynced = false;
     try {
       const backendUrl = process.env.API_BACKEND_URL ?? 'https://api.pokyh.com';
@@ -338,20 +338,20 @@ export async function POST(req: NextRequest) {
           pokyhSynced = true;
 
           // Build the response only once the backend tokens are in hand so the
-          // pockyh_api_token cookie always carries a fresh, valid token. Returning
+          // pokyh_api_token cookie always carries a fresh, valid token. Returning
           // it without tokens (as before) left the client with an expired token →
           // /auth/me 401 → loginWithSession retried forever.
           const res = NextResponse.json({ ok: true, pokyhSynced, username, studentId: resolvedStudentId, klasseId: accountKlasseId, klasseName: accountKlasseName });
-          res.cookies.set('pockyh_session', encrypted, COOKIE_OPTS);
-          res.cookies.set('pockyh_user', userPublic, { ...COOKIE_OPTS, httpOnly: false });
-          res.cookies.set('pockyh_api_token', backendData.token, {
+          res.cookies.set('pokyh_session', encrypted, COOKIE_OPTS);
+          res.cookies.set('pokyh_user', userPublic, { ...COOKIE_OPTS, httpOnly: false });
+          res.cookies.set('pokyh_api_token', backendData.token, {
             httpOnly: false, // Must be readable by client JS
             secure: isSecure,
             sameSite: 'strict',
             path: '/',
             maxAge: 8 * 60 * 60, // 8 hours
           });
-          res.cookies.set('pockyh_api_refresh', backendData.refreshToken, {
+          res.cookies.set('pokyh_api_refresh', backendData.refreshToken, {
             httpOnly: true,
             secure: isSecure,
             sameSite: 'strict',
@@ -371,11 +371,11 @@ export async function POST(req: NextRequest) {
 
     // POKYH backend sync failed — return the WebUntis session so the user can
     // still see timetable/grades, but pokyhSynced=false tells the client NOT to
-    // dispatch pockyh-session-refreshed (which would re-run loginWithSession →
+    // dispatch pokyh-session-refreshed (which would re-run loginWithSession →
     // /auth/me 401 → infinite loop) and NOT to keep stale POKYH cookies around.
     const resFallback = NextResponse.json({ ok: true, pokyhSynced, username, studentId: resolvedStudentId, klasseId: accountKlasseId, klasseName: accountKlasseName });
-    resFallback.cookies.set('pockyh_session', encrypted, COOKIE_OPTS);
-    resFallback.cookies.set('pockyh_user', userPublic, { ...COOKIE_OPTS, httpOnly: false });
+    resFallback.cookies.set('pokyh_session', encrypted, COOKIE_OPTS);
+    resFallback.cookies.set('pokyh_user', userPublic, { ...COOKIE_OPTS, httpOnly: false });
     return resFallback;
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Netzwerkfehler';

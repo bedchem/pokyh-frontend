@@ -223,7 +223,7 @@ const AVAILABLE_YEARS = Array.from({ length: 4 }, (_, i) => CURRENT_SCHOOL_YEAR 
 // einmal und cachen das Ergebnis lokal pro Schüler+Jahr — beim nächsten Mal lädt
 // die Seite sofort, ohne den Stundenplan erneut zu holen. Invalidiert automatisch,
 // wenn sich die Anzahl der Abwesenheiten ändert (neue Einträge) oder nach 7 Tagen.
-const CALC_CACHE_PREFIX = 'pockyh_abscalc_';
+const CALC_CACHE_PREFIX = 'pokyh_abscalc_';
 const CALC_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
 interface CalcCache { minutes: [number, number][]; possible: number; count: number; ts: number }
 

@@ -32,7 +32,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const activeCountRef = useRef(0);
 
   useEffect(() => {
-    const saved = (localStorage.getItem('pockyh_theme') as Theme) ?? 'system';
+    const saved = (localStorage.getItem('pokyh_theme') as Theme) ?? 'system';
     setThemeState(saved);
     pendingRef.current = resolveTheme(saved);
   }, []);
@@ -51,7 +51,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setTheme = (t: Theme) => {
     setThemeState(t);
-    localStorage.setItem('pockyh_theme', t);
+    localStorage.setItem('pokyh_theme', t);
     const isDark = resolveTheme(t) === 'dark';
     document.documentElement.classList.toggle('dark', isDark);
   };
@@ -76,7 +76,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const newBg = nextResolved === 'dark' ? '#111114' : '#F5F2ED';
 
     document.documentElement.classList.toggle('dark', isDark);
-    localStorage.setItem('pockyh_theme', next);
+    localStorage.setItem('pokyh_theme', next);
     setThemeState(next);
     setResolved(nextResolved);
 

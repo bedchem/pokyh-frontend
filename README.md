@@ -152,13 +152,13 @@ browser; the rest are server-only.
    doesn't expose it), then performs a trusted **server-to-server** login at the POKYH backend with
    `X-Server-Key`.
 3. On success it sets cookies:
-   - `pockyh_session` — encrypted WebUntis session (**httpOnly**)
-   - `pockyh_api_token` — POKYH access token (readable by JS; sent as `Bearer`)
-   - `pockyh_api_refresh` — POKYH refresh token (**httpOnly**)
-   - `pockyh_user` — non-sensitive profile for the UI
+   - `pokyh_session` — encrypted WebUntis session (**httpOnly**)
+   - `pokyh_api_token` — POKYH access token (readable by JS; sent as `Bearer`)
+   - `pokyh_api_refresh` — POKYH refresh token (**httpOnly**)
+   - `pokyh_user` — non-sensitive profile for the UI
 4. The client uses the access token for backend calls. On `401` it calls **`/api/auth/refresh`**,
    which reads the httpOnly refresh cookie server-side, mints a fresh access token and updates the
-   cookie. If refresh fails, a single `pockyh-session-expired` event redirects cleanly to `/login` —
+   cookie. If refresh fails, a single `pokyh-session-expired` event redirects cleanly to `/login` —
    no retry loops.
 
 ---

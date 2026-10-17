@@ -2,7 +2,11 @@
 
 import { useSyncExternalStore } from 'react';
 
-const THEME_INIT = `(function(){var t=localStorage.getItem('pockyh_theme');var d=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches);if(d)document.documentElement.classList.add('dark')})()`;
+// Before reading the theme, keys saved under the old misspelt prefix
+// (pockyh_*) move to pokyh_* once, in local and session storage.
+const MIGRATE = `try{[localStorage,sessionStorage].forEach(function(s){for(var i=s.length;i--;){var k=s.key(i);if(k&&k.indexOf('pockyh_')===0){var n='pokyh_'+k.slice(7);if(s.getItem(n)===null)s.setItem(n,s.getItem(k));s.removeItem(k)}}})}catch(e){}`;
+
+const THEME_INIT = `(function(){${MIGRATE}var t=localStorage.getItem('pokyh_theme');var d=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches);if(d)document.documentElement.classList.add('dark')})()`;
 
 const noopSubscribe = () => () => {};
 

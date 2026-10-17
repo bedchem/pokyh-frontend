@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import Home from '@/components/home/Home';
-import { INTRO_KEY } from '@/components/home/introKey';
 import { makeT } from '@/lib/i18n/dictionary';
 import { routeLocale } from '@/lib/i18n/server';
 import { metaDict } from '@/lib/i18n/dictionaries/meta';
@@ -108,8 +107,6 @@ export default async function LandingPage({ params }: PageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }}
       />
-      {/* Hides the intro curtain before the first paint once it has played in this session */}
-      <script dangerouslySetInnerHTML={{ __html: `try{if(sessionStorage.getItem('${INTRO_KEY}')==='1'||matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.dataset.intro='skip'}catch(e){}` }} />
       <Home />
       {/* SSR-only SEO blurb — visually hidden via sr-only, fully crawlable by search engines */}
       <section className="visually-hidden" aria-label={t('seoBlurbAria')}>

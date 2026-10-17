@@ -245,7 +245,7 @@ function structuredData(locale: Locale) {
       name: 'bedchem',
       url: 'https://github.com/bedchem',
     },
-    sameAs: ['https://github.com/bedchem/POKYH', 'https://github.com/bedchem/pocky-web'],
+    sameAs: ['https://github.com/bedchem/POKYH', 'https://github.com/bedchem/pokyh-frontend'],
     educationalUse: 'Student information system',
     audience: {
       '@type': 'EducationalAudience',

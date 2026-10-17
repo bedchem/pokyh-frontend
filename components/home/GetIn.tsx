@@ -7,10 +7,9 @@ import { useSession } from '@/providers/SessionProvider';
 import { frontpageDict } from '@/lib/i18n/dictionaries/frontpage';
 import { siteDict } from '@/lib/i18n/dictionaries/site';
 import { fadeIn, lightUp, SplitText, useGsap } from '@/lib/motion';
-import { Magnetic, Roll } from './shared';
 
 // The opened app: indigo from edge to edge and the name, huge. Below, the
-// ways in as large buttons.
+// ways in as large keys.
 
 export default function GetIn() {
   const t = useT(frontpageDict);
@@ -30,10 +29,10 @@ export default function GetIn() {
 
   const name = t('getTitleB').replace(/\.$/, '');
   const ways = [
-    { label: user ? ts('openApp') : t('getWeb'), href: user ? '/home' : '/login', tone: 'bg-[var(--lilac)] text-[var(--lilac-ink)] hover:bg-white' },
-    { label: t('getAndroid'), href: '/get/android', tone: 'bg-[var(--paper)] text-ink hover:bg-white' },
-    { label: t('getIos'), href: '/get/ios', tone: 'bg-[var(--paper)] text-ink hover:bg-white' },
-    { label: t('getPwa'), href: '/get', tone: 'border border-white/40 text-white hover:border-white' },
+    { label: user ? ts('openApp') : t('getWeb'), href: user ? '/home' : '/login', tone: 'key-lilac', arrow: true },
+    { label: t('getAndroid'), href: '/get/android', tone: 'key-paper' },
+    { label: t('getIos'), href: '/get/ios', tone: 'key-paper' },
+    { label: t('getPwa'), href: '/get', tone: 'key-line text-white' },
   ];
 
   return (
@@ -53,14 +52,10 @@ export default function GetIn() {
         <ul className="mt-[clamp(36px,7svh,80px)] flex flex-wrap items-center justify-center gap-3 md:gap-4">
           {ways.map((w) => (
             <li key={w.href} data-way>
-              <Magnetic strength={0.3}>
-                <Link
-                  href={localize(w.href)}
-                  className={`inline-flex h-[58px] items-center rounded-full px-8 text-[17px] font-medium transition-colors duration-300 md:h-[72px] md:px-11 md:text-[19px] ${w.tone}`}
-                >
-                  <Roll>{w.label}</Roll>
-                </Link>
-              </Magnetic>
+              <Link href={localize(w.href)} className={`key key-lg md:h-[68px] md:px-10 md:text-[19px] ${w.tone}`}>
+                {w.label}
+                {w.arrow && <span aria-hidden="true" className="key-arrow">→</span>}
+              </Link>
             </li>
           ))}
         </ul>

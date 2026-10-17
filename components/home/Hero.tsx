@@ -6,29 +6,57 @@ import { frontpageDict } from '@/lib/i18n/dictionaries/frontpage';
 import { homepageDict } from '@/lib/i18n/dictionaries/homepage';
 import { ensureGsap, prefersReducedMotion, ScrollTrigger, useGsap } from '@/lib/motion';
 import { resolveFonts, type TileText } from '@/lib/landing-art';
+import { onSiteThemeChange, siteColor } from '@/lib/site-theme';
 import { useLenis } from '@/components/site/SmoothScroll';
-import { afterIntro } from './shared';
+import { ManifestScreen } from './Manifest';
 import type { HeroItem, HeroScene } from './heroScene';
 
-// The opening: the name, large, on clean paper. Scrolling flies the camera
-// through it into a tunnel of school-day tiles that come out of the haze,
-// and at its end into a dark screen, which is where the next section begins.
-// The name is HTML, scaled with the same camera so it sits in the 3D space.
+// The opening: on every visit the name, large, on clean paper, rises letter
+// by letter out of a mask and comes into focus, then the school-day tiles
+// arrive out of the depth. Scrolling flies the camera through the name into
+// the tunnel of tiles towards a dark screen that comes out of the haze in
+// its middle, tiles all around it. The screen already shows the next section
+// (a copy of its layout, scaled to the screen); when it fills the view the
+// hero steps aside and the real section, waiting underneath in exactly that
+// place, carries on. The name is HTML, scaled with the same camera so it
+// sits in the 3D space.
 
-const PAPER = '#F5F2ED';
-const NIGHT = '#111114';
-// heroScene CAMERA_REST / PORTAL_Z / PORTAL_FILL, duplicated so three.js loads lazily
+// heroScene CAMERA_REST / PORTAL_Z / PORTAL_FILL / FOG, duplicated so three.js loads lazily
 const REST = 12;
-const PORTAL_Z = -104;
-const END_Z = PORTAL_Z + 0.85;
-const TRAVEL = REST - END_Z;
-const ENTER_FROM = 46;
+const PORTAL_Z = -72;
+const PORTAL_FILL = 1.2;
+const END_Z = PORTAL_Z + PORTAL_FILL;
+const FOG = { near: 9, far: 34 };
+/**
+ * Scroll progress at which the dark screen fills the view. The next section
+ * (Manifest, -mt-[108svh]) starts at this point of the hero, so it is in place
+ * when the hero hands over.
+ */
+const ARRIVE = 0.92;
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
-const smooth = (a: number, b: number, v: number) => {
-  const t = clamp01((v - a) / (b - a));
-  return t * t * (3 - 2 * t);
-};
+
+/** Where the tunnel part ends and the dark screen starts to grow towards the view. */
+const NEAR = 0.5;
+/** Size of the dark screen (share of the view) at that point. */
+const NEAR_SIZE = 0.12;
+
+/**
+ * Camera depth for scroll progress p. Down the tunnel the camera gathers
+ * speed; from NEAR on the depth follows from the size the dark
+ * screen should have, so it grows steadily and settles on the full view
+ * instead of ballooning in the last metres (size = PORTAL_FILL / distance).
+ */
+function cameraZ(p: number): number {
+  const nearZ = PORTAL_Z + PORTAL_FILL / NEAR_SIZE;
+  if (p <= NEAR) {
+    const t = p / NEAR;
+    return REST - (1 - Math.cos((Math.PI / 2) * t)) * (REST - nearZ);
+  }
+  const t = clamp01((p - NEAR) / (ARRIVE - NEAR));
+  const size = NEAR_SIZE + (1 - NEAR_SIZE) * (1 - Math.pow(1 - t, 2.2));
+  return PORTAL_Z + PORTAL_FILL / size;
+}
 
 export default function Hero() {
   const t = useT(frontpageDict);
@@ -41,7 +69,10 @@ export default function Hero() {
   const stage = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const head = useRef<HTMLDivElement>(null);
-  const motion = useRef({ enterZ: ENTER_FROM, arrive: 0, progress: 0, eased: 0, px: 0, py: 0, tx: 0, ty: 0 });
+  const screen = useRef<HTMLDivElement>(null);
+  const motion = useRef({ arrive: 0, progress: 0, eased: 0, px: 0, py: 0, tx: 0, ty: 0 });
+  // The opening tells the scene when the tiles may come.
+  const opened = useRef<(() => void) | null>(null);
 
   const items = useMemo<HeroItem[]>(() => [
     { type: 'tile', art: 'time', portrait: true, label: t('tileTimetable') },
@@ -81,7 +112,8 @@ export default function Hero() {
     const section = root.current;
     const box = stage.current;
     const headline = head.current;
-    if (!canvas || !section || !box || !headline) return;
+    const portal = screen.current;
+    if (!canvas || !section || !box || !headline || !portal) return;
     const gsap = ensureGsap();
     const reduced = prefersReducedMotion();
     const m = motion.current;
@@ -93,10 +125,18 @@ export default function Hero() {
     let lastPick = { x: -1, y: -1 };
     const fine = window.matchMedia('(pointer: fine)').matches;
 
-    if (reduced) {
-      m.enterZ = REST;
-      m.arrive = 1;
-    }
+    // The two colours of the page, read from the theme and re-read when it flips.
+    const colours = { paper: '#F5F2ED', night: '#111114', dark: false };
+    const readColours = (dark: boolean) => {
+      colours.paper = siteColor('--paper') || colours.paper;
+      colours.night = siteColor('--night') || colours.night;
+      colours.dark = dark;
+      scene?.setTheme({ night: colours.night, dark });
+    };
+    readColours(document.documentElement.classList.contains('dark'));
+    const offTheme = onSiteThemeChange(readColours);
+
+    if (reduced) m.arrive = 1;
 
     const st = reduced
       ? null
@@ -113,12 +153,14 @@ export default function Hero() {
       m.px += (m.tx - m.px) * 0.06;
       m.py += (m.ty - m.py) * 0.06;
       const p = m.eased;
-      // Slow out of the start, fast down the tunnel, slow into the dark screen.
-      const travel = (1 - Math.cos(Math.PI * p)) / 2;
-      const camZ = m.enterZ - travel * TRAVEL;
-      const covered = camZ - PORTAL_Z < 1.15;
-      const bg = covered ? NIGHT : PAPER;
-      box.style.backgroundColor = bg;
+      const camZ = cameraZ(p);
+      // Dark once the screen fills the view; from there the next section shows.
+      const covered = camZ < END_Z + 0.02;
+      const handed = p >= ARRIVE - 0.0005;
+      const bg = covered ? colours.night : colours.paper;
+      box.style.backgroundColor = handed ? 'transparent' : bg;
+      box.style.pointerEvents = handed ? 'none' : '';
+      canvas.style.visibility = handed ? 'hidden' : '';
       const tone = covered ? 'dark' : 'light';
       if (section.dataset.tone !== tone) section.dataset.tone = tone;
 
@@ -133,8 +175,11 @@ export default function Hero() {
       const fade = clamp01(1 - p / 0.04).toFixed(3);
       chrome.forEach((el) => { el.style.opacity = fade; });
 
-      if (!scene) return;
-      if (fine && p > 0.05 && p < 0.8 && (lastPick.x !== m.tx || lastPick.y !== m.ty)) {
+      if (!scene) {
+        portal.style.visibility = 'hidden';
+        return;
+      }
+      if (fine && p > 0.04 && p < ARRIVE && (lastPick.x !== m.tx || lastPick.y !== m.ty)) {
         lastPick = { x: m.tx, y: m.ty };
         const r = canvas.getBoundingClientRect();
         const hit = scene.pick(r.left + ((m.tx + 1) / 2) * r.width, r.top + ((1 - m.ty) / 2) * r.height);
@@ -144,16 +189,42 @@ export default function Hero() {
           canvas.style.cursor = hit === null ? '' : 'pointer';
         }
       }
+      const travel = 1 - (camZ - END_Z) / (REST - END_Z);
       scene.frame({
         camZ,
-        px: m.px * (1 - travel),
-        py: m.py * (1 - travel),
+        px: m.px * (1 - clamp01(travel)),
+        py: m.py * (1 - clamp01(travel)),
         velocity: lenisRef.current?.velocity ?? 0,
         arrive: m.arrive,
         background: bg,
-        portal: smooth(0.3, 0.62, p),
+        fogNear: FOG.near,
+        fogFar: FOG.far,
         time,
       });
+
+      // The dark screen with the next section on it, where the scene put it;
+      // towards the end it settles on the full view exactly (no corners, no
+      // parallax), which is where the real section is waiting.
+      const distance = camZ - PORTAL_Z;
+      const haze = clamp01((distance - FOG.near) / (FOG.far - FOG.near));
+      if (handed || haze >= 1) {
+        portal.style.visibility = 'hidden';
+      } else {
+        const w = box.clientWidth;
+        const h = box.clientHeight;
+        const r = scene.portalRect();
+        // Parallax and perspective are let go of in the last part of the approach.
+        const k = clamp01((Math.min((r.right - r.left) / w, 1) - 0.7) / 0.3);
+        const sx = ((r.right - r.left) / w) * (1 - k) + k;
+        const sy = ((r.bottom - r.top) / h) * (1 - k) + k;
+        const x = r.left * (1 - k);
+        const y = r.top * (1 - k);
+        const corner = 8 * (1 - clamp01((Math.min(sx, sy) - 0.55) / 0.45));
+        portal.style.visibility = 'visible';
+        portal.style.opacity = (1 - haze).toFixed(3);
+        portal.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0) scale(${sx.toFixed(5)}, ${sy.toFixed(5)})`;
+        portal.style.borderRadius = `${corner.toFixed(2)}% / ${corner.toFixed(2)}%`;
+      }
     };
 
     const onMove = (e: PointerEvent) => {
@@ -176,12 +247,13 @@ export default function Hero() {
     }
     canvas.addEventListener('click', onClick);
 
-    const offIntro = reduced
-      ? () => {}
-      : afterIntro(() => {
-          gsap.to(m, { enterZ: REST, duration: 2.9, ease: 'expo.out', delay: 0.05 });
-          gsap.to(m, { arrive: 1, duration: 2.6, ease: 'power2.out' });
-        });
+    // The tiles come once the letters have closed up (see the opening below).
+    let arrived = reduced;
+    opened.current = () => {
+      if (arrived) return;
+      arrived = true;
+      gsap.to(m, { arrive: 1, duration: 2.4, ease: 'power2.out' });
+    };
 
     (async () => {
       const fonts = resolveFonts();
@@ -192,16 +264,18 @@ export default function Hero() {
       ]).catch(() => undefined);
       const { createHeroScene } = await import('./heroScene');
       if (disposed) return;
-      const list = window.innerWidth < 700 ? items.slice(0, 16) : [...items, ...items.slice(0, 8)];
+      const list = window.innerWidth < 700 ? [...items.slice(0, 14), ...items.slice(4, 12)] : [...items, ...items.slice(0, 12)];
       scene = createHeroScene(canvas, list, tileText, fonts);
       if (!scene) return;
+      scene.setTheme({ night: colours.night, dark: colours.dark });
       gsap.to(canvas, { opacity: 1, duration: 0.8, ease: 'power2.out' });
       if (reduced) tick(0);
     })();
 
     return () => {
       disposed = true;
-      offIntro();
+      opened.current = null;
+      offTheme();
       st?.kill();
       io.disconnect();
       ro.disconnect();
@@ -214,18 +288,34 @@ export default function Hero() {
     };
   }, [items, tileText]);
 
-  // ── The name: letters rise in, then lean towards the pointer ───────────
+  // ── The opening, then the letters lean towards the pointer ─────────────
   useGsap(({ gsap, reduced, scope }) => {
-    if (reduced) return;
+    const title = scope.querySelector<HTMLElement>('[data-title]')!;
     const letters = Array.from(scope.querySelectorAll<HTMLElement>('[data-letter]'));
-    const tl = gsap.timeline({ paused: true });
-    tl.from(letters, { yPercent: 105, duration: 1.6, stagger: 0.06, ease: 'expo.out' }, 0.2)
-      .from(scope.querySelectorAll('[data-chrome] > *'), { y: 24, opacity: 0, duration: 1.2, stagger: 0.08, ease: 'expo.out' }, 0.8);
-    const off = afterIntro(() => tl.play());
+    const chrome = scope.querySelectorAll<HTMLElement>('[data-chrome] > *');
+    // From here on the script decides what shows (the CSS fallback stands down).
+    [...letters, ...scope.querySelectorAll<HTMLElement>('[data-chrome]')].forEach((el) => { el.style.animation = 'none'; });
 
-    if (!window.matchMedia('(pointer: fine)').matches) return off;
+    if (reduced) {
+      opened.current?.();
+      return;
+    }
+
+    // The h1 masks the letters while they rise, and lets go afterwards so the
+    // lean below is not cut off.
+    gsap.set(title, { overflow: 'hidden' });
+    const tl = gsap.timeline({ defaults: { ease: 'expo.out' } });
+    tl.fromTo(letters, { yPercent: 108, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 1.4, stagger: 0.07 }, 0.1)
+      .fromTo(letters, { filter: 'blur(18px)' }, { filter: 'blur(0px)', duration: 1.1, ease: 'power2.out', stagger: 0.07 }, 0.1)
+      .fromTo(title, { scale: 1.07 }, { scale: 1, duration: 2, transformOrigin: '50% 60%' }, 0.05)
+      .add(() => opened.current?.(), 0.6)
+      .fromTo(chrome, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 1.1, stagger: 0.08 }, 0.85)
+      .set(title, { overflow: 'visible' })
+      .set(letters, { clearProps: 'filter' });
+
+    if (!window.matchMedia('(pointer: fine)').matches) return () => { tl.kill(); };
     const lift = letters.map((el) => gsap.quickTo(el, 'yPercent', { duration: 0.7, ease: 'power3' }));
-    const tilt = letters.map((el) => gsap.quickTo(el, 'rotate', { duration: 0.7, ease: 'power3' }));
+    const tilt = letters.map((el) => gsap.quickTo(el, 'rotation', { duration: 0.7, ease: 'power3' }));
     const onMove = (e: PointerEvent) => {
       if (window.scrollY > window.innerHeight * 0.3 || tl.isActive()) return;
       letters.forEach((el, i) => {
@@ -241,19 +331,29 @@ export default function Hero() {
     window.addEventListener('pointermove', onMove, { passive: true });
     document.documentElement.addEventListener('pointerleave', onLeave);
     return () => {
-      off();
+      tl.kill();
       window.removeEventListener('pointermove', onMove);
       document.documentElement.removeEventListener('pointerleave', onLeave);
     };
   }, root);
 
   return (
-    <section ref={root} data-tone="light" aria-labelledby="hero-title" className="home-hero relative h-[310svh]">
+    <section ref={root} data-tone="light" aria-labelledby="hero-title" className="home-hero relative z-10 h-[200svh]">
       <div ref={stage} className="sticky top-0 h-[100svh] overflow-hidden bg-[var(--paper)] text-ink">
         <canvas ref={canvasRef} aria-hidden="true" className="absolute inset-0 block h-full w-full opacity-0" />
 
+        {/* The dark screen in the tunnel, with the next section already on it */}
+        <div
+          ref={screen}
+          aria-hidden="true"
+          className="pointer-events-none absolute left-0 top-0 h-full w-full origin-top-left overflow-hidden bg-[var(--night)] will-change-transform"
+          style={{ visibility: 'hidden' }}
+        >
+          <ManifestScreen copy />
+        </div>
+
         <div ref={head} className="pointer-events-none absolute inset-0 flex items-center justify-center will-change-transform">
-          <h1 id="hero-title" className="font-display flex overflow-hidden pb-[0.04em] text-[min(27vw,44svh)] font-extrabold leading-[0.8] tracking-[-0.055em]">
+          <h1 id="hero-title" data-title className="font-display flex pb-[0.04em] text-[min(27vw,44svh)] font-extrabold leading-[0.8] tracking-[-0.055em]">
             <span className="visually-hidden">{t('heroHidden')}</span>
             {t('heroTitle').split('').map((l, i) => (
               <span key={i} data-letter aria-hidden="true" className="inline-block origin-bottom">
@@ -290,4 +390,3 @@ export default function Hero() {
     </section>
   );
 }
-

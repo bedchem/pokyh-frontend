@@ -3,7 +3,7 @@ import { makeT } from '@/lib/i18n/dictionary';
 import { routeLocale } from '@/lib/i18n/server';
 import { localeAlternates, localizedUrl, ogLocale, pageKeywords } from '@/lib/i18n/seo';
 import { howtoDict } from '@/lib/i18n/dictionaries/howto';
-import PageIntro from '@/components/site/PageIntro';
+import PageIntro, { TONE } from '@/components/site/PageIntro';
 import RevealScope from '@/components/site/RevealScope';
 import CtaBand from '@/components/site/CtaBand';
 import CodeBlock from '@/components/site/CodeBlock';
@@ -47,52 +47,47 @@ export default async function HowtoPage({ params }: PageProps) {
   return (
     <>
       <PageIntro title={t('title')} lead={t('lead')}>
-        <ul className="flex flex-col border-b border-line">
+        <div className="flex flex-wrap gap-3">
           {[
             { label: t('repoFrontend'), href: FRONTEND_REPO },
             { label: t('repoBackend'), href: BACKEND_REPO },
-          ].map((r) => (
-            <li key={r.href} className="border-t border-line">
-              <a href={r.href} target="_blank" rel="noopener noreferrer" className="group flex items-baseline justify-between gap-4 py-3.5">
-                <span className="text-[16px] font-semibold text-ink">{r.label}</span>
-                <span className="mono text-[13px] text-ink-2 group-hover:text-accent-ink transition-colors">
-                  {r.href.replace('https://', '')} ↗
-                </span>
-              </a>
-            </li>
+          ].map((r, i) => (
+            <a key={r.href} href={r.href} target="_blank" rel="noopener noreferrer" className={`key key-lg ${i ? 'key-lilac' : ''}`}>
+              {r.label}
+              <span aria-hidden="true">↗</span>
+            </a>
           ))}
-        </ul>
+        </div>
       </PageIntro>
 
       <RevealScope>
-        <section aria-labelledby="steps-title" className="bg-canvas">
-          <div className="mx-auto max-w-[1440px] px-5 md:px-10 pb-24 md:pb-36">
-            <h2 id="steps-title" data-reveal className="text-[15px] font-bold text-ink-2">{t('stepsTitle')}</h2>
-            <ol className="mt-6">
-              {steps.map((s, i) => (
-                <li key={s.title} data-reveal className="grid gap-5 border-t border-line py-10 lg:grid-cols-12 lg:gap-10">
-                  <span className="mono text-[14px] text-ink-3 lg:col-span-1 lg:pt-2">{String(i + 1).padStart(2, '0')}</span>
-                  <div className="lg:col-span-4">
-                    <h3 className="text-[26px] md:text-[32px] font-extrabold tracking-[-0.035em] text-ink">{s.title}</h3>
-                    <p className="mt-2 text-[16px] md:text-[17px] leading-[1.6] text-ink-2">{s.body}</p>
+        <section aria-labelledby="steps-title" className="wrap pb-20 md:pb-28">
+          <h2 id="steps-title" data-reveal className="text-[clamp(30px,3.6vw,48px)] font-extrabold leading-[1.04] tracking-[-0.045em] text-ink">{t('stepsTitle')}</h2>
+          <ol className="mt-8 grid gap-4">
+            {steps.map((s, i) => (
+              <li key={s.title} data-reveal className="card grid gap-5 p-6 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.3fr)] md:gap-10 md:p-9">
+                <div className="flex gap-4">
+                  <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-full bg-ink text-[15px] font-bold text-[var(--paper)] tnum">{i + 1}</span>
+                  <div>
+                    <h3 className="text-[22px] font-extrabold tracking-[-0.03em] text-ink md:text-[26px]">{s.title}</h3>
+                    <p className="mt-1.5 text-[16px] leading-[1.6] text-ink-2 md:text-[17px]">{s.body}</p>
                   </div>
-                  <div className="lg:col-span-7">
-                    <CodeBlock code={s.code} copyLabel={t('copy')} copiedLabel={t('copied')} />
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </div>
+                </div>
+                <CodeBlock code={s.code} copyLabel={t('copy')} copiedLabel={t('copied')} />
+              </li>
+            ))}
+          </ol>
         </section>
 
-        <section aria-labelledby="needs-title" className="bg-butter text-ink">
-          <div className="mx-auto max-w-[1440px] px-5 md:px-10 py-20 md:py-28 grid gap-10 lg:grid-cols-12">
-            <h2 id="needs-title" data-reveal className="lg:col-span-4 font-extrabold leading-[0.98] tracking-[-0.045em] text-[clamp(32px,7vw,48px)] lg:text-[clamp(40px,3.6vw,60px)]">
+        <section aria-labelledby="needs-title" className="wrap pb-24 md:pb-32">
+          <div className={`squircle grid gap-8 rounded-[28px] p-7 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] md:rounded-[40px] md:p-12 ${TONE.butter}`}>
+            <h2 id="needs-title" data-reveal className="text-[clamp(30px,3.6vw,48px)] font-extrabold leading-[1.04] tracking-[-0.045em]">
               {t('needsTitle')}
             </h2>
-            <ul className="lg:col-span-7 lg:col-start-6 border-b border-butter-ink/25">
+            <ul className="flex flex-col gap-3">
               {[t('n1'), t('n2'), t('n3')].map((n) => (
-                <li key={n} data-reveal className="border-t border-butter-ink/25 py-5 text-[18px] md:text-[21px] font-semibold tracking-[-0.015em]">
+                <li key={n} data-reveal className="flex gap-3 text-[17px] font-semibold leading-[1.45] md:text-[19px]">
+                  <span aria-hidden="true" className="mt-[0.55em] block size-2 shrink-0 rounded-full bg-current" />
                   {n}
                 </li>
               ))}
@@ -101,7 +96,7 @@ export default async function HowtoPage({ params }: PageProps) {
         </section>
       </RevealScope>
 
-      <CtaBand title={t('ctaTitle')} lead={t('ctaLead')} primary={{ label: t('ctaLogin'), href: '/login' }} />
+      <CtaBand title={t('ctaTitle')} lead={t('ctaLead')} primary={{ label: t('ctaLogin'), href: '/login' }} tone="periwinkle" />
     </>
   );
 }

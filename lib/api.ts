@@ -28,7 +28,7 @@ async function clearSessionOnce() {
   cacheClear();
   pcClear();
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('pockyh-session-expired'));
+    window.dispatchEvent(new CustomEvent('pokyh-session-expired'));
   }
 }
 
@@ -55,7 +55,7 @@ async function attemptSilentRelogin(): Promise<boolean> {
       // /auth/me 401 → infinite re-login loop. WebUntis data still works.
       const data = await r.json().catch(() => ({} as { pokyhSynced?: boolean }));
       if (data?.pokyhSynced) {
-        window.dispatchEvent(new CustomEvent('pockyh-session-refreshed'));
+        window.dispatchEvent(new CustomEvent('pokyh-session-refreshed'));
       }
       return true;
     })

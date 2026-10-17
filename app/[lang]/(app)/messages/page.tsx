@@ -195,7 +195,7 @@ export default function MessagesPage() {
       await markAllMessagesRead(unreadIds);
       setMessages((prev) => prev.map((m) => ({ ...m, isRead: true })));
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('pockyh-messages-updated', { detail: { unread: 0 } }));
+        window.dispatchEvent(new CustomEvent('pokyh-messages-updated', { detail: { unread: 0 } }));
       }
     } finally {
       setMarkingAll(false);

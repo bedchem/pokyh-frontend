@@ -9,7 +9,7 @@ import { isDueIn, withSeen, type ActivePopup, type SeenMap } from '@/lib/popup-s
 
 export type { ActivePopup } from '@/lib/popup-schedule';
 
-const STORAGE_KEY = 'pockyh_popups_seen';
+const STORAGE_KEY = 'pokyh_popups_seen';
 
 function readSeen(): SeenMap {
   try {

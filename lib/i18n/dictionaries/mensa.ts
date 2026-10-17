@@ -17,7 +17,24 @@ export type MensaKey =
   | 'allergens'
   | 'loadError'
   | 'emptyTitle'
-  | 'emptySubtitle';
+  | 'emptySubtitle'
+  // Public page (app/[lang]/(site)/mensa)
+  | 'metaTitle'
+  | 'metaDescription'
+  | 'pageTitle'
+  | 'pageLead'
+  | 'next'
+  | 'rateAndComment'
+  | 'thisWeek'
+  | 'nextWeek'
+  | 'fromDate'
+  | 'comments'
+  | 'retry'
+  | 'yourRating'
+  | 'rateLabels'
+  | 'allDays'
+  | 'nutrition'
+  | 'carbsLong';
 
 export const mensaDict: Dictionary<MensaKey> = {
   de: {
@@ -38,6 +55,22 @@ export const mensaDict: Dictionary<MensaKey> = {
     loadError: 'Fehler beim Laden der Speisekarte',
     emptyTitle: 'Kein Speiseplan',
     emptySubtitle: 'Es gibt aktuell nichts bei der Mensa.',
+    metaTitle: 'Mensa – Speiseplan der LBS Brixen',
+    metaDescription: 'Was es in der Mensa der LBS Brixen gibt: der Speiseplan der nächsten Tage mit Fotos, Allergenen, Nährwerten und Bewertungen von Schülern.',
+    pageTitle: 'Was gibt’s in der Mensa?',
+    pageLead: 'Der Speiseplan der LBS Brixen, mit Bewertungen deiner Mitschüler. Zum Bewerten und Kommentieren meldest du dich an.',
+    next: 'Als Nächstes',
+    rateAndComment: 'Bewerten und kommentieren',
+    thisWeek: 'Diese Woche',
+    nextWeek: 'Nächste Woche',
+    fromDate: 'Ab {date}',
+    comments: 'Kommentare',
+    retry: 'Nochmal versuchen',
+    yourRating: 'Deine Bewertung',
+    rateLabels: 'Naja|Geht so|Gut|Sehr gut|Mega',
+    allDays: 'Der ganze Plan',
+    nutrition: 'Nährwerte',
+    carbsLong: 'Kohlenhydrate',
   },
   it: {
     title: 'Mensa',
@@ -57,6 +90,22 @@ export const mensaDict: Dictionary<MensaKey> = {
     loadError: 'Errore durante il caricamento del menù',
     emptyTitle: 'Nessun menù',
     emptySubtitle: 'Al momento non c’è nulla in mensa.',
+    metaTitle: 'Mensa – Menù della LBS Bressanone',
+    metaDescription: 'Cosa c’è nella mensa della LBS Bressanone: il menù dei prossimi giorni con foto, allergeni, valori nutrizionali e valutazioni degli studenti.',
+    pageTitle: 'Cosa c’è in mensa?',
+    pageLead: 'Il menù della LBS Bressanone, con le valutazioni dei tuoi compagni. Per valutare e commentare accedi.',
+    next: 'Prossimo',
+    rateAndComment: 'Valuta e commenta',
+    thisWeek: 'Questa settimana',
+    nextWeek: 'Settimana prossima',
+    fromDate: 'Dal {date}',
+    comments: 'Commenti',
+    retry: 'Riprova',
+    yourRating: 'La tua valutazione',
+    rateLabels: 'Mah|Così così|Buono|Molto buono|Top',
+    allDays: 'Tutto il menù',
+    nutrition: 'Valori nutrizionali',
+    carbsLong: 'Carboidrati',
   },
   en: {
     title: 'Cafeteria',
@@ -76,6 +125,22 @@ export const mensaDict: Dictionary<MensaKey> = {
     loadError: 'Failed to load the menu',
     emptyTitle: 'No menu',
     emptySubtitle: 'There’s nothing at the cafeteria right now.',
+    metaTitle: 'Cafeteria – Menu of LBS Brixen',
+    metaDescription: 'What’s on at the LBS Brixen cafeteria: the menu for the coming days with photos, allergens, nutrition facts and ratings from students.',
+    pageTitle: 'What’s in the cafeteria?',
+    pageLead: 'The menu of LBS Brixen, with ratings from your classmates. Sign in to rate and comment.',
+    next: 'Up next',
+    rateAndComment: 'Rate and comment',
+    thisWeek: 'This week',
+    nextWeek: 'Next week',
+    fromDate: 'From {date}',
+    comments: 'Comments',
+    retry: 'Try again',
+    yourRating: 'Your rating',
+    rateLabels: 'Meh|So-so|Good|Very good|Awesome',
+    allDays: 'The whole plan',
+    nutrition: 'Nutrition',
+    carbsLong: 'Carbohydrates',
   },
   lld: {
     title: "Mensa",

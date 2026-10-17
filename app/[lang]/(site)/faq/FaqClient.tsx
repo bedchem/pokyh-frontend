@@ -7,10 +7,13 @@ import { faqDict, FAQ_GROUPS, type FaqKey } from '@/lib/i18n/dictionaries/faq';
 import PageIntro from '@/components/site/PageIntro';
 import CtaBand from '@/components/site/CtaBand';
 
+// Questions as cards, grouped, with a search on top. Answers open in place
+// and are set for reading: one column, comfortable size and line height.
+
 function Item({ q, a, open, onToggle }: { q: string; a: string; open: boolean; onToggle: () => void }) {
   const id = useId();
   return (
-    <li className="border-t border-line">
+    <li className="card overflow-hidden">
       <h3>
         <button
           type="button"
@@ -18,12 +21,12 @@ function Item({ q, a, open, onToggle }: { q: string; a: string; open: boolean; o
           aria-controls={`${id}-panel`}
           id={`${id}-button`}
           onClick={onToggle}
-          className="group flex w-full items-start justify-between gap-6 py-6 text-left"
+          className="group flex w-full items-center justify-between gap-6 px-5 py-5 text-left md:px-7 md:py-6"
         >
-          <span className="text-[19px] md:text-[23px] font-bold leading-snug tracking-[-0.02em] text-ink">{q}</span>
+          <span className="text-[18px] font-bold leading-[1.35] tracking-[-0.015em] text-ink md:text-[20px]">{q}</span>
           <span
-            className={`mt-0.5 grid size-9 shrink-0 place-items-center rounded-full transition-[background-color,transform] duration-300 ease-[var(--ease-out)] ${
-              open ? 'rotate-45 bg-accent text-on-accent' : 'bg-inset text-ink group-hover:bg-[color-mix(in_srgb,var(--inset)_70%,var(--ink)_12%)]'
+            className={`grid size-9 shrink-0 place-items-center rounded-full transition-[background-color,color,rotate] duration-300 ease-[var(--ease-out)] ${
+              open ? 'rotate-45 bg-ink text-[var(--paper)]' : 'bg-inset text-ink group-hover:bg-line'
             }`}
             aria-hidden="true"
           >
@@ -35,11 +38,11 @@ function Item({ q, a, open, onToggle }: { q: string; a: string; open: boolean; o
         id={`${id}-panel`}
         role="region"
         aria-labelledby={`${id}-button`}
-        className="grid transition-[grid-template-rows] duration-400 ease-[var(--ease-out)]"
+        className="grid transition-[grid-template-rows] duration-300 ease-[var(--ease-out)]"
         style={{ gridTemplateRows: open ? '1fr' : '0fr' }}
       >
         <div className="overflow-hidden" inert={!open}>
-          <p className="max-w-[68ch] pb-7 pr-14 text-[16px] md:text-[18px] leading-[1.65] text-ink-2">{a}</p>
+          <p className="max-w-[64ch] px-5 pb-6 text-[17px] leading-[1.7] text-ink-2 md:px-7 md:pb-7 md:text-[18px]">{a}</p>
         </div>
       </div>
     </li>
@@ -73,26 +76,26 @@ export default function FaqClient() {
   return (
     <>
       <PageIntro title={t('title')} lead={t('lead')}>
-        <label className="flex h-14 items-center gap-3 rounded-full bg-inset px-5 text-ink focus-within:outline-2 focus-within:outline-accent">
-          <MagnifyingGlass size={20} weight="bold" className="text-ink-2" aria-hidden="true" />
+        <label className="card flex h-14 max-w-[560px] items-center gap-3 px-5 text-ink focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent md:h-16">
+          <MagnifyingGlass size={20} weight="bold" className="text-ink-3" aria-hidden="true" />
           <span className="visually-hidden">{t('search')}</span>
           <input
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t('search')}
-            className="h-full flex-1 bg-transparent text-[16px] text-ink placeholder:text-ink-3 outline-none"
+            className="h-full flex-1 bg-transparent text-[17px] text-ink placeholder:text-ink-3 outline-none"
           />
         </label>
       </PageIntro>
 
-      <section className="bg-canvas">
-        <div className="mx-auto max-w-[1440px] px-5 md:px-10 pb-24 md:pb-36">
-          {groups.length === 0 && <p className="border-t border-line pt-8 text-[18px] text-ink-2" role="status">{t('noResults')}</p>}
+      <section className="wrap pb-20 md:pb-28">
+        {groups.length === 0 && <p className="text-[18px] text-ink-2" role="status">{t('noResults')}</p>}
+        <div className="flex flex-col gap-14 md:gap-20">
           {groups.map((g) => (
-            <div key={g.key} className="grid gap-4 lg:grid-cols-12 lg:gap-10 mb-14 md:mb-20 last:mb-0">
-              <h2 className="lg:col-span-3 text-[15px] font-bold text-ink-2 lg:pt-7">{t(g.key)}</h2>
-              <ul className="lg:col-span-9 border-b border-line">
+            <div key={g.key} className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,2.4fr)] lg:gap-12">
+              <h2 className="text-[24px] font-extrabold tracking-[-0.03em] text-ink lg:sticky lg:top-28 lg:self-start lg:pt-5 md:text-[28px]">{t(g.key)}</h2>
+              <ul className="flex flex-col gap-3">
                 {g.items.map((n) => (
                   <Item
                     key={n}
@@ -108,7 +111,7 @@ export default function FaqClient() {
         </div>
       </section>
 
-      <CtaBand title={t('ctaTitle')} lead={t('ctaLead')} primary={{ label: t('ctaLogin'), href: '/login' }} tone="butter" />
+      <CtaBand title={t('ctaTitle')} lead={t('ctaLead')} primary={{ label: t('ctaLogin'), href: '/login' }} tone="sage" />
     </>
   );
 }

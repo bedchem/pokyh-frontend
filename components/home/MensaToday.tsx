@@ -4,18 +4,20 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDateLocale, useLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { frontpageDict } from '@/lib/i18n/dictionaries/frontpage';
-import { isTodayKey, localized, upcomingDays } from '@/lib/mensa';
+import { daysFromToday, localized, upcomingDays } from '@/lib/mensa';
 import { formatDate } from '@/lib/i18n/dateLocale';
 import { api } from '@/lib/api-client';
 import { ensureGsap, fadeIn, lightUp, prefersReducedMotion, SplitText, useGsap } from '@/lib/motion';
 import { useMensaDishes } from '@/components/landing/useMensaDishes';
-import { Roll } from './shared';
 
-// Today's dish and nothing else: its name, the stars it got from students and
-// one photo. The photo opens from below as the section arrives and leans
-// towards the pointer. Without a dish today, the next one on the plan.
+// The next dish on the plan and nothing else: the day it is for (today,
+// tomorrow, Monday …), its name, the stars it got from students and one
+// photo. The photo opens from below as the section arrives and leans towards
+// the pointer.
 
 const STAR = 'M12 2.8l2.8 5.9 6.4.8-4.7 4.5 1.2 6.4L12 17.3l-5.7 3.1 1.2-6.4-4.7-4.5 6.4-.8z';
+
+const capitalize = (s: string) => s.charAt(0).toLocaleUpperCase() + s.slice(1);
 
 function Stars({ value }: { value: number }) {
   return (
@@ -54,7 +56,7 @@ export default function MensaToday() {
     const day = upcomingDays(dishes)[0];
     if (!day) return null;
     const dish = day.dishes.find((d) => d.imageUrl) ?? day.dishes[0];
-    return { dish, today: isTodayKey(day.key), date: day.date };
+    return { dish, date: day.date, days: daysFromToday(day.date) };
   }, [dishes]);
 
   useEffect(() => {
@@ -123,13 +125,28 @@ export default function MensaToday() {
     }
   }, root);
 
+  const name = pick ? localized(pick.dish.name, locale) : '';
+
+  // The day it is for, as people say it.
+  const title = pick === undefined
+    ? ''
+    : pick === null
+      ? t('mensaEmptyTitle')
+      : pick.days <= 0
+        ? t('mensaTitle')
+        : pick.days === 1
+          ? t('mensaTitleTomorrow')
+          : pick.days < 7
+            ? t('mensaTitleDay', { day: capitalize(formatDate(pick.date, tag, { weekday: 'long' })) })
+            : t('mensaTitleDate', { date: formatDate(pick.date, tag, { day: 'numeric', month: 'long' }) });
+
   useGsap(({ gsap, reduced, scope }) => {
     if (reduced || pick === undefined) return;
-    const title = SplitText.create(scope.querySelector('[data-title]'), { type: 'words' });
+    const heading = SplitText.create(scope.querySelector('[data-title]'), { type: 'words' });
     const dish = scope.querySelector('[data-dish]');
     const name = dish ? SplitText.create(dish, { type: 'words' }) : null;
     const tl = gsap.timeline({ scrollTrigger: { trigger: scope, start: 'top 62%' } });
-    tl.add(lightUp(gsap, title.words), 0);
+    tl.add(lightUp(gsap, heading.words), 0);
     if (name) tl.add(lightUp(gsap, name.words), 0.35);
     tl.add(fadeIn(gsap, scope.querySelectorAll('[data-rise], [data-star]'), { stagger: 0.06 }), 0.6);
     const frame = scope.querySelector('[data-frame]');
@@ -141,12 +158,11 @@ export default function MensaToday() {
         scrollTrigger: { trigger: scope, start: 'top bottom', end: 'bottom top', scrub: 0.6 },
       });
     }
-  }, root, [pick === undefined]);
+  }, root, [title, name]);
 
-  const name = pick ? localized(pick.dish.name, locale) : '';
-  const when = pick && !pick.today ? `${t('mensaNext')}, ${formatDate(pick.date, tag, { weekday: 'long' })}` : t('mensaToday');
+  const date = pick ? formatDate(pick.date, tag, { weekday: 'long', day: 'numeric', month: 'long' }) : '';
   const votes = rating === null
-    ? ' '
+    ? ' '
     : rating.count
       ? `${rating.avg.toFixed(1).replace('.', ',')} · ${t('mensaVotes', { n: rating.count })}`
       : t('mensaNoVotes');
@@ -155,23 +171,37 @@ export default function MensaToday() {
     <section ref={root} data-tone="light" aria-labelledby="mensa-title" className="relative z-10 -mt-[100svh] min-h-[100svh] overflow-clip bg-[var(--paper)] text-ink">
       <div className="mx-auto grid max-w-[1700px] grid-cols-1 items-center gap-12 px-5 py-[clamp(110px,14vw,220px)] md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] md:gap-[6vw] md:px-10 lg:px-[6.5vw]">
         <div className="min-w-0">
-          <h2 id="mensa-title" data-title className="font-display text-[clamp(48px,7.4vw,150px)] font-extrabold leading-[0.88] tracking-[-0.065em]">
-            {t('mensaTitle')}
-          </h2>
+          {pick === undefined ? (
+            <>
+              <span className="block h-[clamp(48px,7.4vw,150px)] w-[min(80%,560px)] animate-pulse rounded-[24px] bg-ink/8" />
+              <span className="mt-10 block h-3 w-56 animate-pulse rounded-full bg-ink/10" />
+            </>
+          ) : (
+            <h2 key={title} id="mensa-title" data-title className="font-display max-w-[11ch] text-[clamp(48px,7.4vw,150px)] font-extrabold leading-[0.88] tracking-[-0.065em]">
+              {title}
+            </h2>
+          )}
 
-          {pick === undefined && <span className="mt-10 block h-3 w-56 animate-pulse rounded-full bg-ink/10" />}
-          {pick === null && <p className="mt-10 text-[clamp(24px,2.4vw,40px)] font-semibold tracking-[-0.04em] text-ink-2">{t('mensaEmpty')}</p>}
+          {pick === null && (
+            <>
+              <p data-rise className="mt-8 max-w-[34ch] text-[clamp(18px,1.6vw,24px)] leading-[1.45] text-ink-2">{t('mensaEmpty')}</p>
+              <Link data-rise href={localize('/mensa')} className="group mt-10 inline-flex items-center gap-3 text-[16px] font-semibold md:text-[17px]">
+                <span className="border-b-2 border-current pb-0.5">{t('mensaLink')}</span>
+                <span aria-hidden="true" className="transition-transform duration-500 group-hover:translate-x-1.5">→</span>
+              </Link>
+            </>
+          )}
 
           {pick && (
             <>
-              <p data-rise className="mt-[clamp(36px,5vw,80px)] text-[15px] font-semibold text-ink-2 md:text-[16px]">{when}</p>
-              <p data-dish className="mt-2 max-w-[16ch] text-[clamp(32px,3.6vw,68px)] font-bold leading-[1.02] tracking-[-0.045em]">{name}</p>
+              <p data-rise className="mt-[clamp(36px,5vw,80px)] text-[15px] font-semibold text-ink-2 md:text-[16px]">{date}</p>
+              <p key={name} data-dish className="mt-2 max-w-[16ch] text-[clamp(32px,3.6vw,68px)] font-bold leading-[1.02] tracking-[-0.045em]">{name}</p>
               <div className="mt-7 flex flex-wrap items-center gap-4">
                 <Stars value={rating?.avg ?? 0} />
                 <span data-rise className="text-[15px] font-medium tabular-nums text-ink-2 md:text-[16px]">{votes}</span>
               </div>
               <Link data-rise href={localize('/mensa')} className="group mt-10 inline-flex items-center gap-3 text-[16px] font-semibold md:text-[17px]">
-                <span className="border-b border-current pb-0.5"><Roll>{t('mensaLink')}</Roll></span>
+                <span className="border-b-2 border-current pb-0.5">{t('mensaLink')}</span>
                 <span aria-hidden="true" className="transition-transform duration-500 group-hover:translate-x-1.5">→</span>
               </Link>
             </>

@@ -59,17 +59,17 @@ export async function POST(req: NextRequest) {
 
     const res = NextResponse.json({ ok: true, username: data.user.username });
 
-    res.cookies.set('pockyh_api_token', data.token, {
+    res.cookies.set('pokyh_api_token', data.token, {
       ...COOKIE_OPTS,
       httpOnly: false,
       maxAge: 8 * 60 * 60,
     });
-    res.cookies.set('pockyh_api_refresh', data.refreshToken, {
+    res.cookies.set('pokyh_api_refresh', data.refreshToken, {
       ...COOKIE_OPTS,
       httpOnly: true,
       maxAge: 30 * 24 * 60 * 60,
     });
-    res.cookies.set('pockyh_user', userPublic, {
+    res.cookies.set('pokyh_user', userPublic, {
       ...COOKIE_OPTS,
       httpOnly: false,
       maxAge: 8 * 60 * 60,

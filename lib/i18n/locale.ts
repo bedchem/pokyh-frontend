@@ -32,7 +32,7 @@ export function isLocale(value: string | undefined | null): value is Locale {
 }
 
 /** Cookie the proxy reads to pick the locale for unprefixed URLs. */
-export const LOCALE_COOKIE = 'pockyh_locale';
+export const LOCALE_COOKIE = 'pokyh_locale';
 
 export function htmlLang(locale: Locale): string {
   return locale === 'en' ? 'en' : locale === 'it' ? 'it-IT' : locale === 'lld' ? 'lld' : 'de-IT';

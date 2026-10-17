@@ -42,7 +42,7 @@ type DraftState = {
   customGrades: number[];
 };
 
-const STORAGE_KEY = 'pockyh_grade_drafts_v1';
+const STORAGE_KEY = 'pokyh_grade_drafts_v1';
 
 function loadDrafts(): Record<number, DraftState> {
   if (typeof window === 'undefined') return {};

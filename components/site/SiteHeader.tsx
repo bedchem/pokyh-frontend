@@ -6,8 +6,11 @@ import { useLocalizeHref, useRoutePath, useT } from '@/providers/LocaleProvider'
 import { useSession } from '@/providers/SessionProvider';
 import { siteDict, type SiteKey } from '@/lib/i18n/dictionaries/site';
 import { useGsap } from '@/lib/motion';
+import { useSiteDark } from '@/lib/site-theme';
 import Image from 'next/image';
 import MobileMenu from './MobileMenu';
+import { ThemeButton } from './ThemeToggle';
+import LanguageButton from './LanguageButton';
 
 export const SITE_NAV: { href: string; key: SiteKey }[] = [
   { href: '/#funktionen', key: 'navFeatures' },
@@ -28,24 +31,34 @@ function toneAt(x: number, y: number, skip: Element | null): Tone {
   return 'light';
 }
 
+// The bar has no background of its own. Its text takes the opposite colour of
+// the section beneath it (dark on paper and pastels, light on the night
+// sections and in the dark theme), and it gets out of the way while you read:
+// scrolling down slides it up, scrolling up or reaching the top brings it back.
 export default function SiteHeader() {
   const t = useT(siteDict);
   const localize = useLocalizeHref();
   const path = useRoutePath();
   const { user } = useSession();
+  const darkTheme = useSiteDark();
   const [tone, setTone] = useState<Tone>('light');
+  const [hidden, setHidden] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const root = useRef<HTMLElement>(null);
 
-  // The bar has no background of its own: it takes the colours of whatever
-  // section is scrolling beneath it.
   useEffect(() => {
     let raf = 0;
+    let lastY = window.scrollY;
     const probe = () => {
       raf = 0;
       const el = root.current;
       if (!el) return;
       setTone(toneAt(window.innerWidth / 2, el.offsetHeight / 2, el));
+      const y = window.scrollY;
+      if (y < 120) setHidden(false);
+      else if (y > lastY + 6) setHidden(true);
+      else if (y < lastY - 6) setHidden(false);
+      if (Math.abs(y - lastY) > 6) lastY = y;
     };
     const schedule = () => { if (!raf) raf = requestAnimationFrame(probe); };
     probe();
@@ -62,21 +75,27 @@ export default function SiteHeader() {
 
   useGsap(({ gsap, reduced }) => {
     if (reduced) return;
-    gsap.from('[data-bar-item]', { y: -18, opacity: 0, duration: 1, stagger: 0.06, delay: 0.5, ease: 'expo.out' });
+    gsap.from('[data-bar-item]', { y: -18, opacity: 0, duration: 1, stagger: 0.06, delay: 0.4, ease: 'expo.out' });
   }, root);
 
-  const dark = tone === 'dark';
+  const dark = darkTheme || tone === 'dark';
   const primary = user ? { href: '/home', label: t('openApp') } : { href: '/login', label: t('login') };
+  const away = hidden && !menuOpen;
 
   return (
     <>
       <header
         ref={root}
-        data-tone-bar={tone}
-        className={`fixed inset-x-0 top-0 z-50 transition-colors duration-500 ${dark ? 'text-white' : 'text-ink'}`}
-        style={{ paddingTop: 'var(--safe-top)' }}
+        data-tone-bar={dark ? 'dark' : 'light'}
+        className={`fixed inset-x-0 top-0 z-50 ${dark ? 'text-[#F2F2F4]' : 'text-[#1C1A17]'}`}
+        style={{
+          paddingTop: 'var(--safe-top)',
+          transform: away ? 'translateY(-110%)' : 'none',
+          transition: 'transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), color 0.5s ease',
+        }}
+        onFocusCapture={() => setHidden(false)}
       >
-        <div className="mx-auto grid h-[76px] max-w-[1600px] grid-cols-[1fr_auto] items-center px-5 md:h-[96px] md:px-10 lg:grid-cols-[1fr_auto_1fr] lg:px-[6.5vw]">
+        <div className="mx-auto grid h-[72px] max-w-[1600px] grid-cols-[1fr_auto] items-center px-5 md:h-[84px] md:px-10 lg:grid-cols-[1fr_auto_1fr] lg:px-[6.5vw]">
           <Link href={localize('/')} data-bar-item className="justify-self-start rounded-lg" aria-label={`POKYH, ${t('home')}`}>
             <Image src="/POKYH_Logo.png" alt="" width={44} height={44} priority className="size-10 md:size-11" />
           </Link>
@@ -91,12 +110,12 @@ export default function SiteHeader() {
                   data-bar-item
                   href={localize(item.href)}
                   aria-current={active ? 'page' : undefined}
-                  className="group relative py-2 text-[16px] font-medium tracking-[-0.01em]"
+                  className="group relative py-2 text-[16px] font-semibold tracking-[-0.01em]"
                 >
                   {t(item.key)}
                   <span
                     aria-hidden="true"
-                    className={`absolute inset-x-0 bottom-0.5 h-px origin-left bg-current transition-transform duration-500 ease-[var(--ease-out)] ${
+                    className={`absolute inset-x-0 bottom-0.5 h-[1.5px] origin-left bg-current transition-transform duration-500 ease-[var(--ease-out)] ${
                       active ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'
                     }`}
                   />
@@ -105,20 +124,20 @@ export default function SiteHeader() {
             })}
           </nav>
 
-          <div className="flex items-center justify-self-end gap-2 md:gap-2.5">
-            <Link
-              data-bar-item
-              href={localize(primary.href)}
-              className="inline-flex h-11 md:h-[52px] items-center rounded-full bg-[var(--lilac)] px-5 md:px-8 text-[15px] md:text-[16px] font-medium text-[var(--lilac-ink)] transition-[filter] duration-300 hover:brightness-[0.96]"
-            >
+          <div className="flex items-center justify-self-end gap-2 md:gap-3">
+            <span data-bar-item className="hidden sm:block">
+              <LanguageButton />
+            </span>
+            <span data-bar-item className="hidden sm:block">
+              <ThemeButton className="size-11 rounded-full opacity-80 transition-opacity hover:opacity-100" />
+            </span>
+            <Link data-bar-item href={localize(primary.href)} className="key key-sm key-lilac md:h-[48px]">
               {primary.label}
             </Link>
             <Link
               data-bar-item
               href={localize('/get')}
-              className={`hidden sm:inline-flex h-11 md:h-[52px] items-center rounded-full px-5 md:px-8 text-[15px] md:text-[16px] font-medium transition-colors duration-500 ${
-                dark ? 'bg-[#D9D9D9] text-ink hover:bg-white' : 'bg-[var(--night)] text-white hover:bg-black'
-              }`}
+              className={`key key-sm hidden sm:inline-flex md:h-[48px] ${dark ? 'key-glass' : ''}`}
             >
               {t('navGet')}
             </Link>
@@ -129,9 +148,7 @@ export default function SiteHeader() {
               aria-label={t('menu')}
               aria-expanded={menuOpen}
               aria-controls="site-menu"
-              className={`lg:hidden grid size-11 place-items-center rounded-full transition-colors duration-500 ${
-                dark ? 'bg-[#D9D9D9] text-ink' : 'bg-[var(--night)] text-white'
-              }`}
+              className={`key key-sm lg:hidden !px-0 w-11 ${dark ? 'key-glass' : ''}`}
             >
               <span aria-hidden="true" className="flex w-[18px] flex-col gap-[5px]">
                 <span className="h-[1.5px] w-full rounded-full bg-current" />

@@ -127,12 +127,12 @@ export default function AnnouncementPopup({ audience, route, paused = false }: {
     const navigation = (window as unknown as { navigation?: EventTarget }).navigation;
     arm();
     navigation?.addEventListener('navigate', onNavigate);
-    window.addEventListener('pockyh-session-expired', leave);
+    window.addEventListener('pokyh-session-expired', leave);
     window.addEventListener('pageshow', onPageShow);
     return () => {
       window.clearTimeout(timer);
       navigation?.removeEventListener('navigate', onNavigate);
-      window.removeEventListener('pockyh-session-expired', leave);
+      window.removeEventListener('pokyh-session-expired', leave);
       window.removeEventListener('pageshow', onPageShow);
     };
   }, [settleKey]);

@@ -27,17 +27,10 @@ export default function SiteShell({ children, className }: { children: ReactNode
     if (skip) router.replace(user ? '/home' : '/login');
   }, [path, user, isLoading, router]);
 
-  // Overscroll above the page shows paper, whatever the app theme painted.
-  useEffect(() => {
-    const html = document.documentElement;
-    const prev = html.style.backgroundColor;
-    html.style.backgroundColor = '#F5F2ED';
-    return () => { html.style.backgroundColor = prev; };
-  }, []);
-
   return (
     <div className={`site ${className ?? ''}`}>
-      <SmoothScroll>
+      {/* Smooth scrolling drives the homepage scenes; the other pages scroll natively */}
+      <SmoothScroll enabled={path === '/'}>
         <a href="#main" className="skip-link">{t('skip')}</a>
         <SiteHeader />
         <main id="main" tabIndex={-1} className="outline-none">

@@ -1,5 +1,5 @@
 const DECLINED_COOKIE = 'passkey_declined';
-const SESSION_KEY = 'pockyh_creds';
+const SESSION_KEY = 'pokyh_creds';
 
 export function hasDeclinedPasskey(): boolean {
   if (typeof document === 'undefined') return false;

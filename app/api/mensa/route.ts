@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.API_BACKEND_URL ?? 'http://localhost:4000';
+// Same fallback as the other backend routes, so a local dev server without
+// .env.local still loads the menu from the live backend.
+const BACKEND_URL = (process.env.API_BACKEND_URL ?? 'https://api.pokyh.com').replace(/\/$/, '');
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +23,8 @@ export async function GET() {
     });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Error';
+    const cause = (e as { cause?: { code?: string } })?.cause?.code;
+    console.error(`[mensa] ${BACKEND_URL}/dishes unreachable: ${msg}${cause ? ` (${cause})` : ''}`);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

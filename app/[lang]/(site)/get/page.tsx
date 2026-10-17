@@ -5,7 +5,7 @@ import { makeT } from '@/lib/i18n/dictionary';
 import { routeLocale } from '@/lib/i18n/server';
 import { localeAlternates, localizedUrl, ogLocale, pageKeywords } from '@/lib/i18n/seo';
 import { getDict } from '@/lib/i18n/dictionaries/get';
-import PageIntro from '@/components/site/PageIntro';
+import PageIntro, { TONE } from '@/components/site/PageIntro';
 import RevealScope from '@/components/site/RevealScope';
 import { RELEASES } from './AppInstallGuide';
 
@@ -56,8 +56,8 @@ export default async function GetPage({ params }: PageProps) {
   };
 
   const native = [
-    { icon: AndroidLogo, title: t('androidTitle'), body: t('androidBody'), guide: href('/get/android'), releases: RELEASES.android },
-    { icon: AppleLogo, title: t('iosTitle'), body: t('iosBody'), guide: href('/get/ios'), releases: RELEASES.ios },
+    { icon: AndroidLogo, title: t('androidTitle'), body: t('androidBody'), guide: href('/get/android'), releases: RELEASES.android, tone: 'sage' as const },
+    { icon: AppleLogo, title: t('iosTitle'), body: t('iosBody'), guide: href('/get/ios'), releases: RELEASES.ios, tone: 'blush' as const },
   ];
 
   return (
@@ -66,78 +66,68 @@ export default async function GetPage({ params }: PageProps) {
       <PageIntro title={t('title')} lead={t('lead')} />
 
       <RevealScope>
-        <section className="bg-canvas">
-          <div className="mx-auto max-w-[1440px] px-5 md:px-10 pb-24 md:pb-32">
-            {/* Browser */}
-            <div data-reveal className="grid gap-6 border-t-2 border-ink py-10 lg:grid-cols-12 lg:gap-10">
-              <div className="lg:col-span-1"><Globe size={40} className="text-ink" aria-hidden="true" /></div>
-              <div className="lg:col-span-6">
-                <p className="text-[14px] font-bold text-accent-ink">{t('recommended')}</p>
-                <h2 className="mt-1 text-ink font-extrabold tracking-[-0.045em] leading-[1] text-[clamp(36px,8vw,52px)] lg:text-[clamp(44px,4.4vw,76px)]">{t('webTitle')}</h2>
-              </div>
-              <div className="lg:col-span-5 flex flex-col gap-6">
-                <p className="text-[17px] md:text-[19px] leading-[1.55] text-ink-2">{t('webBody')}</p>
-                <Link
-                  href={href('/login')}
-                  className="group inline-flex h-14 w-fit items-center gap-2.5 rounded-full bg-accent px-7 text-[16px] font-semibold text-on-accent press transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_88%,#000)]"
-                >
-                  {t('webCta')}
-                  <ArrowRight size={18} weight="bold" className="transition-transform duration-300 group-hover:translate-x-1" />
-                </Link>
-              </div>
+        <section className="wrap grid gap-4 pb-20 md:grid-cols-2 md:gap-5 md:pb-28">
+          {/* Browser: the way most people start */}
+          <div data-reveal className={`squircle flex flex-col gap-8 rounded-[28px] p-7 md:col-span-2 md:flex-row md:items-end md:justify-between md:rounded-[40px] md:p-12 ${TONE.periwinkle}`}>
+            <div>
+              <Globe size={44} aria-hidden="true" />
+              <h2 className="mt-6 text-[clamp(34px,4.6vw,64px)] font-extrabold leading-[1.04] tracking-[-0.05em]">{t('webTitle')}</h2>
+              <p className="mt-4 max-w-[46ch] text-[17px] leading-[1.6] opacity-85 md:text-[19px]">{t('webBody')}</p>
             </div>
+            <Link href={href('/login')} className="key key-lg self-start md:self-auto">
+              {t('webCta')}
+              <ArrowRight size={18} weight="bold" className="key-arrow" aria-hidden="true" />
+            </Link>
+          </div>
 
-            {/* Native apps */}
-            {native.map(({ icon: Icon, title, body, guide, releases }) => (
-              <div key={title} data-reveal className="grid gap-6 border-t border-line py-10 lg:grid-cols-12 lg:gap-10">
-                <div className="lg:col-span-1"><Icon size={40} className="text-ink" aria-hidden="true" /></div>
-                <h2 className="lg:col-span-6 text-ink font-extrabold tracking-[-0.045em] leading-[1] text-[clamp(32px,7vw,44px)] lg:text-[clamp(40px,3.6vw,60px)]">{title}</h2>
-                <div className="lg:col-span-5 flex flex-col gap-5">
-                  <p className="text-[17px] leading-[1.55] text-ink-2">{body}</p>
-                  <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-                    <Link href={guide} className="inline-flex h-12 items-center gap-2 rounded-full bg-ink px-6 text-[15px] font-semibold text-canvas press">
-                      {t('guide')}
-                      <ArrowRight size={16} weight="bold" aria-hidden="true" />
-                    </Link>
-                    <a href={releases} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[15px] font-semibold text-ink underline-offset-[6px] decoration-2 hover:underline">
-                      {t('releases')}
-                      <ArrowUpRight size={15} weight="bold" aria-hidden="true" />
-                    </a>
-                  </div>
-                </div>
+          {/* Web-App on the home screen */}
+          <div data-reveal className={`squircle flex flex-col rounded-[28px] p-7 md:col-span-2 md:rounded-[40px] md:p-12 ${TONE.butter}`}>
+            <div className="grid gap-8 md:grid-cols-[1.2fr_1fr] md:items-end">
+              <div>
+                <DeviceMobile size={44} aria-hidden="true" />
+                <h2 className="mt-6 text-[clamp(30px,3.6vw,48px)] font-extrabold leading-[1] tracking-[-0.045em]">{t('pwaTitle')}</h2>
+                <p className="mt-4 max-w-[46ch] text-[17px] leading-[1.6] opacity-85 md:text-[18px]">{t('pwaBody')}</p>
               </div>
-            ))}
-
-            {/* PWA */}
-            <div data-reveal className="grid gap-6 border-y border-line py-10 lg:grid-cols-12 lg:gap-10">
-              <div className="lg:col-span-1"><DeviceMobile size={40} className="text-ink" aria-hidden="true" /></div>
-              <h2 className="lg:col-span-6 text-ink font-extrabold tracking-[-0.045em] leading-[1] text-[clamp(32px,7vw,44px)] lg:text-[clamp(40px,3.6vw,60px)]">{t('pwaTitle')}</h2>
-              <div className="lg:col-span-5 flex flex-col gap-5">
-                <p className="text-[17px] leading-[1.55] text-ink-2">{t('pwaBody')}</p>
-                <ul className="flex flex-col border-b border-line">
-                  {[
-                    { label: t('pwaIos'), to: href('/get/pwa/ios') },
-                    { label: t('pwaAndroid'), to: href('/get/pwa/android') },
-                  ].map((o) => (
-                    <li key={o.to} className="border-t border-line">
-                      <Link href={o.to} className="group flex items-center justify-between py-4 text-[17px] font-semibold text-ink">
-                        {o.label}
-                        <ArrowRight size={18} weight="bold" className="transition-transform duration-300 group-hover:translate-x-1" aria-hidden="true" />
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
+              <div className="flex flex-col gap-3">
+                {[
+                  { label: t('pwaIos'), to: href('/get/pwa/ios'), Icon: AppleLogo },
+                  { label: t('pwaAndroid'), to: href('/get/pwa/android'), Icon: AndroidLogo },
+                ].map(({ label, to, Icon }) => (
+                  <Link key={to} href={to} className="key key-lg key-line justify-between">
+                    <span className="flex items-center gap-3"><Icon size={20} weight="bold" aria-hidden="true" />{label}</span>
+                    <ArrowRight size={18} weight="bold" className="key-arrow" aria-hidden="true" />
+                  </Link>
+                ))}
               </div>
             </div>
           </div>
+
+          {/* Native apps */}
+          {native.map(({ icon: Icon, title, body, guide, releases, tone }) => (
+            <div key={title} data-reveal className={`squircle flex flex-col rounded-[28px] p-7 md:rounded-[40px] md:p-10 ${TONE[tone]}`}>
+              <Icon size={40} aria-hidden="true" />
+              <h2 className="mt-6 text-[clamp(28px,3vw,40px)] font-extrabold leading-[1.02] tracking-[-0.04em]">{title}</h2>
+              <p className="mt-3 flex-1 text-[16px] leading-[1.6] opacity-85 md:text-[17px]">{body}</p>
+              <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3">
+                <Link href={guide} className="key">
+                  {t('guide')}
+                  <ArrowRight size={16} weight="bold" className="key-arrow" aria-hidden="true" />
+                </Link>
+                <a href={releases} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[15px] font-semibold underline-offset-[6px] decoration-2 hover:underline">
+                  {t('releases')}
+                  <ArrowUpRight size={15} weight="bold" aria-hidden="true" />
+                </a>
+              </div>
+            </div>
+          ))}
         </section>
 
-        <section aria-labelledby="pwa-what" className="bg-blush text-ink">
-          <div className="mx-auto max-w-[1440px] px-5 md:px-10 py-20 md:py-28 grid gap-8 lg:grid-cols-12">
-            <h2 id="pwa-what" data-reveal className="lg:col-span-5 font-extrabold leading-[0.98] tracking-[-0.045em] text-[clamp(32px,7vw,48px)] lg:text-[clamp(40px,3.6vw,64px)]">
+        <section aria-labelledby="pwa-what" className="wrap pb-24 md:pb-32">
+          <div className="grid gap-6 border-t border-line pt-12 md:grid-cols-[1fr_1.4fr] md:gap-12 md:pt-16">
+            <h2 id="pwa-what" data-reveal className="text-[clamp(30px,3.6vw,48px)] font-extrabold leading-[1] tracking-[-0.045em]">
               {t('pwaWhatTitle')}
             </h2>
-            <p data-reveal className="lg:col-span-6 lg:col-start-7 text-[18px] md:text-[21px] leading-[1.55] text-blush-ink">{t('pwaWhatBody')}</p>
+            <p data-reveal className="max-w-[60ch] text-[18px] leading-[1.7] text-ink-2 md:text-[19px]">{t('pwaWhatBody')}</p>
           </div>
         </section>
       </RevealScope>

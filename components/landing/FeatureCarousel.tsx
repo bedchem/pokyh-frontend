@@ -9,21 +9,23 @@ import { frontpageDict, type FrontpageKey } from '@/lib/i18n/dictionaries/frontp
 import { ensureGsap, prefersReducedMotion, ScrollTrigger, useGsap } from '@/lib/motion';
 import { drawPoster, resolveFonts, type PosterKind } from '@/lib/landing-art';
 import { useLenis } from '@/components/site/SmoothScroll';
-import { Magnetic, Roll } from '@/components/home/shared';
+import { useSiteDark } from '@/lib/site-theme';
 
 // The functions of POKYH on a turning ring, rendered with three.js. The
 // section stays on screen and scrolling turns the ring. With every function
 // the whole screen takes its colour, and its name, set huge, glides past
-// behind the ring. Below: one sentence and the way into the app.
+// behind the ring. Below: one sentence and the way into the app. In the dark
+// theme the colours are deep tints of the same tones, with light names.
 
-const FEATURES: { n: number; poster: PosterKind; href: string; label: FrontpageKey; bg: string; ink: string }[] = [
-  { n: 1, poster: 'timetable', href: '/timetable', label: 'tileTimetable', bg: '#D2D0F7', ink: '#4A46A6' },
-  { n: 4, poster: 'messages', href: '/messages', label: 'tileMessages', bg: '#F7D9D3', ink: '#94493E' },
-  { n: 3, poster: 'grades', href: '/grades', label: 'tileGrades', bg: '#D5E4D0', ink: '#44653F' },
-  { n: 6, poster: 'exams', href: '/timetable', label: 'tileExams', bg: '#F7E7AC', ink: '#7A5B14' },
-  { n: 7, poster: 'absences', href: '/absences', label: 'tileAbsences', bg: '#E2E1FD', ink: '#4F46E5' },
-  { n: 5, poster: 'reminders', href: '/reminders', label: 'tileReminders', bg: '#E9E4DC', ink: '#1E1E1E' },
-  { n: 8, poster: 'todos', href: '/todos', label: 'tileTodos', bg: '#CFEBDD', ink: '#047857' },
+type Tone = { bg: string; ink: string };
+const FEATURES: { n: number; poster: PosterKind; href: string; label: FrontpageKey; light: Tone; dark: Tone }[] = [
+  { n: 1, poster: 'timetable', href: '/timetable', label: 'tileTimetable', light: { bg: '#D2D0F7', ink: '#4A46A6' }, dark: { bg: '#23224A', ink: '#C9C7F8' } },
+  { n: 4, poster: 'messages', href: '/messages', label: 'tileMessages', light: { bg: '#F7D9D3', ink: '#94493E' }, dark: { bg: '#3D221D', ink: '#F2C6BD' } },
+  { n: 3, poster: 'grades', href: '/grades', label: 'tileGrades', light: { bg: '#D5E4D0', ink: '#44653F' }, dark: { bg: '#1D2C1A', ink: '#B9D4B2' } },
+  { n: 6, poster: 'exams', href: '/timetable', label: 'tileExams', light: { bg: '#F7E7AC', ink: '#7A5B14' }, dark: { bg: '#382F14', ink: '#EFDB9E' } },
+  { n: 7, poster: 'absences', href: '/absences', label: 'tileAbsences', light: { bg: '#E2E1FD', ink: '#4F46E5' }, dark: { bg: '#262546', ink: '#B9BAFB' } },
+  { n: 5, poster: 'reminders', href: '/reminders', label: 'tileReminders', light: { bg: '#E9E4DC', ink: '#1E1E1E' }, dark: { bg: '#24221F', ink: '#E9E4DC' } },
+  { n: 8, poster: 'todos', href: '/todos', label: 'tileTodos', light: { bg: '#CFEBDD', ink: '#047857' }, dark: { bg: '#15332A', ink: '#9FE0C2' } },
 ];
 const COUNT = FEATURES.length;
 const STEP = (Math.PI * 2) / COUNT;
@@ -76,7 +78,12 @@ export default function FeatureCarousel() {
   const indexRef = useRef(0);
   const [shown, setShown] = useState(0);
   const drag = useRef<{ x: number; scroll: number; moved: boolean } | null>(null);
+  const dark = useSiteDark();
+  const tones = FEATURES.map((f) => (dark ? f.dark : f.light));
+  const colours = useRef(tones.map((tone) => tone.bg));
+  useEffect(() => { colours.current = FEATURES.map((f) => (dark ? f.dark : f.light).bg); }, [dark]);
   const front = FEATURES[shown];
+  const frontTone = tones[shown];
 
   // ── scrolling ──────────────────────────────────────────────────────────
   const scrollTo = useCallback((y: number, immediate = false) => {
@@ -107,7 +114,6 @@ export default function FeatureCarousel() {
     let ring: THREE.Group | null = null;
     let swing: THREE.Group | null = null;
     let layout = () => {};
-    const colours = FEATURES.map((f) => f.bg);
 
     trigger.current = ScrollTrigger.create({
       trigger: section,
@@ -127,7 +133,7 @@ export default function FeatureCarousel() {
       }
       // The colour of the function in front floods the screen.
       const i = Math.min(COUNT - 2, Math.floor(s));
-      back.style.backgroundColor = gsap.utils.interpolate(colours[i], colours[i + 1], Math.min(1, s - i)) as string;
+      back.style.backgroundColor = gsap.utils.interpolate(colours.current[i], colours.current[i + 1], Math.min(1, s - i)) as string;
       strip.style.transform = `translate3d(${(-s * 100).toFixed(3)}vw,0,0)`;
       if (bar.current) bar.current.style.transform = `scaleX(${(p.current / (COUNT - 1)).toFixed(4)})`;
       if (!renderer || !three || !camera || !ring || !swing) return;
@@ -347,18 +353,18 @@ export default function FeatureCarousel() {
         ref={sky}
         data-carousel-stage
         className="sticky top-0 flex h-[100svh] flex-col justify-center overflow-hidden pb-[clamp(110px,16svh,150px)] pt-[clamp(70px,11svh,104px)]"
-        style={{ backgroundColor: FEATURES[0].bg }}
+        style={{ backgroundColor: tones[0].bg }}
       >
         {/* The names, huge, on one long strip above the ring */}
         <div aria-hidden="true" className="pointer-events-none relative w-full shrink-0">
           <div ref={names} className="flex w-max will-change-transform">
-            {FEATURES.map((f) => {
+            {FEATURES.map((f, i) => {
               const word = tf(f.label);
               return (
                 <span
                   key={f.n}
                   className="flex w-[100vw] shrink-0 justify-center whitespace-nowrap pb-[0.06em] font-extrabold leading-[0.86] tracking-[-0.065em]"
-                  style={{ color: f.ink, fontSize: `min(20vw, ${(150 / word.length).toFixed(2)}vw, 22svh)` }}
+                  style={{ color: tones[i].ink, fontSize: `min(20vw, ${(150 / word.length).toFixed(2)}vw, 22svh)` }}
                 >
                   {word}
                 </span>
@@ -392,16 +398,16 @@ export default function FeatureCarousel() {
           </p>
           <div data-late className="overflow-hidden">
             <span data-swap className="block">
-              <Magnetic strength={0.25}>
-                <Link
-                  href={localize(front.href)}
-                  className="inline-flex h-[54px] items-center gap-3 rounded-full px-7 text-[16px] font-medium text-white transition-colors duration-500"
-                  style={{ backgroundColor: front.ink }}
-                >
-                  <Roll>{t(key(front.n, 'Cta'))}</Roll>
-                  <span aria-hidden="true">→</span>
-                </Link>
-              </Magnetic>
+              <Link
+                href={localize(front.href)}
+                className="key"
+                style={dark
+                  ? ({ '--key-bg': `color-mix(in srgb, ${frontTone.ink} 20%, transparent)`, '--key-fg': frontTone.ink } as React.CSSProperties)
+                  : ({ '--key-bg': frontTone.ink, '--key-fg': '#FFFFFF' } as React.CSSProperties)}
+              >
+                {t(key(front.n, 'Cta'))}
+                <span aria-hidden="true" className="key-arrow">→</span>
+              </Link>
             </span>
           </div>
         </div>

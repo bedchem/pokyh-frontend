@@ -57,7 +57,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [user, init]);
 
   // Periodically verify the backend session is still valid.
-  // apiFetch fires pockyh-session-expired when the token can't be refreshed,
+  // apiFetch fires pokyh-session-expired when the token can't be refreshed,
   // which SessionProvider catches and redirects to /login.
   useEffect(() => {
     if (!user) return;

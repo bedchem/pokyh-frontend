@@ -34,29 +34,29 @@ const API_KEY =
 function getToken(): string | null {
   if (typeof window === 'undefined') return null;
   // Check localStorage first, then cookie
-  const ls = localStorage.getItem('pockyh_api_token');
+  const ls = localStorage.getItem('pokyh_api_token');
   if (ls) return ls;
   // Fallback: read from cookie (set by server after login)
-  const match = document.cookie.match(/(?:^|;\s*)pockyh_api_token=([^;]*)/);
+  const match = document.cookie.match(/(?:^|;\s*)pokyh_api_token=([^;]*)/);
   return match ? decodeURIComponent(match[1]) : null;
 }
 
 function setToken(token: string): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem('pockyh_api_token', token);
+  localStorage.setItem('pokyh_api_token', token);
 }
 
 function setRefreshToken(token: string): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem('pockyh_api_refresh', token);
+  localStorage.setItem('pokyh_api_refresh', token);
 }
 
 function getRefreshToken(): string | null {
   if (typeof window === 'undefined') return null;
-  const ls = localStorage.getItem('pockyh_api_refresh');
+  const ls = localStorage.getItem('pokyh_api_refresh');
   if (ls) return ls;
   // Fallback: cookie
-  const match = document.cookie.match(/(?:^|;\s*)pockyh_api_refresh=([^;]*)/);
+  const match = document.cookie.match(/(?:^|;\s*)pokyh_api_refresh=([^;]*)/);
   return match ? decodeURIComponent(match[1]) : null;
 }
 
@@ -79,8 +79,8 @@ export function getSignedInUid(): string | null {
 
 function clearTokens(): void {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem('pockyh_api_token');
-  localStorage.removeItem('pockyh_api_refresh');
+  localStorage.removeItem('pokyh_api_token');
+  localStorage.removeItem('pokyh_api_refresh');
 }
 
 // ─── Core fetch ───────────────────────────────────────────────────────────────
@@ -91,7 +91,7 @@ async function refreshAccessToken(): Promise<boolean> {
   // Refresh via the same-origin Next.js route: the refresh token is stored in an
   // httpOnly cookie that JS cannot read, so we cannot call the backend directly.
   // The browser sends the httpOnly cookie automatically to /api/auth/refresh,
-  // which exchanges it and sets a fresh pockyh_api_token cookie.
+  // which exchanges it and sets a fresh pokyh_api_token cookie.
   try {
     const res = await fetch('/api/auth/refresh', {
       method: 'POST',
@@ -116,7 +116,7 @@ async function refreshAccessToken(): Promise<boolean> {
   }
 }
 
-// Dispatch pockyh-session-expired once per expiry window so SessionProvider
+// Dispatch pokyh-session-expired once per expiry window so SessionProvider
 // redirects to /login. Deduplicated because multiple simultaneous 401s would
 // otherwise fire multiple redirects (SessionProvider also deduplicates via `handling`).
 let _sessionExpiredPending = false;
@@ -124,7 +124,7 @@ function notifySessionExpired() {
   if (_sessionExpiredPending) return;
   _sessionExpiredPending = true;
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('pockyh-session-expired'));
+    window.dispatchEvent(new CustomEvent('pokyh-session-expired'));
   }
   // Reset after 10s so a future re-login → re-expiry can trigger again
   setTimeout(() => { _sessionExpiredPending = false; }, 10_000);
@@ -146,7 +146,7 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
   });
 
   // 401 → try to refresh once. If refresh also fails AND we had a session,
-  // fire pockyh-session-expired so SessionProvider redirects to /login.
+  // fire pokyh-session-expired so SessionProvider redirects to /login.
   if (res.status === 401) {
     // Capture before the refresh attempt (which calls clearTokens on failure).
     // "Had a session" also covers the case where the access token is missing but
@@ -155,7 +155,7 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
     const hadSession =
       !!token ||
       !!getRefreshToken() ||
-      (typeof document !== 'undefined' && /(?:^|;\s*)pockyh_user=/.test(document.cookie));
+      (typeof document !== 'undefined' && /(?:^|;\s*)pokyh_user=/.test(document.cookie));
 
     if (!_refreshing) {
       _refreshing = refreshAccessToken().finally(() => { _refreshing = null; });
@@ -288,14 +288,14 @@ export const api = {
       // The tokens should already be in cookies — sync them to localStorage.
       const cookieToken = typeof document !== 'undefined'
         ? (() => {
-            const m = document.cookie.match(/(?:^|;\s*)pockyh_api_token=([^;]*)/);
+            const m = document.cookie.match(/(?:^|;\s*)pokyh_api_token=([^;]*)/);
             return m ? decodeURIComponent(m[1]) : null;
           })()
         : null;
 
       const cookieRefresh = typeof document !== 'undefined'
         ? (() => {
-            const m = document.cookie.match(/(?:^|;\s*)pockyh_api_refresh=([^;]*)/);
+            const m = document.cookie.match(/(?:^|;\s*)pokyh_api_refresh=([^;]*)/);
             return m ? decodeURIComponent(m[1]) : null;
           })()
         : null;
