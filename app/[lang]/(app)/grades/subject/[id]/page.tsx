@@ -432,7 +432,7 @@ export default function SubjectDetailPage({
                 />
                 <ArrowRight size={20} weight="bold" aria-hidden="true" />
                 <span className="text-[30px] font-extrabold leading-none tracking-[-0.045em] tnum">
-                  {!targetResult ? '—'
+                  {!targetResult ? '-'
                     : targetResult.status === 'reached' ? '✓'
                     : targetResult.status === 'impossible' ? '✕'
                     : <>{targetResult.count > 1 && <span className="mr-1 text-[18px] opacity-75">{targetResult.count}×</span>}{fmtNum(targetResult.needed, 2)}</>}

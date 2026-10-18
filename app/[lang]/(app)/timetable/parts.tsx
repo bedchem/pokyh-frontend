@@ -76,7 +76,7 @@ const DAY_SPRITE: Partial<Record<DayKind, PixelSprite>> = {
   fullDayEvent: 'event',
 };
 
-/** Shown instead of lessons when a whole day has none — glyph disc, title, one line. No plate. */
+/** Shown instead of lessons when a whole day has none, glyph disc, title, one line. No plate. */
 export function SpecialDayCard({ kind, compact = false, style, onClick }: {
   kind: DayKind;
   compact?: boolean;

@@ -12,7 +12,7 @@ interface Props {
   onChange: (val: string) => void;
   onBack: () => void;
   // Lower bound (e.g. the chosen start). Earlier days are disabled and, on the
-  // same day, earlier times are rejected — so the end can only grow, never shrink
+  // same day, earlier times are rejected, so the end can only grow, never shrink
   // before the start. When `value` is empty the picker opens on this day.
   minDateTime?: string;
 }
@@ -72,7 +72,7 @@ export default function DateTimePicker({ value, onChange, onBack, minDateTime }:
 
   function selectDay(day: number) {
     const ds = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    if (minDs && ds < minDs) return; // earlier than the lower bound — not selectable
+    if (minDs && ds < minDs) return; // earlier than the lower bound: not selectable
     setSelDate(ds);
     setDateText(dsToGerman(ds));
     setDateErr(false);

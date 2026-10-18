@@ -11,7 +11,7 @@ import {
 const DEBUG = process.env.NEXT_PUBLIC_DEBUG_API === 'true';
 
 // Returns the current user's WebUntis capabilities relevant to the write
-// features — primarily whether they may self-report/excuse absences (18+ gate).
+// features: primarily whether they may self-report/excuse absences (18+ gate).
 export async function GET() {
   const session = await getServerSession();
   if (!session) return NextResponse.json({ error: 'Nicht angemeldet.' }, { status: 401 });

@@ -182,7 +182,7 @@ export default function ClassregEventsPage() {
     events.forEach((e) => {
       catCount[e.categoryName] = (catCount[e.categoryName] ?? 0) + 1;
     });
-    const topCat = Object.entries(catCount).sort((a, b) => b[1] - a[1])[0]?.[0] ?? '—';
+    const topCat = Object.entries(catCount).sort((a, b) => b[1] - a[1])[0]?.[0] ?? '-';
     return { total, subjects, latest, topCat };
   }, [events]);
 
@@ -307,7 +307,7 @@ export default function ClassregEventsPage() {
                       <div className="card-sub">{t('newestEntry')}</div>
                     </div>
                   </div>
-                  <div className="kpi-value kpi-date">{stats.latest ? fmtDateLong(stats.latest) : '—'}</div>
+                  <div className="kpi-value kpi-date">{stats.latest ? fmtDateLong(stats.latest) : '-'}</div>
                 </div>
 
                 <div className="card">

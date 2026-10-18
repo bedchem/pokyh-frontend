@@ -1,4 +1,4 @@
-// Timetable logic — port of the Android app's `TimetableSlots.kt`, `WeekGrid.kt` (cell layout)
+// Timetable logic: port of the Android app's `TimetableSlots.kt`, `WeekGrid.kt` (cell layout)
 // and `Palette.kt` (subject/status pastels). Pure functions only, no React.
 
 import type { TimetableEntry } from '@/lib/types';
@@ -18,14 +18,14 @@ export interface MergedSlot {
 
 // ── Geometry ──────────────────────────────────────────────────────────────────
 
-/** A 50-minute period is ~48px — enough for subject, teacher and room. */
+/** A 50-minute period is ~48px, enough for subject, teacher and room. */
 export const PX_PER_MINUTE = 0.95;
 export const GRID_GUTTER = 42;
 export const COL_GAP = 3;
 export const GRID_EDGE_INSET = 6;
 export const MIN_CELL_HEIGHT = 26;
 export const MIN_CELL_WIDTH = 10;
-/** Below this a cell carries no text — the tint and outline already say enough. */
+/** Below this a cell carries no text, the tint and outline already say enough. */
 export const TEXT_MIN_CELL_WIDTH = 34;
 export const CELL_GAP = 3;
 const PER_MILLE = 1000;
@@ -34,7 +34,7 @@ const ACTIVE_SHARE = 750;
 
 export interface TimetablePeriod { number: number; startMinute: number; endMinute: number }
 
-/** This school's 10-period grid, 07:50–16:45. A default, dropped on timetables that don't match it. */
+/** This school's 10-period grid, 07:50-16:45. A default, dropped on timetables that don't match it. */
 export const TIMETABLE_PERIODS: TimetablePeriod[] = [
   { number: 1, startMinute: 470, endMinute: 520 },
   { number: 2, startMinute: 520, endMinute: 570 },
@@ -66,7 +66,7 @@ export function hhmm(totalMinutes: number): string {
 }
 
 /**
- * The next exam that is not over yet — by date *and* time. An exam earlier today that has already
+ * The next exam that is not over yet, by date *and* time. An exam earlier today that has already
  * ended is skipped, so with two exams on one day the second one takes over once the first is done.
  */
 export function nextUpcomingExam(entries: TimetableEntry[], nowDateNum: number, nowMinute: number): TimetableEntry | null {
@@ -105,11 +105,11 @@ export function isoWeekNumber(date: Date): number {
   return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
 }
 
-/** "3. Feb. – 8. Feb. 2026" in the given Intl locale. */
+/** "3. Feb., 8. Feb. 2026" in the given Intl locale. */
 export function rangeText(offset: number, tag: string): string {
   const start = mondayOf(offset);
   const end = dateOf(offset, 5);
-  return `${formatDate(start, tag, { day: 'numeric', month: 'short' })} – ${formatDate(end, tag, { day: 'numeric', month: 'short', year: 'numeric' })}`;
+  return `${formatDate(start, tag, { day: 'numeric', month: 'short' })} - ${formatDate(end, tag, { day: 'numeric', month: 'short', year: 'numeric' })}`;
 }
 
 /** Minutes since midnight on the school's clock. */
@@ -246,7 +246,7 @@ export interface SlotChanges { subjectChanged: boolean; teacherChanged: boolean;
 export function changesOf(e: TimetableEntry): SlotChanges {
   const changed = (original: string | undefined, current: string) =>
     !!original && !!original.trim() && original.trim() !== current.trim();
-  // A cancelled lesson isn't "changed" — it's gone, and the strikethrough says so.
+  // A cancelled lesson isn't "changed", it's gone, and the strikethrough says so.
   if (e.isCancelled) return { subjectChanged: false, teacherChanged: false, roomChanged: false };
   return {
     subjectChanged: (e.addedSubjects?.length ?? 0) > 0 || changed(e.originalSubject, e.subjectName),
@@ -338,7 +338,7 @@ function baseDayKind(dayEntries: TimetableEntry[], hasOtherDayEntries: boolean):
  * A day of nothing but substitutions is **not** a special day: it is drawn lesson by lesson, each
  * as the 75/25 pair of the lesson that happens and the one it replaced. A whole-day "Vertretung"
  * card named no subject, teacher or room, so it said less than the cells it covered.
- * ('allReplacement' is therefore never produced any more — [specialDaySpecFor] still knows it.)
+ * ('allReplacement' is therefore never produced any more, [specialDaySpecFor] still knows it.)
  */
 export function dayKind(dayEntries: TimetableEntry[], slots: MergedSlot[], hasOtherDayEntries: boolean, index: number): DayKind {
   if (index === 5 && dayEntries.length === 0) return 'weekend';
@@ -364,7 +364,7 @@ export interface GridCell {
 const cellCancelled = (c: GridCell) => c.kind === 'cancelled' || c.entry.isCancelled;
 const overlaps = (a: GridCell, b: GridCell) => a.startMinute < b.endMinute && b.startMinute < a.endMinute;
 
-/** Flattens a day's slots into the boxes the column draws — one entry, one time range per box. */
+/** Flattens a day's slots into the boxes the column draws, one entry, one time range per box. */
 export function buildGridCells(slots: MergedSlot[]): GridCell[] {
   const cells: GridCell[] = [];
   const base = { start: 0, width: PER_MILLE };
@@ -529,7 +529,7 @@ export interface Tone {
 }
 
 /**
- * The subject palette: 18 hues, 20° apart, all at the same lightness — the whole colour wheel, red
+ * The subject palette: 18 hues, 20° apart, all at the same lightness, the whole colour wheel, red
  * and yellow included. A subject block is a soft pastel and a status (Entfall, Prüfung) is told by
  * its outline and its chip, so the warm end of the wheel is free for subjects to use.
  */
@@ -544,7 +544,7 @@ const hueDistance = (a: number, b: number) => {
 };
 
 /**
- * The hue a subject would like on its own: the palette hue closest to its own colour — its fixed
+ * The hue a subject would like on its own: the palette hue closest to its own colour, its fixed
  * one, else the hue its name hashes to. Identical to the app's `preferredHue`, so both platforms
  * start from the same wish before any collision is resolved.
  */
@@ -561,7 +561,7 @@ function preferredHue(name: string): number {
  * and never carried over from an earlier screen: sorted by name, each subject takes its preferred
  * hue if it is still free, otherwise the free hue farthest from the ones already taken. The Android
  * app runs the identical routine over the identical set, so the same week is coloured the same way
- * in both — a subject that was green in the app used to be orange on the web purely because the two
+ * in both: a subject that was green in the app used to be orange on the web purely because the two
  * had met their subjects in a different order.
  */
 export function registerSubjects(names: Iterable<string>): void {
@@ -598,12 +598,12 @@ function subjectHue(name: string): number {
   return subjectHues.get(name) ?? preferredHue(name);
 }
 
-/** Pastel subject tone (HSL), light and dark — every subject at the same lightness. */
+/** Pastel subject tone (HSL), light and dark, every subject at the same lightness. */
 export function subjectTone(name: string): Tone {
   const h = subjectHue(name);
   return {
     // Softer than [statusTone]: a subject is a quiet block of colour, and the loud ones are
-    // reserved for what a colour *means* — Entfall, Prüfung, Vertretung.
+    // reserved for what a colour *means*, Entfall, Prüfung, Vertretung.
     fill: hsl(h, 0.62, 0.84), ink: hsl(h, 0.54, 0.26), bar: hsl(h, 0.48, 0.57),
     fillDark: hsl(h, 0.42, 0.25), inkDark: hsl(h, 0.80, 0.86), barDark: hsl(h, 0.58, 0.62),
   };
@@ -618,7 +618,7 @@ export function statusTone(hex: string): Tone {
   };
 }
 
-/** Exams get a noticeably warmer yellow than the generic status pastel — they're what you scan for. */
+/** Exams get a noticeably warmer yellow than the generic status pastel, they're what you scan for. */
 export function examTone(): Tone {
   const h = hexHue(BRAND.warning);
   return {

@@ -35,7 +35,7 @@ import s from './timetable.module.css';
 const PER_MILLE = 1000;
 
 /**
- * The week grid — six day columns (Mo–Sa) against a time axis built from the week's own lesson
+ * The week grid: six day columns (Mo-Sa) against a time axis built from the week's own lesson
  * times. Untis Mobile's look in POKYH pastels: a lesson is one soft tinted block; an outline
  * means something (red = cancelled, yellow = exam); a changed room/teacher is only a chip.
  */
@@ -59,7 +59,7 @@ export default function WeekGrid({
   minute: number;
   scale: number;
   onTap: (slot: MergedSlot) => void;
-  /** The student's Abwesenheiten — drawn as a labelled wash over the lessons they cover. */
+  /** The student's Abwesenheiten: drawn as a labelled wash over the lessons they cover. */
   absences?: AbsenceEntry[];
   /** Shown under the day headers instead of the lessons (a week without school). */
   empty?: ReactNode;
@@ -93,7 +93,7 @@ export default function WeekGrid({
     [dayEntries, daySlots, anyDayHasEntries],
   );
   const allEntries = useMemo(() => dayEntries.flat(), [dayEntries]);
-  // Colours are handed out for the whole week before any cell asks for one — see registerSubjects.
+  // Colours are handed out for the whole week before any cell asks for one, see registerSubjects.
   useMemo(() => registerSubjects(allEntries.map(e => e.subjectName)), [allEntries]);
 
   const minMins = allEntries.length ? Math.min(...allEntries.map(e => toMins(e.startTime))) : TIMETABLE_PERIODS[0].startMinute;
@@ -293,7 +293,7 @@ function DayColumn({
   );
 }
 
-/** One lesson block: pastel fill and up to three lines — subject, teacher, room — in that order. */
+/** One lesson block: pastel fill and up to three lines (subject, teacher, room) in that order. */
 function GridLessonCell({ cell, height, width, dense, scale, onTap }: {
   cell: GridCell;
   height: number;
@@ -311,7 +311,7 @@ function GridLessonCell({ cell, height, width, dense, scale, onTap }: {
   const exam = !cancelled && (entry.isExam || kind === 'exam');
   const outline = cancelled ? s.cellOutlineDanger : exam ? s.cellOutlineWarning : '';
 
-  const subjectText = entry.subjectName || entry.note || '—';
+  const subjectText = entry.subjectName || entry.note || '-';
   const secondary: Array<{ parts: Array<[string, PartMark]>; className: string }> = [
     { parts: fieldParts(entry.teacherName, entry.addedTeachers ?? [], entry.originalTeacher, dense), className: s.lineTeacher },
     { parts: fieldParts(entry.roomName, entry.addedRooms ?? [], entry.originalRoom, dense), className: s.lineRoom },

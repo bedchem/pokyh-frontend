@@ -30,10 +30,10 @@ export const frontpageDict: Dictionary<FrontpageKey> = {
     introLoading: 'Dein Schultag wird geladen',
 
     heroTitle: 'POKYH',
-    heroHidden: 'POKYH, die Schulapp der LBS Brixen',
+    heroHidden: 'POKYH, die kostenlose App für WebUntis: Stundenplan, Noten und Nachrichten deiner Schule',
     heroGithub: 'GitHub',
     heroScroll: 'Scrollen',
-    heroRight: 'Die Schulapp der LBS Brixen',
+    heroRight: 'Die App für jede Schule mit WebUntis',
     tileTimetable: 'Stundenplan',
     tileGrades: 'Noten',
     tileMessages: 'Nachrichten',
@@ -45,7 +45,7 @@ export const frontpageDict: Dictionary<FrontpageKey> = {
     tileReminders: 'Erinnerungen',
 
     manifestText: 'Schule ist kompliziert genug. Deine *Schulapp* muss es nicht sein.',
-    manifestNote: 'Mit deinem WebUntis-Konto. Kostenlos, ohne Werbung.',
+    manifestNote: 'Mit deinem WebUntis-Konto, für jede Schule mit WebUntis. Kostenlos, ohne Werbung.',
     manifestCta: 'Jetzt anmelden',
 
     mensaTitle: 'Heute in der Mensa',
@@ -78,10 +78,10 @@ export const frontpageDict: Dictionary<FrontpageKey> = {
     introLoading: 'Stiamo caricando la tua giornata a scuola',
 
     heroTitle: 'POKYH',
-    heroHidden: 'POKYH, l’app scolastica della LBS Bressanone',
+    heroHidden: 'POKYH, l’app gratuita per WebUntis: orario, voti e messaggi della tua scuola',
     heroGithub: 'GitHub',
     heroScroll: 'Scorri',
-    heroRight: 'L’app scolastica della LBS Bressanone',
+    heroRight: 'L’app per ogni scuola con WebUntis',
     tileTimetable: 'Orario',
     tileGrades: 'Voti',
     tileMessages: 'Messaggi',
@@ -93,7 +93,7 @@ export const frontpageDict: Dictionary<FrontpageKey> = {
     tileReminders: 'Promemoria',
 
     manifestText: 'La scuola è già complicata. La tua *app scolastica* non deve esserlo.',
-    manifestNote: 'Con il tuo account WebUntis. Gratis, senza pubblicità.',
+    manifestNote: 'Con il tuo account WebUntis, per ogni scuola con WebUntis. Gratis, senza pubblicità.',
     manifestCta: 'Accedi ora',
 
     mensaTitle: 'Oggi in mensa',
@@ -126,10 +126,10 @@ export const frontpageDict: Dictionary<FrontpageKey> = {
     introLoading: 'Loading your school day',
 
     heroTitle: 'POKYH',
-    heroHidden: 'POKYH, the school app of LBS Brixen',
+    heroHidden: 'POKYH, the free app for WebUntis: your school’s timetable, grades and messages',
     heroGithub: 'GitHub',
     heroScroll: 'Scroll',
-    heroRight: 'The school app of LBS Brixen',
+    heroRight: 'The app for every school on WebUntis',
     tileTimetable: 'Timetable',
     tileGrades: 'Grades',
     tileMessages: 'Messages',
@@ -141,7 +141,7 @@ export const frontpageDict: Dictionary<FrontpageKey> = {
     tileReminders: 'Reminders',
 
     manifestText: 'School is complicated enough. Your *school app* doesn’t have to be.',
-    manifestNote: 'With your WebUntis account. Free, no ads.',
+    manifestNote: 'With your WebUntis account, for every school on WebUntis. Free, no ads.',
     manifestCta: 'Sign in now',
 
     mensaTitle: 'Today in the cafeteria',

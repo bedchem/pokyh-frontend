@@ -190,7 +190,7 @@ export function loadSearchContent(ctx: ContentContext, emit: Emit): void {
   }
 
   sources.push(['mensa', async () => {
-    const days = upcomingDays(dishesFrom(await fetchMensa()));
+    const days = upcomingDays(dishesFrom(await fetchMensa('account')));
     return days.flatMap((d) => d.dishes.map((dish) => ({
       id: `dish:${dish.id}`,
       source: 'srcDish' as ShellKey,

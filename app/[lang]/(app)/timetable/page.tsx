@@ -190,7 +190,7 @@ function TimetableContent() {
     });
   }, []);
 
-  // The displayed week alone — one page, so the overlay arrives with the lessons instead of after
+  // The displayed week alone: one page, so the overlay arrives with the lessons instead of after
   // the whole school year below has been walked.
   useEffect(() => {
     let cancelled = false;
@@ -206,7 +206,7 @@ function TimetableContent() {
     const load = (force = false) => {
       const stored = getAbsencesStale(absenceYear);
       if (stored) setAbsences(prev => (prev[absenceYear] ? prev : { ...prev, [absenceYear]: parseAbsences(stored) }));
-      // A fresh stored copy is enough — don't spend the request again on every mount.
+      // A fresh stored copy is enough, don't spend the request again on every mount.
       if (!force && stored && !areAbsencesStale(absenceYear)) return;
       fetchAbsences(absenceYear)
         .then(res => { if (!cancelled) setAbsences(prev => ({ ...prev, [absenceYear]: parseAbsences(res) })); })
@@ -311,7 +311,7 @@ function TimetableContent() {
   const selectedYear = schoolYearOf(mondayOf(weekOffset));
   const availableYears = Array.from({ length: YEAR_COUNT }, (_, i) => currentSchoolYear - i);
 
-  /** Same week of the school year, shifted into another year — or today when it's the current one. */
+  /** Same week of the school year, shifted into another year, or today when it's the current one. */
   const jumpToYear = (year: number) => {
     setYearOpen(false);
     if (year === selectedYear) return;
@@ -344,7 +344,7 @@ function TimetableContent() {
     };
   }, [entries, todayNum]);
 
-  // ?open=<lessonId> — derived rather than copied into state, until it is dismissed.
+  // ?open=<lessonId>: derived rather than copied into state, until it is dismissed.
   const autoSlot = useMemo<MergedSlot | null>(() => {
     if (!autoOpenId) return null;
     const entry = entries.find(e => e.id === autoOpenId);

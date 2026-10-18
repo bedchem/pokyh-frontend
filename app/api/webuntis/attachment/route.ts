@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from '@/lib/server-session';
 import { logDownloadServer } from '@/lib/activity-logger-server';
-import { bearerToken, cookieHeader, untis, WEBUNTIS_BASE } from '@/lib/server/untis';
+import { bearerToken, cookieHeader, untis, untisBase } from '@/lib/server/untis';
 
 export const runtime = 'nodejs';
 
@@ -56,9 +56,9 @@ export async function GET(req: NextRequest) {
   if (attachmentId) {
     try {
       const token = await bearerToken(session);
-      const file = await fetch(`${WEBUNTIS_BASE}/api/rest/view/v1/messages/${attachmentId}/attachment`, {
+      const file = await fetch(`${untisBase(session)}/api/rest/view/v1/messages/${attachmentId}/attachment`, {
         headers: {
-          Cookie: cookieHeader(session.sessionId),
+          Cookie: cookieHeader(session),
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         signal: AbortSignal.timeout(30000),

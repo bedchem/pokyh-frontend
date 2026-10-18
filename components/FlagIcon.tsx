@@ -2,7 +2,7 @@
  * Small inline SVG flags for the language switchers. Emoji regional-indicator
  * flags don't render as flags on Windows in most browsers (they fall back to
  * two-letter text), so these are plain SVGs instead. Ladin has no ISO country
- * code / emoji flag — this uses the actual Ladin flag (a horizontal
+ * code / emoji flag: this uses the actual Ladin flag (a horizontal
  * blue/white/green tricolour: sky, mountains, meadows), not a placeholder.
  */
 import type { Locale } from '@/lib/i18n/locale';

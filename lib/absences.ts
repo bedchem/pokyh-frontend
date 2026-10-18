@@ -90,9 +90,9 @@ export function parseAbsences(json: unknown): AbsenceEntry[] {
 
 /**
  * What the timetable shows over a lesson the student is (or was) absent from:
- * - preExcused — the lesson hasn't ended yet: reported in advance (Vorentschuldigung).
- * - excused    — over, and WebUntis marks the absence excused.
- * - absent     — over and not (yet) excused; turns into excused on the next load once it is.
+ * - preExcused: the lesson hasn't ended yet: reported in advance (Vorentschuldigung).
+ * - excused: over, and WebUntis marks the absence excused.
+ * - absent: over and not (yet) excused; turns into excused on the next load once it is.
  */
 export type AbsenceMark = 'preExcused' | 'excused' | 'absent';
 
@@ -124,7 +124,7 @@ const MIN_COVERED_MINUTES = 15;
 
 /**
  * The mark for one lesson, plus the part of it the absence actually covers (minutes of the day):
- * an absence from 10:00 over a 09:30–10:20 lesson covers 10:00–10:20, not the whole lesson.
+ * an absence from 10:00 over a 09:30-10:20 lesson covers 10:00-10:20, not the whole lesson.
  */
 function lessonCoverage(
   absences: AbsenceEntry[],
@@ -156,7 +156,7 @@ function lessonCoverage(
   return { startMinute: from - dayStart, endMinute: to - dayStart, mark, covering };
 }
 
-/** The absence status of one lesson and the Abwesenheiten behind it — for the lesson popup. */
+/** The absence status of one lesson and the Abwesenheiten behind it, for the lesson popup. */
 export function lessonAbsence(
   absences: AbsenceEntry[],
   dateNum: number,
@@ -179,12 +179,12 @@ function ddmmOf(d: number): string {
   return `${s.slice(6, 8)}.${s.slice(4, 6)}.`;
 }
 
-/** "10:00 – 13:05", or with dates when the absence spans several days. */
+/** "10:00-13:05", or with dates when the absence spans several days. */
 export function absenceRangeText(a: AbsenceEntry, wholeDayLabel = 'Ganzer Tag'): string {
   const from = a.startTime > 0 ? hhmmOf(a.startTime) : '';
   const to = a.endTime > 0 ? hhmmOf(a.endTime) : '';
-  if (a.startDate === a.endDate) return from && to ? `${from} – ${to}` : wholeDayLabel;
-  return `${ddmmOf(a.startDate)}${from ? ` ${from}` : ''} – ${ddmmOf(a.endDate)}${to ? ` ${to}` : ''}`;
+  if (a.startDate === a.endDate) return from && to ? `${from} - ${to}` : wholeDayLabel;
+  return `${ddmmOf(a.startDate)}${from ? ` ${from}` : ''} - ${ddmmOf(a.endDate)}${to ? ` ${to}` : ''}`;
 }
 
 export function absenceMarkFor(
@@ -202,7 +202,7 @@ export function absenceMarkFor(
  * Continuous stretches of one day covered by the same mark, from exactly where the absence starts
  * to where it ends (never beyond the lessons it covers). Pass only lessons that take place.
  *
- * A stretch runs on through breaks and free periods of any length — only a lesson you were there
+ * A stretch runs on through breaks and free periods of any length, only a lesson you were there
  * for ends it. Merging by a maximum gap instead broke the band at lunch and at every free period.
  */
 export function absenceBands(
@@ -219,7 +219,7 @@ export function absenceBands(
   for (const l of sorted) {
     const covered = lessonCoverage(absences, dateNum, l.startMinute, l.endMinute, nowDateNum, nowMinute);
     if (!covered) {
-      openBand = null; // a lesson that was attended — the stretch ends here
+      openBand = null; // a lesson that was attended: the stretch ends here
       continue;
     }
     if (openBand && openBand.mark === covered.mark) {

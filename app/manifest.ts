@@ -1,15 +1,22 @@
 import type { MetadataRoute } from 'next';
 
+// The installed web app. One manifest for all languages; the app itself
+// follows the language of the device (proxy.ts) and the saved choice.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'POKYH – Schulapp LBS Brixen',
+    id: '/',
+    name: 'POKYH: die App für WebUntis',
     short_name: 'POKYH',
-    description: 'Stundenplan, Noten, Mensa und mehr für LBS Brixen Schüler.',
+    description: 'Stundenplan, Noten, Abwesenheiten und Nachrichten aus WebUntis in einer App. Für jede Schule mit WebUntis.',
+    lang: 'de',
+    dir: 'ltr',
     start_url: '/login',
+    scope: '/',
     display: 'standalone',
-    background_color: '#000000',
-    theme_color: '#0A84FF',
-    orientation: 'portrait',
+    orientation: 'any',
+    background_color: '#F5F2ED',
+    theme_color: '#534AB7',
+    categories: ['education', 'productivity'],
     icons: [
       { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
       { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },

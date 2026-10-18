@@ -31,7 +31,7 @@ import { commonDict } from '@/lib/i18n/dictionaries/common';
 const RECHECK_MS = 10 * 60 * 1000;
 const SETTLE_MS = 1500;
 const MIN_VIEW_MS = 3000;
-// Beyond this the dots stop being countable at a glance — show "3 / 9" instead.
+// Beyond this the dots stop being countable at a glance, show "3 / 9" instead.
 const MAX_DOTS = 7;
 const RING_R = 15;
 const RING_C = 2 * Math.PI * RING_R;
@@ -84,7 +84,7 @@ export default function AnnouncementPopup({ audience, route, paused = false }: {
           return [...s, ...due.filter((p) => !known.has(keyOf(p)))];
         });
       })
-      .catch(() => { /* popups are optional — never surface a failure */ });
+      .catch(() => { /* popups are optional - never surface a failure */ });
   }, [audience, paused]);
 
   useEffect(() => {
@@ -114,7 +114,10 @@ export default function AnnouncementPopup({ audience, route, paused = false }: {
       // below back until the next page has loaded.
       away.current = true;
       overlay.current?.style.setProperty('visibility', 'hidden');
-      setSettledKey(null);
+      // The router pushes history inside a React insertion effect, and the
+      // Navigation API fires `navigate` synchronously from there, where React
+      // forbids state updates: update once that commit has finished.
+      queueMicrotask(() => { if (away.current) setSettledKey(null); });
     };
     const onNavigate = (e: Event) => {
       const { destination } = e as NavigateEventLike;

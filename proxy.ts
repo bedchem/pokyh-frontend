@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 import { decryptSession } from '@/lib/session-crypto';
 import { isCanteenRoute, isMensaRoute, isProtectedAppRoute } from '@/lib/routes';
 
-import { DEFAULT_LOCALE, LOCALE_COOKIE, RETIRED_LOCALES, isLocale, localizePath, type Locale } from '@/lib/i18n/locale';
+import { DEFAULT_LOCALE, FALLBACK_LOCALE, LOCALE_COOKIE, RETIRED_LOCALES, isLocale, localizePath, type Locale } from '@/lib/i18n/locale';
 
 // Assets and public APIs: never localised, never require a session
 const PUBLIC_PREFIXES = [
@@ -13,6 +13,9 @@ const PUBLIC_PREFIXES = [
   '/favicon.ico',
   '/robots.txt',
   '/sitemap.xml',
+  '/llms.txt',
+  '/llms-full.txt',
+  '/indexnow.txt',
   '/manifest.json',
   '/manifest.webmanifest',
   '/icons',
@@ -22,9 +25,11 @@ const PUBLIC_PREFIXES = [
   '/POKYH_Logo',
   '/api/webuntis/login',
   '/api/webuntis/password-reset',
+  '/api/webuntis/schools',
   '/api/mensa',
   '/api/privacy-notice',
   '/models',
+  '/hdr',
   '/draco',
   '/og-image',
   '/tutorials_Screenshots',
@@ -42,7 +47,7 @@ const LEGACY_COOKIES = [
 ];
 
 // Pages that are public (checked on the path without the locale prefix)
-const PUBLIC_PAGE_PREFIXES = ['/legal', '/about', '/faq', '/comparison', '/howto', '/get'];
+const PUBLIC_PAGE_PREFIXES = ['/legal', '/about', '/faq', '/comparison', '/howto', '/get', '/webuntis', '/tools'];
 
 function preferredLocale(request: NextRequest): Locale {
   const usable = (value: string | undefined): value is Locale =>
@@ -54,7 +59,7 @@ function preferredLocale(request: NextRequest): Locale {
     const code = part.split(';')[0].trim().toLowerCase().split('-')[0];
     if (usable(code)) return code;
   }
-  return DEFAULT_LOCALE;
+  return FALLBACK_LOCALE;
 }
 
 function redirectTo(request: NextRequest, pathname: string, search = request.nextUrl.search) {
@@ -62,7 +67,7 @@ function redirectTo(request: NextRequest, pathname: string, search = request.nex
   return NextResponse.redirect(new URL(pathname + search, request.url));
 }
 
-const SESSION_MAX_MS = 4 * 60 * 60 * 1000; // 4 hours — must match COOKIE_OPTS.maxAge in login/route.ts
+const SESSION_MAX_MS = 4 * 60 * 60 * 1000; // 4 hours: must match COOKIE_OPTS.maxAge in login/route.ts
 
 async function hasValidSession(request: NextRequest): Promise<boolean> {
   const cookie = request.cookies.get('pokyh_session')?.value;
@@ -86,7 +91,7 @@ export async function proxy(request: NextRequest) {
     if (pathname.startsWith('/api/auth')) {
       return NextResponse.next();
     }
-    // API routes: return JSON 401 (don't redirect — iframes can't follow
+    // API routes: return JSON 401 (don't redirect, iframes can't follow
     // redirects to pages that set X-Frame-Options: deny, which breaks
     // attachment previews and any other in-frame fetch).
     if (!(await hasValidSession(request))) {

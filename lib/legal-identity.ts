@@ -3,19 +3,24 @@ import 'server-only';
 /**
  * Public operator data is deliberately configured at deployment time rather
  * than scattered through legal copy. POKYH has no registered company today and
- * is a free, ad-free, non-commercial project — the identity is the operating
+ * is a free, ad-free, non-commercial project; the controller is the operating
  * private individual.
  *
  * What is published, and why:
- * - Name: required. GDPR Art. 13(1)(a) demands the controller's identity, and
- *   for a private individual that is their name.
+ * - Operator: "POKYH" everywhere (LEGAL_OPERATOR_NAME).
+ * - Controller name: required once, in the privacy notice. GDPR Art. 13(1)(a)
+ *   demands the controller's identity, and for a private individual that is
+ *   their name (LEGAL_ENTITY_NAME). Nowhere else.
  * - Contact: an e-mail address provides the "contact details" of Art. 13.
- * - Postal address: not published by default. The address duty of
- *   D.Lgs. 70/2003 Art. 7 targets services provided as an economic activity.
- *   If POKYH is ever monetised or incorporated, set LEGAL_ADDRESS_LINE_* (and
- *   the company fields) before that release.
+ * - Postal address: not published (owner's decision of 17 Oct 2026). The
+ *   address duty of D.Lgs. 70/2003 Art. 7 targets services provided as an
+ *   economic activity. If POKYH is ever monetised or incorporated, set
+ *   LEGAL_ADDRESS_LINE_* (and the company fields) before that release.
  */
 export type LegalIdentity = {
+  /** The name the service is offered under (imprint, footer, metadata). */
+  operator: string;
+  /** The natural person (or, once incorporated, the entity) responsible under the GDPR. */
   name: string;
   addressLines: string[];
   contactEmail: string;
@@ -38,11 +43,12 @@ export function getLegalIdentity(): LegalIdentity {
   const companyRegister = configured('LEGAL_COMPANY_REGISTER');
 
   return {
-    // No company is registered behind POKYH — it's operated by a private
-    // individual — so the fallback must be a natural person's name, never a
-    // company form like "GmbH" (a protected legal designation; claiming it
-    // without an actual registered company is itself misleading/unlawful).
-    // Registry details intentionally have no invented fallback.
+    operator: configured('LEGAL_OPERATOR_NAME', 'POKYH'),
+    // No company is registered behind POKYH (a private individual runs it),
+    // so this must be a natural person's name, never a company form like
+    // "GmbH" or "S.r.l." (protected designations; claiming one without a
+    // registered company would itself be misleading). Registry details
+    // intentionally have no invented fallback.
     name: configured('LEGAL_ENTITY_NAME', 'Felix Plattner'),
     addressLines: [
       configured('LEGAL_ADDRESS_LINE_1'),

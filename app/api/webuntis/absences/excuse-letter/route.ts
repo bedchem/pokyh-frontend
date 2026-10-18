@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from '@/lib/server-session';
-import { cookieHeader, untis, WEBUNTIS_BASE } from '@/lib/server/untis';
+import { cookieHeader, untis, untisBase } from '@/lib/server/untis';
 import { ymdNumber } from '@/lib/server/absences';
 
 export const runtime = 'nodejs';
@@ -49,8 +49,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ pending: true, error: 'WebUntis erstellt das Schreiben noch. Versuch es gleich noch einmal.' }, { status: 202 });
     }
 
-    const file = await fetch(`${WEBUNTIS_BASE}/reports.do?msgId=${encodeURIComponent(String(data.messageId ?? ''))}&${String(data.reportParams ?? '')}`, {
-      headers: { Cookie: cookieHeader(session.sessionId) },
+    const file = await fetch(`${untisBase(session)}/reports.do?msgId=${encodeURIComponent(String(data.messageId ?? ''))}&${String(data.reportParams ?? '')}`, {
+      headers: { Cookie: cookieHeader(session) },
       signal: AbortSignal.timeout(30000),
       cache: 'no-store',
     });

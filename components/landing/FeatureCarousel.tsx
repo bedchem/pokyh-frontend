@@ -7,6 +7,7 @@ import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { homepageDict, type HomepageKey } from '@/lib/i18n/dictionaries/homepage';
 import { frontpageDict, type FrontpageKey } from '@/lib/i18n/dictionaries/frontpage';
 import { ensureGsap, prefersReducedMotion, ScrollTrigger, useGsap } from '@/lib/motion';
+import { SCROLL } from '@/lib/scroll-pace';
 import { drawPoster, resolveFonts, type PosterKind } from '@/lib/landing-art';
 import { useLenis } from '@/components/site/SmoothScroll';
 import { useSiteDark } from '@/lib/site-theme';
@@ -341,7 +342,7 @@ export default function FeatureCarousel() {
       aria-roledescription="carousel"
       aria-labelledby="features-title"
       className="relative"
-      style={{ height: `${COUNT * 85 + 200}svh` }}
+      style={{ height: `calc(${COUNT * SCROLL.length.featureEach + SCROLL.length.featureExtra} * var(--lvh))` }}
       onKeyDown={(e) => {
         if (e.key === 'ArrowLeft') { e.preventDefault(); goTo(index - 1); }
         if (e.key === 'ArrowRight') { e.preventDefault(); goTo(index + 1); }
@@ -352,7 +353,7 @@ export default function FeatureCarousel() {
       <div
         ref={sky}
         data-carousel-stage
-        className="sticky top-0 flex h-[100svh] flex-col justify-center overflow-hidden pb-[clamp(110px,16svh,150px)] pt-[clamp(70px,11svh,104px)]"
+        className="sticky top-0 flex h-[calc(100*var(--lvh))] flex-col justify-center overflow-hidden pb-[calc(clamp(110px,16svh,150px)+var(--toolbar))] pt-[clamp(70px,11svh,104px)]"
         style={{ backgroundColor: tones[0].bg }}
       >
         {/* The names, huge, on one long strip above the ring */}
@@ -387,7 +388,7 @@ export default function FeatureCarousel() {
 
         <div
           ref={caption}
-          className="absolute inset-x-0 bottom-0 flex flex-col gap-5 px-5 pb-8 md:flex-row md:items-end md:justify-between md:px-10 md:pb-10 lg:px-[6.5vw]"
+          className="absolute inset-x-0 bottom-[var(--toolbar)] flex flex-col gap-5 px-5 pb-8 md:flex-row md:items-end md:justify-between md:px-10 md:pb-10 lg:px-[6.5vw]"
           aria-live="polite"
         >
           <p data-late className="overflow-hidden">
@@ -412,7 +413,7 @@ export default function FeatureCarousel() {
           </div>
         </div>
 
-        <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-[3px] bg-ink/10">
+        <span aria-hidden="true" className="absolute inset-x-0 bottom-[var(--toolbar)] h-[3px] bg-ink/10">
           <span ref={bar} className="block h-full w-full origin-left bg-ink" style={{ transform: 'scaleX(0)' }} />
         </span>
       </div>

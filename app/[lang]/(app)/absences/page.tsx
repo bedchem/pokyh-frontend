@@ -46,7 +46,7 @@ function formatTime(t: number): string {
 }
 
 // m is real clock time spent in lessons (breaks are never counted), so it is shown in 60-minute
-// hours: Mo 07:50–16:45 minus 1h 15m of breaks is 7h 40m, not "9h 10m" in 50-minute units.
+// hours: Mo 07:50-16:45 minus 1h 15m of breaks is 7h 40m, not "9h 10m" in 50-minute units.
 function formatMinutes(m: number): string {
   const h = Math.floor(m / 60);
   const min = m % 60;
@@ -310,7 +310,7 @@ export default function AbsencesPage() {
       }
       setMinutesMap(mins);
 
-      // Sum all lesson minutes since school-year start — accounts for Ferien, Feiertage, personal schedule
+      // Sum all lesson minutes since school-year start, accounts for Ferien, Feiertage, personal schedule
       const nowNum = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
       const sepNum = sep.getFullYear() * 10000 + (sep.getMonth() + 1) * 100 + sep.getDate();
       let possibleMins = 0;

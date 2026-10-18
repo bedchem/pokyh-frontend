@@ -11,9 +11,11 @@ export function logActivity(event: ActivityEvent, page?: string, detail?: string
   if (event === 'page_view' && page === _lastPage) return;
   if (event === 'page_view') _lastPage = page ?? '';
 
+  // keepalive: the log of the page being left is sent even while the next one loads.
   apiFetch('/activity-log', {
     method: 'POST',
     body: JSON.stringify({ event, page, detail }),
+    keepalive: true,
   }).catch(() => {});
 }
 

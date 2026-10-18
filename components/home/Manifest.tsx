@@ -7,6 +7,8 @@ import { useSession } from '@/providers/SessionProvider';
 import { frontpageDict } from '@/lib/i18n/dictionaries/frontpage';
 import { siteDict } from '@/lib/i18n/dictionaries/site';
 import { useGsap } from '@/lib/motion';
+import { MANIFEST_PULL_LVH, lvh } from './scenes';
+import { SCROLL } from '@/lib/scroll-pace';
 
 // The night behind the dark screen of the hero: one sentence. It is already
 // on that screen while the camera flies towards it (the hero shows a copy of
@@ -46,7 +48,8 @@ export function ManifestScreen({ copy = false }: { copy?: boolean }) {
       data-manifest-inner={copy ? undefined : ''}
       aria-hidden={copy || undefined}
       inert={copy || undefined}
-      className={`${copy ? 'absolute inset-0' : 'sticky top-0'} flex h-[100svh] flex-col justify-center px-5 text-[#F2F2F4] md:px-10 lg:px-[6.5vw]`}
+      className={`${copy ? 'absolute inset-0' : 'sticky top-0'} flex flex-col justify-center px-5 pb-[var(--toolbar)] text-[#F2F2F4] md:px-10 lg:px-[6.5vw]`}
+      style={{ height: lvh(100) }}
     >
       <Title
         className="max-w-[13em] text-[clamp(40px,7vw,132px)] font-extrabold leading-[0.95] tracking-[-0.06em] [text-wrap:balance]"
@@ -99,10 +102,16 @@ export default function Manifest() {
     );
   }, root);
 
-  // Starts under the end of the hero (see Hero ARRIVE), so the sentence is in
+  // Starts under the end of the hero (see scenes.ts), so the sentence is in
   // place, stuck to the top, at the moment the hero's dark screen fills the view.
   return (
-    <section ref={root} data-tone="dark" className="home-manifest relative z-0 -mt-[108svh] h-[250svh] bg-[var(--night)] text-[#F2F2F4]">
+    <section
+      ref={root}
+      data-tone="dark"
+      data-scroll-pace="manifest"
+      className="home-manifest relative z-0 bg-[var(--night)] text-[#F2F2F4]"
+      style={{ marginTop: `calc(-1 * ${lvh(MANIFEST_PULL_LVH)})`, height: lvh(SCROLL.length.manifest) }}
+    >
       <ManifestScreen />
     </section>
   );

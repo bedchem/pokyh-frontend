@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getServerSession, webUntisHeaders } from '@/lib/server-session';
+import { untisBase } from '@/lib/server/untis';
 
-import { WEBUNTIS_BASE } from '@/lib/untis-permissions';
-const BASE = WEBUNTIS_BASE;
 
 export async function GET(request: Request) {
   const session = await getServerSession();
   if (!session) {
     return NextResponse.json({ error: 'Nicht angemeldet.' }, { status: 401 });
   }
+  const BASE = untisBase(session);
 
   const { searchParams } = new URL(request.url);
   const yearParam = searchParams.get('year');

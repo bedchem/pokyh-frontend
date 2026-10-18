@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession, webUntisHeaders } from '@/lib/server-session';
+import { untisBase } from '@/lib/server/untis';
 
-import { WEBUNTIS_BASE } from '@/lib/untis-permissions';
-const BASE = WEBUNTIS_BASE;
 
 function toIso(date: number, time: number): string {
   const d = date.toString().padStart(8, '0');
@@ -13,6 +12,7 @@ function toIso(date: number, time: number): string {
 export async function GET(req: NextRequest) {
   const session = await getServerSession();
   if (!session) return NextResponse.json({ error: 'Nicht angemeldet.' }, { status: 401 });
+  const BASE = untisBase(session);
 
   const { searchParams } = new URL(req.url);
   const date      = searchParams.get('date');

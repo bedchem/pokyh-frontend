@@ -50,7 +50,7 @@ function parseMessages(json: unknown, t: TFn): MessagePreview[] {
         typeof m.sender === 'object' && m.sender !== null
           ? (m.sender as Record<string, unknown>)
           : null;
-      // For sent/draft messages there's no sender — show the recipients instead.
+      // For sent/draft messages there's no sender, show the recipients instead.
       const recipients = Array.isArray(m.recipients) ? (m.recipients as Record<string, unknown>[]) : [];
       const recipientLabel = recipients
         .map((r) => (r.displayName as string) ?? (r.name as string) ?? '')

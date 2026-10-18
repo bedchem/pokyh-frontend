@@ -16,7 +16,7 @@ export default function PWAInit() {
     registerServiceWorker().then((reg) => {
       if (!reg || !isPWA()) return;
       if (typeof window === 'undefined' || !('Notification' in window)) return;
-      // Already granted — re-register with backend to refresh the WebUntis session tokens
+      // Already granted: re-register with backend to refresh the WebUntis session tokens
       if (Notification.permission === 'granted') {
         requestPermissionAndSubscribe();
       }

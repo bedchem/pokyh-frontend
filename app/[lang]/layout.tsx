@@ -3,8 +3,9 @@ import { Plus_Jakarta_Sans, DM_Mono } from 'next/font/google';
 import '../globals.css';
 import { notFound } from 'next/navigation';
 import { LocaleProvider } from '@/providers/LocaleProvider';
-import { htmlLang, isLocale, type Locale } from '@/lib/i18n/locale';
-import { SITE_KEYWORDS, localeAlternates, ogLocale } from '@/lib/i18n/seo';
+import { ACTIVE_LOCALES, htmlLang, isLocale, type Locale } from '@/lib/i18n/locale';
+import { SOURCE_URL } from '@/lib/site-links';
+import { SITE_KEYWORDS, localeAlternates, ogLocale, ogImage } from '@/lib/i18n/seo';
 import { makeT } from '@/lib/i18n/dictionary';
 import { routeLocale } from '@/lib/i18n/server';
 import { metaDict } from '@/lib/i18n/dictionaries/meta';
@@ -19,6 +20,7 @@ import PWAInit from '@/components/PWAInit';
 import SubjectImagePreloader from '@/components/SubjectImagePreloader';
 import ThemeScript from '@/components/ThemeScript';
 import AppIconApplier from '@/components/AppIconApplier';
+import ConsoleSecret from '@/components/ConsoleSecret';
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 const analyticsEnabled = /^G-[A-Z0-9]+$/i.test(GA_ID ?? '');
@@ -39,125 +41,24 @@ const dmMono = DM_Mono({
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com';
 
+const SOURCE = SOURCE_URL;
+
 const baseMetadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: {
-    default: 'POKYH – Schulapp LBS Brixen',
-    template: '%s | POKYH',
-  },
-  description:
-    'POKYH ist die kostenlose Web-App für LBS Brixen Schüler. Stundenplan, Noten, Mensa, Abwesenheiten und Nachrichten – alles übersichtlich an einem Ort.',
-  keywords: [
-    'POKYH',
-    'POKYH App',
-    'POKYH Schulapp',
-    'POKYH LBS Brixen',
-    'POKYH Südtirol',
-
-    'LBS Brixen',
-    'LBS Brixen App',
-    'LBS Brixen Stundenplan',
-    'LBS Brixen Noten',
-    'LBS Brixen Mensa',
-    'LBS Brixen Fehlstunden',
-    'LBS Brixen Abwesenheiten',
-    'LBS Brixen Nachrichten',
-    'LBS Brixen Klassenbuch',
-
-    'Landesberufsschule Brixen',
-    'Berufsschule Brixen',
-    'BFS Tschuggmall',
-    'Tschuggmall Schule',
-    'Schulportal Brixen',
-    'Schulapp Südtirol',
-    'Schüler App Südtirol',
-    'Berufsschule Südtirol',
-
-
-    'Stundenplan App',
-    'Schulplan App',
-    'digitale Schulapp',
-    'digitale Schüler App',
-    'digitales Klassenbuch',
-    'Noten App Schule',
-    'Schulorganisation App',
-    'Mensa App Schule',
-    'Schulverwaltung Schüler',
-    'Schülerportal',
-    'Schul Dashboard',
-    'Schulplaner App',
-    'Homework App',
-    'School Dashboard',
-    'Education App',
-    'Student Dashboard',
-
-    'Stundenplan Berufsschule Südtirol',
-    'kostenlose Schulapp',
-    'kostenlose Schulapp Südtirol',
-    'Schulapp kostenlos',
-    'gratis Stundenplan App',
-    'Schülerorganisation App',
-
-    'Stundenplan',
-    'Notenübersicht',
-    'Fehlstunden Übersicht',
-    'Mensa Speiseplan',
-    'Prüfungen Schule',
-    'Schul Erinnerungen',
-    'Klassen Erinnerungen',
-    'Schüler Nachrichten',
-    'Schule Nachrichten',
-
-    'Next.js Schulapp',
-    'PWA Schulapp',
-    'moderne Schulapp',
-    'mobile Schulapp',
-    'responsive Schulapp',
-
-    'Tschuggmall',
-    'BFS Tschuggmall',
-    'Tschuggmall Brixen',
-    'Tschuggmall Schule',
-    'Tschuggmall Schüler',
-  ],
-  authors: [{ name: 'Nexor', url: 'https://github.com/plattnericus' }, { name: 'Ryhox', url: 'https://github.com/Ryhox' }, { name: 'bedchem', url: 'https://github.com/bedchem/POKYH' }],
+  authors: [{ name: 'POKYH', url: SITE_URL }],
   creator: 'POKYH',
   publisher: 'POKYH',
   applicationName: 'POKYH',
-  generator: 'Next.js',
-  category: 'Education',
-  alternates: {
-    canonical: SITE_URL,
-    languages: {
-      'de-IT': SITE_URL,
-      'de': SITE_URL,
-      'it': SITE_URL,
-      'x-default': SITE_URL,
-    },
-  },
-  openGraph: {
-    type: 'website',
-    locale: 'de_IT',
-    alternateLocale: ['it_IT', 'de_DE'],
-    url: SITE_URL,
-    siteName: 'POKYH',
-    title: 'POKYH – Schulapp LBS Brixen',
-    description: 'Kostenlose Web-App für LBS Brixen Schüler: Stundenplan, Noten, Mensa, Abwesenheiten und Nachrichten – schnell, modern, gratis.',
-    images: [{ url: '/icon-512.png', width: 512, height: 512, alt: 'POKYH – Schulapp LBS Brixen' }],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'POKYH – Schulapp LBS Brixen',
-    description: 'Kostenlose Web-App für LBS Brixen Schüler: Stundenplan, Noten, Mensa und mehr.',
-    images: ['/icon-512.png'],
-  },
-  manifest: '/manifest.json',
+  category: 'education',
+  formatDetection: { telephone: false, email: false, address: false },
   icons: {
     icon: [
       { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
       { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
     ],
+    apple: [{ url: '/apple-icon.png' }],
   },
+  appleWebApp: { capable: true, title: 'POKYH', statusBarStyle: 'default' },
   robots: {
     index: true,
     follow: true,
@@ -169,6 +70,11 @@ const baseMetadata: Metadata = {
       'max-snippet': -1,
     },
   },
+  verification: {
+    ...(process.env.GOOGLE_SITE_VERIFICATION ? { google: process.env.GOOGLE_SITE_VERIFICATION } : {}),
+    // Bing Webmaster Tools; Bing's index also feeds Copilot, ChatGPT search and DuckDuckGo.
+    ...(process.env.BING_SITE_VERIFICATION ? { other: { 'msvalidate.01': process.env.BING_SITE_VERIFICATION } } : {}),
+  },
 };
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
@@ -178,18 +84,20 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
     ...baseMetadata,
     title: { default: t('siteTitle'), template: '%s | POKYH' },
     description: t('siteDescription'),
-    ...(locale === 'de' ? {} : { keywords: SITE_KEYWORDS[locale] }),
+    keywords: SITE_KEYWORDS[locale],
     alternates: localeAlternates(SITE_URL, locale, '/'),
     openGraph: {
-      ...baseMetadata.openGraph,
+      images: ogImage(locale),
+      type: 'website',
+      siteName: 'POKYH',
       ...ogLocale(locale),
       url: `${SITE_URL}/${locale}/`,
       title: t('siteTitle'),
       description: t('siteOgDescription'),
-      images: [{ url: '/icon-512.png', width: 512, height: 512, alt: t('siteTitle') }],
     },
     twitter: {
-      ...baseMetadata.twitter,
+      card: 'summary_large_image',
+      images: ogImage(locale).map((i) => i.url),
       title: t('siteTitle'),
       description: t('siteOgDescription'),
     },
@@ -207,67 +115,55 @@ export const viewport: Viewport = {
   userScalable: true,
 };
 
+/**
+ * Who POKYH is and what it does, for search engines and AI answers: the
+ * organisation, the website and the app. Only facts that are visible on the
+ * pages; no ratings (there are none to show).
+ */
 function structuredData(locale: Locale) {
   const t = makeT(metaDict, locale);
-  const inLanguage = ['de', 'it', 'en'];
-  return [
-  {
+  const home = `${SITE_URL}/${locale}/`;
+  const org = `${SITE_URL}/#organization`;
+  return {
     '@context': 'https://schema.org',
-    '@type': 'WebApplication',
-    name: 'POKYH',
-    alternateName: ['POKYH Schulapp', 'POKYH LBS Brixen', 'Schulapp LBS Brixen'],
-    url: `${SITE_URL}/${locale}/`,
-    description: t('appDescription'),
-    applicationCategory: 'EducationalApplication',
-    operatingSystem: 'Web',
-    browserRequirements: 'Requires JavaScript. Requires a modern browser.',
-    inLanguage,
-    softwareVersion: '1.0',
-    featureList: t('featureList').split('|'),
-    offers: {
-      '@type': 'Offer',
-      price: '0',
-      priceCurrency: 'EUR',
-      availability: 'https://schema.org/InStock',
-      description: t('offerDescription'),
-    },
-    author: {
-      '@type': 'Organization',
-      name: 'bedchem',
-      url: 'https://github.com/bedchem',
-      member: [
-        { '@type': 'Person', name: 'Nexor', url: 'https://github.com/plattnericus' },
-        { '@type': 'Person', name: 'Ryhox', url: 'https://github.com/ryhox' },
-      ],
-    },
-    maintainer: {
-      '@type': 'Organization',
-      name: 'bedchem',
-      url: 'https://github.com/bedchem',
-    },
-    sameAs: ['https://github.com/bedchem/POKYH', 'https://github.com/bedchem/pokyh-frontend'],
-    educationalUse: 'Student information system',
-    audience: {
-      '@type': 'EducationalAudience',
-      educationalRole: 'student',
-      educationalAlignment: {
-        '@type': 'AlignmentObject',
-        alignmentType: 'educationalSubject',
-        targetName: 'Landesberufsschule Brixen – Berufsbildungszentrum Christian Josef Tschuggmall',
+    '@graph': [
+      {
+        '@type': 'Organization',
+        '@id': org,
+        name: 'POKYH',
+        url: SITE_URL,
+        logo: { '@type': 'ImageObject', url: `${SITE_URL}/icon-512.png`, width: 512, height: 512 },
+        sameAs: [SOURCE],
+        description: t('websiteDescription'),
       },
-    },
-    isAccessibleForFree: true,
-    isFamilyFriendly: true,
-  },
-  {
-    '@context': 'https://schema.org',
-    '@type': 'WebSite',
-    name: 'POKYH',
-    url: `${SITE_URL}/${locale}/`,
-    description: t('websiteDescription'),
-    inLanguage,
-  },
-  ];
+      {
+        '@type': 'WebSite',
+        '@id': `${SITE_URL}/#website`,
+        name: 'POKYH',
+        url: home,
+        description: t('websiteDescription'),
+        inLanguage: ACTIVE_LOCALES.map(htmlLang),
+        publisher: { '@id': org },
+      },
+      {
+        '@type': 'WebApplication',
+        '@id': `${SITE_URL}/#app`,
+        name: 'POKYH',
+        url: home,
+        description: t('appDescription'),
+        applicationCategory: 'EducationalApplication',
+        operatingSystem: 'Web, iOS, Android',
+        browserRequirements: 'Requires JavaScript and a current browser.',
+        inLanguage: ACTIVE_LOCALES.map(htmlLang),
+        featureList: t('featureList').split('|'),
+        isAccessibleForFree: true,
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR', description: t('offerDescription') },
+        audience: { '@type': 'EducationalAudience', educationalRole: ['student', 'parent'], audienceType: t('audience') },
+        publisher: { '@id': org },
+        disambiguatingDescription: t('independence'),
+      },
+    ],
+  };
 }
 
 export default async function RootLayout({
@@ -286,14 +182,8 @@ export default async function RootLayout({
         <ThemeScript />
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData(lang)[0]) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData(lang)).replace(/</g, '\\u003c') }}
         />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData(lang)[1]) }}
-        />
-        {/* Dish photos are served from the Mensa image host */}
-        <link rel="preconnect" href="https://mensa.plattnericus.dev" />
         {GA_ID && <link rel="preconnect" href="https://www.googletagmanager.com" />}
       </head>
       <body suppressHydrationWarning={true}>
@@ -308,6 +198,7 @@ export default async function RootLayout({
                 </ActivityLoggerProvider>
               </AppProvider>
             </SessionProvider>
+            <ConsoleSecret />
           </ThemeProvider>
           <CookieBanner analyticsEnabled={analyticsEnabled} />
           <AnalyticsLoader gaId={GA_ID} />

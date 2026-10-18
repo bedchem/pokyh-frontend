@@ -145,7 +145,7 @@ export default function ComposeMessageSheet({ onClose, onSent, initial, reply }:
           files,
         });
       }
-      // The message is sent — remove the source draft if we were editing one.
+      // The message is sent: remove the source draft if we were editing one.
       if (draftId != null) { try { await deleteDraft(draftId); } catch { /* best-effort */ } }
       setSuccess(true);
       setTimeout(() => { onSent?.(); onClose(); }, 950);

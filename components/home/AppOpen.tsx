@@ -3,6 +3,7 @@
 import { useRef } from 'react';
 import PokyhMark from '@/components/brand/PokyhMark';
 import { useGsap } from '@/lib/motion';
+import { SCROLL } from '@/lib/scroll-pace';
 
 // The hand-over to "Hol dir POKYH": the app icon turns up in the middle of
 // the paper and, as you keep scrolling, is pressed and opens like an app on
@@ -71,8 +72,15 @@ export default function AppOpen() {
   }, root);
 
   return (
-    <section ref={root} data-tone="light" aria-hidden="true" className="relative h-[200svh] bg-[var(--paper)] motion-reduce:h-[100svh]">
-      <div data-stage className="sticky top-0 h-[100svh] overflow-hidden">
+    <section
+      ref={root}
+      data-tone="light"
+      data-scroll-pace="appOpen"
+      aria-hidden="true"
+      className="relative bg-[var(--paper)] motion-reduce:!h-[calc(100*var(--lvh))]"
+      style={{ height: `calc(${SCROLL.length.appOpen} * var(--lvh))` }}
+    >
+      <div data-stage className="sticky top-0 h-[calc(100*var(--lvh))] overflow-hidden">
         <div data-layer className="absolute inset-0 bg-[var(--indigo)]" style={{ clipPath: 'inset(50%)' }} />
         <div
           data-mark

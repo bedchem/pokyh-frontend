@@ -18,6 +18,8 @@ import { daysFromToday, dishesFrom, localized, upcomingDays, type MenuDay } from
 import { formatDate } from '@/lib/i18n/dateLocale';
 import { onSiteThemeChange } from '@/lib/site-theme';
 import type { PlateScene } from './plateScene';
+import ExternalMediaNotice from '@/components/ExternalMediaNotice';
+import { useExternalMedia } from '@/lib/external-media';
 
 // The Mensa plan on the public site, told with the plate of the logo: the
 // next dish is served large on a plate between fork and knife, the whole plan
@@ -75,7 +77,9 @@ const leadDish = (day: MenuDay) => day.dishes.find((d) => d.imageUrl) ?? day.dis
 // the dark theme; colours in globals.css, .plate) and polished steel.
 
 function Food({ dish, alt }: { dish: Dish; alt: string }) {
-  return dish.imageUrl ? (
+  // Photos from recipe sites unless the visitor hid them (lib/external-media.ts).
+  const external = useExternalMedia();
+  return dish.imageUrl && external ? (
     // eslint-disable-next-line @next/next/no-img-element
     <img src={dish.imageUrl} alt={alt} loading="lazy" decoding="async" referrerPolicy="no-referrer" className="absolute inset-0 h-full w-full object-cover" />
   ) : (
@@ -204,12 +208,29 @@ function ServedPlate({ dish, alt }: { dish: Dish; alt: string }) {
   return (
     <span className="relative block w-full" style={{ aspectRatio: `${VIEW.w} / ${VIEW.h}` }}>
       <canvas ref={canvasRef} aria-hidden="true" className="absolute inset-0 block h-full w-full" />
+      {/* The food lies in the well: a soft shadow where it rests, its edge
+          fading into the glaze instead of a cut-out circle. */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute left-1/2 top-1/2 rounded-full"
+        style={{
+          width: `${FOOD_SHARE * 88}%`,
+          aspectRatio: '1',
+          transform: 'translate(-48%, -47%)',
+          background: 'radial-gradient(circle closest-side, rgb(0 0 0 / 0.22), rgb(0 0 0 / 0.1) 70%, transparent)',
+        }}
+      />
       <span
         className="absolute left-1/2 top-1/2 overflow-hidden rounded-full"
-        style={{ width: `${FOOD_SHARE * 100}%`, aspectRatio: '1', transform: 'translate(-50%, -50%)' }}
+        style={{
+          width: `${FOOD_SHARE * 100}%`,
+          aspectRatio: '1',
+          transform: 'translate(-50%, -50%)',
+          WebkitMaskImage: 'radial-gradient(circle closest-side, #000 78%, rgb(0 0 0 / 0.75) 88%, transparent 99%)',
+          maskImage: 'radial-gradient(circle closest-side, #000 78%, rgb(0 0 0 / 0.75) 88%, transparent 99%)',
+        }}
       >
         <Food dish={dish} alt={alt} />
-        <span aria-hidden="true" className="absolute inset-0 rounded-full" style={{ boxShadow: 'inset 0 5px 16px rgb(0 0 0 / 0.32), inset 0 0 0 1px rgb(0 0 0 / 0.08)' }} />
       </span>
     </span>
   );
@@ -431,7 +452,7 @@ function DishSheet({
               <span aria-hidden="true">·</span>
               <span className="flex items-center gap-1">
                 <Star size={14} weight="fill" color={STAR} aria-hidden="true" />
-                <span className="font-semibold tabular-nums text-ink">{count ? comma(avg) : '–'}</span>
+                <span className="font-semibold tabular-nums text-ink">{count ? comma(avg) : '-'}</span>
                 <span className="tabular-nums">({count})</span>
               </span>
             </p>
@@ -446,7 +467,7 @@ function DishSheet({
           <Section title={t('rating')}>
             <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-6">
               <div className="min-w-[88px] text-center">
-                <p className="text-[44px] font-extrabold leading-none tracking-[-0.05em] tabular-nums text-ink">{count ? comma(avg) : '–'}</p>
+                <p className="text-[44px] font-extrabold leading-none tracking-[-0.05em] tabular-nums text-ink">{count ? comma(avg) : '-'}</p>
                 <div className="mt-2 flex justify-center"><Stars value={avg} size={13} /></div>
                 <p className="mt-1.5 text-[12px] text-ink-3">{count ? (count === 1 ? t('ratingOne') : t('ratingMany', { n: count })) : t('noRatingYet')}</p>
               </div>
@@ -585,13 +606,16 @@ export default function MensaClient() {
     api.auth.me().then((u) => setIsAdmin(u.isAdmin)).catch(() => {});
   }, [stableUid]);
 
+  // Guests see the public menu; a signed-in account (the app's /canteen) its own school's.
+  const scope = user ? 'account' : 'public';
   useEffect(() => {
+    if (sessionLoading) return;
     let cancelled = false;
-    fetchMensa()
+    fetchMensa(scope)
       .then((raw) => { if (!cancelled) setDays(upcomingDays(dishesFrom(raw))); })
       .catch((e: unknown) => { if (!cancelled) setError(e instanceof Error ? e.message : t('loadError')); });
     return () => { cancelled = true; };
-  }, [request, t]);
+  }, [request, t, scope, sessionLoading]);
 
   const retry = () => {
     setDays(null);
@@ -719,6 +743,10 @@ export default function MensaClient() {
                 )}
               </div>
             </div>
+
+            {days.some((d) => d.dishes.some((dish) => dish.imageUrl)) && (
+              <ExternalMediaNotice className="mt-12 max-w-[640px]" />
+            )}
 
             {/* The whole plan, by week */}
             <h2 className="mt-24 text-[clamp(30px,3.6vw,48px)] font-extrabold leading-[1.04] tracking-[-0.045em] text-ink md:mt-32">{t('allDays')}</h2>

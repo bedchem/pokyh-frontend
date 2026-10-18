@@ -11,7 +11,7 @@ const REFRESH_MS = 6 * 60 * 60 * 1000;
 /**
  * Mounted once for the whole app. As soon as a WebUntis user is signed in it loads this and next
  * week's timetable in the background (the same cached request the timetable page uses), tells the
- * backend which subjects exist, and downloads their header images — so the lesson sheet opens
+ * backend which subjects exist, and downloads their header images, so the lesson sheet opens
  * with its photo no matter which screen the app was started on.
  */
 export default function SubjectImagePreloader() {
@@ -28,7 +28,7 @@ export default function SubjectImagePreloader() {
         try {
           subjects.push(...parseTimetable(await fetchTimetable(isoDate(mondayOf(offset)))));
         } catch {
-          // Offline or session trouble — the timetable page handles that itself.
+          // Offline or session trouble: the timetable page handles that itself.
         }
         if (cancelled) return;
       }

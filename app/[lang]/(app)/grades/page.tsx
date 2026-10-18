@@ -385,7 +385,7 @@ export default function GradesPage() {
                 <h1 className="page-title">{ts('grades')}</h1>
                 <div className="page-sub">
                   {t('schoolYear', { year: dashboard.schoolYearLabel })} · {subjects.length > 0
-                    ? t('summary', { date: dashboard.latestGradeDate ? fmtUntisDateLong(dashboard.latestGradeDate, tag) : '—', subjects: dashboard.subjectCount, grades: dashboard.allCount })
+                    ? t('summary', { date: dashboard.latestGradeDate ? fmtUntisDateLong(dashboard.latestGradeDate, tag) : '-', subjects: dashboard.subjectCount, grades: dashboard.allCount })
                     : t('noGradesYear')}
                 </div>
               </div>
@@ -444,7 +444,7 @@ export default function GradesPage() {
                     {t('prevMonth')} <span className="mono">{fmtNum(dashboard.overallAvg - dashboard.delta, 2)}</span>
                   </span>
                   <span>
-                    {t('bestGrade')} <span className="mono">{dashboard.bestGrade ? formatMark(dashboard.bestGrade) : '—'}</span>
+                    {t('bestGrade')} <span className="mono">{dashboard.bestGrade ? formatMark(dashboard.bestGrade) : '-'}</span>
                   </span>
                 </div>
                 <div className="spark-wrap">
@@ -684,7 +684,7 @@ export default function GradesPage() {
                             <span className="timeline-meta">{subject.grades.length === 1 ? t('gradeOne', { n: 1 }) : t('gradeMany', { n: subject.grades.length })}</span>
                           </div>
                           <span className="timeline-right">
-                            <span className={`timeline-avg ${avgClass}`}>{subjectAvg > 0 ? fmtNum(subjectAvg, 2) : '–'}</span>
+                            <span className={`timeline-avg ${avgClass}`}>{subjectAvg > 0 ? fmtNum(subjectAvg, 2) : '-'}</span>
                             <CaretDown className="timeline-chevron" size={18} weight="bold" style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
                           </span>
                         </button>

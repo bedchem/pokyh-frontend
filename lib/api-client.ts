@@ -130,6 +130,17 @@ function notifySessionExpired() {
   setTimeout(() => { _sessionExpiredPending = false; }, 10_000);
 }
 
+/** JSON from one of the app's own routes (same origin, cookies included). */
+async function localJson<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const res = await fetch(path, {
+    ...init,
+    credentials: 'same-origin',
+    headers: { Accept: 'application/json', ...(init.body ? { 'Content-Type': 'application/json' } : {}), ...(init.headers as Record<string, string> ?? {}) },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json() as Promise<T>;
+}
+
 export async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
   const token = getToken();
   const headers: Record<string, string> = {
@@ -150,7 +161,7 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
   if (res.status === 401) {
     // Capture before the refresh attempt (which calls clearTokens on failure).
     // "Had a session" also covers the case where the access token is missing but
-    // the user cookie still exists (e.g. the backend login-sync failed) — without
+    // the user cookie still exists (e.g. the backend login-sync failed), without
     // this, a missing token would skip the redirect and loop forever.
     const hadSession =
       !!token ||
@@ -285,7 +296,7 @@ export const api = {
       klasseName: string
     ): Promise<{ stableUid: string; classId: string | null; isAdmin: boolean }> {
       // This is called by FirebaseProvider replacement after Next.js sets cookies.
-      // The tokens should already be in cookies — sync them to localStorage.
+      // The tokens should already be in cookies, sync them to localStorage.
       const cookieToken = typeof document !== 'undefined'
         ? (() => {
             const m = document.cookie.match(/(?:^|;\s*)pokyh_api_token=([^;]*)/);
@@ -312,7 +323,7 @@ export const api = {
           isAdmin: user.isAdmin,
         };
       } catch {
-        // Token not valid yet or not set — this can happen on first load
+        // Token not valid yet or not set, this can happen on first load
         return { stableUid: '', classId: null, isAdmin: false };
       }
     },
@@ -376,7 +387,7 @@ export const api = {
       const token = getToken();
       if (!token) return () => {};
 
-      // Use SSE — pass token as query param (EventSource can't set headers).
+      // Use SSE: pass token as query param (EventSource can't set headers).
       // The proxy route injects the API key server-side.
       const url = `${API_BASE}/sse/todos?token=${encodeURIComponent(token)}&apiKey=${encodeURIComponent(API_KEY)}`;
       const es = new EventSource(url);
@@ -500,8 +511,9 @@ export const api = {
   },
 
   dishComments: {
+    // Read through the app's own route, so the Mensa backend (MENSA_API_URL) answers.
     async list(dishId: string): Promise<ApiComment[]> {
-      return apiJson<ApiComment[]>(`/dish-comments/${encodeURIComponent(dishId)}`);
+      return localJson<ApiComment[]>(`/api/mensa/comments?id=${encodeURIComponent(dishId)}`);
     },
 
     async create(dishId: string, body: string): Promise<ApiComment> {
@@ -564,7 +576,7 @@ export const api = {
     },
 
     // The backend only accepts the API key as a header here, so this URL can't be used as
-    // an <img src> directly — fetch it via fetchImage() and display a blob URL instead.
+    // an <img src> directly: fetch it via fetchImage() and display a blob URL instead.
     imageUrl(subject: string): string {
       const key = subject.toLowerCase().trim();
       return `${API_BASE}/subject-images/${encodeURIComponent(key)}`;
@@ -596,11 +608,11 @@ export const api = {
 
   dishRatings: {
     async get(dishId: string): Promise<DishRatingsData> {
-      return apiJson<DishRatingsData>(`/dish-ratings/${encodeURIComponent(dishId)}`);
+      return localJson<DishRatingsData>(`/api/mensa/ratings?id=${encodeURIComponent(dishId)}`);
     },
 
     async getBatch(dishIds: string[]): Promise<Record<string, DishRatingsData>> {
-      return apiJson<Record<string, DishRatingsData>>('/dish-ratings/batch', {
+      return localJson<Record<string, DishRatingsData>>('/api/mensa/ratings', {
         method: 'POST',
         body: JSON.stringify({ dishIds }),
       });
@@ -614,7 +626,7 @@ export const api = {
       });
     },
 
-    // Live ratings of every dish — fires whenever anyone rates anywhere (web or app).
+    // Live ratings of every dish, fires whenever anyone rates anywhere (web or app).
     subscribeAll(callback: (dishId: string, data: DishRatingsData) => void): () => void {
       const token = getToken();
       if (!token) return () => {};

@@ -64,7 +64,7 @@ export default function ReportAbsenceSheet({ personName, onClose, onCreated }: P
   }, []);
 
   // Changing the start keeps the end on the SAME day (absences default to one
-  // day) and never before the start — you can only extend the end later.
+  // day) and never before the start, you can only extend the end later.
   function changeStart(newStart: string) {
     setStart(newStart);
     const sp = dtToParts(newStart);

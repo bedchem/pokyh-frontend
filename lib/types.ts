@@ -1,5 +1,14 @@
+/** The WebUntis school of a session (see lib/server/schools.ts). */
+export interface SessionSchool {
+  loginName: string;
+  server: string;
+  name?: string;
+}
+
 export interface Session {
   sessionId: string;
+  /** Missing in sessions from before schools: the installation's default school. */
+  school?: SessionSchool;
   bearerToken: string;
   studentId: number;
   klasseId: number;

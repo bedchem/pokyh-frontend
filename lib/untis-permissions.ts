@@ -6,11 +6,10 @@
 // differ per instance. All paths are overridable via env (see .env.example).
 
 import { webUntisHeaders } from './server-session';
+import { untisBase } from './server/untis';
 import type { Session } from './types';
 import { containsParentRoleTag } from './account-classification';
 
-export const WEBUNTIS_BASE =
-  process.env.WEBUNTIS_BASE_URL || 'https://lbs-brixen.webuntis.com/WebUntis';
 
 const APPDATA_CANDIDATES = [
   process.env.WEBUNTIS_API_PATH_APPDATA,
@@ -86,7 +85,7 @@ export function detectParent(json: unknown): boolean {
 }
 
 // Best-effort parent/guardian check from a session (used at login to hide the
-// reminders tab for parents). Never throws — returns false on any error.
+// reminders tab for parents). Never throws, returns false on any error.
 export async function isParentAccount(session: Session): Promise<boolean> {
   try {
     const data = await fetchAppData(session);
@@ -143,7 +142,7 @@ function isObject(json: unknown): boolean {
 
 // Finds a child's student id from the app-data of a guardian/parent account.
 // WebUntis exposes a guardian's children at `user.students` (objects shaped
-// `{ id, displayName, imageUrl }` — note: no class/type field). We therefore look
+// `{ id, displayName, imageUrl }`, note: no class/type field). We therefore look
 // for any array keyed `students`/`children` first (the canonical location), then
 // fall back to a heuristic for instances that nest it differently.
 export function extractChildStudentId(json: unknown, excludeId: number): number | null {
@@ -197,7 +196,7 @@ export async function fetchAppData(session: Session): Promise<AppDataResult> {
 
 // WebUntis' own age-aware flag for "may create an absence". It lives in the
 // absences envelope (`data.showCreateAbsence`) and is the SAME flag the WebUntis
-// UI uses: true for guardians and students of legal age, false for minors —
+// UI uses: true for guardians and students of legal age, false for minors -
 // unlike the raw permission tokens, which students hold regardless of age.
 // Returns null when the flag can't be read (caller falls back).
 export async function fetchAbsenceCreateFlag(session: Session): Promise<boolean | null> {
@@ -205,7 +204,7 @@ export async function fetchAbsenceCreateFlag(session: Session): Promise<boolean 
   const d = `${n.getFullYear()}${String(n.getMonth() + 1).padStart(2, '0')}${String(n.getDate()).padStart(2, '0')}`;
   const path = `/api/classreg/absences/students?studentId=${session.studentId}&startDate=${d}&endDate=${d}&excuseStatusId=-1`;
   try {
-    const r = await fetch(`${WEBUNTIS_BASE}${path}`, {
+    const r = await fetch(`${untisBase(session)}${path}`, {
       headers: webUntisHeaders(session),
       signal: AbortSignal.timeout(12000),
     });
@@ -258,7 +257,7 @@ export async function firstWorkingGet(
     if (!p || seen.has(p)) continue;
     seen.add(p);
     try {
-      const res = await fetch(`${WEBUNTIS_BASE}${p}`, {
+      const res = await fetch(`${untisBase(session)}${p}`, {
         headers: webUntisHeaders(session),
         signal: AbortSignal.timeout(12000),
       });
@@ -278,7 +277,7 @@ export type PostResult =
   | { ok: false; reason: 'expired' | 'notfound' }
   | { ok: false; reason: 'error'; status: number; body: string };
 
-// POST that walks candidate paths but ONLY advances on a 404 — a 404 means the
+// POST that walks candidate paths but ONLY advances on a 404, a 404 means the
 // path doesn't exist so nothing was written, making the retry safe. Any other
 // response (success or real error) is returned immediately, so a write is never
 // attempted twice. Network errors also stop immediately (outcome unknown).
@@ -293,7 +292,7 @@ export async function firstWorkingPost(
     seen.add(p);
     let res: Response;
     try {
-      res = await fetch(`${WEBUNTIS_BASE}${p}`, {
+      res = await fetch(`${untisBase(session)}${p}`, {
         method: 'POST',
         headers: init.headers,
         body: init.body,

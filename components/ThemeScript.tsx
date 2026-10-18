@@ -16,7 +16,7 @@ const noopSubscribe = () => () => {};
  * The script is rendered on the server and while hydrating (so the markup
  * matches), but never when the root layout mounts fresh in the browser (e.g.
  * dev hot reload): React can't run a <script> it creates itself and warns about
- * it. `useSyncExternalStore` tells the two apart — the server snapshot (`true`)
+ * it. `useSyncExternalStore` tells the two apart, the server snapshot (`true`)
  * is used for SSR and hydration, the client snapshot (`false`) otherwise.
  */
 export default function ThemeScript() {

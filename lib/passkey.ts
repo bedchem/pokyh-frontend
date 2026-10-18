@@ -18,20 +18,31 @@ export function isPasswordCredentialSupported(): boolean {
   return typeof window !== 'undefined' && 'PasswordCredential' in window;
 }
 
-export function saveSessionCredentials(username: string, password: string): void {
+export type CredentialSchool = { loginName: string; server: string; name?: string };
+
+/**
+ * Keeps the sign-in for this tab only (sessionStorage, gone when the tab
+ * closes), so an expired WebUntis session can be renewed at the same school.
+ * Without `school`, the school stored before is kept (password change).
+ */
+export function saveSessionCredentials(username: string, password: string, school?: CredentialSchool): void {
   if (typeof sessionStorage === 'undefined') return;
   try {
-    sessionStorage.setItem(SESSION_KEY, btoa(JSON.stringify({ u: username, p: password })));
+    const s = school ?? getSessionCredentials()?.school;
+    sessionStorage.setItem(SESSION_KEY, btoa(unescape(encodeURIComponent(JSON.stringify({ u: username, p: password, ...(s ? { s } : {}) })))));
   } catch { /* ignore */ }
 }
 
-export function getSessionCredentials(): { username: string; password: string } | null {
+export function getSessionCredentials(): { username: string; password: string; school?: CredentialSchool } | null {
   if (typeof sessionStorage === 'undefined') return null;
   try {
     const raw = sessionStorage.getItem(SESSION_KEY);
     if (!raw) return null;
-    const { u, p } = JSON.parse(atob(raw));
-    return { username: String(u), password: String(p) };
+    const { u, p, s } = JSON.parse(decodeURIComponent(escape(atob(raw))));
+    const school = s && typeof s.loginName === 'string' && typeof s.server === 'string'
+      ? { loginName: s.loginName, server: s.server, ...(typeof s.name === 'string' ? { name: s.name } : {}) }
+      : undefined;
+    return { username: String(u), password: String(p), ...(school ? { school } : {}) };
   } catch {
     return null;
   }

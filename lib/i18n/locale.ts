@@ -10,6 +10,16 @@ export const DEFAULT_LOCALE: Locale = 'de';
 
 export const ACTIVE_LOCALES: readonly Locale[] = ['de', 'it', 'en'];
 
+/**
+ * The language for everyone whose browser asks for none of ours, and the
+ * `x-default` of the hreflang links: English unless
+ * NEXT_PUBLIC_FALLBACK_LOCALE names another active locale.
+ */
+export const FALLBACK_LOCALE: Locale = (() => {
+  const wanted = process.env.NEXT_PUBLIC_FALLBACK_LOCALE;
+  return wanted && (ACTIVE_LOCALES as readonly string[]).includes(wanted) ? (wanted as Locale) : 'en';
+})();
+
 /** Locales that exist in the type but are retired from the UI and URLs. */
 export const RETIRED_LOCALES: readonly Locale[] = ['lld'];
 
@@ -34,8 +44,9 @@ export function isLocale(value: string | undefined | null): value is Locale {
 /** Cookie the proxy reads to pick the locale for unprefixed URLs. */
 export const LOCALE_COOKIE = 'pokyh_locale';
 
+/** Language of the pages, without a region: they are written for every country. */
 export function htmlLang(locale: Locale): string {
-  return locale === 'en' ? 'en' : locale === 'it' ? 'it-IT' : locale === 'lld' ? 'lld' : 'de-IT';
+  return locale;
 }
 
 /** Route path without locale prefix and trailing slash: /de/home/ → /home, /de/ → / */

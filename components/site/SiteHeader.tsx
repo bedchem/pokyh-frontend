@@ -97,7 +97,7 @@ export default function SiteHeader() {
       >
         <div className="mx-auto grid h-[72px] max-w-[1600px] grid-cols-[1fr_auto] items-center px-5 md:h-[84px] md:px-10 lg:grid-cols-[1fr_auto_1fr] lg:px-[6.5vw]">
           <Link href={localize('/')} data-bar-item className="justify-self-start rounded-lg" aria-label={`POKYH, ${t('home')}`}>
-            <Image src="/POKYH_Logo.png" alt="" width={44} height={44} priority className="size-10 md:size-11" />
+            <Image src="/POKYH_Logo.png" alt="" width={44} height={44} loading="eager" fetchPriority="high" className="size-10 md:size-11" />
           </Link>
 
           <nav aria-label="POKYH" className="hidden lg:flex items-center gap-11">

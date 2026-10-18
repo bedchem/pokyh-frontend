@@ -6,8 +6,8 @@ import { isPWA } from './pwa';
 // Usage statistics for the admin panel ("how long is Pokyh open, on which
 // kind of device"). Described in the privacy notice under "Nutzungsstatistik".
 //
-// - For every signed-in visit. The server stores it anonymously — a day-scoped
-//   key instead of the account — unless the account consented to the personal
+// - For every signed-in visit. The server stores it anonymously, a day-scoped
+//   key instead of the account, unless the account consented to the personal
 //   usage statistics (cookie banner or profile); only then is it named.
 // - Guests and the public pages send nothing.
 // - One random id per visit, held in memory only: nothing is written to
@@ -68,8 +68,8 @@ function measuringAllowed(): boolean {
   return (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl !== true;
 }
 
-// Moves the foreground time up to `now` into pendingMs — but never past
-// IDLE_AFTER_MS after the last input — and starts the next stretch.
+// Moves the foreground time up to `now` into pendingMs, but never past
+// IDLE_AFTER_MS after the last input, and starts the next stretch.
 function settle(now: number): void {
   if (visibleSince !== null) {
     const end = Math.min(now, lastInput + IDLE_AFTER_MS);
@@ -150,8 +150,8 @@ export function startUsageTracking(): void {
   window.setInterval(() => {
     if (document.visibilityState === 'visible') send(false);
   }, PING_INTERVAL_MS);
-  // A visit begins the moment someone is signed in — on load with a restored
-  // session, or right after signing in — so it shows up at once.
+  // A visit begins the moment someone is signed in, on load with a restored
+  // session, or right after signing in, so it shows up at once.
   window.setInterval(() => {
     if (document.visibilityState !== 'visible' || !measuringAllowed()) return;
     const uid = getSignedInUid();

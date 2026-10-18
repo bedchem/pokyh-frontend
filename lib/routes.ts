@@ -27,6 +27,8 @@ export const PUBLIC_PAGE_ROUTES = [
   '/howto',
   '/get',
   '/mensa',
+  '/webuntis',
+  '/tools',
 ];
 
 function matchesRoute(pathname: string, route: string): boolean {

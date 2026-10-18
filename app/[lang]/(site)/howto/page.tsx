@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
 import { makeT } from '@/lib/i18n/dictionary';
 import { routeLocale } from '@/lib/i18n/server';
-import { localeAlternates, localizedUrl, ogLocale, pageKeywords } from '@/lib/i18n/seo';
+import { localeAlternates, localizedUrl, ogLocale, pageKeywords, ogImage } from '@/lib/i18n/seo';
 import { howtoDict } from '@/lib/i18n/dictionaries/howto';
+import { siteDict } from '@/lib/i18n/dictionaries/site';
+import PageJsonLd from '@/components/site/PageJsonLd';
 import PageIntro, { TONE } from '@/components/site/PageIntro';
 import RevealScope from '@/components/site/RevealScope';
 import CtaBand from '@/components/site/CtaBand';
@@ -23,6 +25,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     keywords: pageKeywords(locale, ['POKYH selbst hosten', 'POKYH Open Source', 'POKYH GitHub', 'Schulapp Open Source', 'Next.js Schulapp']),
     alternates: localeAlternates(SITE_URL, locale, '/howto'),
     openGraph: {
+      images: ogImage(locale),
       title: t('ogTitle'),
       description: t('ogDescription'),
       url: localizedUrl(SITE_URL, locale, '/howto'),
@@ -46,6 +49,7 @@ export default async function HowtoPage({ params }: PageProps) {
 
   return (
     <>
+      <PageJsonLd locale={locale} path="/howto" type="WebPage" name={t('metaTitle')} description={t('metaDescription')} trail={[{ name: makeT(siteDict, locale)('navSelfHost'), path: '/howto' }]} />
       <PageIntro title={t('title')} lead={t('lead')}>
         <div className="flex flex-wrap gap-3">
           {[

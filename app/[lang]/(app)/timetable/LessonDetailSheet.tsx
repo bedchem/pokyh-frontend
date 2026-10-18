@@ -25,7 +25,7 @@ function tagsFor(slot: MergedSlot): Array<[TimetableKey, string]> {
   return tags;
 }
 
-/** `display` is always the lesson that was tapped — the grid gives each half of a substitution its own slot. */
+/** `display` is always the lesson that was tapped, the grid gives each half of a substitution its own slot. */
 function detailTone(slot: MergedSlot): Tone {
   const d = slot.display;
   if (d.isCancelled) return statusTone(BRAND.danger);
@@ -37,7 +37,7 @@ function detailTone(slot: MergedSlot): Tone {
 
 /**
  * The lesson detail, built like the Android app's bottom sheet: the sheet is the page canvas and
- * everything on it is a card — a hero card (subject photo or monogram, title, time pill), the
+ * everything on it is a card, a hero card (subject photo or monogram, title, time pill), the
  * Lehrer/Raum list with pastel icon tiles, then one card per note.
  */
 export default function LessonDetailSheet({
@@ -131,7 +131,7 @@ export default function LessonDetailSheet({
           {/* Hero card: header image (or monogram), then title and time on the card itself. */}
           <div className={s.heroCard}>
             <div className={s.sheetHeader}>
-              {/* Monogram is what shows while a photo is still on its way — the header is never blank. */}
+              {/* Monogram is what shows while a photo is still on its way, the header is never blank. */}
               <div className={s.monogram} aria-hidden="true">{(headerName.trim().slice(0, 2) || '?').toUpperCase()}</div>
               {showPhoto && (
                 <>
@@ -158,7 +158,7 @@ export default function LessonDetailSheet({
               {short && short.toLowerCase() !== headerName.toLowerCase() && <p className={s.sheetShort}>{short}</p>}
               <span className={s.timePill}>
                 <Clock size={14} />
-                {fmtTime(d.startTime)} – {fmtTime(d.endTime)}
+                {fmtTime(d.startTime)} - {fmtTime(d.endTime)}
               </span>
             </div>
           </div>
@@ -184,7 +184,7 @@ export default function LessonDetailSheet({
   );
 }
 
-/** "Abwesend" — the status (Vorentschuldigung / Entschuldigt / Unentschuldigt) and from when to when. */
+/** "Abwesend": the status (Vorentschuldigung / Entschuldigt / Unentschuldigt) and from when to when. */
 function AbsenceCard({ mark, covering }: { mark: AbsenceMark; covering: AbsenceEntry[] }) {
   const t = useT(timetableDict);
   const markLabel = { preExcused: t('markPreExcused'), excused: t('markExcused'), absent: t('markAbsent') } as const;
@@ -270,7 +270,7 @@ function ChangeRow({ label, from, to, icon }: { label: string; from: string; to:
         <p className={`${s.body} ${s.changeFrom}`}>{from}</p>
         <div className={s.changeLine}>
           <CornerDownRight size={13} style={{ color: 'var(--app-text-tertiary)' }} />
-          <span className={s.changeTo}>{to || '—'}</span>
+          <span className={s.changeTo}>{to || '-'}</span>
         </div>
       </div>
     </div>
@@ -292,7 +292,7 @@ function InsteadCard({ other }: { other: TimetableEntry }) {
         className={s.insteadTitle}
         style={cancelled ? { color: 'var(--app-text-tertiary)', textDecoration: 'line-through' } : undefined}
       >
-        {other.subjectLong || other.subjectName || other.note || '—'}
+        {other.subjectLong || other.subjectName || other.note || '-'}
       </p>
       {meta && <p className={s.insteadMeta}>{meta}</p>}
     </div>

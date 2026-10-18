@@ -23,14 +23,14 @@ function readSeen(): SeenMap {
 function writeSeen(map: SeenMap): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
-  } catch { /* storage unavailable — worst case the popup shows again */ }
+  } catch { /* storage unavailable - worst case the popup shows again */ }
 }
 
 export function isDue(p: ActivePopup, now = Date.now()): boolean {
   return isDueIn(readSeen(), p, now);
 }
 
-// Spends the current slot of every given popup that is still due — used when
+// Spends the current slot of every given popup that is still due, used when
 // one is put on screen and when the whole stack is closed, so popups the user
 // skipped by closing don't come back on the next page load or sign-in.
 export function markSeen(popups: ActivePopup[], now = Date.now()): void {

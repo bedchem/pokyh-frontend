@@ -2,8 +2,10 @@ import type { Metadata } from 'next';
 import AppInstallGuide from '../AppInstallGuide';
 import { makeT } from '@/lib/i18n/dictionary';
 import { routeLocale } from '@/lib/i18n/server';
-import { localeAlternates, localizedUrl, ogLocale, pageKeywords } from '@/lib/i18n/seo';
+import { localeAlternates, localizedUrl, ogLocale, pageKeywords, ogImage } from '@/lib/i18n/seo';
 import { getDict } from '@/lib/i18n/dictionaries/get';
+import { siteDict } from '@/lib/i18n/dictionaries/site';
+import PageJsonLd from '@/components/site/PageJsonLd';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com';
 
@@ -15,12 +17,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: t('androidMetaTitle'),
     description: t('androidMetaDescription'),
-    keywords: pageKeywords(locale, [
-      'POKYH Android', 'POKYH installieren Android', 'POKYH App Android',
-      'Schulapp Android LBS Brixen', 'POKYH APK',
-    ]),
+    keywords: pageKeywords(locale),
     alternates: localeAlternates(SITE_URL, locale, '/get/android'),
     openGraph: {
+      images: ogImage(locale),
       title: t('androidOgTitle'),
       description: t('androidOgDescription'),
       url: localizedUrl(SITE_URL, locale, '/get/android'),
@@ -33,5 +33,18 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function AndroidInstallPage({ params }: PageProps) {
-  return <AppInstallGuide platform="android" locale={await routeLocale(params)} />;
+  const locale = await routeLocale(params);
+  const t = makeT(getDict, locale);
+  return (
+    <>
+      <PageJsonLd
+        locale={locale}
+        path="/get/android"
+        name={t('androidMetaTitle')}
+        description={t('androidMetaDescription')}
+        trail={[{ name: makeT(siteDict, locale)('navGet'), path: '/get' }, { name: t('androidTitle'), path: '/get/android' }]}
+      />
+      <AppInstallGuide platform="android" locale={locale} />
+    </>
+  );
 }

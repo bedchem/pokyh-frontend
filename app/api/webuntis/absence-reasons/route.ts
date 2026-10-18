@@ -3,7 +3,7 @@ import { getServerSession } from '@/lib/server-session';
 import { firstWorkingGet } from '@/lib/untis-permissions';
 
 // The absence-reason list is delivered inside the absences envelope
-// (`data.absenceReasons`) on modern WebUntis — there is no standalone reasons
+// (`data.absenceReasons`) on modern WebUntis, there is no standalone reasons
 // endpoint. The list is static, so we query a single day (cheap) instead of the
 // whole school year. An explicit env override is tried first for other instances.
 function today(): string {

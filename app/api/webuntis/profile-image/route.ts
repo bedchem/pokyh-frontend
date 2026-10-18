@@ -1,17 +1,19 @@
 import { NextResponse } from 'next/server';
 import { getServerSession, webUntisHeaders } from '@/lib/server-session';
-import { WEBUNTIS_BASE, fetchAppData, extractImageUrl } from '@/lib/untis-permissions';
+import { untisBase } from '@/lib/server/untis';
+import { fetchAppData, extractImageUrl } from '@/lib/untis-permissions';
 
 // Proxies the logged-in user's WebUntis profile picture. The image lives behind
-// the WebUntis session (cookie + bearer), so the browser can't load it directly —
+// the WebUntis session (cookie + bearer), so the browser can't load it directly -
 // this route reads the httpOnly session cookie server-side, discovers the image
 // URL from the app-data, then streams the bytes back. Returns 404 when the user
 // has no picture so the client cleanly falls back to initials.
 export async function GET() {
   const session = await getServerSession();
   if (!session) return NextResponse.json({ error: 'Nicht angemeldet.' }, { status: 401 });
+  const BASE = untisBase(session);
 
-  // Primary: the image URL captured at login (reliable — session was fresh then).
+  // Primary: the image URL captured at login (reliable, session was fresh then).
   // Fallback: a live app-data lookup for sessions created before this was stored.
   let imageUrl = session.imageUrl;
   if (!imageUrl) {
@@ -26,15 +28,15 @@ export async function GET() {
   // anything else against the API base; absolute URLs are used as-is. SSRF guard:
   // only ever fetch from the WebUntis domain family. Profile images are served
   // from a separate CDN host (e.g. images.webuntis.com), so we allow any subdomain
-  // of the base's registrable domain (derived from WEBUNTIS_BASE, not hardcoded)
-  // rather than just the exact API host — while still blocking foreign hosts.
+  // of the base's registrable domain (derived from the school's base, not hardcoded)
+  // rather than just the exact API host, while still blocking foreign hosts.
   let target: string;
   try {
     const raw = /^https?:\/\//.test(imageUrl)
       ? imageUrl
-      : new URL(imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`, WEBUNTIS_BASE).toString();
+      : new URL(imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`, BASE).toString();
     const url = new URL(raw);
-    const baseHost = new URL(WEBUNTIS_BASE).host;
+    const baseHost = new URL(BASE).host;
     const rootDomain = baseHost.split('.').slice(-2).join('.'); // e.g. webuntis.com
     const allowed = url.host === rootDomain || url.host.endsWith(`.${rootDomain}`);
     if (url.protocol !== 'https:' || !allowed) {

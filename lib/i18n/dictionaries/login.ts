@@ -1,154 +1,209 @@
 import type { Dictionary } from '../dictionary';
 
+// Sign-in page: pick the school, then sign in with the WebUntis account.
 export type LoginKey =
-  | 'errMissing'
-  | 'loggingIn'
-  | 'almostDone'
-  | 'checkingPokyh'
-  | 'errFailed'
-  | 'errNetwork'
-  | 'headline1'
-  | 'headline2'
-  | 'tagline'
-  | 'f1'
-  | 'f2'
-  | 'f3'
-  | 'f4'
-  | 'f5'
-  | 'welcome'
-  | 'subtitle'
-  | 'cookieError'
-  | 'cookieHint'
+  | 'home'
+  | 'panelTitle'
+  | 'panelText'
+  | 'trust1'
+  | 'trust2'
+  | 'trust3'
+  | 'step1'
+  | 'step2'
+  | 'schoolTitle'
+  | 'schoolLead'
+  | 'schoolLabel'
+  | 'schoolPlaceholder'
+  | 'schoolShort'
+  | 'schoolSearching'
+  | 'schoolTooMany'
+  | 'schoolNone'
+  | 'schoolError'
+  | 'schoolRate'
+  | 'schoolResults'
+  | 'schoolLast'
+  | 'schoolChange'
+  | 'schoolClear'
+  | 'loginTitle'
+  | 'loginLead'
+  | 'serverHint'
   | 'username'
-  | 'password'
   | 'usernamePlaceholder'
+  | 'password'
   | 'showPassword'
   | 'hidePassword'
   | 'login'
-  | 'hintBefore'
-  | 'hintAfter'
+  | 'loggingIn'
+  | 'almostDone'
+  | 'checkingPokyh'
+  | 'ageNote'
+  | 'pokyhHint'
+  | 'cookieHint'
+  | 'cookieError'
+  | 'errMissing'
+  | 'errFailed'
+  | 'errNetwork'
+  | 'errBadCredentials'
+  | 'errRefused'
+  | 'errUnavailable'
+  | 'errRate'
+  | 'errSchool'
   | 'imprint'
-  | 'privacy';
+  | 'privacy'
+  | 'terms';
 
 export const loginDict: Dictionary<LoginKey> = {
   de: {
-    errMissing: 'Bitte Benutzername und Passwort eingeben.',
-    loggingIn: 'Anmelden…',
-    almostDone: 'Fast fertig…',
-    checkingPokyh: 'Prüfe POKYH-Konto…',
-    errFailed: 'Anmeldung fehlgeschlagen.',
-    errNetwork: 'Netzwerkfehler.',
-    headline1: 'Deine Schule,',
-    headline2: 'alles an einem Ort.',
-    tagline: 'Stundenplan, Noten, Mensa, Abwesenheiten und Nachrichten für LBS Brixen Schüler.',
-    f1: 'Stundenplan & Vertretungen',
-    f2: 'Noten & Schnitt',
-    f3: 'Mensa-Plan',
-    f4: 'Klassen-Erinnerungen',
-    f5: 'Nachrichten & Anhänge',
-    welcome: 'Willkommen zurück',
-    subtitle: 'Melde dich mit deinem WebUntis-Account an',
-    cookieError: 'Bitte akzeptiere zuerst die Cookie-Einstellungen unten auf der Seite.',
-    cookieHint: 'Zum Anmelden bitte zuerst die Cookie-Einstellungen bestätigen.',
+    home: 'Zur Startseite',
+    panelTitle: 'Deine Schule. Übersichtlich.',
+    panelText: 'POKYH ist eine unabhängige App für WebUntis: Stundenplan, Noten, Abwesenheiten und Nachrichten an einem Ort. Für jede Schule, die WebUntis nutzt.',
+    trust1: 'Dein Passwort geht nur an den WebUntis-Server deiner Schule.',
+    trust2: 'Kostenlos, ohne Werbung, Open Source.',
+    trust3: 'Unabhängig: nicht mit der Untis GmbH verbunden.',
+    step1: 'Schule',
+    step2: 'Anmelden',
+    schoolTitle: 'Welche Schule ist deine?',
+    schoolLead: 'Such deine Schule nach Name, Ort oder Adresse. Jede Schule mit WebUntis ist dabei.',
+    schoolLabel: 'Schule suchen',
+    schoolPlaceholder: 'Schulname, Ort oder Adresse',
+    schoolShort: 'Gib mindestens 3 Zeichen ein.',
+    schoolSearching: 'Suche läuft…',
+    schoolTooMany: 'Zu viele Treffer. Ergänze den Ort oder die Postleitzahl.',
+    schoolNone: 'Keine Schule gefunden. Prüf die Schreibweise oder such nach dem Ort.',
+    schoolError: 'Die Schulsuche ist gerade nicht erreichbar. Versuch es gleich noch einmal.',
+    schoolRate: 'Viele Suchen in kurzer Zeit. In einer Minute geht es weiter.',
+    schoolResults: '{n} Schulen gefunden',
+    schoolLast: 'Zuletzt gewählt',
+    schoolChange: 'Andere Schule',
+    schoolClear: 'Suche leeren',
+    loginTitle: 'Melde dich an',
+    loginLead: 'Mit denselben Zugangsdaten wie bei WebUntis.',
+    serverHint: 'Deine Zugangsdaten gehen nur an {server}.',
     username: 'Benutzername',
+    usernamePlaceholder: 'Dein WebUntis-Benutzername',
     password: 'Passwort',
-    usernamePlaceholder: 'Must-Maxi',
     showPassword: 'Passwort anzeigen',
     hidePassword: 'Passwort verbergen',
     login: 'Anmelden',
-    hintBefore: 'Zugangsdaten werden ausschließlich an',
-    hintAfter: 'übertragen. Ohne Schulaccount kannst du dich mit einem POKYH-Konto anmelden.',
+    loggingIn: 'Anmelden…',
+    almostDone: 'Fast fertig…',
+    checkingPokyh: 'Prüfe POKYH-Konto…',
+    ageNote: 'POKYH ist für Personen ab 14 Jahren. Bist du jünger, nutze POKYH nur mit dem Einverständnis deiner Eltern.',
+    pokyhHint: 'Ohne Schulkonto? Ein POKYH-Konto funktioniert hier auch.',
+    cookieHint: 'Bestätige zum Anmelden bitte zuerst die Cookie-Einstellungen unten.',
+    cookieError: 'Bitte triff zuerst eine Auswahl in den Cookie-Einstellungen unten auf der Seite.',
+    errMissing: 'Bitte Benutzername und Passwort eingeben.',
+    errFailed: 'Die Anmeldung hat nicht geklappt.',
+    errNetwork: 'Keine Verbindung. Prüf dein Internet und versuch es noch einmal.',
+    errBadCredentials: 'Benutzername oder Passwort ist falsch.',
+    errRefused: 'WebUntis hat die Anmeldung abgelehnt. Melde dich einmal direkt bei WebUntis an, um den Grund zu sehen.',
+    errUnavailable: 'WebUntis ist gerade nicht erreichbar. Versuch es später noch einmal.',
+    errRate: 'Zu viele Versuche. Bitte warte 5 Minuten.',
+    errSchool: 'Diese Schule ist nicht verfügbar. Wähle sie bitte neu aus.',
     imprint: 'Impressum',
     privacy: 'Datenschutz',
+    terms: 'Nutzungsbedingungen',
   },
   it: {
-    errMissing: 'Inserisci nome utente e password.',
-    loggingIn: 'Accesso in corso…',
-    almostDone: 'Quasi fatto…',
-    checkingPokyh: 'Verifica account POKYH…',
-    errFailed: 'Accesso non riuscito.',
-    errNetwork: 'Errore di rete.',
-    headline1: 'La tua scuola,',
-    headline2: 'tutto in un unico posto.',
-    tagline: 'Orario, voti, mensa, assenze e messaggi per gli studenti della LBS Bressanone.',
-    f1: 'Orario e supplenze',
-    f2: 'Voti e media',
-    f3: 'Menù della mensa',
-    f4: 'Promemoria di classe',
-    f5: 'Messaggi e allegati',
-    welcome: 'Bentornato',
-    subtitle: 'Accedi con il tuo account WebUntis',
-    cookieError: 'Accetta prima le impostazioni dei cookie in fondo alla pagina.',
-    cookieHint: 'Per accedere conferma prima le impostazioni dei cookie.',
+    home: 'Alla pagina iniziale',
+    panelTitle: 'La tua scuola. Chiara.',
+    panelText: 'POKYH è un’app indipendente per WebUntis: orario, voti, assenze e messaggi in un unico posto. Per ogni scuola che usa WebUntis.',
+    trust1: 'La tua password va solo al server WebUntis della tua scuola.',
+    trust2: 'Gratuita, senza pubblicità, open source.',
+    trust3: 'Indipendente: nessun legame con Untis GmbH.',
+    step1: 'Scuola',
+    step2: 'Accesso',
+    schoolTitle: 'Qual è la tua scuola?',
+    schoolLead: 'Cerca la tua scuola per nome, città o indirizzo. Ci sono tutte le scuole che usano WebUntis.',
+    schoolLabel: 'Cerca la scuola',
+    schoolPlaceholder: 'Nome della scuola, città o indirizzo',
+    schoolShort: 'Inserisci almeno 3 caratteri.',
+    schoolSearching: 'Ricerca in corso…',
+    schoolTooMany: 'Troppi risultati. Aggiungi la città o il CAP.',
+    schoolNone: 'Nessuna scuola trovata. Controlla come l’hai scritta o cerca per città.',
+    schoolError: 'La ricerca delle scuole non è raggiungibile al momento. Riprova tra poco.',
+    schoolRate: 'Molte ricerche in poco tempo. Tra un minuto puoi continuare.',
+    schoolResults: '{n} scuole trovate',
+    schoolLast: 'Scelta l’ultima volta',
+    schoolChange: 'Altra scuola',
+    schoolClear: 'Cancella ricerca',
+    loginTitle: 'Accedi',
+    loginLead: 'Con le stesse credenziali di WebUntis.',
+    serverHint: 'Le tue credenziali vanno solo a {server}.',
     username: 'Nome utente',
+    usernamePlaceholder: 'Il tuo nome utente WebUntis',
     password: 'Password',
-    usernamePlaceholder: 'Rossi-Mario',
     showPassword: 'Mostra password',
     hidePassword: 'Nascondi password',
     login: 'Accedi',
-    hintBefore: 'Le credenziali vengono trasmesse esclusivamente a',
-    hintAfter: '. Senza account scolastico puoi accedere con un account POKYH.',
+    loggingIn: 'Accesso in corso…',
+    almostDone: 'Quasi fatto…',
+    checkingPokyh: 'Verifica account POKYH…',
+    ageNote: 'POKYH è per persone dai 14 anni in su. Se sei più giovane, usa POKYH solo con il consenso dei tuoi genitori.',
+    pokyhHint: 'Senza account scolastico? Qui funziona anche un account POKYH.',
+    cookieHint: 'Per accedere conferma prima le impostazioni dei cookie qui sotto.',
+    cookieError: 'Fai prima una scelta nelle impostazioni dei cookie in fondo alla pagina.',
+    errMissing: 'Inserisci nome utente e password.',
+    errFailed: 'L’accesso non è riuscito.',
+    errNetwork: 'Nessuna connessione. Controlla internet e riprova.',
+    errBadCredentials: 'Nome utente o password errati.',
+    errRefused: 'WebUntis ha rifiutato l’accesso. Accedi una volta direttamente a WebUntis per vedere il motivo.',
+    errUnavailable: 'WebUntis non è raggiungibile al momento. Riprova più tardi.',
+    errRate: 'Troppi tentativi. Attendi 5 minuti.',
+    errSchool: 'Questa scuola non è disponibile. Selezionala di nuovo.',
     imprint: 'Note legali',
     privacy: 'Privacy',
+    terms: 'Condizioni d’uso',
   },
   en: {
-    errMissing: 'Please enter your username and password.',
-    loggingIn: 'Logging in…',
-    almostDone: 'Almost done…',
-    checkingPokyh: 'Checking POKYH account…',
-    errFailed: 'Login failed.',
-    errNetwork: 'Network error.',
-    headline1: 'Your school,',
-    headline2: 'all in one place.',
-    tagline: 'Timetable, grades, cafeteria, absences and messages for LBS Brixen students.',
-    f1: 'Timetable & substitutes',
-    f2: 'Grades & average',
-    f3: 'Cafeteria menu',
-    f4: 'Class reminders',
-    f5: 'Messages & attachments',
-    welcome: 'Welcome back',
-    subtitle: 'Log in with your WebUntis account',
-    cookieError: 'Please accept the cookie settings at the bottom of the page first.',
-    cookieHint: 'To log in, please confirm the cookie settings first.',
+    home: 'To the home page',
+    panelTitle: 'Your school. At a glance.',
+    panelText: 'POKYH is an independent app for WebUntis: timetable, grades, absences and messages in one place. For every school that uses WebUntis.',
+    trust1: 'Your password only goes to your school’s WebUntis server.',
+    trust2: 'Free, ad-free, open source.',
+    trust3: 'Independent: not affiliated with Untis GmbH.',
+    step1: 'School',
+    step2: 'Sign in',
+    schoolTitle: 'Which school is yours?',
+    schoolLead: 'Find your school by name, city or address. Every school on WebUntis is here.',
+    schoolLabel: 'Search for your school',
+    schoolPlaceholder: 'School name, city or address',
+    schoolShort: 'Type at least 3 characters.',
+    schoolSearching: 'Searching…',
+    schoolTooMany: 'Too many matches. Add the town or postcode.',
+    schoolNone: 'No school found. Check the spelling or search by town.',
+    schoolError: 'The school search is not reachable right now. Try again in a moment.',
+    schoolRate: 'Lots of searches in a short time. You can carry on in a minute.',
+    schoolResults: '{n} schools found',
+    schoolLast: 'Picked last time',
+    schoolChange: 'Other school',
+    schoolClear: 'Clear search',
+    loginTitle: 'Sign in',
+    loginLead: 'With the same details you use for WebUntis.',
+    serverHint: 'Your details only go to {server}.',
     username: 'Username',
+    usernamePlaceholder: 'Your WebUntis username',
     password: 'Password',
-    usernamePlaceholder: 'Doe-John',
     showPassword: 'Show password',
     hidePassword: 'Hide password',
-    login: 'Log in',
-    hintBefore: 'Your credentials are only sent to',
-    hintAfter: '. Without a school account you can log in with a POKYH account.',
+    login: 'Sign in',
+    loggingIn: 'Signing in…',
+    almostDone: 'Almost done…',
+    checkingPokyh: 'Checking POKYH account…',
+    ageNote: 'POKYH is for people aged 14 and over. If you are younger, only use POKYH with your parents’ consent.',
+    pokyhHint: 'No school account? A POKYH account works here too.',
+    cookieHint: 'To sign in, please confirm the cookie settings below first.',
+    cookieError: 'Please make a choice in the cookie settings at the bottom of the page first.',
+    errMissing: 'Please enter your username and password.',
+    errFailed: 'Signing in did not work.',
+    errNetwork: 'No connection. Check your internet and try again.',
+    errBadCredentials: 'Wrong username or password.',
+    errRefused: 'WebUntis refused the sign-in. Sign in to WebUntis directly once to see why.',
+    errUnavailable: 'WebUntis is not reachable right now. Try again later.',
+    errRate: 'Too many attempts. Please wait 5 minutes.',
+    errSchool: 'This school is not available. Please pick it again.',
     imprint: 'Imprint',
     privacy: 'Privacy',
-  },
-  lld: {
-    errMissing: "Scrij tl inuem dl utënt y la password.",
-    loggingIn: "Se va ite…",
-    almostDone: "Belau fat…",
-    checkingPokyh: "Cntrol dl account POKYH…",
-    errFailed: "Jì ite ne n’ie nia jit.",
-    errNetwork: "Fal de rë.",
-    headline1: "Tia scola,",
-    headline2: "dut tl medem post.",
-    tagline: "Urar, notes, mensa, assënzes y nutizies per i sculeies dla LBS Porsenù.",
-    f1: "Urar y suplenzes",
-    f2: "Notes y media",
-    f3: "Menu dla mensa",
-    f4: "Recurdanzes dla tlas",
-    f5: "Nutizies y alegac",
-    welcome: "Bënuni zeruch",
-    subtitle: "Va ite cun ti account WebUntis",
-    cookieError: "Azeta dant la mpustazions di cookies ju dala plata.",
-    cookieHint: "Per jì ite cunfermea dant la mpustazions di cookies.",
-    username: "Inuem dl utënt",
-    password: "Password",
-    usernamePlaceholder: "Must-Maxi",
-    showPassword: "Mustré la password",
-    hidePassword: "Scuende la password",
-    login: "Jì ite",
-    hintBefore: "I dac de azes vën mandei mé a",
-    hintAfter: ". Zënza account dla scola pos jì ite cun n account POKYH.",
-    imprint: "Impressum",
-    privacy: "Privacy",
+    terms: 'Terms of use',
   },
 };

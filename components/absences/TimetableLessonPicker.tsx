@@ -218,7 +218,7 @@ export default function TimetableLessonPicker({ initialDate, onConfirm, onBack }
                         {l.label}{l.cancelled ? t('cancelledSuffix') : ''}
                       </p>
                       <p className="text-[12px]" style={{ color: 'var(--app-text-secondary)' }}>
-                        {l.startHHMM} – {l.endHHMM}
+                        {l.startHHMM} - {l.endHHMM}
                       </p>
                     </div>
                   </button>

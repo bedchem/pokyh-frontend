@@ -9,6 +9,8 @@ import { resolveFonts, type TileText } from '@/lib/landing-art';
 import { onSiteThemeChange, siteColor } from '@/lib/site-theme';
 import { useLenis } from '@/components/site/SmoothScroll';
 import { ManifestScreen } from './Manifest';
+import { ARRIVE, HERO_LVH, lvh } from './scenes';
+import { SCROLL } from '@/lib/scroll-pace';
 import type { HeroItem, HeroScene } from './heroScene';
 
 // The opening: on every visit the name, large, on clean paper, rises letter
@@ -27,12 +29,6 @@ const PORTAL_Z = -72;
 const PORTAL_FILL = 1.2;
 const END_Z = PORTAL_Z + PORTAL_FILL;
 const FOG = { near: 9, far: 34 };
-/**
- * Scroll progress at which the dark screen fills the view. The next section
- * (Manifest, -mt-[108svh]) starts at this point of the hero, so it is in place
- * when the hero hands over.
- */
-const ARRIVE = 0.92;
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 
@@ -138,28 +134,42 @@ export default function Hero() {
 
     if (reduced) m.arrive = 1;
 
+    // Progress over exactly the pinned distance (hero minus its stage), so it
+    // does not depend on the window height, which changes on phones when the
+    // browser bars collapse. The camera glides after the scroll position
+    // (time-based, SCROLL.heroFollow), so a flick on a trackpad or a phone
+    // becomes a flight instead of a jump. The hand-over to the section
+    // underneath needs both: the camera has arrived and the page has scrolled
+    // there, so scrolling back up never shows the section out of place.
     const st = reduced
       ? null
       : ScrollTrigger.create({
           trigger: section,
           start: 'top top',
-          end: 'bottom bottom',
+          end: () => `+=${Math.max(1, section.offsetHeight - box.offsetHeight)}`,
+          invalidateOnRefresh: true,
           onUpdate: (self) => { m.progress = self.progress; },
         });
 
+    let last = 0;
     const tick = (time: number) => {
+      const dt = last ? Math.min(0.1, time - last) : 1 / 60;
+      last = time;
       if (!visible && scene) return;
-      m.eased += (m.progress - m.eased) * 0.14;
+      m.eased += (m.progress - m.eased) * (1 - Math.exp(-dt * SCROLL.heroFollow));
+      if (Math.abs(m.progress - m.eased) < 0.0004) m.eased = m.progress;
       m.px += (m.tx - m.px) * 0.06;
       m.py += (m.ty - m.py) * 0.06;
       const p = m.eased;
       const camZ = cameraZ(p);
       // Dark once the screen fills the view; from there the next section shows.
       const covered = camZ < END_Z + 0.02;
-      const handed = p >= ARRIVE - 0.0005;
+      const handed = p >= ARRIVE - 0.0005 && m.progress >= ARRIVE - 0.0005;
       const bg = covered ? colours.night : colours.paper;
       box.style.backgroundColor = handed ? 'transparent' : bg;
       box.style.pointerEvents = handed ? 'none' : '';
+      // Handed over: the section underneath is in charge (also of the scroll pace).
+      section.style.pointerEvents = handed ? 'none' : '';
       canvas.style.visibility = handed ? 'hidden' : '';
       const tone = covered ? 'dark' : 'light';
       if (section.dataset.tone !== tone) section.dataset.tone = tone;
@@ -264,8 +274,9 @@ export default function Hero() {
       ]).catch(() => undefined);
       const { createHeroScene } = await import('./heroScene');
       if (disposed) return;
-      const list = window.innerWidth < 700 ? [...items.slice(0, 14), ...items.slice(4, 12)] : [...items, ...items.slice(0, 12)];
-      scene = createHeroScene(canvas, list, tileText, fonts);
+      const small = Math.min(window.innerWidth, window.innerHeight) < 700;
+      const list = small ? [...items.slice(0, 14), ...items.slice(4, 10)] : [...items, ...items.slice(0, 12)];
+      scene = createHeroScene(canvas, list, tileText, fonts, { textureSize: small ? 400 : 520 });
       if (!scene) return;
       scene.setTheme({ night: colours.night, dark: colours.dark });
       gsap.to(canvas, { opacity: 1, duration: 0.8, ease: 'power2.out' });
@@ -338,8 +349,8 @@ export default function Hero() {
   }, root);
 
   return (
-    <section ref={root} data-tone="light" aria-labelledby="hero-title" className="home-hero relative z-10 h-[200svh]">
-      <div ref={stage} className="sticky top-0 h-[100svh] overflow-hidden bg-[var(--paper)] text-ink">
+    <section ref={root} data-tone="light" data-scroll-pace="hero" aria-labelledby="hero-title" className="home-hero relative z-10" style={{ height: lvh(HERO_LVH) }}>
+      <div ref={stage} className="sticky top-0 overflow-hidden bg-[var(--paper)] text-ink" style={{ height: lvh(100) }}>
         <canvas ref={canvasRef} aria-hidden="true" className="absolute inset-0 block h-full w-full opacity-0" />
 
         {/* The dark screen in the tunnel, with the next section already on it */}
@@ -363,9 +374,11 @@ export default function Hero() {
           </h1>
         </div>
 
+        {/* Kept above a phone's browser bars (bottom: the large minus the small viewport) */}
         <div
           data-chrome
-          className="absolute inset-x-0 bottom-0 grid grid-cols-[1fr_auto_1fr] items-end gap-4 px-5 pb-6 text-[14px] font-medium md:px-10 md:pb-8 md:text-[15px] lg:px-[6.5vw]"
+          style={{ bottom: 'var(--toolbar)' }}
+          className="absolute inset-x-0 grid grid-cols-[1fr_auto_1fr] items-end gap-4 px-5 pb-6 text-[14px] font-medium md:px-10 md:pb-8 md:text-[15px] lg:px-[6.5vw]"
         >
           <a
             href="https://github.com/bedchem"

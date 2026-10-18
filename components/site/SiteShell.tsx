@@ -29,8 +29,7 @@ export default function SiteShell({ children, className }: { children: ReactNode
 
   return (
     <div className={`site ${className ?? ''}`}>
-      {/* Smooth scrolling drives the homepage scenes; the other pages scroll natively */}
-      <SmoothScroll enabled={path === '/'}>
+      <SmoothScroll>
         <a href="#main" className="skip-link">{t('skip')}</a>
         <SiteHeader />
         <main id="main" tabIndex={-1} className="outline-none">

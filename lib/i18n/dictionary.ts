@@ -3,7 +3,7 @@ import { DEFAULT_LOCALE, type Locale } from './locale';
 type Vars = Record<string, string | number>;
 
 /**
- * `de` must be complete for every key — it's the fallback every other locale
+ * `de` must be complete for every key, it's the fallback every other locale
  * falls back to. `it`/`en`/`lld` may be partial while a namespace is
  * mid-translation; a missing key/locale silently falls back to `de` (with a
  * dev-only warning) instead of ever showing `undefined` or a raw key to a

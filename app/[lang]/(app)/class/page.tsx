@@ -324,7 +324,7 @@ export default function ClassPage() {
 
   function subjectShort(lessonId: number): string {
     const lesson = hwLessons.find((l) => l.id === lessonId);
-    return lesson ? lesson.subject.split(' (')[0] : '–';
+    return lesson ? lesson.subject.split(' (')[0] : '-';
   }
 
   const now        = new Date();
@@ -406,7 +406,7 @@ export default function ClassPage() {
                           <div className="row-content">
                             <span className="row-main">
                               {fmtDateShort(a.startDate)}
-                              {a.endDate !== a.startDate ? ` – ${fmtDateShort(a.endDate)}` : ''}
+                              {a.endDate !== a.startDate ? ` - ${fmtDateShort(a.endDate)}` : ''}
                             </span>
                             {(a.subjectName || a.reasonName) && (
                               <span className="row-sub">{a.subjectName ?? a.reasonName}</span>
@@ -471,7 +471,7 @@ export default function ClassPage() {
                             </div>
                             <div className="row-content">
                               <span className="row-main">{exam.subject}</span>
-                              <span className="row-sub">{fmtTime(exam.startTime)} – {fmtTime(exam.endTime)}{exam.rooms?.length ? ` · ${exam.rooms[0]}` : ''}</span>
+                              <span className="row-sub">{fmtTime(exam.startTime)} - {fmtTime(exam.endTime)}{exam.rooms?.length ? ` · ${exam.rooms[0]}` : ''}</span>
                               {exam.text && <span className="row-note">{exam.text}</span>}
                             </div>
                             <span className="badge-warn">{t('exam')}</span>
@@ -495,7 +495,7 @@ export default function ClassPage() {
                             </div>
                             <div className="row-content">
                               <span className="row-main">{exam.subject}</span>
-                              <span className="row-sub">{fmtTime(exam.startTime)} – {fmtTime(exam.endTime)}{exam.rooms?.length ? ` · ${exam.rooms[0]}` : ''}</span>
+                              <span className="row-sub">{fmtTime(exam.startTime)} - {fmtTime(exam.endTime)}{exam.rooms?.length ? ` · ${exam.rooms[0]}` : ''}</span>
                               {exam.text && <span className="row-note">{exam.text}</span>}
                             </div>
                             <span className="badge-warn">{t('exam')}</span>

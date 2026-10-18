@@ -70,6 +70,15 @@
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 
+  /* Viewport units for the scroll scenes. Full-screen stages use the large
+     viewport (--lvh), so no strip of the next section shows when a phone's
+     browser bars collapse; what must stay visible above those bars sits
+     within the small viewport (--svh). --toolbar is the difference. Older
+     browsers without these units fall back to vh. */
+  --lvh: 1vh;
+  --svh: 1vh;
+  --toolbar: 0px;
+
   --app-font-sans: var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --app-font-mono: var(--font-dm-mono), ui-monospace, 'SFMono-Regular', Menlo, monospace;
 
@@ -90,6 +99,14 @@
   --sidebar-collapsed-w: 72px;
   --topbar-h: 56px;
   --nav-h: 0px;
+}
+
+@supports (height: 1lvh) {
+  :root {
+    --lvh: 1lvh;
+    --svh: 1svh;
+    --toolbar: calc(100lvh - 100svh);
+  }
 }
 
 .dark {
@@ -709,6 +726,52 @@ html.lenis body {
 .plate-cutlery-l { animation: cutlery-l 0.7s var(--ease-out) 0.12s both; }
 .plate-cutlery-r { animation: cutlery-r 0.7s var(--ease-out) 0.12s both; }
 .sheet-in { animation: sheet-in 0.45s var(--ease-out) both; }
+
+/* Small phones (down to 320px): nothing may push the page sideways. Grid
+   cells may shrink below their longest word, long words break (with hyphens
+   where the language allows), and long button labels wrap. */
+.site .grid > *,
+.site .flex > * { min-width: 0; }
+.site main { overflow-wrap: break-word; }
+@media (max-width: 480px) {
+  .site main :is(h1, h2, h3) { hyphens: auto; -webkit-hyphens: auto; }
+  .site .key { max-width: 100%; height: auto; min-height: 52px; padding-block: 12px; white-space: normal; text-align: center; }
+  .site .key-sm { min-height: 44px; padding-block: 8px; }
+}
+
+/* Language menu (components/site/LanguageButton.tsx): unfolds from its corner. */
+.lang-menu { animation: lang-menu-in 0.22s var(--ease-out) both; }
+@keyframes lang-menu-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lang-menu { animation: none; }
+}
+
+/* Sign-in (app/[lang]/login): steps glide in, results follow one another,
+   the school-day pieces drift and arrive one after another. */
+.login-step { animation: login-step-in 0.55s var(--ease-out) both; }
+@keyframes login-step-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: none; }
+}
+.login-results [role='option'] { animation: login-step-in 0.4s var(--ease-out) both; }
+.login-float { animation: login-float 9s ease-in-out infinite; }
+.login-piece { animation: login-piece-in 0.9s var(--ease-out) both; }
+.login-scroll { scrollbar-width: none; }
+.login-scroll::-webkit-scrollbar { display: none; }
+@keyframes login-float {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -12px; }
+}
+@keyframes login-piece-in {
+  from { opacity: 0; scale: 0.82; }
+  to { opacity: 1; scale: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-step, .login-results [role='option'], .login-float, .login-piece { animation: none; }
+}
 
 /* ═══ Homepage ═══════════════════════════════════════════════════════════ */
 

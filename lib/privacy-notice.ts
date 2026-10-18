@@ -1,4 +1,4 @@
-// The privacy notice's current version — the one place it is set. The website
+// The privacy notice's current version, the one place it is set. The website
 // reads it through lib/privacy-consent.ts, the iOS and Android apps through
 // GET /api/privacy-notice.
 //
@@ -7,6 +7,6 @@
 // and in the apps. A short tag after the date tells two versions of one day
 // apart ("2026-10-15b").
 
-export const PRIVACY_NOTICE_VERSION = '2026-10-15b';
+export const PRIVACY_NOTICE_VERSION = '2026-10-18';
 // The day shown with the notice ("Stand"), YYYY-MM-DD.
-export const PRIVACY_NOTICE_DAY = '2026-10-15';
+export const PRIVACY_NOTICE_DAY = '2026-10-18';

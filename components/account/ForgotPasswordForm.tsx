@@ -7,12 +7,17 @@ import { requestPasswordReset } from '@/lib/api';
 import { TextField, FormStatus } from '@/components/ui/Field';
 import { Button } from '@/components/ui/Button';
 
-// WebUntis' own "forgot password" page, as a fallback.
-export const OFFICIAL_RESET_URL = 'https://lbs-brixen.webuntis.com/WebUntis/?school=lbs-brixen#/basic/resetPassword';
+type School = { loginName: string; server: string };
+
+/** WebUntis' own "forgot password" page of a school, as a fallback. */
+export function officialResetUrl(school: School): string {
+  return `https://${school.server}/WebUntis/?school=${encodeURIComponent(school.loginName)}#/basic/resetPassword`;
+}
 
 // Asks WebUntis to e-mail a reset link. The reset itself happens on WebUntis'
-// page from that e-mail; Pokyh never handles the new password.
-export default function ForgotPasswordForm({ initialUsername = '' }: { initialUsername?: string }) {
+// page from that e-mail; Pokyh never handles the new password. Without a
+// school, the server uses the installation's default school.
+export default function ForgotPasswordForm({ initialUsername = '', school = null }: { initialUsername?: string; school?: School | null }) {
   const t = useT(untisActionsDict);
   const [username, setUsername] = useState(initialUsername);
   const [email, setEmail] = useState('');
@@ -25,7 +30,7 @@ export default function ForgotPasswordForm({ initialUsername = '' }: { initialUs
     setBusy(true);
     setStatus(null);
     try {
-      await requestPasswordReset(username.trim(), email.trim());
+      await requestPasswordReset(username.trim(), email.trim(), school);
       setStatus({ kind: 'success', text: t('resetDone') });
     } catch (err) {
       setStatus({ kind: 'error', text: err instanceof Error && err.message ? err.message : t('failed') });
@@ -43,9 +48,11 @@ export default function ForgotPasswordForm({ initialUsername = '' }: { initialUs
         <Button type="submit" disabled={busy || !username.trim() || !email.trim() || status?.kind === 'success'}>
           {busy ? t('resetSending') : t('resetSend')}
         </Button>
-        <a href={OFFICIAL_RESET_URL} target="_blank" rel="noopener noreferrer" className="text-[14px] font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline">
-          {t('resetOfficial')} ↗
-        </a>
+        {school && (
+          <a href={officialResetUrl(school)} target="_blank" rel="noopener noreferrer" className="text-[14px] font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline">
+            {t('resetOfficial')} ↗
+          </a>
+        )}
       </div>
     </form>
   );

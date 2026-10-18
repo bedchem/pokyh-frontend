@@ -25,8 +25,8 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   output: 'standalone',
 
-  // Pages always end with a slash (/de/about/). The proxy adds it — together
-  // with the locale prefix — for pages only, so API calls aren't redirected.
+  // Pages always end with a slash (/de/about/). The proxy adds it, together
+  // with the locale prefix: for pages only, so API calls aren't redirected.
   trailingSlash: true,
   skipTrailingSlashRedirect: true,
 
@@ -47,7 +47,7 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       { source: '/datenschutz', destination: '/legal?view=datenschutz', permanent: false },
-      { source: '/nutzungsbedingungen', destination: '/legal', permanent: false },
+      { source: '/nutzungsbedingungen', destination: '/legal?view=nutzungsbedingungen', permanent: false },
     ];
   },
   async headers() {
@@ -56,12 +56,11 @@ const nextConfig: NextConfig = {
         source: '/(.*)',
         headers: securityHeaders,
       },
-      // Cache static API response (Mensa)
+      // Studio lighting of the Mensa plate (rarely changes)
       {
-        source: '/api/mensa',
-        headers: [{ key: 'Cache-Control', value: 'public, s-maxage=3600, stale-while-revalidate=7200' }],
+        source: '/hdr/:path*',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=2592000, stale-while-revalidate=31536000' }],
       },
-      
       // Long-lived cache for the 3D model (immutable, content-hashed by filename)
       {
         source: '/models/:path*',
@@ -87,11 +86,7 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
 
   images: {
-    // Allow external images from mensa API
-    remotePatterns: [
-      { protocol: 'https', hostname: 'mensa.plattnericus.dev' },
-      { protocol: 'https', hostname: '*.plattnericus.dev' },
-    ],
+    remotePatterns: [],
     // Modern formats for better performance
     formats: ['image/avif', 'image/webp'],
   },

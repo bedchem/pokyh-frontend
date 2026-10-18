@@ -62,7 +62,7 @@ export function clearPendingAck(): void {
   }
 }
 
-// PrivacyGate, once shown for an account, stays until "Verstanden" — also when
+// PrivacyGate, once shown for an account, stays until "Verstanden", also when
 // a navigation (the installed app opening on the landing page, a WebUntis
 // session running out) or a reload remounts it before the server answers
 // again. Kept for this tab only.
@@ -151,7 +151,7 @@ export async function setUsageStatsConsent(enabled: boolean): Promise<boolean> {
 }
 
 // Brings the signed-in account's consent in line with this device's cookie
-// choice — once per choice, and only for the account that made it (signed in
+// choice: once per choice, and only for the account that made it (signed in
 // at the time, or the first to sign in after it). Someone else signing in on
 // the same device is never opted in by another person's click.
 export async function syncCookieChoice(): Promise<void> {

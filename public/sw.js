@@ -1,4 +1,4 @@
-const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 min — same as native app
+const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 min: same as native app
 let _knownUnread = -1;
 let _pollTimer = null;
 
@@ -60,11 +60,11 @@ async function checkMessages() {
     }
     _knownUnread = unread;
   } catch {
-    // Network error — will retry next interval
+    // Network error: will retry next interval
   }
 }
 
-// Incoming push from backend (VAPID) — works in background on iOS 16.4+ and Android
+// Incoming push from backend (VAPID), works in background on iOS 16.4+ and Android
 self.addEventListener('push', (event) => {
   if (!event.data) return;
   let data;

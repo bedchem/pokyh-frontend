@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (!backendRes.ok) {
-      // Refresh token invalid/expired/revoked — clear it so the client stops
+      // Refresh token invalid/expired/revoked: clear it so the client stops
       // retrying and falls through to a clean re-login.
       return clearAuthCookies(NextResponse.json({ error: 'refresh_failed' }, { status: 401 }));
     }

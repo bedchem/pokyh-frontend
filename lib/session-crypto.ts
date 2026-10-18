@@ -1,4 +1,4 @@
-// AES-GCM session encryption – works in both Node.js and Edge runtimes
+// AES-GCM session encryption: works in both Node.js and Edge runtimes
 
 // A predictable encryption key would let an attacker forge or decrypt WebUntis
 // session cookies. Production must fail closed instead of silently falling back

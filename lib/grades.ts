@@ -83,7 +83,7 @@ export function monthKey(date: number): string {
 
 export function gradeDisplay(g: GradeEntry, examLabel = 'Prüfung'): string {
   const raw = g.text?.trim() || g.markName?.trim() || g.examType?.trim();
-  const normalized = (raw ?? '').replace(',', '.').replace(/[−–—]/g, '-').trim();
+  const normalized = (raw ?? '').replace(',', '.').replace(/[\u2212\u2013\u2014]/g, '-').trim();
   const isGradeLike = /^(?:\d{1,2}(?:\.\d{1,2})?[+\-]?|\d{1,2}\/\d{1,2})$/.test(normalized);
   if (!raw || isGradeLike) return examLabel;
   return raw;

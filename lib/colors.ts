@@ -39,7 +39,7 @@ function lerpColor(c1: RGB, c2: RGB, t: number): string {
 }
 
 // 6.4+ → light green (#86EFAC) to dark green (#15803D)
-// 6.0–6.39 → orange (#F97316)
+// 6.0-6.39 → orange (#F97316)
 // <6.0 → light red (#FCA5A5) near 6.0, dark red (#991B1B) at 1
 const GREEN_LIGHT: RGB = [134, 239, 172];
 const GREEN_DARK: RGB = [21, 128, 61];
@@ -60,7 +60,7 @@ export function averageColor(avg: number): string {
   return gradeColor(avg);
 }
 
-// Integer grade → color map for the DonutChart (grades 1–10)
+// Integer grade → color map for the DonutChart (grades 1-10)
 export const GRADE_COLORS: Record<number, string> = Object.fromEntries(
   [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((g) => [g, gradeColor(g)])
 );

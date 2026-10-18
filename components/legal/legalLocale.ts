@@ -1,6 +1,6 @@
 // The legal texts (imprint, privacy notice, cookies, Pokyh Learn) exist in
 // Italian, German and English only. Someone browsing Pokyh in Ladin reads them
-// in the language their device asks for — German, Italian or English — and in
+// in the language their device asks for (German, Italian or English) and in
 // English when it asks for none of these; the rest of the site stays Ladin.
 export type LegalLocale = 'de' | 'en' | 'it';
 export type LegalView = 'impressum' | 'datenschutz' | 'cookies' | 'learn' | 'landing';

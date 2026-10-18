@@ -24,8 +24,8 @@ import {
 // Inside the app: the account is told about the current privacy notice once.
 // The sign-in form already showed it and is recorded here first (the backend
 // token only exists after signing in); otherwise, when the server has no
-// record of this version — first sign-in from another device, or the notice
-// changed — a banner says it was updated, with the way to the notice, until
+// record of this version: first sign-in from another device, or the notice
+// changed: a banner says it was updated, with the way to the notice, until
 // "Verstanden". It informs (GDPR Art. 13), so it asks nothing and blocks
 // nothing; the optional statistics are chosen in the cookie banner, whose
 // choice reaches the account here too, and which goes first when both are due.
@@ -33,7 +33,7 @@ import {
 // When the backend cannot be reached nothing is shown and the notice comes
 // back on the next visit. Once shown it stays until "Verstanden", whatever
 // navigation or reload comes in between (rememberOpenGate); `paused` only hides
-// it — on the sign-in form and on the privacy notice itself.
+// it: on the sign-in form and on the privacy notice itself.
 export default function PrivacyGate({ paused = false }: { paused?: boolean }) {
   const { user } = useSession();
   const t = useT(privacyDict);

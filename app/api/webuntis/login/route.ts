@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { encryptSession } from '@/lib/session-crypto';
+import { defaultSchool, parseSchool, schoolBase, schoolCookieValue, type SchoolRef } from '@/lib/server/schools';
 import { fetchAppData, detectParent, extractChildStudentId, extractImageUrl } from '@/lib/untis-permissions';
 import {
   accountClassForRole,
@@ -10,9 +11,6 @@ import {
   type WebUntisStudentClass,
 } from '@/lib/account-classification';
 
-const BASE = process.env.WEBUNTIS_BASE_URL ?? process.env.WEBUNTIS_BASE ?? 'https://lbs-brixen.webuntis.com/WebUntis';
-const SCHOOL = process.env.WEBUNTIS_SCHOOL ?? 'lbs-brixen';
-const SCHOOL_COOKIE = '_' + Buffer.from(SCHOOL).toString('base64');
 
 type Klasse = { id: number; name: string };
 
@@ -45,11 +43,12 @@ function extractClassNameFromTimetable(json: unknown): string | null {
 
 // Derives a student's numeric klasseId from their timetable. WebUntis `getStudents`
 // does not expose the class for guardian logins, and at block-teaching schools
-// (LBS Brixen) whole weeks are free — so we sample the current week plus mid-month
+// (LBS Brixen) whole weeks are free, so we sample the current week plus mid-month
 // points across the school year until a week with lessons reveals the CLASS element,
 // then map its name to the numeric id via the getKlassen list. Uses the same REST
 // endpoint the timetable view uses (proven for this instance). Best-effort → 0.
 async function deriveKlasseIdFromTimetable(
+  BASE: string,
   headers: Record<string, string>,
   studentId: number,
   klassen: Klasse[],
@@ -113,7 +112,7 @@ function isRateLimited(ip: string): boolean {
   return false;
 }
 
-// Session cookies — 4-hour expiry
+// Session cookies: 4-hour expiry
 const COOKIE_OPTS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
@@ -130,16 +129,16 @@ export async function POST(req: NextRequest) {
 
   if (isRateLimited(ip)) {
     return NextResponse.json(
-      { error: 'Zu viele Versuche. Bitte warte 5 Minuten.' },
+      { error: 'Zu viele Versuche. Bitte warte 5 Minuten.', code: 'rate_limited' },
       { status: 429 }
     );
   }
 
-  let body: { username?: string; password?: string; renewal?: boolean };
+  let body: { username?: string; password?: string; renewal?: boolean; school?: unknown };
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: 'Ungültige Anfrage.' }, { status: 400 });
+    return NextResponse.json({ error: 'Ungültige Anfrage.', code: 'invalid' }, { status: 400 });
   }
 
   const { username: rawUsername, password } = body;
@@ -150,14 +149,24 @@ export async function POST(req: NextRequest) {
   const username = rawUsername?.trim().toLowerCase() ?? '';
 
   if (!username || !password?.trim()) {
-    return NextResponse.json({ error: 'Benutzername und Passwort erforderlich.' }, { status: 400 });
+    return NextResponse.json({ error: 'Benutzername und Passwort erforderlich.', code: 'missing' }, { status: 400 });
   }
   if (username.length > 100 || password.length > 200) {
-    return NextResponse.json({ error: 'Eingabe zu lang.' }, { status: 400 });
+    return NextResponse.json({ error: 'Eingabe zu lang.', code: 'invalid' }, { status: 400 });
   }
 
+  // The school picked on the sign-in page; only WebUntis hosts are accepted.
+  // A request without one (older clients) signs in at the default school.
+  if (body.school !== undefined && body.school !== null && !parseSchool(body.school)) {
+    return NextResponse.json({ error: 'Diese Schule ist nicht verfügbar.', code: 'school_invalid' }, { status: 400 });
+  }
+  const school: SchoolRef = parseSchool(body.school) ?? defaultSchool();
+  const BASE = schoolBase(school);
+  const SCHOOL = encodeURIComponent(school.loginName);
+  const SCHOOL_COOKIE = schoolCookieValue(school);
+
   try {
-    // 1. WebUntis JSON-RPC authentication (send lowercase — WebUntis accepts it)
+    // 1. WebUntis JSON-RPC authentication (send lowercase, WebUntis accepts it)
     const rpcRes = await fetch(`${BASE}/jsonrpc.do?school=${SCHOOL}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -173,19 +182,27 @@ export async function POST(req: NextRequest) {
     if (!rpcRes.ok) {
       const statusMsg =
         rpcRes.status >= 500
-          ? `Untis ist momentan nicht erreichbar (Fehler ${rpcRes.status}). Bitte versuche es später erneut.`
-          : 'Verbindung zu Untis fehlgeschlagen.';
-      return NextResponse.json({ error: statusMsg }, { status: 502 });
+          ? 'WebUntis ist gerade nicht erreichbar. Bitte versuche es später erneut.'
+          : 'Die Verbindung zu WebUntis ist fehlgeschlagen.';
+      return NextResponse.json({ error: statusMsg, code: 'unavailable' }, { status: 502 });
     }
 
     const rawCookie = rpcRes.headers.get('set-cookie') ?? '';
     const sessionMatch = rawCookie.match(/JSESSIONID=([^;]+)/);
     const sessionId = sessionMatch?.[1] ?? '';
 
-    const rpcJson = await rpcRes.json();
+    const rpcJson = await rpcRes.json().catch(() => null);
+    if (!rpcJson) {
+      return NextResponse.json({ error: 'WebUntis hat unerwartet geantwortet.', code: 'unavailable' }, { status: 502 });
+    }
     if (rpcJson.error) {
+      // -8504: wrong user name or password. Anything else: WebUntis refused
+      // the sign-in (account locked, school closed for API access, …).
+      const bad = rpcJson.error.code === -8504;
       return NextResponse.json(
-        { error: rpcJson.error.message ?? 'Anmeldung fehlgeschlagen.' },
+        bad
+          ? { error: 'Benutzername oder Passwort ist falsch.', code: 'bad_credentials' }
+          : { error: 'WebUntis hat die Anmeldung abgelehnt.', code: 'refused' },
         { status: 401 }
       );
     }
@@ -236,12 +253,12 @@ export async function POST(req: NextRequest) {
     let imageUrl: string | undefined;
     const isStudentSelf = students.some((student) => normalizedPositiveId(student.id) === studentId);
 
-    // Fetch app-data once here, where the WebUntis session is freshest — this is
+    // Fetch app-data once here, where the WebUntis session is freshest, this is
     // the most reliable moment to read the profile-image URL (a later, separate
     // request can hit a stale cookie session and fail). Best-effort, capped at 5s
     // so a slow call never stalls login.
     const appData = await Promise.race([
-      fetchAppData({ sessionId, bearerToken, studentId, klasseId, klasseName, username }),
+      fetchAppData({ sessionId, school, bearerToken, studentId, klasseId, klasseName, username }),
       new Promise<{ ok: false }>((resolve) => setTimeout(() => resolve({ ok: false as const }), 5000)),
     ]);
     const appJson = 'ok' in appData && appData.ok ? appData.json : null;
@@ -280,7 +297,7 @@ export async function POST(req: NextRequest) {
         Accept: 'application/json',
         ...(bearerToken ? { Authorization: `Bearer ${bearerToken}` } : {}),
       };
-      const derived = await deriveKlasseIdFromTimetable(ttHeaders, resolvedStudentId, klassen);
+      const derived = await deriveKlasseIdFromTimetable(BASE, ttHeaders, resolvedStudentId, klassen);
       if (derived > 0) resolvedKlasseId = derived;
     }
 
@@ -292,22 +309,22 @@ export async function POST(req: NextRequest) {
     const accountKlasseId = accountClass.klasseId;
     const accountKlasseName = accountClass.klasseName;
 
-    // Diagnostic (no secrets) — shows exactly how the class was resolved in prod logs.
+    // Diagnostic without personal data: how the class was resolved.
     console.log('[login] resolved', JSON.stringify({
-      username, studentId, klasseId, personType,
+      school: school.loginName, personType,
       isStudentSelf, studentsLen: students.length, isParent,
-      resolvedStudentId, resolvedKlasseId, klasseName,
+      hasStudent: resolvedStudentId > 0, hasClass: resolvedKlasseId > 0,
     }));
 
-    // Profile-image URL — for a guardian it's the child's, otherwise the person's.
+    // Profile-image URL: for a guardian it's the child's, otherwise the person's.
     if (appJson) imageUrl = extractImageUrl(appJson, isParent);
 
     // 4. Encrypt full session into httpOnly cookie (uses the resolved student).
-    const sessionData = { sessionId, bearerToken, studentId: resolvedStudentId, klasseId: resolvedKlasseId, klasseName, username, personType, isParent, imageUrl, loginAt: Date.now() };
+    const sessionData = { sessionId, school, bearerToken, studentId: resolvedStudentId, klasseId: resolvedKlasseId, klasseName, username, personType, isParent, imageUrl, loginAt: Date.now() };
     const encrypted = await encryptSession(sessionData);
 
     // 5. Non-sensitive user data for client (loginAt lets the client set a proactive expiry timer)
-    const userPublic = JSON.stringify({ username, studentId: resolvedStudentId, klasseId: accountKlasseId, klasseName: accountKlasseName, personType, isParent, loginAt: Date.now(), isUntisUser: true });
+    const userPublic = JSON.stringify({ username, studentId: resolvedStudentId, klasseId: accountKlasseId, klasseName: accountKlasseName, personType, isParent, loginAt: Date.now(), isUntisUser: true, school: { loginName: school.loginName, name: school.name ?? school.loginName } });
 
     // Register/login user with the Node.js backend.
     // pokyhSynced tells the client whether the POKYH session layer was refreshed
@@ -325,12 +342,17 @@ export async function POST(req: NextRequest) {
         },
         // Parent accounts are never assigned to their child's class. The
         // backend repeats this normalization as the authoritative safeguard.
+        // The school (login name, display name, server) lets the backend file
+        // the account under it, adding the school on its first sign-in.
         body: JSON.stringify({
           username,
           klasseId: accountKlasseId,
           klasseName: accountKlasseName,
           role: isParent ? 'parent' : 'student',
           renewal,
+          school: school.loginName,
+          ...(school.name ? { schoolName: school.name } : {}),
+          schoolServer: school.server,
         }),
         signal: AbortSignal.timeout(10000),
       });
@@ -373,7 +395,7 @@ export async function POST(req: NextRequest) {
       console.error('[login] Backend sync error:', backendErr);
     }
 
-    // POKYH backend sync failed — return the WebUntis session so the user can
+    // POKYH backend sync failed: return the WebUntis session so the user can
     // still see timetable/grades, but pokyhSynced=false tells the client NOT to
     // dispatch pokyh-session-refreshed (which would re-run loginWithSession →
     // /auth/me 401 → infinite loop) and NOT to keep stale POKYH cookies around.
@@ -382,7 +404,7 @@ export async function POST(req: NextRequest) {
     resFallback.cookies.set('pokyh_user', userPublic, { ...COOKIE_OPTS, httpOnly: false });
     return resFallback;
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : 'Netzwerkfehler';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error('[login] failed:', e instanceof Error ? e.message : e);
+    return NextResponse.json({ error: 'WebUntis ist gerade nicht erreichbar. Bitte versuche es später erneut.', code: 'unavailable' }, { status: 502 });
   }
 }

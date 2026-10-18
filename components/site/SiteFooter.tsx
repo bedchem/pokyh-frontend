@@ -2,14 +2,16 @@
 
 import Link from 'next/link';
 import { useRef } from 'react';
-import { useLocale, useLocalizeHref, useRoutePath, useT } from '@/providers/LocaleProvider';
+import { useLocalizeHref, useRoutePath, useT } from '@/providers/LocaleProvider';
 import { useSession } from '@/providers/SessionProvider';
 import { siteDict, type SiteKey } from '@/lib/i18n/dictionaries/site';
-import { ACTIVE_LOCALES, LOCALE_LABELS, LOCALE_NAMES } from '@/lib/i18n/locale';
+import { metaDict } from '@/lib/i18n/dictionaries/meta';
+import { SOURCE_URL } from '@/lib/site-links';
 import { COOKIE_SETTINGS_EVENT } from '@/components/CookieSettingsButton';
 import { ensureGsap, prefersReducedMotion, useGsap } from '@/lib/motion';
 import { useLenis } from './SmoothScroll';
 import { ThemeSegments } from './ThemeToggle';
+import { LanguageSegments } from './LanguageButton';
 
 // The end of every public page: the line of the app and the ways in (not on
 // the homepage, which already ends with them), the links, and the five
@@ -23,6 +25,8 @@ const COLUMNS: { title: SiteKey; links: FooterLink[] }[] = [
     title: 'footerProduct',
     links: [
       { key: 'navFeatures', href: '/#funktionen' },
+      { key: 'navWebuntis', href: '/webuntis' },
+      { key: 'navTools', href: '/tools' },
       { key: 'navMensa', href: '/mensa' },
       { key: 'navGet', href: '/get' },
       { key: 'navCompare', href: '/comparison' },
@@ -33,7 +37,7 @@ const COLUMNS: { title: SiteKey; links: FooterLink[] }[] = [
     links: [
       { key: 'navAbout', href: '/about' },
       { key: 'navFaq', href: '/faq' },
-      { key: 'github', href: 'https://github.com/bedchem', external: true },
+      { key: 'github', href: SOURCE_URL, external: true },
     ],
   },
   {
@@ -41,6 +45,7 @@ const COLUMNS: { title: SiteKey; links: FooterLink[] }[] = [
     links: [
       { key: 'imprint', href: '/legal?view=impressum' },
       { key: 'privacy', href: '/legal?view=datenschutz' },
+      { key: 'terms', href: '/legal?view=nutzungsbedingungen' },
       { key: 'cookies', href: '/legal?view=cookies' },
     ],
   },
@@ -59,8 +64,8 @@ const linkClass = 'text-[16px] text-white/70 transition-colors hover:text-white'
 
 export default function SiteFooter() {
   const t = useT(siteDict);
+  const tm = useT(metaDict);
   const localize = useLocalizeHref();
-  const { locale, setLocale } = useLocale();
   const { user } = useSession();
   const lenis = useLenis();
   const home = useRoutePath() === '/';
@@ -115,24 +120,26 @@ export default function SiteFooter() {
           </>
         )}
 
+        {/* On the homepage: what POKYH is, in plain words (read by people,
+            search engines and AI answers alike). */}
+        {home && (
+          <section aria-labelledby="pokyh-short" className="mb-16 grid gap-8 border-b border-white/10 pb-16 md:mb-20 md:grid-cols-[1fr_1.4fr] md:gap-16 md:pb-20">
+            <h2 id="pokyh-short" className="font-display text-[clamp(36px,4.6vw,72px)] leading-[0.95]">{tm('aboutHeading')}</h2>
+            <div>
+              <p className="max-w-[62ch] text-[17px] leading-[1.65] text-white/75 md:text-[18px]">{tm('aboutText')}</p>
+              <ul className="mt-8 flex flex-wrap gap-2.5">
+                {tm('aboutPoints').split('|').map((point) => (
+                  <li key={point} className="rounded-full bg-white/8 px-4 py-2 text-[14px] font-semibold text-white/85">{point}</li>
+                ))}
+              </ul>
+            </div>
+          </section>
+        )}
+
         <div className={`grid gap-12 md:grid-cols-[1.5fr_repeat(3,1fr)] md:gap-10 ${home ? '' : 'mt-[clamp(80px,10vw,150px)] border-t border-white/10 pt-12'}`}>
           <div className="flex max-w-sm flex-col gap-5">
             <p className="text-[15px] leading-[1.55] text-[var(--mute)]">{t('disclaimer')}</p>
-            <div role="group" aria-label={t('language')} className="-ml-2 flex items-center gap-1 text-[14px] font-semibold">
-              {ACTIVE_LOCALES.map((l) => (
-                <button
-                  key={l}
-                  type="button"
-                  lang={l}
-                  onClick={() => setLocale(l)}
-                  aria-pressed={l === locale}
-                  aria-label={LOCALE_NAMES[l]}
-                  className={`h-9 rounded-md px-2 transition-opacity ${l === locale ? 'opacity-100' : 'opacity-45 hover:opacity-100'}`}
-                >
-                  {LOCALE_LABELS[l]}
-                </button>
-              ))}
-            </div>
+            <LanguageSegments className="self-start" />
             <ThemeSegments className="self-start" />
           </div>
 

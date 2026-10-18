@@ -63,12 +63,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
 
     async function checkSession() {
-      // Skip if no token present — avoids noisy 401s on unauthenticated state
+      // Skip if no token present, avoids noisy 401s on unauthenticated state
       if (!api.getToken()) return;
       try {
         await apiFetch('/auth/me');
       } catch {
-        // Network error or server down — non-fatal, will retry next interval
+        // Network error or server down, non-fatal, will retry next interval
       }
     }
 

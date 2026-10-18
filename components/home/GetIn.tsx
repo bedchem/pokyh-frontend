@@ -36,7 +36,7 @@ export default function GetIn() {
   ];
 
   return (
-    <section ref={root} data-tone="dark" aria-labelledby="get-title" className="relative bg-[var(--indigo)] text-white">
+    <section ref={root} data-tone="dark" data-scroll-pace="getIn" aria-labelledby="get-title" className="relative bg-[var(--indigo)] text-white">
       <div className="flex min-h-[100svh] flex-col items-center justify-center px-5 pb-[clamp(80px,12svh,140px)] pt-28 md:px-10">
         <h2 id="get-title" aria-label={`${t('getTitleA')} ${t('getTitleB')}`} className="font-display flex flex-col items-center text-center font-extrabold tracking-[-0.06em]">
           <span data-line aria-hidden="true" className="block text-[clamp(44px,8.4vw,168px)] leading-[0.9]">{t('getTitleA')}</span>

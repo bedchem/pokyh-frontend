@@ -1,6 +1,6 @@
 /**
  * The Ladin translation was machine-translated and verified by an automated
- * pass, but has not been reviewed by a native speaker yet — flag it wherever
+ * pass, but has not been reviewed by a native speaker yet, flag it wherever
  * Ladin is selectable in a dropdown list (not on the trigger button itself).
  */
 export default function LadinWarningBadge() {
@@ -23,7 +23,7 @@ export default function LadinWarningBadge() {
           boxShadow: '0 8px 24px rgba(0,0,0,0.28)',
         }}
       >
-        Ladin translation is machine-generated and hasn&apos;t been reviewed by a native speaker yet — it may contain errors.
+        Ladin translation is machine-generated and hasn&apos;t been reviewed by a native speaker yet - it may contain errors.
         <span
           className="absolute top-full right-2 -mt-[5px] w-2.5 h-2.5 rotate-45"
           style={{ background: 'var(--app-surface)', borderRight: '1px solid var(--app-border)', borderBottom: '1px solid var(--app-border)' }}

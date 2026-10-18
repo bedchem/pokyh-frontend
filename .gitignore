@@ -40,9 +40,28 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Claude
+# Local tooling and assistant files: stay on this machine, never in Git
 .Claude
+.claude/
 CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+.cursor/
+.cursorrules
+.aider*
+.copilot/
+.github/copilot-instructions.md
+
+# Local notes and scratch files
+*.local.md
+.notes/
+.scratch/
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+Thumbs.db
 
 # temp WebUntis endpoint discovery output
 untis-discovery.json

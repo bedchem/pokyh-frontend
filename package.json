@@ -10,7 +10,8 @@
     "dev": "next dev -H 0.0.0.0 -p 3011",
     "build": "next build",
     "start": "next start -H 0.0.0.0 -p 3011",
-    "lint": "eslint"
+    "lint": "eslint",
+    "indexnow": "node scripts/indexnow.mjs"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",

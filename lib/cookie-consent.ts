@@ -4,9 +4,9 @@ import { getSignedInUid } from './api-client';
 
 // The cookie banner's choice on this device.
 //
-// - Necessary: sign-in, security, settings — and the anonymous usage counting
+// - Necessary: sign-in, security, settings, and the anonymous usage counting
 //   (no name, no identifier on the device), which needs no consent.
-// - stats: the personal usage statistics — the admin panel may show this
+// - stats: the personal usage statistics, the admin panel may show this
 //   account's time, platforms and pages (GDPR Art. 6(1)(a)). Applied to the
 //   account signed in when the choice was made, or the first one to sign in
 //   after it (lib/privacy-consent.ts), never to every account on the device.

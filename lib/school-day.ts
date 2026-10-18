@@ -16,7 +16,7 @@ export interface SchoolDayState {
   minutesLeft: number;
   /** 0..1 through the running period. */
   progress: number;
-  /** 0..1 through the whole school day (07:50–16:45). */
+  /** 0..1 through the whole school day (07:50-16:45). */
   dayProgress: number;
 }
 
@@ -78,10 +78,10 @@ export function schoolDayState(minute: number, weekday: number): SchoolDayState 
 }
 
 export function periodRange(p: TimetablePeriod): string {
-  return `${hhmm(p.startMinute)}–${hhmm(p.endMinute)}`;
+  return `${hhmm(p.startMinute)}-${hhmm(p.endMinute)}`;
 }
 
-/** Position of a minute on the 07:50–16:45 ruler, 0..1. */
+/** Position of a minute on the 07:50-16:45 ruler, 0..1. */
 export function rulerPosition(minute: number): number {
   return Math.min(1, Math.max(0, (minute - DAY_START) / (DAY_END - DAY_START)));
 }

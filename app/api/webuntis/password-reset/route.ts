@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readPageConfig, WEBUNTIS_BASE, WEBUNTIS_SCHOOL } from '@/lib/server/untis';
+import { readPageConfig } from '@/lib/server/untis';
+import { parseSchool, schoolBase, schoolCookieValue, schoolLoginName } from '@/lib/server/schools';
 
 export const runtime = 'nodejs';
 
@@ -12,8 +13,9 @@ export const runtime = 'nodejs';
 //
 // Error codes from WebUntis: INVALID_USER_DATA, SEND_EMAIL_FAILURE,
 // PW_RESET_NOT_ALLOWED, INTERNAL_ERROR.
-
-const SCHOOL_COOKIE = '_' + Buffer.from(WEBUNTIS_SCHOOL).toString('base64');
+//
+// The school is the one picked on the sign-in page (validated against the
+// WebUntis hosts, lib/server/schools.ts); without one, the default school.
 
 const attempts = new Map<string, { count: number; reset: number }>();
 function limited(ip: string): boolean {
@@ -41,10 +43,12 @@ export async function POST(req: NextRequest) {
 
   let username = '';
   let email = '';
+  let school: ReturnType<typeof parseSchool> = null;
   try {
-    const body = (await req.json()) as { username?: unknown; email?: unknown };
+    const body = (await req.json()) as { username?: unknown; email?: unknown; school?: unknown };
     username = String(body.username ?? '').trim();
     email = String(body.email ?? '').trim();
+    school = parseSchool(body.school);
   } catch {
     return NextResponse.json({ error: 'Ungültige Anfrage.', code: 'invalid_request' }, { status: 400 });
   }
@@ -55,7 +59,8 @@ export async function POST(req: NextRequest) {
 
   try {
     // 1. Anonymous session: cookie + CSRF token + tenant from the login page.
-    const page = await fetch(`${WEBUNTIS_BASE}/?school=${encodeURIComponent(WEBUNTIS_SCHOOL)}`, {
+    const base = schoolBase(school);
+    const page = await fetch(`${base}/?school=${encodeURIComponent(schoolLoginName(school))}`, {
       headers: { Accept: 'text/html' },
       signal: AbortSignal.timeout(12000),
       cache: 'no-store',
@@ -67,10 +72,10 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. The reset request itself.
-    const res = await fetch(`${WEBUNTIS_BASE}/passwordReset/resetPassword.do`, {
+    const res = await fetch(`${base}/passwordReset/resetPassword.do`, {
       method: 'POST',
       headers: {
-        Cookie: `JSESSIONID=${sessionId}; schoolname="${SCHOOL_COOKIE}"`,
+        Cookie: `JSESSIONID=${sessionId}; schoolname="${schoolCookieValue(school)}"`,
         Accept: 'application/json',
         'Content-Type': 'application/json',
         'X-CSRF-TOKEN': config.csrf,

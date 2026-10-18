@@ -2,14 +2,14 @@
 
 import Link from 'next/link';
 import { useEffect, useRef } from 'react';
-import { useLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
+import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { siteDict } from '@/lib/i18n/dictionaries/site';
-import { ACTIVE_LOCALES, LOCALE_LABELS, LOCALE_NAMES } from '@/lib/i18n/locale';
 import { ensureGsap, prefersReducedMotion } from '@/lib/motion';
 import Image from 'next/image';
 import { useLenis } from './SmoothScroll';
 import { SITE_NAV } from './SiteHeader';
 import { ThemeSegments } from './ThemeToggle';
+import { LanguageSegments } from './LanguageButton';
 
 export default function MobileMenu({
   open,
@@ -22,7 +22,6 @@ export default function MobileMenu({
 }) {
   const t = useT(siteDict);
   const localize = useLocalizeHref();
-  const { locale, setLocale } = useLocale();
   const lenis = useLenis();
   const panel = useRef<HTMLDivElement>(null);
   const closeBtn = useRef<HTMLButtonElement>(null);
@@ -96,7 +95,7 @@ export default function MobileMenu({
       style={{ visibility: 'hidden', clipPath: 'inset(0 0 100% 0)', paddingTop: 'var(--safe-top)', paddingBottom: 'var(--safe-bottom)' }}
     >
       <div className="flex h-[76px] items-center justify-between px-5">
-        <Image src="/POKYH_Logo.png" alt="POKYH" width={44} height={44} className="size-10" />
+        <Image src="/POKYH_Logo.png" alt="POKYH" width={44} height={44} loading="eager" className="size-10" />
         <button ref={closeBtn} type="button" onClick={onClose} aria-label={t('close')} className="key key-sm key-glass !px-0 w-11">
           <span aria-hidden="true" className="relative block size-[16px]">
             <span className="absolute left-0 top-1/2 h-[1.5px] w-full -translate-y-1/2 rotate-45 rounded-full bg-current" />
@@ -105,7 +104,7 @@ export default function MobileMenu({
         </button>
       </div>
 
-      <nav aria-label="POKYH" className="flex flex-1 flex-col justify-center overflow-y-auto px-5">
+      <nav aria-label="POKYH" data-lenis-prevent className="flex flex-1 flex-col justify-center overflow-y-auto px-5">
         <ul className="flex flex-col gap-1">
           {links.map((item) => (
             <li key={item.href} className="overflow-hidden">
@@ -124,21 +123,7 @@ export default function MobileMenu({
 
       <div className="flex flex-col gap-6 px-5 pb-8 pt-4">
         <div data-menu-item className="flex flex-wrap items-center justify-between gap-3">
-          <div role="group" aria-label={t('language')} className="flex items-center gap-2 text-[16px] font-semibold">
-            {ACTIVE_LOCALES.map((l) => (
-              <button
-                key={l}
-                type="button"
-                lang={l}
-                onClick={() => setLocale(l)}
-                aria-pressed={l === locale}
-                aria-label={LOCALE_NAMES[l]}
-                className={`h-10 rounded-md px-2 transition-opacity ${l === locale ? 'opacity-100' : 'opacity-45'}`}
-              >
-                {LOCALE_LABELS[l]}
-              </button>
-            ))}
-          </div>
+          <LanguageSegments />
           <ThemeSegments />
         </div>
         <Link data-menu-item href={localize(cta.href)} onClick={onClose} className="key key-lg key-lilac w-full">

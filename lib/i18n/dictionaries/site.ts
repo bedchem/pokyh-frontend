@@ -9,6 +9,8 @@ export type SiteKey =
   | 'navFaq'
   | 'navGet'
   | 'navCompare'
+  | 'navWebuntis'
+  | 'navTools'
   | 'navSelfHost'
   | 'login'
   | 'openApp'
@@ -16,6 +18,8 @@ export type SiteKey =
   | 'close'
   | 'home'
   | 'language'
+  | 'languageTitle'
+  | 'languageNow'
   | 'theme'
   | 'themeLight'
   | 'themeDark'
@@ -25,6 +29,7 @@ export type SiteKey =
   | 'footerLegal'
   | 'imprint'
   | 'privacy'
+  | 'terms'
   | 'cookies'
   | 'cookieSettings'
   | 'github'
@@ -43,6 +48,8 @@ export const siteDict: Dictionary<SiteKey> = {
     navFaq: 'FAQ',
     navGet: 'App holen',
     navCompare: 'Vergleich mit WebUntis',
+    navWebuntis: 'Für WebUntis',
+    navTools: 'Noten- und Fehlstundenrechner',
     navSelfHost: 'Selbst hosten',
     login: 'Anmelden',
     openApp: 'Zur App',
@@ -50,6 +57,8 @@ export const siteDict: Dictionary<SiteKey> = {
     close: 'Schließen',
     home: 'Startseite',
     language: 'Sprache',
+    languageTitle: 'Sprache der Seite wählen',
+    languageNow: 'Aktuelle Sprache',
     theme: 'Darstellung',
     themeLight: 'Hell',
     themeDark: 'Dunkel',
@@ -62,10 +71,11 @@ export const siteDict: Dictionary<SiteKey> = {
     cookies: 'Cookies',
     cookieSettings: 'Cookie-Einstellungen',
     github: 'GitHub',
-    disclaimer: 'POKYH ist ein Schülerprojekt und kein offizielles Produkt der Untis GmbH.',
+    disclaimer: 'POKYH ist ein unabhängiges Projekt und nicht mit der Untis GmbH verbunden. WebUntis und Untis sind Marken der Untis GmbH.',
+    terms: 'Nutzungsbedingungen',
     toTop: 'Nach oben',
     endTitle: 'Deine Schule. Übersichtlich.',
-    endText: 'Stundenplan, Noten, Mensa und Nachrichten an einem Ort. Kostenlos, mit deinem WebUntis-Konto.',
+    endText: 'Stundenplan, Noten, Abwesenheiten und Nachrichten an einem Ort. Kostenlos, mit deinem WebUntis-Konto, für jede Schule mit WebUntis.',
     tilesHint: 'Tipp die Buchstaben an.',
   },
   it: {
@@ -76,6 +86,8 @@ export const siteDict: Dictionary<SiteKey> = {
     navFaq: 'FAQ',
     navGet: "Scarica l'app",
     navCompare: 'Confronto con WebUntis',
+    navWebuntis: 'Per WebUntis',
+    navTools: 'Calcolo media e assenze',
     navSelfHost: 'Self-hosting',
     login: 'Accedi',
     openApp: "Apri l'app",
@@ -83,6 +95,8 @@ export const siteDict: Dictionary<SiteKey> = {
     close: 'Chiudi',
     home: 'Home',
     language: 'Lingua',
+    languageTitle: 'Scegli la lingua del sito',
+    languageNow: 'Lingua attuale',
     theme: 'Aspetto',
     themeLight: 'Chiaro',
     themeDark: 'Scuro',
@@ -95,10 +109,11 @@ export const siteDict: Dictionary<SiteKey> = {
     cookies: 'Cookie',
     cookieSettings: 'Impostazioni cookie',
     github: 'GitHub',
-    disclaimer: 'POKYH è un progetto di studenti e non un prodotto ufficiale di Untis GmbH.',
+    disclaimer: 'POKYH è un progetto indipendente e non è collegato a Untis GmbH. WebUntis e Untis sono marchi di Untis GmbH.',
+    terms: 'Condizioni d’uso',
     toTop: 'Torna su',
     endTitle: 'La tua scuola. In ordine.',
-    endText: 'Orario, voti, mensa e messaggi in un unico posto. Gratis, con il tuo account WebUntis.',
+    endText: 'Orario, voti, assenze e messaggi in un unico posto. Gratis, con il tuo account WebUntis, per ogni scuola con WebUntis.',
     tilesHint: 'Tocca le lettere.',
   },
   en: {
@@ -109,6 +124,8 @@ export const siteDict: Dictionary<SiteKey> = {
     navFaq: 'FAQ',
     navGet: 'Get the app',
     navCompare: 'Compared to WebUntis',
+    navWebuntis: 'For WebUntis',
+    navTools: 'Grade and absence calculators',
     navSelfHost: 'Self-hosting',
     login: 'Sign in',
     openApp: 'Open app',
@@ -116,6 +133,8 @@ export const siteDict: Dictionary<SiteKey> = {
     close: 'Close',
     home: 'Home',
     language: 'Language',
+    languageTitle: 'Choose the site language',
+    languageNow: 'Current language',
     theme: 'Appearance',
     themeLight: 'Light',
     themeDark: 'Dark',
@@ -128,10 +147,11 @@ export const siteDict: Dictionary<SiteKey> = {
     cookies: 'Cookies',
     cookieSettings: 'Cookie settings',
     github: 'GitHub',
-    disclaimer: 'POKYH is a student project and not an official product of Untis GmbH.',
+    disclaimer: 'POKYH is an independent project and is not affiliated with Untis GmbH. WebUntis and Untis are trademarks of Untis GmbH.',
+    terms: 'Terms of use',
     toTop: 'Back to top',
     endTitle: 'Your school. At a glance.',
-    endText: 'Timetable, grades, cafeteria and messages in one place. Free, with your WebUntis account.',
+    endText: 'Timetable, grades, absences and messages in one place. Free, with your WebUntis account, for every school on WebUntis.',
     tilesHint: 'Tap the letters.',
   },
 };

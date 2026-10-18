@@ -1,4 +1,4 @@
-/* Timetable — design ported from the Android app (TimetableScreen / WeekGrid / LessonDetailSheet). */
+/* Timetable: design ported from the Android app (TimetableScreen / WeekGrid / LessonDetailSheet). */
 
 .wrap {
   height: 100%;
@@ -554,7 +554,7 @@
   height: 340px;
 }
 /* In the week grid a whole special day fills its column: a tinted plate in the day's own
-   colour with a matching outline — red for Entfall, orange for Ferien — so the day reads as
+   colour with a matching outline - red for Entfall, orange for Ferien - so the day reads as
    one block at a glance, the same way a cancelled lesson does. */
 .specialCompact {
   position: absolute;
@@ -815,7 +815,7 @@ button.special { border: 0; background: transparent; font: inherit; cursor: poin
 
 /* ── Detail sheet ─────────────────────────────────────────── */
 /* Same build as the Android app's LessonDetailSheet: the sheet is the page canvas
-   (--app-bg) and everything on it is a card — hero card, Lehrer/Raum list with
+   (--app-bg) and everything on it is a card - hero card, Lehrer/Raum list with
    pastel icon tiles, one card per note. */
 
 .backdrop {
@@ -1079,7 +1079,7 @@ button.special { border: 0; background: transparent; font: inherit; cursor: poin
 
 /* Abwesenheit (Vorentschuldigung / Entschuldigt / Unentschuldigt): ONE translucent grey
    block over the column, from exactly where the absence starts to where it ends,
-   with the label in its middle — only the text colour says which: pastel green for
+   with the label in its middle - only the text colour says which: pastel green for
    Vorentschuldigung/Entschuldigt, pastel red for Unentschuldigt. The label is always one line and never leaves the block: its size
    follows the block's width (container query units). On a narrow column (a phone)
    the short label is shown instead, so the text can stay readable.

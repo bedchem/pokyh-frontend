@@ -32,7 +32,7 @@ export type HowtoKey =
 
 export const howtoDict: Dictionary<HowtoKey> = {
   de: {
-    metaTitle: 'POKYH selbst hosten – Anleitung',
+    metaTitle: 'POKYH selbst hosten - Anleitung',
     metaDescription: 'POKYH ist Open Source. So betreibst du die Web-App auf deinem eigenen Rechner oder Server: Repository klonen, konfigurieren, starten.',
     ogTitle: 'POKYH selbst hosten',
     ogDescription: 'Die Web-App von POKYH lokal oder auf deinem Server betreiben.',
@@ -62,7 +62,7 @@ export const howtoDict: Dictionary<HowtoKey> = {
     ctaLogin: 'Anmelden',
   },
   it: {
-    metaTitle: 'Self-hosting di POKYH – Guida',
+    metaTitle: 'Self-hosting di POKYH: guida',
     metaDescription: 'POKYH è open source. Ecco come far girare la web app sul tuo computer o server: clona il repository, configura, avvia.',
     ogTitle: 'Self-hosting di POKYH',
     ogDescription: 'Far girare la web app di POKYH in locale o sul tuo server.',
@@ -92,7 +92,7 @@ export const howtoDict: Dictionary<HowtoKey> = {
     ctaLogin: 'Accedi',
   },
   en: {
-    metaTitle: 'Self-hosting POKYH – Guide',
+    metaTitle: 'Self-hosting POKYH: guide',
     metaDescription: 'POKYH is open source. Here’s how to run the web app on your own computer or server: clone the repository, configure, start.',
     ogTitle: 'Self-hosting POKYH',
     ogDescription: 'Run the POKYH web app locally or on your own server.',

@@ -2,8 +2,10 @@ import type { Metadata } from 'next';
 import { Check, Minus } from '@phosphor-icons/react/ssr';
 import { makeT } from '@/lib/i18n/dictionary';
 import { routeLocale } from '@/lib/i18n/server';
-import { localeAlternates, localizedUrl, ogLocale, pageKeywords } from '@/lib/i18n/seo';
+import { localeAlternates, localizedUrl, ogLocale, pageKeywords, ogImage } from '@/lib/i18n/seo';
 import { comparisonDict, type ComparisonKey } from '@/lib/i18n/dictionaries/comparison';
+import { siteDict } from '@/lib/i18n/dictionaries/site';
+import PageJsonLd from '@/components/site/PageJsonLd';
 import PageIntro, { TONE, type SiteTone } from '@/components/site/PageIntro';
 import RevealScope from '@/components/site/RevealScope';
 import CtaBand from '@/components/site/CtaBand';
@@ -18,12 +20,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: t('metaTitle'),
     description: t('metaDescription'),
-    keywords: pageKeywords(locale, [
-      'POKYH vs WebUntis', 'WebUntis Alternative', 'WebUntis Vergleich', 'Schulapp Vergleich',
-      'WebUntis Brixen', 'Tschuggmall WebUntis', 'LBS Brixen WebUntis',
-    ]),
+    keywords: pageKeywords(locale),
     alternates: localeAlternates(SITE_URL, locale, '/comparison'),
     openGraph: {
+      images: ogImage(locale),
       title: t('ogTitle'),
       description: t('ogDescription'),
       url: localizedUrl(SITE_URL, locale, '/comparison'),
@@ -34,6 +34,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
+// Only objective, checkable features. Judgements about the design of another
+// company's product are left out (comparative advertising must compare
+// verifiable features, Italian D.Lgs. 145/2007 art. 4). WebUntis values: as
+// publicly documented; what a school has switched on can differ.
 type Val = 'yes' | 'partial' | 'no';
 const SECTIONS: { title: ComparisonKey; rows: { key: ComparisonKey; pokyh: Val; untis: Val }[] }[] = [
   {
@@ -47,9 +51,7 @@ const SECTIONS: { title: ComparisonKey; rows: { key: ComparisonKey; pokyh: Val; 
   {
     title: 'secDesign',
     rows: [
-      { key: 'rModern', pokyh: 'yes', untis: 'partial' },
-      { key: 'rDark', pokyh: 'yes', untis: 'partial' },
-      { key: 'rMobileFirst', pokyh: 'yes', untis: 'partial' },
+      { key: 'rDark', pokyh: 'yes', untis: 'yes' },
       { key: 'rMobileApp', pokyh: 'yes', untis: 'yes' },
     ],
   },
@@ -60,7 +62,7 @@ const SECTIONS: { title: ComparisonKey; rows: { key: ComparisonKey; pokyh: Val; 
       { key: 'rSubst', pokyh: 'yes', untis: 'yes' },
       { key: 'rGrades', pokyh: 'yes', untis: 'partial' },
       { key: 'rCalculator', pokyh: 'yes', untis: 'no' },
-      { key: 'rMensa', pokyh: 'yes', untis: 'no' },
+      { key: 'rMensa', pokyh: 'partial', untis: 'no' },
       { key: 'rMessages', pokyh: 'yes', untis: 'yes' },
       { key: 'rAbsences', pokyh: 'yes', untis: 'yes' },
       { key: 'rReminders', pokyh: 'yes', untis: 'no' },
@@ -113,6 +115,7 @@ export default async function ComparisonPage({ params }: PageProps) {
 
   return (
     <>
+      <PageJsonLd locale={locale} path="/comparison" type="WebPage" name={t('metaTitle')} description={t('metaDescription')} trail={[{ name: makeT(siteDict, locale)('navCompare'), path: '/comparison' }]} />
       <PageIntro title={t('title')} lead={t('lead')} />
 
       <RevealScope>
@@ -150,6 +153,7 @@ export default async function ComparisonPage({ params }: PageProps) {
             </table>
           </div>
           <p data-reveal className="mt-6 max-w-[64ch] text-[15px] leading-[1.6] text-ink-2">{t('note')}</p>
+          <p data-reveal className="mt-3 max-w-[64ch] text-[13px] leading-[1.6] text-ink-3">{t('asOf')}</p>
         </section>
 
         <section aria-labelledby="summary-title" className="wrap pb-20 md:pb-28">

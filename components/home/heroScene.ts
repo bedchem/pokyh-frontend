@@ -138,6 +138,8 @@ export function createHeroScene(
   items: HeroItem[],
   text: TileText,
   fonts: ArtFonts,
+  /** Width in pixels the tile faces are drawn at (smaller on phones: less memory, faster start). */
+  { textureSize = 520 }: { textureSize?: number } = {},
 ): HeroScene | null {
   let renderer: THREE.WebGLRenderer;
   try {
@@ -181,13 +183,13 @@ export function createHeroScene(
       w = item.portrait ? TILE_W.portrait : TILE_W.landscape;
       h = (w * (item.portrait ? 256 : 164)) / 200;
       radius = (22 / 200) * w;
-      face = drawTile(item.art, 520, item.portrait, text, fonts);
+      face = drawTile(item.art, textureSize, item.portrait, text, fonts);
       [bg, ink] = TILE_TONES[item.art];
     } else {
       w = TILE_W.poster;
       h = (w * 496) / 400;
       radius = (30 / 400) * w;
-      face = drawPoster(item.art, 560, fonts);
+      face = drawPoster(item.art, Math.round(textureSize * 1.08), fonts);
       bg = POSTER_BG[item.art];
       ink = '#FFFFFF';
     }
@@ -283,7 +285,7 @@ export function createHeroScene(
     const w = canvas.clientWidth || window.innerWidth;
     const h = canvas.clientHeight || window.innerHeight;
     const small = Math.min(w, h) < 700;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, small ? 1.6 : 1.85));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, small ? 1.5 : 1.75));
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();

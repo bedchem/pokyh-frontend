@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { decryptSession } from './session-crypto';
 import type { Session } from './types';
+import { cookieHeader } from './server/untis';
 
 export async function getServerSession(): Promise<Session | null> {
   const cookieStore = await cookies();
@@ -9,11 +10,9 @@ export async function getServerSession(): Promise<Session | null> {
   return decryptSession<Session>(token);
 }
 
-export const SCHOOL_COOKIE_VAL = '_' + Buffer.from(process.env.WEBUNTIS_SCHOOL ?? 'lbs-brixen').toString('base64');
-
 export function webUntisHeaders(session: Session): Record<string, string> {
   return {
-    Cookie: `JSESSIONID=${session.sessionId}; schoolname="${SCHOOL_COOKIE_VAL}"`,
+    Cookie: cookieHeader(session),
     Accept: 'application/json',
     ...(session.bearerToken ? { Authorization: `Bearer ${session.bearerToken}` } : {}),
   };

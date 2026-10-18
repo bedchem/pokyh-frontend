@@ -20,7 +20,7 @@ export async function requestPermissionAndSubscribe(): Promise<void> {
   if (typeof window === 'undefined') return;
   if (!('Notification' in window) || !('PushManager' in window)) return;
   if (!VAPID_PUBLIC_KEY) {
-    // No VAPID key configured — fall back to SW polling only (Android)
+    // No VAPID key configured: fall back to SW polling only (Android)
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') return;
     const reg = await navigator.serviceWorker.ready;
@@ -42,7 +42,7 @@ export async function requestPermissionAndSubscribe(): Promise<void> {
       });
     }
 
-    // Tell the backend — it will poll WebUntis using the user's current session
+    // Tell the backend: it will poll WebUntis using the user's current session
     const json = sub.toJSON();
     await fetch('/api/push/register', {
       method: 'POST',
@@ -58,6 +58,6 @@ export async function requestPermissionAndSubscribe(): Promise<void> {
     // Also start SW polling as a fallback (helps on Android)
     reg.active?.postMessage('start-poll');
   } catch {
-    // Silently ignore — e.g. user denied in a different tab, or VAPID mismatch
+    // Silently ignore: e.g. user denied in a different tab, or VAPID mismatch
   }
 }

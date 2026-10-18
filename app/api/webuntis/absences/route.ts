@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession, webUntisHeaders } from '@/lib/server-session';
-import { WEBUNTIS_BASE } from '@/lib/untis-permissions';
+import { untisBase } from '@/lib/server/untis';
 
-const BASE = WEBUNTIS_BASE;
 const PAGE_SIZE = 100;
 
 export async function GET(req: NextRequest) {
@@ -10,6 +9,7 @@ export async function GET(req: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: 'Nicht angemeldet.' }, { status: 401 });
   }
+  const BASE = untisBase(session);
 
   const { searchParams } = new URL(req.url);
   const startDate = searchParams.get('startDate') ?? '';
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
       const res = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
       const text = await res.text();
 
-      // Auth/session errors — only bail on first page (subsequent failures just stop pagination)
+      // Auth/session errors: only bail on first page (subsequent failures just stop pagination)
       if (text.trimStart().startsWith('<') || res.status === 401 || res.status === 403) {
         if (page === 0) {
           console.error('[absences] Session expired');

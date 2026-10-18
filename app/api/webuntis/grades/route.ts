@@ -1,18 +1,18 @@
 import { NextResponse } from 'next/server';
-import { getServerSession, webUntisHeaders, SCHOOL_COOKIE_VAL } from '@/lib/server-session';
+import { getServerSession, webUntisHeaders } from '@/lib/server-session';
+import { untisBase, untisSchool, cookieHeader } from '@/lib/server/untis';
+import type { Session } from '@/lib/types';
 
-import { WEBUNTIS_BASE } from '@/lib/untis-permissions';
-const BASE = WEBUNTIS_BASE;
-const SCHOOL = process.env.WEBUNTIS_SCHOOL || 'lbs-brixen';
 const DEBUG = process.env.DEBUG_API === 'true';
 
 function log(...args: unknown[]) {
   if (DEBUG) console.log('[grades]', ...args);
 }
 
-async function getSchoolyearId(session: { sessionId: string }, targetYear?: number): Promise<number | null | -1> {
-  const cookieHeader = `JSESSIONID=${session.sessionId}; schoolname="${SCHOOL_COOKIE_VAL}"`;
-  const baseHeaders = { 'Content-Type': 'application/json', Cookie: cookieHeader };
+async function getSchoolyearId(session: Session, targetYear?: number): Promise<number | null | -1> {
+  const BASE = untisBase(session);
+  const SCHOOL = encodeURIComponent(untisSchool(session));
+  const baseHeaders = { 'Content-Type': 'application/json', Cookie: cookieHeader(session) };
 
   // For a specific year, look it up directly via getSchoolyears
   if (targetYear != null) {
@@ -83,6 +83,7 @@ export async function GET(request: Request) {
     console.error('[grades] No session cookie');
     return NextResponse.json({ error: 'Nicht angemeldet.' }, { status: 401 });
   }
+  const BASE = untisBase(session);
 
   const { searchParams } = new URL(request.url);
   const yearParam = searchParams.get('year');

@@ -9,6 +9,8 @@ import { formatDate } from '@/lib/i18n/dateLocale';
 import { api } from '@/lib/api-client';
 import { ensureGsap, fadeIn, lightUp, prefersReducedMotion, SplitText, useGsap } from '@/lib/motion';
 import { useMensaDishes } from '@/components/landing/useMensaDishes';
+import ExternalMediaNotice from '@/components/ExternalMediaNotice';
+import { useExternalMedia } from '@/lib/external-media';
 
 // The next dish on the plan and nothing else: the day it is for (today,
 // tomorrow, Monday …), its name, the stars it got from students and one
@@ -43,6 +45,7 @@ function Stars({ value }: { value: number }) {
 
 export default function MensaToday() {
   const t = useT(frontpageDict);
+  const external = useExternalMedia();
   const { locale } = useLocale();
   const { tag } = useDateLocale();
   const localize = useLocalizeHref();
@@ -168,7 +171,7 @@ export default function MensaToday() {
       : t('mensaNoVotes');
 
   return (
-    <section ref={root} data-tone="light" aria-labelledby="mensa-title" className="relative z-10 -mt-[100svh] min-h-[100svh] overflow-clip bg-[var(--paper)] text-ink">
+    <section ref={root} data-tone="light" data-scroll-pace="mensa" aria-labelledby="mensa-title" className="relative z-10 -mt-[calc(100*var(--lvh))] min-h-[calc(100*var(--lvh))] overflow-clip bg-[var(--paper)] text-ink">
       <div className="mx-auto grid max-w-[1700px] grid-cols-1 items-center gap-12 px-5 py-[clamp(110px,14vw,220px)] md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] md:gap-[6vw] md:px-10 lg:px-[6.5vw]">
         <div className="min-w-0">
           {pick === undefined ? (
@@ -208,7 +211,7 @@ export default function MensaToday() {
           )}
         </div>
 
-        {pick?.dish.imageUrl && (
+        {pick?.dish.imageUrl && (external ? (
           <div ref={photo} className="justify-self-center will-change-transform md:justify-self-end">
             <div data-frame className="aspect-[4/5] w-[min(78vw,420px)] overflow-hidden rounded-[clamp(22px,2.4vw,36px)] md:w-[clamp(280px,32vw,560px)]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -222,8 +225,11 @@ export default function MensaToday() {
                 onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }}
               />
             </div>
+            <ExternalMediaNotice className="mt-3 w-[min(78vw,420px)] md:w-[clamp(280px,32vw,560px)]" />
           </div>
-        )}
+        ) : (
+          <ExternalMediaNotice className="max-w-[420px] justify-self-center md:justify-self-end" />
+        ))}
       </div>
     </section>
   );

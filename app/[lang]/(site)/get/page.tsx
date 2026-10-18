@@ -3,7 +3,9 @@ import Link from 'next/link';
 import { AndroidLogo, AppleLogo, ArrowRight, ArrowUpRight, Globe, DeviceMobile } from '@phosphor-icons/react/ssr';
 import { makeT } from '@/lib/i18n/dictionary';
 import { routeLocale } from '@/lib/i18n/server';
-import { localeAlternates, localizedUrl, ogLocale, pageKeywords } from '@/lib/i18n/seo';
+import { localeAlternates, localizedUrl, ogLocale, pageKeywords, ogImage } from '@/lib/i18n/seo';
+import PageJsonLd from '@/components/site/PageJsonLd';
+import { siteDict } from '@/lib/i18n/dictionaries/site';
 import { getDict } from '@/lib/i18n/dictionaries/get';
 import PageIntro, { TONE } from '@/components/site/PageIntro';
 import RevealScope from '@/components/site/RevealScope';
@@ -19,14 +21,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: t('metaTitle'),
     description: t('metaDescription'),
-    keywords: pageKeywords(locale, [
-      'POKYH App', 'POKYH installieren', 'POKYH iOS', 'POKYH Android',
-      'POKYH APK', 'POKYH Web', 'LBS Brixen App', 'Schulapp installieren',
-      'WebUntis App Brixen', 'POKYH herunterladen',
-    ]),
+    keywords: pageKeywords(locale),
     alternates: localeAlternates(SITE_URL, locale, '/get'),
     openGraph: {
-      title: 'POKYH – Web & App',
+      images: ogImage(locale),
+      title: 'POKYH - Web & App',
       description: t('ogDescription'),
       url: localizedUrl(SITE_URL, locale, '/get'),
       type: 'website',
@@ -35,7 +34,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     },
     twitter: {
       card: 'summary_large_image',
-      title: 'POKYH – Web & App',
+      images: ogImage(locale).map((i) => i.url),
+      title: 'POKYH - Web & App',
       description: t('twitterDescription'),
     },
     robots: { index: true, follow: true },
@@ -46,15 +46,6 @@ export default async function GetPage({ params }: PageProps) {
   const locale = await routeLocale(params);
   const t = makeT(getDict, locale);
   const href = (path: string) => `/${locale}${path}${path.endsWith('/') ? '' : '/'}`;
-  const breadcrumbData = {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
-    itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'POKYH', item: localizedUrl(SITE_URL, locale, '/') },
-      { '@type': 'ListItem', position: 2, name: 'Get POKYH', item: localizedUrl(SITE_URL, locale, '/get') },
-    ],
-  };
-
   const native = [
     { icon: AndroidLogo, title: t('androidTitle'), body: t('androidBody'), guide: href('/get/android'), releases: RELEASES.android, tone: 'sage' as const },
     { icon: AppleLogo, title: t('iosTitle'), body: t('iosBody'), guide: href('/get/ios'), releases: RELEASES.ios, tone: 'blush' as const },
@@ -62,7 +53,7 @@ export default async function GetPage({ params }: PageProps) {
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }} />
+      <PageJsonLd locale={locale} path="/get" name={t('metaTitle')} description={t('metaDescription')} trail={[{ name: makeT(siteDict, locale)('navGet'), path: '/get' }]} />
       <PageIntro title={t('title')} lead={t('lead')} />
 
       <RevealScope>

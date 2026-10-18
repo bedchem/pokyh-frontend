@@ -9,15 +9,20 @@
 
 import 'server-only';
 import type { Session } from '@/lib/types';
+import { schoolBase, schoolCookieValue, schoolLoginName } from './schools';
 
-export const WEBUNTIS_BASE = (
-  process.env.WEBUNTIS_BASE_URL || process.env.WEBUNTIS_BASE || 'https://lbs-brixen.webuntis.com/WebUntis'
-).replace(/\/$/, '');
-export const WEBUNTIS_SCHOOL = process.env.WEBUNTIS_SCHOOL || 'lbs-brixen';
-const SCHOOL_COOKIE = '_' + Buffer.from(WEBUNTIS_SCHOOL).toString('base64');
+/** `https://<server>/WebUntis` of the session's school. */
+export function untisBase(session: Pick<Session, 'school'>): string {
+  return schoolBase(session.school);
+}
 
-export function cookieHeader(sessionId: string): string {
-  return `JSESSIONID=${sessionId}; schoolname="${SCHOOL_COOKIE}"`;
+/** WebUntis login name of the session's school. */
+export function untisSchool(session: Pick<Session, 'school'>): string {
+  return schoolLoginName(session.school);
+}
+
+export function cookieHeader(session: Pick<Session, 'sessionId' | 'school'>): string {
+  return `JSESSIONID=${session.sessionId}; schoolname="${schoolCookieValue(session.school)}"`;
 }
 
 // ── Small per-session cache ─────────────────────────────────────────────────
@@ -79,10 +84,10 @@ export function looksExpired(status: number, body: string): boolean {
 
 // ── Bearer token ────────────────────────────────────────────────────────────
 
-async function mintToken(sessionId: string): Promise<string | undefined> {
+async function mintToken(session: Session): Promise<string | undefined> {
   try {
-    const res = await fetch(`${WEBUNTIS_BASE}/api/token/new`, {
-      headers: { Cookie: cookieHeader(sessionId), Accept: 'application/json' },
+    const res = await fetch(`${untisBase(session)}/api/token/new`, {
+      headers: { Cookie: cookieHeader(session), Accept: 'application/json' },
       signal: AbortSignal.timeout(10000),
       cache: 'no-store',
     });
@@ -113,7 +118,7 @@ export async function bearerToken(session: Session): Promise<string | undefined>
     return e.token;
   }
 
-  const fresh = await mintToken(session.sessionId);
+  const fresh = await mintToken(session);
   if (fresh) {
     e.token = fresh;
     e.tokenExp = jwtExpiry(fresh) ?? now + 5 * 60_000;
@@ -130,9 +135,9 @@ const RPC_AUTH_ERRORS = new Set([-8500, -8501, -8502, -8520]);
 
 export async function rpc<T>(session: Session, method: string, params: Record<string, unknown> = {}): Promise<RpcResult<T>> {
   try {
-    const res = await fetch(`${WEBUNTIS_BASE}/jsonrpc.do?school=${encodeURIComponent(WEBUNTIS_SCHOOL)}`, {
+    const res = await fetch(`${untisBase(session)}/jsonrpc.do?school=${encodeURIComponent(untisSchool(session))}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Cookie: cookieHeader(session.sessionId) },
+      headers: { 'Content-Type': 'application/json', Cookie: cookieHeader(session) },
       body: JSON.stringify({ id: `pokyh-${method}`, method, params, jsonrpc: '2.0' }),
       signal: AbortSignal.timeout(12000),
       cache: 'no-store',
@@ -170,8 +175,8 @@ export async function csrfToken(session: Session, force = false): Promise<string
   const e = entry(session.sessionId);
   if (e.csrf && !force) return e.csrf;
   try {
-    const res = await fetch(`${WEBUNTIS_BASE}/?school=${encodeURIComponent(WEBUNTIS_SCHOOL)}`, {
-      headers: { Cookie: cookieHeader(session.sessionId), Accept: 'text/html' },
+    const res = await fetch(`${untisBase(session)}/?school=${encodeURIComponent(untisSchool(session))}`, {
+      headers: { Cookie: cookieHeader(session), Accept: 'text/html' },
       signal: AbortSignal.timeout(12000),
       cache: 'no-store',
     });
@@ -237,7 +242,7 @@ interface RequestOptions {
 export async function untis(session: Session, path: string, opts: RequestOptions = {}): Promise<UntisResponse> {
   const method = opts.method ?? (opts.json !== undefined || opts.form ? 'POST' : 'GET');
   const headers: Record<string, string> = {
-    Cookie: cookieHeader(session.sessionId),
+    Cookie: cookieHeader(session),
     Accept: opts.accept ?? 'application/json',
   };
 
@@ -264,7 +269,7 @@ export async function untis(session: Session, path: string, opts: RequestOptions
     body = JSON.stringify(opts.json);
   }
 
-  const res = await fetch(`${WEBUNTIS_BASE}${path}`, {
+  const res = await fetch(`${untisBase(session)}${path}`, {
     method,
     headers,
     body,

@@ -42,7 +42,7 @@ async function attemptSilentRelogin(): Promise<boolean> {
   _reloginInFlight = fetch('/api/webuntis/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: creds.username, password: creds.password, renewal: true }),
+    body: JSON.stringify({ username: creds.username, password: creds.password, renewal: true, ...(creds.school ? { school: creds.school } : {}) }),
     credentials: 'same-origin',
   })
     .then(async (r) => {
@@ -89,10 +89,10 @@ async function apiFetch(url: string, opts?: RequestInit) {
   const res = await fetch(url, { credentials: 'same-origin', ...opts });
 
   if (res.status === 401) {
-    log('401 from', url, '— attempting silent re-login');
+    log('401 from', url, '- attempting silent re-login');
     const relogged = await attemptSilentRelogin();
     if (relogged) {
-      log('silent re-login ok — retrying', url);
+      log('silent re-login ok - retrying', url);
       const retry = await fetch(url, { credentials: 'same-origin', ...opts });
       if (retry.ok) {
         const json = await retry.json();
@@ -103,7 +103,7 @@ async function apiFetch(url: string, opts?: RequestInit) {
         return json;
       }
     }
-    log('silent re-login failed — clearing session');
+    log('silent re-login failed - clearing session');
     await clearSessionOnce();
     throw new Error('session_expired');
   }
@@ -268,8 +268,9 @@ export function fetchHomeworkRange(startDate: string, endDate: string) {
   return apiFetch(`/api/webuntis/homework?startDate=${startDate}&endDate=${endDate}`);
 }
 
-export function fetchMensa() {
-  return apiFetch('/api/mensa');
+/** The public menu (default school), or with `account` the menu of the signed-in account's school. */
+export function fetchMensa(scope: 'public' | 'account' = 'public') {
+  return apiFetch(scope === 'account' ? '/api/mensa/mine' : '/api/mensa');
 }
 
 export function getAttachmentUrl(messageId: number, storageId: string, name: string, attachmentId?: number): string {
@@ -293,7 +294,7 @@ function invalidateAbsences() {
 }
 
 export function fetchPermissions(): Promise<UntisPermissions> {
-  // Never cached (browser or memory) — the 18+/report gate is always read fresh.
+  // Never cached (browser or memory), the 18+/report gate is always read fresh.
   return apiFetch('/api/webuntis/permissions', { cache: 'no-store' }) as Promise<UntisPermissions>;
 }
 
@@ -455,11 +456,15 @@ export async function changeUntisPassword(oldPassword: string, newPassword: stri
 }
 
 /** Starts WebUntis' own "forgot password" e-mail. Works without a session. */
-export async function requestPasswordReset(username: string, email: string): Promise<void> {
+export async function requestPasswordReset(
+  username: string,
+  email: string,
+  school?: { loginName: string; server: string } | null,
+): Promise<void> {
   const res = await fetch('/api/webuntis/password-reset', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, email }),
+    body: JSON.stringify({ username, email, ...(school ? { school: { loginName: school.loginName, server: school.server } } : {}) }),
     credentials: 'same-origin',
   });
   if (!res.ok) {

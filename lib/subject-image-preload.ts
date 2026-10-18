@@ -1,8 +1,8 @@
 // Background preloading of subject header images, so a lesson's photo is already there when its
-// detail sheet opens — whichever screen the user happens to be on when the app starts.
+// detail sheet opens: whichever screen the user happens to be on when the app starts.
 //
 // The backend only accepts the API key as an X-API-Key header on these routes, so images are always
-// fetched via fetch() and shown as blob URLs — never by pointing an <img> at the network URL.
+// fetched via fetch() and shown as blob URLs, never by pointing an <img> at the network URL.
 //
 // Every image is checked against the server once per page load (a cheap 304 when unchanged), so an
 // image replaced in the admin panel reaches everyone on their next app start.
@@ -33,7 +33,7 @@ async function fetchFresh(url: string): Promise<Blob | null> {
     const { api } = await import('@/lib/api-client');
     res = await api.subjectImages.fetchImage(url);
   } catch {
-    // Offline — the cached copy is better than nothing.
+    // Offline: the cached copy is better than nothing.
     return cached ? cached.blob() : null;
   }
 

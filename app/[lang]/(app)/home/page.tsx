@@ -171,7 +171,8 @@ function Dashboard() {
     const nextWeek = isoDay(addDays(today, 7));
 
     // Public data first: it doesn't wait for WebUntis.
-    fetchMensa().then((raw) => {
+    // The own school's menu; a school without one shows no Mensa here.
+    fetchMensa('account').then((raw) => {
       const day = upcomingDays(dishesFrom(raw), today)[0];
       setMenu(day ? {
         key: day.key,

@@ -1,4 +1,4 @@
-/* Landing page — scoped with .lp-root prefix */
+/* Landing page: scoped with .lp-root prefix */
 
 /* ── CSS vars: light (default) ── */
 .lp-root {
@@ -177,7 +177,7 @@
   background: transparent; position: relative;
   overflow: hidden; text-align: center;
 }
-/* Full-viewport text zone — phone is always below the fold */
+/* Full-viewport text zone: phone is always below the fold */
 .lp-hero-text {
   min-height: calc(100vh - 74px);
   display: flex; flex-direction: column;
@@ -196,7 +196,7 @@
   color: var(--app-text-tertiary); pointer-events: none;
 }
 
-/* Atmospheric glow behind the phone — dark mode vibrant, light mode subtle */
+/* Atmospheric glow behind the phone, dark mode vibrant, light mode subtle */
 .lp-hero-glow {
   position: absolute;
   bottom: 0px; left: 50%;
@@ -240,7 +240,7 @@ html:not(.dark) .lp-hero-glow {
   margin-top: -60px; margin-bottom: 0px;
   z-index: 1;
 }
-/* Raw <canvas> element — vanilla Three.js, no R3F wrapper div */
+/* Raw <canvas> element: vanilla Three.js, no R3F wrapper div */
 .lp-phone-canvas {
   width: 100%;
   height: 100%;
@@ -248,7 +248,7 @@ html:not(.dark) .lp-hero-glow {
   pointer-events: none;
 }
 
-/* Phone skeleton shown while Three.js loads — gives instant visual shape */
+/* Phone skeleton shown while Three.js loads, gives instant visual shape */
 @keyframes lp-skeleton-pulse {
   0%, 100% { opacity: 0.55; }
   50%       { opacity: 0.25; }
@@ -278,9 +278,9 @@ html:not(.dark) .lp-hero-glow {
   .lp-phone-skeleton::after { animation: none; opacity: 0.35; }
 }
 
-/* ── POKYH page loader — Metamask-style origami fold ───────────────────────
+/* ── POKYH page loader: Metamask-style origami fold ───────────────────────
    Full-viewport overlay rendered in initial SSR HTML so it paints immediately.
-   GPU-only (transform / opacity) — no `filter` animations, no `blur` animations,
+   GPU-only (transform / opacity) - no `filter` animations, no `blur` animations,
    so the compositor stays smooth even while the IPhoneScene worker boots up. */
 
 /* Lock body scroll while the loader is up */
@@ -304,7 +304,7 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
   will-change: opacity;
 }
 
-/* Animated aurora layer — pure transform, no filter */
+/* Animated aurora layer: pure transform, no filter */
 .lp-page-loader::before {
   content: '';
   position: absolute;
@@ -336,7 +336,7 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
   50%      { transform: scale(1.10); opacity: 1; }
 }
 
-/* Word container — scales up from a single point at center */
+/* Word container: scales up from a single point at center */
 .lp-page-loader-name {
   position: relative;
   display: flex;
@@ -351,7 +351,7 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
   100% { transform: scale(1)   rotate(0);     opacity: 1; }
 }
 
-/* Each letter folds open like a paper panel — middle letter first, outer last */
+/* Each letter folds open like a paper panel, middle letter first, outer last */
 .lp-page-loader-name span {
   display: inline-block;
   font-size: clamp(64px, 14vw, 168px);
@@ -389,7 +389,7 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
   100% { opacity: 1; transform: rotateY(0)        translateZ(0); }
 }
 
-/* Exit — fold back closed, fade overlay */
+/* Exit: fold back closed, fade overlay */
 .lp-page-loader.is-exiting {
   animation: lp-pl-fade 0.5s ease-out 0.15s forwards;
   pointer-events: none;
@@ -751,7 +751,7 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
 .lp-footer-links { display: flex; gap: 18px; flex-wrap: wrap; }
 
 /* ═══════════════════════════════════════════════════
-   RESPONSIVE — Apple-style 3D animation on ALL sizes.
+   RESPONSIVE - Apple-style 3D animation on ALL sizes.
    Only the phone size + section padding scales down.
    The rotateX / perspective never turn off.
    ═══════════════════════════════════════════════════ */
@@ -817,7 +817,7 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
   .lp-footer-links     { gap: 14px; }
 }
 
-/* Small phones — iPhone SE, Pixel 6a, etc. (≤ 400px) */
+/* Small phones: iPhone SE, Pixel 6a, etc. (≤ 400px) */
 @media (max-width: 400px) {
   .lp-hero-text        { padding: 48px 14px 44px; }
   .lp-phone-stage      { height: 760px; margin-top: -20px; margin-bottom: 0px; }
@@ -947,8 +947,8 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
 }
 /* Progressive collapse (widest → narrowest):
    ≥920  everything in the bar
-   641–919  logo · theme · language · ☰
-   561–640  logo · language · ☰
+   641-919  logo · theme · language · ☰
+   561-640  logo · language · ☰
    ≤560  logo · ☰
    Keep 920 in sync with FULL_NAV_QUERY in LandingNav.tsx. */
 @media (max-width: 919px) {
@@ -1310,7 +1310,7 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
 .lp-cmp-legend-dot { width: 8px; height: 8px; border-radius: 999px; }
 .lp-cmp-legend-dot-muted { background: rgba(255,255,255,0.25); }
 
-/* Summary accent (optional — adds the indigo border to first step card) */
+/* Summary accent (optional, adds the indigo border to first step card) */
 .lp-step.is-accent { border-color: rgba(99,102,241,0.32); }
 .lp-step.is-accent .lp-step-num { color: var(--lp-cmp-accent); }
 
@@ -1365,7 +1365,7 @@ html.lp-loading body { overflow: hidden !important; touch-action: none; }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   GET page — download / install page
+   GET page - download / install page
    ───────────────────────────────────────────────────────────────────────────── */
 
 .get-wrap {
@@ -1393,7 +1393,7 @@ html:not(.dark) .get-toggle {
   box-shadow: 0 1px 4px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);
 }
 
-/* Sliding pill — the animated background indicator */
+/* Sliding pill: the animated background indicator */
 .get-toggle-pill {
   position: absolute;
   top: 4px; bottom: 4px; left: 4px;
@@ -1542,14 +1542,14 @@ html:not(.dark) .get-platform-card {
   transform: translateY(-2px);
   box-shadow: 0 10px 36px rgba(99,102,241,0.12);
 }
-/* Brand icon images — no background box */
+/* Brand icon images: no background box */
 .get-platform-img {
   flex-shrink: 0;
   object-fit: contain;
   width: 36px;
   height: 36px;
 }
-/* Apple SVG is black — invert to white in dark mode */
+/* Apple SVG is black: invert to white in dark mode */
 .dark .get-platform-img-apple {
   filter: invert(1);
 }

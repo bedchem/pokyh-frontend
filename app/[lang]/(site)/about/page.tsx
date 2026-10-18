@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
 import { makeT } from '@/lib/i18n/dictionary';
 import { routeLocale } from '@/lib/i18n/server';
-import { localeAlternates, localizedUrl, ogLocale, pageKeywords } from '@/lib/i18n/seo';
+import { localeAlternates, localizedUrl, ogLocale, pageKeywords, ogImage } from '@/lib/i18n/seo';
 import { aboutDict, type AboutKey } from '@/lib/i18n/dictionaries/about';
+import { siteDict } from '@/lib/i18n/dictionaries/site';
+import PageJsonLd from '@/components/site/PageJsonLd';
 import PageIntro, { TONE, type SiteTone } from '@/components/site/PageIntro';
 import RevealScope from '@/components/site/RevealScope';
 import CtaBand from '@/components/site/CtaBand';
@@ -18,15 +20,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: t('metaTitle'),
     description: t('metaDescription'),
-    keywords: pageKeywords(locale, [
-      'POKYH Story', 'POKYH Team', 'POKYH Entwickler', 'POKYH Open Source',
-      'bedchem GitHub', 'Schulapp selbst gebaut',
-      'Tschuggmall App', 'BFS Tschuggmall App', 'Christian Josef Tschuggmall App',
-      'LBS Brixen App entwickelt', 'Open Source Schulapp Südtirol',
-      'Schüler entwickeln App Brixen',
-    ]),
+    keywords: pageKeywords(locale),
     alternates: localeAlternates(SITE_URL, locale, '/about'),
     openGraph: {
+      images: ogImage(locale),
       title: t('ogTitle'),
       description: t('ogDescription'),
       url: localizedUrl(SITE_URL, locale, '/about'),
@@ -80,6 +77,7 @@ export default async function AboutPage({ params }: PageProps) {
 
   return (
     <>
+      <PageJsonLd locale={locale} path="/about" type="AboutPage" name={t('metaTitle')} description={t('metaDescription')} trail={[{ name: makeT(siteDict, locale)('navAbout'), path: '/about' }]} />
       <PageIntro title={t('title')} lead={t('lead')} />
 
       <RevealScope>
