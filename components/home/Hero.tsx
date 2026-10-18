@@ -10,7 +10,7 @@ import { onSiteThemeChange, siteColor } from '@/lib/site-theme';
 import { useLenis } from '@/components/site/SmoothScroll';
 import { ManifestScreen } from './Manifest';
 import { ARRIVE, HERO_LVH, lvh } from './scenes';
-import { SCROLL } from '@/lib/scroll-pace';
+import { SCROLL, sceneHeight } from '@/lib/scroll-pace';
 import type { HeroItem, HeroScene } from './heroScene';
 
 // The opening: on every visit the name, large, on clean paper, rises letter
@@ -349,7 +349,7 @@ export default function Hero() {
   }, root);
 
   return (
-    <section ref={root} data-tone="light" data-scroll-pace="hero" aria-labelledby="hero-title" className="home-hero relative z-10" style={{ height: lvh(HERO_LVH) }}>
+    <section ref={root} data-tone="light" data-scroll-pace="hero" aria-labelledby="hero-title" className="home-hero relative z-10" style={{ height: sceneHeight('hero', HERO_LVH) }}>
       <div ref={stage} className="sticky top-0 overflow-hidden bg-[var(--paper)] text-ink" style={{ height: lvh(100) }}>
         <canvas ref={canvasRef} aria-hidden="true" className="absolute inset-0 block h-full w-full opacity-0" />
 

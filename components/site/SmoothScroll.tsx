@@ -4,17 +4,18 @@ import { createContext, useContext, useEffect, useRef, useSyncExternalStore, typ
 import Lenis from 'lenis';
 import { usePathname } from 'next/navigation';
 import { ensureGsap, prefersReducedMotion, ScrollTrigger } from '@/lib/motion';
-import { isPace, SCROLL } from '@/lib/scroll-pace';
+import { inputKind, isPace, SCROLL, type InputKind } from '@/lib/scroll-pace';
 
 // Smooth scrolling for the public pages. Lenis drives the native scroll
 // position (so anchors, find-in-page and assistive tech keep working) and is
-// ticked by GSAP so ScrollTrigger reads the same position every frame. Each
-// homepage scene sets its own wheel speed (`data-scroll-pace`, values in
-// lib/scroll-pace.ts): the scene in the middle of the screen decides, and the
-// speed eases over to it, so the flight at the start is calm and the pinned
-// parts after it do not drag. Off for reduced motion and for touch input,
-// where the system's own momentum is the natural feel. Nested scroll areas
-// (sheets, menus, lists) keep scrolling on their own.
+// ticked by GSAP so ScrollTrigger reads the same position every frame.
+// Mouse wheels glide briefly; trackpads (which bring their own momentum) are
+// followed almost directly, so the page never lags behind the fingers. The
+// same gesture moves the page equally far everywhere (values in
+// lib/scroll-pace.ts); the homepage scenes are calm because they are longer.
+// Off for reduced motion and for touch input, where the system's own momentum
+// is the natural feel. Nested scroll areas (sheets, menus, lists) keep
+// scrolling on their own.
 
 // After a page change, the rest of a trackpad flick (the system keeps sending
 // momentum wheel events for a second or so) must not scroll the new page on
@@ -86,9 +87,13 @@ export default function SmoothScroll({ children, enabled = true }: { children: R
     const gsap = ensureGsap();
     // The pace in effect follows the scene's pace smoothly (time-based).
     const pace = { current: sceneAtCentre(), target: sceneAtCentre(), probed: 0 };
+    // The device of the current wheel stream: a stream that is under way keeps
+    // its kind, so a trackpad's slow tail is not taken for a mouse.
+    const input: { kind: InputKind; at: number } = { kind: 'wheel', at: -Infinity };
     const instance = new Lenis({
-      lerp: SCROLL.lerp,
-      wheelMultiplier: SCROLL.wheel,
+      lerp: SCROLL.lerp.wheel,
+      // Applied per device below.
+      wheelMultiplier: 1,
       smoothWheel: true,
       syncTouch: false,
       allowNestedScroll: true,
@@ -101,8 +106,16 @@ export default function SmoothScroll({ children, enabled = true }: { children: R
             if (data.event.cancelable) data.event.preventDefault();
             return false;
           }
-          data.deltaX *= pace.current;
-          data.deltaY *= pace.current;
+          const event = data.event as WheelEvent;
+          const since = event.timeStamp - input.at;
+          const kind = inputKind(event, since);
+          input.kind = kind === 'wheel' && input.kind === 'precise' && since < 60 && Math.abs(event.deltaY) < 50 ? 'precise' : kind;
+          input.at = event.timeStamp;
+          // Read by Lenis for this very event (onVirtualScroll → scrollTo).
+          instance.options.lerp = SCROLL.lerp[input.kind];
+          const gear = SCROLL.gear[input.kind] * pace.current;
+          data.deltaX *= gear;
+          data.deltaY *= gear;
         }
         return true;
       },

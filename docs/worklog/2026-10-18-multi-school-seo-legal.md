@@ -225,3 +225,37 @@ Nothing was committed or pushed; the owner confirms scope and Git identity first
   Interaction runs (menus, language, theme, navigation, Mensa days, FAQ
   search, sign-in flow, calculators, legal pages, cookie settings, 404):
   no errors.
+
+## 2026-10-18 · Scroll feel made natural (owner: "should feel more natural")
+
+- Measured first (wheel events dispatched on a fixed schedule, scroll position
+  per frame, desktop Chromium): a trackpad flick lagged ~215 ms behind the
+  fingers, a mouse wheel glided 800-900 ms after the last notch, and the same
+  gesture moved the page 0.30 (hero), 0.54 (carousel) or 0.66 (elsewhere)
+  times as far.
+- Change (`lib/scroll-pace.ts`, `components/site/SmoothScroll.tsx`):
+  - Input kind per wheel stream (legacy wheel delta, line units, step size
+    and cadence): mouse wheels glide briefly (`lerp.wheel` 0.15), trackpads
+    and smooth mice are followed almost directly (`lerp.precise` 0.5).
+  - One gearing everywhere (`gear` 0.85 wheel, 0.9 trackpad); the per-scene
+    wheel braking is off (`pace` all 1, still tunable).
+  - The homepage scenes stay calm by being longer instead: on desktops
+    (`(hover: hover) and (pointer: fine)`, no reduced motion) each pinned
+    scene is stretched (`stretch`: hero 2, manifest 1.2, carousel 1.45, app
+    1.4) through CSS custom properties; phones and tablets keep native
+    scrolling and the base lengths. The hero-to-manifest overlap is computed
+    in CSS from the stretched hero length.
+  - Hero camera follow shortened (7 → 16 per second), so smoothing no longer
+    stacks.
+  - `NEXT_PUBLIC_SCROLL_TUNING` takes the new keys; the earlier single
+    `lerp` number still works.
+- Result: trackpad lag 35-45 ms with ~10 ms of glide, mouse glide ~320 ms,
+  85 px per notch, the same everywhere. Scroll needed for the hero 4.4
+  screens (was 5.2), carousel 9.0 (was 9.8): almost as calm as the last
+  approved state.
+- Verification: hand-over hero → manifest exact (manifest at 0 px at the
+  hand-over point) on 1440x900, 1280x720 and iPhone 14 (phone lengths
+  unchanged); real wheel sweep down and fast back up without errors, hero
+  intact at the top; device matrix of 6 pages × de/it/en × 8 devices: 144
+  checks, 0 issues; `tsc`, `npm test` 31/31 (new: input detection, tuning,
+  stretch CSS), ESLint without new errors, `next build` passes.

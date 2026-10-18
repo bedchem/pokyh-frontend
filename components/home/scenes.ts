@@ -1,7 +1,8 @@
 // Lengths of the homepage scroll scenes, shared by the sections that hand over
 // to each other. In large-viewport units (--lvh, see globals.css), so a phone
-// whose browser bars collapse while scrolling keeps the same layout. The
-// numbers live in lib/scroll-pace.ts with the rest of the scroll feel.
+// whose browser bars collapse while scrolling keeps the same layout, and
+// stretched on desktops by --stretch-<scene> (Home.tsx). The numbers live in
+// lib/scroll-pace.ts with the rest of the scroll feel.
 
 import { SCROLL } from '@/lib/scroll-pace';
 
@@ -13,9 +14,10 @@ export const ARRIVE = 0.92;
 
 /**
  * The manifest starts this far above the end of the hero, so that its pinned
- * sentence reaches the top exactly at ARRIVE, where the hero hands over.
+ * sentence reaches the top exactly at ARRIVE, where the hero hands over:
+ * H − ARRIVE·(H − 100) with H the (stretched) hero length, as a CSS length.
  */
-export const MANIFEST_PULL_LVH = HERO_LVH - ARRIVE * (HERO_LVH - 100);
+export const MANIFEST_PULL = `calc((${1 - ARRIVE} * ${HERO_LVH} * var(--stretch-hero, 1) + ${ARRIVE * 100}) * var(--lvh))`;
 
 /** `n` large-viewport units as a CSS length. */
 export const lvh = (n: number) => `calc(${n} * var(--lvh))`;

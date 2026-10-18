@@ -9,6 +9,7 @@ import Features from './Features';
 import MensaToday from './MensaToday';
 import AppOpen from './AppOpen';
 import GetIn from './GetIn';
+import { stretchCss } from '@/lib/scroll-pace';
 
 // The public homepage: the name assembles itself from five tiles, then a
 // flight through the school-day tiles into the night, one sentence, the
@@ -32,6 +33,8 @@ export default function Home() {
 
   return (
     <div className="home">
+      {/* Longer scenes with a mouse or trackpad (lib/scroll-pace.ts); phones keep the base lengths. */}
+      <style>{stretchCss('.home')}</style>
       <Hero />
       <Manifest />
       <Features />

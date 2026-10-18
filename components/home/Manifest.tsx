@@ -7,8 +7,8 @@ import { useSession } from '@/providers/SessionProvider';
 import { frontpageDict } from '@/lib/i18n/dictionaries/frontpage';
 import { siteDict } from '@/lib/i18n/dictionaries/site';
 import { useGsap } from '@/lib/motion';
-import { MANIFEST_PULL_LVH, lvh } from './scenes';
-import { SCROLL } from '@/lib/scroll-pace';
+import { MANIFEST_PULL, lvh } from './scenes';
+import { SCROLL, sceneHeight } from '@/lib/scroll-pace';
 
 // The night behind the dark screen of the hero: one sentence. It is already
 // on that screen while the camera flies towards it (the hero shows a copy of
@@ -110,7 +110,7 @@ export default function Manifest() {
       data-tone="dark"
       data-scroll-pace="manifest"
       className="home-manifest relative z-0 bg-[var(--night)] text-[#F2F2F4]"
-      style={{ marginTop: `calc(-1 * ${lvh(MANIFEST_PULL_LVH)})`, height: lvh(SCROLL.length.manifest) }}
+      style={{ marginTop: `calc(-1 * ${MANIFEST_PULL})`, height: sceneHeight('manifest', SCROLL.length.manifest) }}
     >
       <ManifestScreen />
     </section>

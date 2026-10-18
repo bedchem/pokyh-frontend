@@ -7,7 +7,7 @@ import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { homepageDict, type HomepageKey } from '@/lib/i18n/dictionaries/homepage';
 import { frontpageDict, type FrontpageKey } from '@/lib/i18n/dictionaries/frontpage';
 import { ensureGsap, prefersReducedMotion, ScrollTrigger, useGsap } from '@/lib/motion';
-import { SCROLL } from '@/lib/scroll-pace';
+import { SCROLL, sceneHeight } from '@/lib/scroll-pace';
 import { drawPoster, resolveFonts, type PosterKind } from '@/lib/landing-art';
 import { useLenis } from '@/components/site/SmoothScroll';
 import { useSiteDark } from '@/lib/site-theme';
@@ -342,7 +342,7 @@ export default function FeatureCarousel() {
       aria-roledescription="carousel"
       aria-labelledby="features-title"
       className="relative"
-      style={{ height: `calc(${COUNT * SCROLL.length.featureEach + SCROLL.length.featureExtra} * var(--lvh))` }}
+      style={{ height: sceneHeight('features', COUNT * SCROLL.length.featureEach + SCROLL.length.featureExtra) }}
       onKeyDown={(e) => {
         if (e.key === 'ArrowLeft') { e.preventDefault(); goTo(index - 1); }
         if (e.key === 'ArrowRight') { e.preventDefault(); goTo(index + 1); }
