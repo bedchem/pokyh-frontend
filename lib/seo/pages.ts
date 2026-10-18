@@ -36,6 +36,11 @@ export const SITE_PAGES: SitePage[] = [
   { path: '/mensa', lastModified: '2026-10-18', changeFrequency: 'daily', priority: 0.6, daily: true },
   { path: '/howto', lastModified: '2026-10-17', changeFrequency: 'monthly', priority: 0.4 },
   { path: '/legal', lastModified: '2026-10-18', changeFrequency: 'yearly', priority: 0.3, card: 'legal' },
+  { path: '/legal/impressum', lastModified: '2026-10-18', changeFrequency: 'yearly', priority: 0.3, card: 'legal' },
+  { path: '/legal/datenschutz', lastModified: '2026-10-18', changeFrequency: 'yearly', priority: 0.3, card: 'legal' },
+  { path: '/legal/nutzungsbedingungen', lastModified: '2026-10-18', changeFrequency: 'yearly', priority: 0.3, card: 'legal' },
+  { path: '/legal/cookies', lastModified: '2026-10-18', changeFrequency: 'yearly', priority: 0.3, card: 'legal' },
+  { path: '/legal/learn', lastModified: '2026-10-18', changeFrequency: 'yearly', priority: 0.2, card: 'legal' },
 ];
 
 /** When a page last changed, for its structured data (today for the daily menu). */

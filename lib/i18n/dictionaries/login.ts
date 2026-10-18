@@ -3,19 +3,18 @@ import type { Dictionary } from '../dictionary';
 // Sign-in page: pick the school, then sign in with the WebUntis account.
 export type LoginKey =
   | 'home'
-  | 'panelTitle'
-  | 'panelText'
+  | 'title'
+  | 'subtitle'
+  | 'serverShort'
+  | 'ageShort'
+  | 'privacyLink'
   | 'trust1'
   | 'trust2'
-  | 'trust3'
   | 'step1'
   | 'step2'
-  | 'schoolTitle'
-  | 'schoolLead'
   | 'schoolLabel'
   | 'schoolPlaceholder'
   | 'schoolShort'
-  | 'schoolSearching'
   | 'schoolTooMany'
   | 'schoolNone'
   | 'schoolError'
@@ -25,10 +24,7 @@ export type LoginKey =
   | 'schoolChange'
   | 'schoolClear'
   | 'loginTitle'
-  | 'loginLead'
-  | 'serverHint'
   | 'username'
-  | 'usernamePlaceholder'
   | 'password'
   | 'showPassword'
   | 'hidePassword'
@@ -37,7 +33,6 @@ export type LoginKey =
   | 'almostDone'
   | 'checkingPokyh'
   | 'ageNote'
-  | 'pokyhHint'
   | 'cookieHint'
   | 'cookieError'
   | 'errMissing'
@@ -54,20 +49,19 @@ export type LoginKey =
 
 export const loginDict: Dictionary<LoginKey> = {
   de: {
+    title: 'Anmelden',
+    subtitle: 'Mit deinem WebUntis-Konto.',
+    serverShort: 'Geht nur an {server}',
+    ageShort: 'Ab 14 Jahren',
+    privacyLink: 'Datenschutzerklärung',
     home: 'Zur Startseite',
-    panelTitle: 'Deine Schule. Übersichtlich.',
-    panelText: 'POKYH ist eine unabhängige App für WebUntis: Stundenplan, Noten, Abwesenheiten und Nachrichten an einem Ort. Für jede Schule, die WebUntis nutzt.',
     trust1: 'Dein Passwort geht nur an den WebUntis-Server deiner Schule.',
     trust2: 'Kostenlos, ohne Werbung, Open Source.',
-    trust3: 'Unabhängig: nicht mit der Untis GmbH verbunden.',
     step1: 'Schule',
     step2: 'Anmelden',
-    schoolTitle: 'Welche Schule ist deine?',
-    schoolLead: 'Such deine Schule nach Name, Ort oder Adresse. Jede Schule mit WebUntis ist dabei.',
     schoolLabel: 'Schule suchen',
     schoolPlaceholder: 'Schulname, Ort oder Adresse',
     schoolShort: 'Gib mindestens 3 Zeichen ein.',
-    schoolSearching: 'Suche läuft…',
     schoolTooMany: 'Zu viele Treffer. Ergänze den Ort oder die Postleitzahl.',
     schoolNone: 'Keine Schule gefunden. Prüf die Schreibweise oder such nach dem Ort.',
     schoolError: 'Die Schulsuche ist gerade nicht erreichbar. Versuch es gleich noch einmal.',
@@ -77,10 +71,7 @@ export const loginDict: Dictionary<LoginKey> = {
     schoolChange: 'Andere Schule',
     schoolClear: 'Suche leeren',
     loginTitle: 'Melde dich an',
-    loginLead: 'Mit denselben Zugangsdaten wie bei WebUntis.',
-    serverHint: 'Deine Zugangsdaten gehen nur an {server}.',
     username: 'Benutzername',
-    usernamePlaceholder: 'Dein WebUntis-Benutzername',
     password: 'Passwort',
     showPassword: 'Passwort anzeigen',
     hidePassword: 'Passwort verbergen',
@@ -89,7 +80,6 @@ export const loginDict: Dictionary<LoginKey> = {
     almostDone: 'Fast fertig…',
     checkingPokyh: 'Prüfe POKYH-Konto…',
     ageNote: 'POKYH ist für Personen ab 14 Jahren. Bist du jünger, nutze POKYH nur mit dem Einverständnis deiner Eltern.',
-    pokyhHint: 'Ohne Schulkonto? Ein POKYH-Konto funktioniert hier auch.',
     cookieHint: 'Bestätige zum Anmelden bitte zuerst die Cookie-Einstellungen unten.',
     cookieError: 'Bitte triff zuerst eine Auswahl in den Cookie-Einstellungen unten auf der Seite.',
     errMissing: 'Bitte Benutzername und Passwort eingeben.',
@@ -105,20 +95,19 @@ export const loginDict: Dictionary<LoginKey> = {
     terms: 'Nutzungsbedingungen',
   },
   it: {
+    title: 'Accedi',
+    subtitle: 'Con il tuo account WebUntis.',
+    serverShort: 'Va solo a {server}',
+    ageShort: 'Dai 14 anni',
+    privacyLink: 'Informativa sulla privacy',
     home: 'Alla pagina iniziale',
-    panelTitle: 'La tua scuola. Chiara.',
-    panelText: 'POKYH è un’app indipendente per WebUntis: orario, voti, assenze e messaggi in un unico posto. Per ogni scuola che usa WebUntis.',
     trust1: 'La tua password va solo al server WebUntis della tua scuola.',
     trust2: 'Gratuita, senza pubblicità, open source.',
-    trust3: 'Indipendente: nessun legame con Untis GmbH.',
     step1: 'Scuola',
     step2: 'Accesso',
-    schoolTitle: 'Qual è la tua scuola?',
-    schoolLead: 'Cerca la tua scuola per nome, città o indirizzo. Ci sono tutte le scuole che usano WebUntis.',
     schoolLabel: 'Cerca la scuola',
     schoolPlaceholder: 'Nome della scuola, città o indirizzo',
     schoolShort: 'Inserisci almeno 3 caratteri.',
-    schoolSearching: 'Ricerca in corso…',
     schoolTooMany: 'Troppi risultati. Aggiungi la città o il CAP.',
     schoolNone: 'Nessuna scuola trovata. Controlla come l’hai scritta o cerca per città.',
     schoolError: 'La ricerca delle scuole non è raggiungibile al momento. Riprova tra poco.',
@@ -128,10 +117,7 @@ export const loginDict: Dictionary<LoginKey> = {
     schoolChange: 'Altra scuola',
     schoolClear: 'Cancella ricerca',
     loginTitle: 'Accedi',
-    loginLead: 'Con le stesse credenziali di WebUntis.',
-    serverHint: 'Le tue credenziali vanno solo a {server}.',
     username: 'Nome utente',
-    usernamePlaceholder: 'Il tuo nome utente WebUntis',
     password: 'Password',
     showPassword: 'Mostra password',
     hidePassword: 'Nascondi password',
@@ -140,7 +126,6 @@ export const loginDict: Dictionary<LoginKey> = {
     almostDone: 'Quasi fatto…',
     checkingPokyh: 'Verifica account POKYH…',
     ageNote: 'POKYH è per persone dai 14 anni in su. Se sei più giovane, usa POKYH solo con il consenso dei tuoi genitori.',
-    pokyhHint: 'Senza account scolastico? Qui funziona anche un account POKYH.',
     cookieHint: 'Per accedere conferma prima le impostazioni dei cookie qui sotto.',
     cookieError: 'Fai prima una scelta nelle impostazioni dei cookie in fondo alla pagina.',
     errMissing: 'Inserisci nome utente e password.',
@@ -156,20 +141,19 @@ export const loginDict: Dictionary<LoginKey> = {
     terms: 'Condizioni d’uso',
   },
   en: {
+    title: 'Sign in',
+    subtitle: 'With your WebUntis account.',
+    serverShort: 'Only sent to {server}',
+    ageShort: 'Ages 14 and up',
+    privacyLink: 'Privacy policy',
     home: 'To the home page',
-    panelTitle: 'Your school. At a glance.',
-    panelText: 'POKYH is an independent app for WebUntis: timetable, grades, absences and messages in one place. For every school that uses WebUntis.',
     trust1: 'Your password only goes to your school’s WebUntis server.',
     trust2: 'Free, ad-free, open source.',
-    trust3: 'Independent: not affiliated with Untis GmbH.',
     step1: 'School',
     step2: 'Sign in',
-    schoolTitle: 'Which school is yours?',
-    schoolLead: 'Find your school by name, city or address. Every school on WebUntis is here.',
     schoolLabel: 'Search for your school',
     schoolPlaceholder: 'School name, city or address',
     schoolShort: 'Type at least 3 characters.',
-    schoolSearching: 'Searching…',
     schoolTooMany: 'Too many matches. Add the town or postcode.',
     schoolNone: 'No school found. Check the spelling or search by town.',
     schoolError: 'The school search is not reachable right now. Try again in a moment.',
@@ -179,10 +163,7 @@ export const loginDict: Dictionary<LoginKey> = {
     schoolChange: 'Other school',
     schoolClear: 'Clear search',
     loginTitle: 'Sign in',
-    loginLead: 'With the same details you use for WebUntis.',
-    serverHint: 'Your details only go to {server}.',
     username: 'Username',
-    usernamePlaceholder: 'Your WebUntis username',
     password: 'Password',
     showPassword: 'Show password',
     hidePassword: 'Hide password',
@@ -191,7 +172,6 @@ export const loginDict: Dictionary<LoginKey> = {
     almostDone: 'Almost done…',
     checkingPokyh: 'Checking POKYH account…',
     ageNote: 'POKYH is for people aged 14 and over. If you are younger, only use POKYH with your parents’ consent.',
-    pokyhHint: 'No school account? A POKYH account works here too.',
     cookieHint: 'To sign in, please confirm the cookie settings below first.',
     cookieError: 'Please make a choice in the cookie settings at the bottom of the page first.',
     errMissing: 'Please enter your username and password.',

@@ -750,27 +750,64 @@ html.lenis body {
 }
 
 /* Sign-in (app/[lang]/login): steps glide in, results follow one another,
-   the school-day pieces drift and arrive one after another. */
-.login-step { animation: login-step-in 0.55s var(--ease-out) both; }
+   the name tiles hop with the typing, shake at an error and wave at success,
+   and the chosen school flies into place (View Transition). */
+.login-step { animation: login-step-in 0.5s var(--ease-out) both; }
 @keyframes login-step-in {
-  from { opacity: 0; transform: translateY(16px); }
+  from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: none; }
 }
-.login-results [role='option'] { animation: login-step-in 0.4s var(--ease-out) both; }
-.login-float { animation: login-float 9s ease-in-out infinite; }
-.login-piece { animation: login-piece-in 0.9s var(--ease-out) both; }
+.login-results [role='option'] { animation: login-step-in 0.35s var(--ease-out) both; }
 .login-scroll { scrollbar-width: none; }
 .login-scroll::-webkit-scrollbar { display: none; }
+.login-tile { box-shadow: 0 6px 14px -8px rgb(0 0 0 / 0.35); }
+.login-hop { animation: login-hop 0.42s cubic-bezier(0.3, 1.6, 0.5, 1) both; }
+@keyframes login-hop {
+  0% { transform: translateY(0) scale(1); }
+  40% { transform: translateY(var(--hop, -9px)) scale(1.06); }
+  100% { transform: translateY(0) scale(1); }
+}
+/* Desktop scene: squared paper, large tiles that float, lean towards the
+   pointer (--mx/--my, NameTiles.tsx) and jump higher, with a floor shadow. */
+.login-stage {
+  container-type: inline-size;
+  perspective: 1400px;
+  background-color: var(--surface);
+  background-image: radial-gradient(color-mix(in srgb, var(--ink) 11%, transparent) 1.2px, transparent 1.7px);
+  background-size: 26px 26px;
+  --hop: -34px;
+}
+.login-tile-big {
+  font-size: 8.4cqw;
+  letter-spacing: -0.03em;
+  cursor: pointer;
+  box-shadow: 0 34px 60px -30px rgb(0 0 0 / 0.45), inset 0 -0.6cqw 0 rgb(0 0 0 / 0.07);
+}
+.login-lean { transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1); transform-style: preserve-3d; }
+.login-float { animation: login-float 6.5s ease-in-out infinite; }
 @keyframes login-float {
   0%, 100% { translate: 0 0; }
-  50% { translate: 0 -12px; }
+  50% { translate: 0 -1.2cqw; }
 }
-@keyframes login-piece-in {
-  from { opacity: 0; scale: 0.82; }
-  to { opacity: 1; scale: 1; }
+.login-floor { background: radial-gradient(closest-side, rgb(0 0 0 / 0.2), transparent); }
+.dark .login-floor { background: radial-gradient(closest-side, rgb(0 0 0 / 0.55), transparent); }
+.login-floor-hop { animation: login-floor-hop 0.42s cubic-bezier(0.3, 1.6, 0.5, 1) both; }
+@keyframes login-floor-hop {
+  40% { scale: 0.62; opacity: 0.5; }
 }
+.login-shake { animation: login-shake 0.45s ease-in-out; }
+@keyframes login-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-7px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(2px); }
+}
+::view-transition-group(login-school) { animation-duration: 0.45s; animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.3s; }
 @media (prefers-reduced-motion: reduce) {
-  .login-step, .login-results [role='option'], .login-float, .login-piece { animation: none; }
+  .login-step, .login-results [role='option'], .login-hop, .login-shake, .login-float, .login-floor-hop { animation: none; }
+  .login-lean { transition: none; transform: none !important; }
 }
 
 /* ═══ Homepage ═══════════════════════════════════════════════════════════ */

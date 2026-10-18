@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from '@/lib/server-session';
 import { untisClassicWrite, untisError, untisErrorCode } from '@/lib/server/untis';
+import { defaultSchool } from '@/lib/server/schools';
+import { sealRenewal } from '@/lib/server/sign-in-cookies';
 
 export const runtime = 'nodejs';
 
@@ -9,7 +11,8 @@ export const runtime = 'nodejs';
 // session's CSRF token and Tenant-Id. WebUntis checks the old password and its
 // password rules itself and answers { errors: [{ code, title }] } on failure.
 //
-// Passwords pass through to WebUntis only: never logged, never stored here.
+// Passwords pass through to WebUntis only: never logged, never stored here;
+// the new one only goes back into the browser's sealed renewal cookie.
 
 const attempts = new Map<string, { count: number; reset: number }>();
 function limited(key: string): boolean {
@@ -53,7 +56,12 @@ export async function POST(req: NextRequest) {
     if (res.expired) return NextResponse.json({ error: 'session_expired', code: 'session_expired' }, { status: 401 });
 
     const errors = (res.json as { errors?: unknown[] } | null)?.errors;
-    if (res.ok && !(Array.isArray(errors) && errors.length)) return NextResponse.json({ ok: true });
+    if (res.ok && !(Array.isArray(errors) && errors.length)) {
+      // The automatic renewal signs in with the new password from now on.
+      const done = NextResponse.json({ ok: true });
+      await sealRenewal(done, { username: session.username, password: newPassword, school: session.school ?? defaultSchool() });
+      return done;
+    }
 
     // The reason WebUntis gives (wrong old password, rules not met, …) is shown as is.
     console.error('[password] WebUntis rejected the change:', res.status, untisErrorCode(res.json) ?? '');

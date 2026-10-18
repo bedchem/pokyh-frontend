@@ -1,5 +1,5 @@
 const DECLINED_COOKIE = 'passkey_declined';
-const SESSION_KEY = 'pokyh_creds';
+const LEGACY_SESSION_KEY = 'pokyh_creds';
 
 export function hasDeclinedPasskey(): boolean {
   if (typeof document === 'undefined') return false;
@@ -18,38 +18,12 @@ export function isPasswordCredentialSupported(): boolean {
   return typeof window !== 'undefined' && 'PasswordCredential' in window;
 }
 
-export type CredentialSchool = { loginName: string; server: string; name?: string };
-
 /**
- * Keeps the sign-in for this tab only (sessionStorage, gone when the tab
- * closes), so an expired WebUntis session can be renewed at the same school.
- * Without `school`, the school stored before is kept (password change).
+ * Earlier versions kept the sign-in in the tab's sessionStorage; it lives in
+ * cookies only now (lib/server/sign-in-cookies.ts). Removes the old copy.
  */
-export function saveSessionCredentials(username: string, password: string, school?: CredentialSchool): void {
-  if (typeof sessionStorage === 'undefined') return;
-  try {
-    const s = school ?? getSessionCredentials()?.school;
-    sessionStorage.setItem(SESSION_KEY, btoa(unescape(encodeURIComponent(JSON.stringify({ u: username, p: password, ...(s ? { s } : {}) })))));
-  } catch { /* ignore */ }
-}
-
-export function getSessionCredentials(): { username: string; password: string; school?: CredentialSchool } | null {
-  if (typeof sessionStorage === 'undefined') return null;
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    const { u, p, s } = JSON.parse(decodeURIComponent(escape(atob(raw))));
-    const school = s && typeof s.loginName === 'string' && typeof s.server === 'string'
-      ? { loginName: s.loginName, server: s.server, ...(typeof s.name === 'string' ? { name: s.name } : {}) }
-      : undefined;
-    return { username: String(u), password: String(p), ...(school ? { school } : {}) };
-  } catch {
-    return null;
-  }
-}
-
-export function clearSessionCredentials(): void {
-  if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem(SESSION_KEY);
+export function forgetTabCredentials(): void {
+  try { sessionStorage.removeItem(LEGACY_SESSION_KEY); } catch { /* storage blocked */ }
 }
 
 export async function storePasswordCredential(username: string, password: string): Promise<boolean> {

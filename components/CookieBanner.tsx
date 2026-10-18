@@ -87,10 +87,10 @@ export default function CookieBanner({ analyticsEnabled = false }: { analyticsEn
           {analyticsEnabled ? t('cookieTextAnalytics') : t('cookieText')}
         </p>
         <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[14px] font-semibold">
-          <Link href={localize('/legal?view=cookies')} className="text-accent-ink underline-offset-4 hover:underline">
+          <Link href={localize('/legal/cookies')} className="text-accent-ink underline-offset-4 hover:underline">
             {t('cookiePolicyLink')}
           </Link>
-          <Link href={localize('/legal?view=datenschutz')} className="text-accent-ink underline-offset-4 hover:underline">
+          <Link href={localize('/legal/datenschutz')} className="text-accent-ink underline-offset-4 hover:underline">
             {t('cookiePrivacyLink')}
           </Link>
         </p>

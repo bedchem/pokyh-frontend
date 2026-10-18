@@ -31,33 +31,21 @@ const API_KEY =
 
 // ─── Token storage ────────────────────────────────────────────────────────────
 
+// The tokens live in cookies only, set by the app's own routes: the access
+// token readable for the Authorization header, the refresh token httpOnly.
+// Deleting the site's cookies therefore signs out.
+
+const LEGACY_TOKEN_KEYS = ['pokyh_api_token', 'pokyh_api_refresh'];
+
 function getToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  // Check localStorage first, then cookie
-  const ls = localStorage.getItem('pokyh_api_token');
-  if (ls) return ls;
-  // Fallback: read from cookie (set by server after login)
+  if (typeof document === 'undefined') return null;
   const match = document.cookie.match(/(?:^|;\s*)pokyh_api_token=([^;]*)/);
   return match ? decodeURIComponent(match[1]) : null;
 }
 
-function setToken(token: string): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem('pokyh_api_token', token);
-}
-
-function setRefreshToken(token: string): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem('pokyh_api_refresh', token);
-}
-
-function getRefreshToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  const ls = localStorage.getItem('pokyh_api_refresh');
-  if (ls) return ls;
-  // Fallback: cookie
-  const match = document.cookie.match(/(?:^|;\s*)pokyh_api_refresh=([^;]*)/);
-  return match ? decodeURIComponent(match[1]) : null;
+/** Removes the copies of the tokens earlier versions kept in localStorage. */
+export function forgetStoredTokens(): void {
+  try { for (const key of LEGACY_TOKEN_KEYS) localStorage.removeItem(key); } catch { /* storage blocked */ }
 }
 
 /**
@@ -77,12 +65,6 @@ export function getSignedInUid(): string | null {
   }
 }
 
-function clearTokens(): void {
-  if (typeof window === 'undefined') return;
-  localStorage.removeItem('pokyh_api_token');
-  localStorage.removeItem('pokyh_api_refresh');
-}
-
 // ─── Core fetch ───────────────────────────────────────────────────────────────
 
 let _refreshing: Promise<boolean> | null = null;
@@ -98,20 +80,10 @@ async function refreshAccessToken(): Promise<boolean> {
       credentials: 'same-origin',
     });
 
-    if (!res.ok) {
-      clearTokens();
-      return false;
-    }
-
+    if (!res.ok) return false;
     const data = await res.json() as { token?: string };
-    if (data.token) {
-      setToken(data.token);
-      return true;
-    }
-    clearTokens();
-    return false;
+    return !!data.token;
   } catch {
-    clearTokens();
     return false;
   }
 }
@@ -159,13 +131,12 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
   // 401 → try to refresh once. If refresh also fails AND we had a session,
   // fire pokyh-session-expired so SessionProvider redirects to /login.
   if (res.status === 401) {
-    // Capture before the refresh attempt (which calls clearTokens on failure).
+    // Capture before the refresh attempt (which clears the cookies on failure).
     // "Had a session" also covers the case where the access token is missing but
     // the user cookie still exists (e.g. the backend login-sync failed), without
     // this, a missing token would skip the redirect and loop forever.
     const hadSession =
       !!token ||
-      !!getRefreshToken() ||
       (typeof document !== 'undefined' && /(?:^|;\s*)pokyh_user=/.test(document.cookie));
 
     if (!_refreshing) {
@@ -177,11 +148,8 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
       const newToken = getToken();
       if (newToken) headers['Authorization'] = `Bearer ${newToken}`;
       res = await fetch(`${API_BASE}${path}`, { ...options, headers });
-    } else {
-      clearTokens();
-      if (hadSession) {
-        notifySessionExpired();
-      }
+    } else if (hadSession) {
+      notifySessionExpired();
     }
   }
 
@@ -284,10 +252,7 @@ function openSse(path: string): EventSource {
 
 export const api = {
   // Tokens
-  setToken,
-  setRefreshToken,
   getToken,
-  clearTokens,
 
   auth: {
     async loginWithSession(
@@ -295,26 +260,7 @@ export const api = {
       klasseId: number,
       klasseName: string
     ): Promise<{ stableUid: string; classId: string | null; isAdmin: boolean }> {
-      // This is called by FirebaseProvider replacement after Next.js sets cookies.
-      // The tokens should already be in cookies, sync them to localStorage.
-      const cookieToken = typeof document !== 'undefined'
-        ? (() => {
-            const m = document.cookie.match(/(?:^|;\s*)pokyh_api_token=([^;]*)/);
-            return m ? decodeURIComponent(m[1]) : null;
-          })()
-        : null;
-
-      const cookieRefresh = typeof document !== 'undefined'
-        ? (() => {
-            const m = document.cookie.match(/(?:^|;\s*)pokyh_api_refresh=([^;]*)/);
-            return m ? decodeURIComponent(m[1]) : null;
-          })()
-        : null;
-
-      if (cookieToken) setToken(cookieToken);
-      if (cookieRefresh) setRefreshToken(cookieRefresh);
-
-      // Fetch current user info
+      // Called once the sign-in route has set the token cookies: who is signed in.
       try {
         const user = await apiJson<ApiUser>('/auth/me');
         return {
@@ -333,14 +279,8 @@ export const api = {
     },
 
     async logout(): Promise<void> {
-      const rt = getRefreshToken();
-      if (rt) {
-        await apiFetch('/auth/logout', {
-          method: 'POST',
-          body: JSON.stringify({ refreshToken: rt }),
-        }).catch(() => {});
-      }
-      clearTokens();
+      // The refresh token is httpOnly: the app's route revokes it and clears the cookies.
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
     },
 
     async me(): Promise<ApiUser> {

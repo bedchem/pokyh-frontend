@@ -254,7 +254,7 @@ function SettingsContent() {
           <Item title={t('cookies')} hint={t('cookiesHint')}>
             <Button variant="quiet" onClick={() => window.dispatchEvent(new Event(COOKIE_SETTINGS_EVENT))}>{tc('cookieOpenSettings')}</Button>
           </Item>
-          <LinkItem href="/legal?view=datenschutz" title={t('policy')} />
+          <LinkItem href="/legal/datenschutz" title={t('policy')} />
         </Group>
 
         <Group id="storage" title={t('storage')}>

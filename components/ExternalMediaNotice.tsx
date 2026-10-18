@@ -20,7 +20,7 @@ export default function ExternalMediaNotice({ compact = false, className = '' }:
         <button type="button" onClick={() => setExternalMedia(false)} className="font-semibold underline-offset-4 hover:text-ink hover:underline">
           {t('revoke')}
         </button>
-        <Link href={localize('/legal?view=datenschutz')} className="font-semibold underline-offset-4 hover:text-ink hover:underline">{t('more')}</Link>
+        <Link href={localize('/legal/datenschutz')} className="font-semibold underline-offset-4 hover:text-ink hover:underline">{t('more')}</Link>
       </p>
     );
   }
@@ -34,7 +34,7 @@ export default function ExternalMediaNotice({ compact = false, className = '' }:
         <p className="text-[15px] font-bold text-ink">{t('title')}</p>
         <p className="mt-1 text-[14px] leading-[1.5] text-ink-2">
           {t('text')}{' '}
-          <Link href={localize('/legal?view=datenschutz')} className="font-semibold text-ink underline-offset-4 hover:underline">{t('more')}</Link>
+          <Link href={localize('/legal/datenschutz')} className="font-semibold text-ink underline-offset-4 hover:underline">{t('more')}</Link>
         </p>
         <button type="button" onClick={() => setExternalMedia(true)} className="key key-sm key-lilac mt-3">
           {t('allow')}

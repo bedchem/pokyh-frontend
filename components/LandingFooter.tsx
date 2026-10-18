@@ -28,9 +28,9 @@ export default function LandingFooter() {
             <Link href={localize('/faq')}>FAQ</Link>
             <Link href={localize('/comparison')}>{t('footerComparison')}</Link>
             <Link href={localize('/howto')}>GET POKYH</Link>
-            <Link href={localize('/legal?view=impressum')}>{t('footerImprint')}</Link>
-            <Link href={localize('/legal?view=datenschutz')}>{t('footerPrivacy')}</Link>
-            <Link href={localize('/legal?view=cookies')}>{t('footerCookies')}</Link>
+            <Link href={localize('/legal/impressum')}>{t('footerImprint')}</Link>
+            <Link href={localize('/legal/datenschutz')}>{t('footerPrivacy')}</Link>
+            <Link href={localize('/legal/cookies')}>{t('footerCookies')}</Link>
           </div>
         </div>
       </div>

@@ -43,10 +43,10 @@ const COLUMNS: { title: SiteKey; links: FooterLink[] }[] = [
   {
     title: 'footerLegal',
     links: [
-      { key: 'imprint', href: '/legal?view=impressum' },
-      { key: 'privacy', href: '/legal?view=datenschutz' },
-      { key: 'terms', href: '/legal?view=nutzungsbedingungen' },
-      { key: 'cookies', href: '/legal?view=cookies' },
+      { key: 'imprint', href: '/legal/impressum' },
+      { key: 'privacy', href: '/legal/datenschutz' },
+      { key: 'terms', href: '/legal/nutzungsbedingungen' },
+      { key: 'cookies', href: '/legal/cookies' },
     ],
   },
 ];

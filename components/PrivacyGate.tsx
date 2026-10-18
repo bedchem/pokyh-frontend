@@ -120,7 +120,7 @@ export default function PrivacyGate({ paused = false }: { paused?: boolean }) {
             <p className="text-[13px] mt-0.5 leading-relaxed" style={{ color: 'var(--app-text-secondary)' }}>
               {t('gateIntro', { date: PRIVACY_NOTICE_DATE.toLocaleDateString('de-AT') })}{' '}
               <Link
-                href={localize('/legal?view=datenschutz')}
+                href={localize('/legal/datenschutz')}
                 target="_blank"
                 rel="noopener"
                 className="inline-flex items-center gap-1 font-semibold hover:underline"

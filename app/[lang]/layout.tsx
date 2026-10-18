@@ -77,6 +77,13 @@ const baseMetadata: Metadata = {
   },
 };
 
+// The languages are known at build time: every page that needs nothing from
+// the request (the app's pages render in the browser) is prerendered once per
+// language, so links prefetch it whole and a click opens it at once.
+export function generateStaticParams() {
+  return ACTIVE_LOCALES.map((lang) => ({ lang }));
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   const locale = await routeLocale(params);
   const t = makeT(metaDict, locale);

@@ -73,7 +73,7 @@ export default function LocaleSwitcher({
             <li key={item}>
               {/* Plain <a>: switching locale swaps the root layout, so do a full load */}
               <a
-                href={`/${item}/legal/?view=${view}`}
+                href={`/${item}/legal/${view}/`}
                 role="menuitem"
                 onClick={() => setOpen(false)}
                 className="cursor-pointer flex items-center gap-2 px-3 py-2 text-sm transition-opacity hover:opacity-70"

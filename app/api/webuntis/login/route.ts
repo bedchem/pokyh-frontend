@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { encryptSession } from '@/lib/session-crypto';
+import { SESSION_COOKIE_OPTS as COOKIE_OPTS, openRenewal, sealRenewal } from '@/lib/server/sign-in-cookies';
 import { defaultSchool, parseSchool, schoolBase, schoolCookieValue, type SchoolRef } from '@/lib/server/schools';
 import { fetchAppData, detectParent, extractChildStudentId, extractImageUrl } from '@/lib/untis-permissions';
 import {
@@ -112,15 +113,6 @@ function isRateLimited(ip: string): boolean {
   return false;
 }
 
-// Session cookies: 4-hour expiry
-const COOKIE_OPTS = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict' as const,
-  path: '/',
-  maxAge: 4 * 60 * 60, // 4 hours
-};
-
 export async function POST(req: NextRequest) {
   const ip =
     req.headers.get('x-forwarded-for')?.split(',')[0].trim() ??
@@ -141,10 +133,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Ungültige Anfrage.', code: 'invalid' }, { status: 400 });
   }
 
-  const { username: rawUsername, password } = body;
   // The client renewing an expired session by itself (lib/api.ts), not the
   // person signing in; the backend leaves it out of the account's sign-ins.
+  // It sends no credentials: they come from the renewal cookie of the session
+  // being renewed, so a sign-in whose cookies were deleted stays signed out.
   const renewal = body.renewal === true;
+  const saved = renewal && body.password === undefined ? await openRenewal(req) : null;
+  if (renewal && body.password === undefined && !saved) {
+    return NextResponse.json({ error: 'session_expired', code: 'session_expired' }, { status: 401 });
+  }
+  const rawUsername = saved?.username ?? body.username;
+  const password = saved?.password ?? body.password;
   // Normalise: trim + lowercase for all internal storage; WebUntis itself is case-insensitive
   const username = rawUsername?.trim().toLowerCase() ?? '';
 
@@ -157,10 +156,10 @@ export async function POST(req: NextRequest) {
 
   // The school picked on the sign-in page; only WebUntis hosts are accepted.
   // A request without one (older clients) signs in at the default school.
-  if (body.school !== undefined && body.school !== null && !parseSchool(body.school)) {
+  if (!saved && body.school !== undefined && body.school !== null && !parseSchool(body.school)) {
     return NextResponse.json({ error: 'Diese Schule ist nicht verfügbar.', code: 'school_invalid' }, { status: 400 });
   }
-  const school: SchoolRef = parseSchool(body.school) ?? defaultSchool();
+  const school: SchoolRef = saved?.school ?? parseSchool(body.school) ?? defaultSchool();
   const BASE = schoolBase(school);
   const SCHOOL = encodeURIComponent(school.loginName);
   const SCHOOL_COOKIE = schoolCookieValue(school);
@@ -370,6 +369,7 @@ export async function POST(req: NextRequest) {
           const res = NextResponse.json({ ok: true, pokyhSynced, username, studentId: resolvedStudentId, klasseId: accountKlasseId, klasseName: accountKlasseName });
           res.cookies.set('pokyh_session', encrypted, COOKIE_OPTS);
           res.cookies.set('pokyh_user', userPublic, { ...COOKIE_OPTS, httpOnly: false });
+          await sealRenewal(res, { username, password, school });
           res.cookies.set('pokyh_api_token', backendData.token, {
             httpOnly: false, // Must be readable by client JS
             secure: isSecure,
@@ -402,6 +402,7 @@ export async function POST(req: NextRequest) {
     const resFallback = NextResponse.json({ ok: true, pokyhSynced, username, studentId: resolvedStudentId, klasseId: accountKlasseId, klasseName: accountKlasseName });
     resFallback.cookies.set('pokyh_session', encrypted, COOKIE_OPTS);
     resFallback.cookies.set('pokyh_user', userPublic, { ...COOKIE_OPTS, httpOnly: false });
+    await sealRenewal(resFallback, { username, password, school });
     return resFallback;
   } catch (e: unknown) {
     console.error('[login] failed:', e instanceof Error ? e.message : e);

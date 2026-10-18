@@ -2,6 +2,8 @@
 // page, the class register, the search). Each takes the proxied JSON as it
 // comes and returns plain, typed rows; anything unexpected becomes empty.
 
+import { currentWeekMonday } from './school-week';
+
 export interface ClassRole {
   id: number;
   personId: number;
@@ -114,11 +116,13 @@ export function untisStr(d: Date): string {
   return String(untisNum(d));
 }
 
-/** Monday and Friday of the school week `offset` weeks from now. */
+/**
+ * Monday and Friday of the school week `offset` weeks from "this week", which
+ * moves on to the next week from Saturday evening (lib/school-week.ts).
+ */
 export function schoolWeek(offset: number, now = new Date()) {
-  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const dow = monday.getDay();
-  monday.setDate(monday.getDate() - (dow === 0 ? 6 : dow - 1) + offset * 7);
+  const monday = currentWeekMonday(now);
+  monday.setDate(monday.getDate() + offset * 7);
   const friday = new Date(monday);
   friday.setDate(monday.getDate() + 4);
   return { monday, friday, startNum: untisNum(monday), endNum: untisNum(friday), startStr: untisStr(monday), endStr: untisStr(friday) };

@@ -74,7 +74,7 @@ export default function PrivacySettings() {
         <span className="text-[15px]" style={{ color: 'var(--app-text-secondary)' }}>{acknowledged}</span>
       </div>
       <Link
-        href={localize('/legal?view=datenschutz')}
+        href={localize('/legal/datenschutz')}
         className="px-4 flex items-center justify-between gap-3"
         style={{ minHeight: 44 }}
       >

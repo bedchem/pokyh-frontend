@@ -34,10 +34,11 @@
    containing block and trap fixed overlays (sheets) beneath the bars. */
 .page {
   height: 100%;
-  animation: page-in 0.45s var(--ease-out) backwards;
+  /* Short, and never from invisible: a click shows the page at once. */
+  animation: page-in 0.2s var(--ease-out) backwards;
 }
 @keyframes page-in {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0.35; transform: translateY(4px); }
   to { opacity: 1; transform: none; }
 }
 

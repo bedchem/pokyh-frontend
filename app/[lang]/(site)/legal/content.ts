@@ -451,7 +451,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
               "items": [
                 {
                   "label": "Schulzugangsdaten (WebUntis-Anmeldung)",
-                  "desc": "Dein Benutzername und dein Passwort werden nur verwendet, um dich am WebUntis-Server der Schule anzumelden, die du ausgewählt hast; diese Server betreibt die Untis GmbH im Auftrag der jeweiligen Schule. Auf POKYH-Servern wird das Passwort nicht gespeichert und nicht protokolliert. Damit eine abgelaufene Sitzung automatisch erneuert werden kann, bleiben Zugangsdaten und gewählte Schule auf der Website nur im Sitzungsspeicher (sessionStorage) des geöffneten Browser-Tabs und werden beim Schließen des Tabs gelöscht. Die WebUntis-Sitzung liegt AES-GCM-verschlüsselt in einem httpOnly-Cookie. Rechtsgrundlage: Erbringung des von dir gewünschten Dienstes (Art. 6 Abs. 1 lit. b DSGVO)."
+                  "desc": "Dein Benutzername und dein Passwort werden nur verwendet, um dich am WebUntis-Server der Schule anzumelden, die du ausgewählt hast; diese Server betreibt die Untis GmbH im Auftrag der jeweiligen Schule. Auf POKYH-Servern wird das Passwort nicht gespeichert und nicht protokolliert. Damit eine von WebUntis beendete Sitzung automatisch erneuert werden kann, liegen Zugangsdaten und gewählte Schule AES-GCM-verschlüsselt in einem httpOnly-Cookie auf deinem Gerät (pokyh_renew); es wird nur an die Anmeldeadresse gesendet, gilt nur zusammen mit deiner Sitzung, läuft nach 4 Stunden ab und wird beim Abmelden gelöscht. Auch die WebUntis-Sitzung liegt AES-GCM-verschlüsselt in einem httpOnly-Cookie. Die Anmeldung besteht nur aus diesen Cookies: Löschst du sie, bist du abgemeldet. Rechtsgrundlage: Erbringung des von dir gewünschten Dienstes (Art. 6 Abs. 1 lit. b DSGVO)."
                 },
                 {
                   "label": "Session-Cookie (pokyh_session)",
@@ -684,6 +684,11 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "POKYH Backend Refresh-Token zum automatischen Erneuern des API-Tokens (httpOnly, 30 Tage)"
                 },
                 {
+                  "name": "pokyh_renew",
+                  "kind": "necessary",
+                  "desc": "Zugangsdaten und gewählte Schule zur automatischen Sitzungserneuerung, AES-GCM-verschlüsselt (httpOnly, nur an die Anmeldeadresse gesendet, nur zusammen mit der Sitzung gültig, 4 Stunden, beim Abmelden gelöscht)"
+                },
+                {
                   "name": "pokyh_school",
                   "kind": "setting",
                   "desc": "Die beim Anmelden gewählte Schule (localStorage, bis zum 31. August, mindestens 30 Tage)"
@@ -711,12 +716,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 {
                   "name": "pokyh_cache_*",
                   "kind": "necessary",
-                  "desc": "Zwischenspeicher zuletzt geladener Schuldaten für schnellere Anzeige (localStorage, verlässt das Gerät nicht)"
-                },
-                {
-                  "name": "pokyh_creds",
-                  "kind": "necessary",
-                  "desc": "Zugangsdaten und gewählte Schule zur automatischen Sitzungserneuerung, nur im geöffneten Tab (sessionStorage, beim Schließen gelöscht)"
+                  "desc": "Zwischenspeicher zuletzt geladener Schuldaten für schnellere Anzeige (localStorage, verlässt das Gerät nicht, beim Abmelden gelöscht)"
                 },
                 {
                   "name": "_ga, _ga_*",
@@ -786,7 +786,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
               "items": [
                 {
                   "label": "Credenziali scolastiche (accesso a WebUntis)",
-                  "desc": "Nome utente e password vengono usati solo per accedere al server WebUntis della scuola che hai scelto; questi server sono gestiti da Untis GmbH per conto della rispettiva scuola. Sui server di POKYH la password non viene salvata né registrata. Per rinnovare automaticamente una sessione scaduta, credenziali e scuola scelta restano sul sito solo nella memoria di sessione (sessionStorage) della scheda del browser aperta e vengono eliminate alla chiusura della scheda. La sessione WebUntis è cifrata con AES-GCM in un cookie httpOnly. Base giuridica: fornitura del servizio da te richiesto (art. 6, par. 1, lett. b GDPR)."
+                  "desc": "Nome utente e password vengono usati solo per accedere al server WebUntis della scuola che hai scelto; questi server sono gestiti da Untis GmbH per conto della rispettiva scuola. Sui server di POKYH la password non viene salvata né registrata. Per rinnovare automaticamente una sessione chiusa da WebUntis, credenziali e scuola scelta sono salvate sul tuo dispositivo, cifrate con AES-GCM, in un cookie httpOnly (pokyh_renew); viene inviato solo all’indirizzo di accesso, vale solo insieme alla tua sessione, scade dopo 4 ore e viene eliminato al logout. Anche la sessione WebUntis è cifrata con AES-GCM in un cookie httpOnly. L’accesso consiste solo di questi cookie: se li elimini, sei disconnesso. Base giuridica: fornitura del servizio da te richiesto (art. 6, par. 1, lett. b GDPR)."
                 },
                 {
                   "label": "Cookie di sessione (pokyh_session)",
@@ -1019,6 +1019,11 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Token di refresh del backend POKYH per rinnovare automaticamente il token API (httpOnly, 30 giorni)"
                 },
                 {
+                  "name": "pokyh_renew",
+                  "kind": "necessary",
+                  "desc": "Credenziali e scuola scelta per il rinnovo automatico della sessione, cifrate con AES-GCM (httpOnly, inviato solo all’indirizzo di accesso, valido solo insieme alla sessione, 4 ore, eliminato al logout)"
+                },
+                {
                   "name": "pokyh_school",
                   "kind": "setting",
                   "desc": "La scuola scelta all’accesso (localStorage, fino al 31 agosto, almeno 30 giorni)"
@@ -1046,12 +1051,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 {
                   "name": "pokyh_cache_*",
                   "kind": "necessary",
-                  "desc": "Memoria temporanea degli ultimi dati scolastici caricati per una visualizzazione più rapida (localStorage, non lascia il dispositivo)"
-                },
-                {
-                  "name": "pokyh_creds",
-                  "kind": "necessary",
-                  "desc": "Credenziali e scuola scelta per il rinnovo automatico della sessione, solo nella scheda aperta (sessionStorage, eliminate alla chiusura)"
+                  "desc": "Memoria temporanea degli ultimi dati scolastici caricati per una visualizzazione più rapida (localStorage, non lascia il dispositivo, eliminata al logout)"
                 },
                 {
                   "name": "_ga, _ga_*",
@@ -1121,7 +1121,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
               "items": [
                 {
                   "label": "School credentials (WebUntis sign-in)",
-                  "desc": "Your username and password are only used to sign you in at the WebUntis server of the school you chose; Untis GmbH runs these servers on behalf of each school. On POKYH servers the password is neither stored nor logged. So that an expired session can be renewed automatically, the credentials and the chosen school stay on the website only in the session storage (sessionStorage) of the open browser tab and are deleted when the tab is closed. The WebUntis session is AES-GCM encrypted in an httpOnly cookie. Legal basis: providing the service you asked for (Art. 6(1)(b) GDPR)."
+                  "desc": "Your username and password are only used to sign you in at the WebUntis server of the school you chose; Untis GmbH runs these servers on behalf of each school. On POKYH servers the password is neither stored nor logged. So that a session WebUntis ended can be renewed automatically, the credentials and the chosen school are kept on your device, AES-GCM encrypted in an httpOnly cookie (pokyh_renew); it is only sent to the sign-in address, only valid together with your session, expires after 4 hours and is deleted when you sign out. The WebUntis session is AES-GCM encrypted in an httpOnly cookie as well. Your sign-in consists of these cookies only: delete them and you are signed out. Legal basis: providing the service you asked for (Art. 6(1)(b) GDPR)."
                 },
                 {
                   "label": "Session cookie (pokyh_session)",
@@ -1354,6 +1354,11 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "POKYH backend refresh token to automatically renew the API token (httpOnly, 30 days)"
                 },
                 {
+                  "name": "pokyh_renew",
+                  "kind": "necessary",
+                  "desc": "Credentials and chosen school for automatic session renewal, AES-GCM encrypted (httpOnly, only sent to the sign-in address, only valid together with the session, 4 hours, deleted when you sign out)"
+                },
+                {
                   "name": "pokyh_school",
                   "kind": "setting",
                   "desc": "The school chosen at sign-in (localStorage, until 31 August, at least 30 days)"
@@ -1381,12 +1386,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 {
                   "name": "pokyh_cache_*",
                   "kind": "necessary",
-                  "desc": "Cache of recently loaded school data for faster display (localStorage, never leaves the device)"
-                },
-                {
-                  "name": "pokyh_creds",
-                  "kind": "necessary",
-                  "desc": "Credentials and chosen school for automatic session renewal, only in the open tab (sessionStorage, deleted when it is closed)"
+                  "desc": "Cache of recently loaded school data for faster display (localStorage, never leaves the device, deleted when you sign out)"
                 },
                 {
                   "name": "_ga, _ga_*",
@@ -1824,6 +1824,11 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Refresh-Token zum automatischen Erneuern des Zugangstokens (httpOnly). Läuft nach 30 Tagen ab."
                 },
                 {
+                  "name": "pokyh_renew",
+                  "kind": "necessary",
+                  "desc": "Verschlüsselte Zugangsdaten und gewählte Schule (AES-GCM, httpOnly), damit eine von WebUntis beendete Sitzung automatisch erneuert werden kann. Wird nur an die Anmeldeadresse gesendet, gilt nur zusammen mit der Sitzung und wird beim Abmelden gelöscht. Läuft nach 4 Stunden ab."
+                },
+                {
                   "name": "passkey_declined",
                   "kind": "necessary",
                   "desc": "Merkt sich, dass du das Speichern der Anmeldung im Browser abgelehnt hast. Läuft nach 1 Jahr ab."
@@ -1906,7 +1911,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 {
                   "name": "pokyh_cache_*",
                   "kind": "necessary",
-                  "desc": "Zwischenspeicher zuletzt geladener Schuldaten (Stundenplan, Noten, Abwesenheiten, Nachrichten) für schnellere Anzeige."
+                  "desc": "Zwischenspeicher zuletzt geladener Schuldaten (Stundenplan, Noten, Abwesenheiten, Nachrichten) für schnellere Anzeige. Wird beim Abmelden gelöscht."
                 },
                 {
                   "name": "pokyh_abscalc_*",
@@ -1927,11 +1932,6 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "name": "pokyh_app_icon",
                   "kind": "setting",
                   "desc": "Gewähltes App-Symbol."
-                },
-                {
-                  "name": "pokyh_creds",
-                  "kind": "necessary",
-                  "desc": "Zugangsdaten und gewählte Schule zur automatischen Sitzungserneuerung, nur im geöffneten Tab (sessionStorage, beim Schließen gelöscht)"
                 }
               ]
             }
@@ -2021,6 +2021,11 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Token di refresh per rinnovare automaticamente il token di accesso (httpOnly). Scade dopo 30 giorni."
                 },
                 {
+                  "name": "pokyh_renew",
+                  "kind": "necessary",
+                  "desc": "Credenziali cifrate e scuola scelta (AES-GCM, httpOnly), per rinnovare automaticamente una sessione chiusa da WebUntis. Viene inviato solo all’indirizzo di accesso, vale solo insieme alla sessione e viene eliminato al logout. Scade dopo 4 ore."
+                },
+                {
                   "name": "passkey_declined",
                   "kind": "necessary",
                   "desc": "Ricorda che hai rifiutato di salvare l’accesso nel browser. Scade dopo 1 anno."
@@ -2103,7 +2108,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 {
                   "name": "pokyh_cache_*",
                   "kind": "necessary",
-                  "desc": "Memoria temporanea degli ultimi dati scolastici caricati (orario, voti, assenze, messaggi) per una visualizzazione più rapida."
+                  "desc": "Memoria temporanea degli ultimi dati scolastici caricati (orario, voti, assenze, messaggi) per una visualizzazione più rapida. Viene eliminata al logout."
                 },
                 {
                   "name": "pokyh_abscalc_*",
@@ -2124,11 +2129,6 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "name": "pokyh_app_icon",
                   "kind": "setting",
                   "desc": "Icona dell’app scelta."
-                },
-                {
-                  "name": "pokyh_creds",
-                  "kind": "necessary",
-                  "desc": "Credenziali e scuola scelta per il rinnovo automatico della sessione, solo nella scheda aperta (sessionStorage, eliminate alla chiusura)"
                 }
               ]
             }
@@ -2218,6 +2218,11 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Refresh token to renew the access token automatically (httpOnly). Expires after 30 days."
                 },
                 {
+                  "name": "pokyh_renew",
+                  "kind": "necessary",
+                  "desc": "Encrypted credentials and chosen school (AES-GCM, httpOnly), so a session WebUntis ended can be renewed automatically. Only sent to the sign-in address, only valid together with the session, deleted when you sign out. Expires after 4 hours."
+                },
+                {
                   "name": "passkey_declined",
                   "kind": "necessary",
                   "desc": "Remembers that you declined saving the sign-in in the browser. Expires after 1 year."
@@ -2300,7 +2305,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 {
                   "name": "pokyh_cache_*",
                   "kind": "necessary",
-                  "desc": "Cache of recently loaded school data (timetable, grades, absences, messages) for faster display."
+                  "desc": "Cache of recently loaded school data (timetable, grades, absences, messages) for faster display. Deleted when you sign out."
                 },
                 {
                   "name": "pokyh_abscalc_*",
@@ -2321,11 +2326,6 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "name": "pokyh_app_icon",
                   "kind": "setting",
                   "desc": "Chosen app icon."
-                },
-                {
-                  "name": "pokyh_creds",
-                  "kind": "necessary",
-                  "desc": "Credentials and chosen school for automatic session renewal, only in the open tab (sessionStorage, deleted when it is closed)"
                 }
               ]
             }

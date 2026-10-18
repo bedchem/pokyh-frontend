@@ -78,8 +78,28 @@ async function hasValidSession(request: NextRequest): Promise<boolean> {
   return true;
 }
 
+// The legal texts used to be one page with ?view=<text> (and ?lang=); each has
+// its own prerendered page now. Older links (apps, Pokyh Learn, search
+// results) get one permanent redirect to the clean address.
+const LEGAL_TEXTS = new Set(['impressum', 'datenschutz', 'nutzungsbedingungen', 'cookies', 'learn']);
+const OLD_LEGAL_PATH = /^\/(?:([a-z]{2,3})\/)?legal\/?$/;
+
+function legacyLegalRedirect(request: NextRequest): NextResponse | null {
+  const match = OLD_LEGAL_PATH.exec(request.nextUrl.pathname);
+  const view = request.nextUrl.searchParams.get('view');
+  if (!match || !view || !LEGAL_TEXTS.has(view)) return null;
+  const usable = (value: string | null | undefined): value is Locale =>
+    isLocale(value) && !(RETIRED_LOCALES as readonly string[]).includes(value);
+  const asked = request.nextUrl.searchParams.get('lang');
+  const lang = usable(asked) ? asked : usable(match[1]) ? match[1] : preferredLocale(request);
+  return NextResponse.redirect(new URL(`/${lang}/legal/${view}/`, request.url), 308);
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  const legal = legacyLegalRedirect(request);
+  if (legal) return legal;
 
   // Always allow static assets and explicitly public paths
   if (PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))) {

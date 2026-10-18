@@ -5,7 +5,7 @@ import { useT } from '@/providers/LocaleProvider';
 import { useSession } from '@/providers/SessionProvider';
 import { untisActionsDict } from '@/lib/i18n/dictionaries/untisActions';
 import { changeUntisPassword } from '@/lib/api';
-import { getSessionCredentials, hasDeclinedPasskey, saveSessionCredentials, storePasswordCredential } from '@/lib/passkey';
+import { hasDeclinedPasskey, storePasswordCredential } from '@/lib/passkey';
 import { PasswordField, FormStatus } from '@/components/ui/Field';
 import { Button } from '@/components/ui/Button';
 
@@ -31,10 +31,8 @@ export default function ChangePasswordForm() {
     setBusy(true);
     setStatus(null);
     try {
+      // The server also seals the new password into the renewal cookie.
       await changeUntisPassword(oldPw, newPw);
-      // Keep the automatic re-login working with the new password.
-      const saved = getSessionCredentials();
-      if (saved) saveSessionCredentials(saved.username, newPw);
       if (user?.username && !hasDeclinedPasskey()) void storePasswordCredential(user.username, newPw);
       setOldPw('');
       setNewPw('');

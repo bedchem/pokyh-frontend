@@ -17,7 +17,7 @@ export default function PrivacyChoices() {
     <p className="text-[13px] leading-relaxed" style={{ color: 'var(--app-text-secondary)' }}>
       {t('loginNotice')}{' '}
       <Link
-        href={localize('/legal?view=datenschutz')}
+        href={localize('/legal/datenschutz')}
         target="_blank"
         rel="noopener"
         className="inline-flex items-center gap-1 font-semibold hover:underline"

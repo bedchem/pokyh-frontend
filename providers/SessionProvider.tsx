@@ -3,7 +3,11 @@
 import { stripLocale } from '@/lib/i18n/locale';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { logout as apiLogout } from '@/lib/api';
-import { clearSessionCredentials } from '@/lib/passkey';
+import { forgetStoredTokens } from '@/lib/api-client';
+import { cacheClear } from '@/lib/cache';
+import { forgetTabCredentials } from '@/lib/passkey';
+import { pcClear } from '@/lib/persist-cache';
+import { isProtectedAppRoute } from '@/lib/routes';
 
 export interface UserInfo {
   username: string;
@@ -30,6 +34,19 @@ const Ctx = createContext<SessionCtx>({
   refreshUser: () => {},
 });
 
+// The sign-in lives in cookies only (lib/server/sign-in-cookies.ts): when they
+// are deleted, the account is signed out. How often an open page looks for
+// them where the browser does not report cookie changes itself.
+const COOKIE_CHECK_MS = 2000;
+
+const hasUserCookie = () => /(?:^|;\s*)pokyh_user=/.test(document.cookie);
+
+/** The account's school data kept on the device for quick display goes with the sign-in. */
+function forgetSignedInData() {
+  cacheClear();
+  pcClear();
+}
+
 function readUserCookie(): UserInfo | null {
   if (typeof document === 'undefined') return null;
   const match = document.cookie.match(/(?:^|;\s*)pokyh_user=([^;]*)/);
@@ -55,7 +72,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  useEffect(() => { refreshUser(); }, [refreshUser]);
+  useEffect(() => {
+    // What earlier versions kept in browser storage goes; without a sign-in,
+    // so does the data of the last one.
+    forgetTabCredentials();
+    forgetStoredTokens();
+    if (!hasUserCookie()) forgetSignedInData();
+    refreshUser();
+  }, [refreshUser]);
 
   useEffect(() => {
     let handling = false;
@@ -65,12 +89,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       loggingOut.current = true;
       setUser(null);
       setIsLoading(false);
+      forgetSignedInData();
       // Clear server-side pokyh_session cookie so middleware allows /login
       fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' })
         .catch(() => {})
         .finally(() => {
-          const p = window.location.pathname;
-          if (stripLocale(p) !== '/login') {
+          // Pages that need a sign-in send to it; public ones stay, for a guest.
+          if (isProtectedAppRoute(stripLocale(window.location.pathname))) {
             window.location.replace('/login');
           }
         });
@@ -92,10 +117,31 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     loggingOut.current = true;
     try { await apiLogout(); } catch { /* best effort */ }
-    clearSessionCredentials();
+    forgetSignedInData();
     setUser(null);
     window.location.replace('/login');
   }, []);
+
+  // Signed in means the cookies are there. When they go (deleted in the
+  // browser, or expired), this page signs out too: at once where the browser
+  // reports cookie changes, otherwise on focus or the next check.
+  useEffect(() => {
+    if (!user) return;
+    const check = () => {
+      if (!loggingOut.current && !hasUserCookie()) window.dispatchEvent(new CustomEvent('pokyh-session-expired'));
+    };
+    const store = (window as Window & { cookieStore?: EventTarget }).cookieStore;
+    const timer = setInterval(check, COOKIE_CHECK_MS);
+    store?.addEventListener('change', check);
+    window.addEventListener('focus', check);
+    document.addEventListener('visibilitychange', check);
+    return () => {
+      clearInterval(timer);
+      store?.removeEventListener('change', check);
+      window.removeEventListener('focus', check);
+      document.removeEventListener('visibilitychange', check);
+    };
+  }, [user]);
 
   // Proactive timer: fire logout when the 4 h POKYH session is about to expire
   useEffect(() => {

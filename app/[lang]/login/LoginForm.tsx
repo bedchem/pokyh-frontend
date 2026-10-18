@@ -1,14 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
+import { flushSync } from 'react-dom';
 import { useSearchParams } from 'next/navigation';
-import { ArrowLeft, ArrowRight, Eye, EyeSlash, LockSimple, MagnifyingGlass, MapPin, ShieldCheck, User, X } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, Eye, EyeSlash, LockSimple, MagnifyingGlass, X } from '@phosphor-icons/react';
 import Sheet from '@/components/ui/Sheet';
 import Spinner from '@/components/ui/Spinner';
 import ForgotPasswordForm from '@/components/account/ForgotPasswordForm';
-import PrivacyChoices from '@/components/PrivacyChoices';
 import LanguageButton from '@/components/site/LanguageButton';
 import { ThemeButton } from '@/components/site/ThemeToggle';
 import { untisActionsDict } from '@/lib/i18n/dictionaries/untisActions';
@@ -16,7 +15,6 @@ import { loginDict, type LoginKey } from '@/lib/i18n/dictionaries/login';
 import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import {
   hasDeclinedPasskey,
-  saveSessionCredentials,
   storePasswordCredential,
   getPasswordCredential,
   isPasswordCredentialSupported,
@@ -24,7 +22,8 @@ import {
 import { readCookieChoice, COOKIE_CONSENT_EVENT } from '@/lib/cookie-consent';
 import { rememberPendingAck } from '@/lib/privacy-consent';
 import { forgetSchoolChoice, readSchoolChoice, saveSchoolChoice, type SchoolChoice } from '@/lib/school-choice';
-import LoginArt from './LoginArt';
+import { prefersReducedMotion } from '@/lib/motion';
+import { NameStage, NameTiles, TILES, type TileMood } from './NameTiles';
 
 // Initials and a tone per school, so results are told apart at a glance.
 const SCHOOL_TONES = [
@@ -58,10 +57,18 @@ function Highlight({ text, query }: { text: string; query: string }) {
 
 function SchoolBadge({ school, className = '' }: { school: SchoolChoice; className?: string }) {
   return (
-    <span aria-hidden="true" className={`grid size-11 shrink-0 place-items-center rounded-[14px] text-[14px] font-extrabold tracking-[-0.02em] ${schoolTone(school.loginName)} ${className}`}>
+    <span aria-hidden="true" className={`grid size-10 shrink-0 place-items-center rounded-[12px] text-[13px] font-extrabold tracking-[-0.02em] ${schoolTone(school.loginName)} ${className}`}>
       {initials(school.name)}
     </span>
   );
+}
+
+// A step change as a View Transition where the browser has them: the chosen
+// school flies from the list into its place above the form.
+function transition(update: () => void) {
+  const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
+  if (!doc.startViewTransition || prefersReducedMotion()) { update(); return; }
+  doc.startViewTransition(() => { flushSync(update); });
 }
 
 // Sign-in in two steps, like WebUntis itself: first the school (any school on
@@ -159,6 +166,13 @@ export default function LoginForm() {
   const [cookieError, setCookieError] = useState(false);
   const [autoFilling, setAutoFilling] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
+  const [mood, setMood] = useState<TileMood>(null);
+  const keystrokes = useRef(0);
+  // Each key makes the next tile hop.
+  const typed = () => {
+    keystrokes.current += 1;
+    setMood({ kind: 'hop', tile: keystrokes.current % TILES.length, n: keystrokes.current });
+  };
 
   const searchInput = useRef<HTMLInputElement>(null);
   const userInput = useRef<HTMLInputElement>(null);
@@ -195,18 +209,24 @@ export default function LoginForm() {
     setRemembered(s);
   }, []);
 
-  const changeSchool = () => {
+  const changeSchool = () => transition(() => {
     setPicked(null);
     setQuery('');
     setActive(0);
     setError('');
+  });
+
+  // Picking a school: the row flies up into the chip above the form.
+  const choose = (s: SchoolChoice, row?: HTMLElement | null) => {
+    if (row) row.style.viewTransitionName = 'login-school';
+    transition(() => pick(s));
   };
 
   const onSearchKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!results.length) return;
     if (e.key === 'ArrowDown') { e.preventDefault(); setActive((i) => Math.min(results.length - 1, i + 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((i) => Math.max(0, i - 1)); }
-    else if (e.key === 'Enter') { e.preventDefault(); pick(results[active]); }
+    else if (e.key === 'Enter') { e.preventDefault(); choose(results[active], document.getElementById(`${listId}-${active}`)); }
   };
 
   // Keep the active option in view while moving with the keys.
@@ -251,7 +271,7 @@ export default function LoginForm() {
 
       if (untisRes.ok && untisData.ok) {
         setLoadingMsg(t('almostDone'));
-        saveSessionCredentials(username.trim(), password, { loginName: school.loginName, server: school.server, name: school.name });
+        setMood({ kind: 'wave', n: Date.now() });
         if (isPasswordCredentialSupported() && !hasDeclinedPasskey()) {
           storePasswordCredential(username.trim(), password).catch(() => {});
         }
@@ -276,6 +296,7 @@ export default function LoginForm() {
         const pokyhData = (await pokyhRes.json().catch(() => ({}))) as { ok?: boolean };
         if (pokyhRes.ok && pokyhData.ok) {
           setLoadingMsg(t('almostDone'));
+          setMood({ kind: 'wave', n: Date.now() });
           window.location.replace(next);
           return;
         }
@@ -283,34 +304,37 @@ export default function LoginForm() {
 
       const key = untisData.code ? ERROR_KEYS[untisData.code] : undefined;
       setError(t(key ?? 'errFailed'));
+      setMood({ kind: 'shake', n: Date.now() });
     } catch {
       setError(t('errNetwork'));
+      setMood({ kind: 'shake', n: Date.now() });
     }
     setLoading(false);
     setLoadingMsg('');
   }
 
+  // Only what needs saying; the number of results is for screen readers.
   const searchMessage =
     search.kind === 'short' ? t('schoolShort')
-    : search.kind === 'loading' ? t('schoolSearching')
     : search.kind === 'error' ? t(search.reason === 'too_many' ? 'schoolTooMany' : search.reason === 'rate' ? 'schoolRate' : 'schoolError')
     : search.kind === 'done' && !results.length ? t('schoolNone')
-    : search.kind === 'done' ? t('schoolResults', { n: results.length })
     : '';
-
-  const step = school ? 2 : 1;
+  const searchAnnouncement = search.kind === 'done' && results.length ? t('schoolResults', { n: results.length }) : searchMessage;
 
   return (
-    // A fixed screen: the page itself never scrolls; on very small screens or
-    // with the keyboard open only the form column does.
-    <div className="site login-page fixed inset-0 flex flex-col overflow-hidden">
+    // One quiet column on a fixed screen: the page itself never scrolls; on
+    // very small screens or with the keyboard open only the column does.
+    <div className="site login-page fixed inset-0 flex overflow-hidden">
+      {/* Desktops: the name as a scene beside the form; phones keep the small row above it. */}
+      <aside aria-hidden="true" className="hidden p-4 pr-0 lg:block lg:w-[54%] xl:w-[57%]">
+        <NameStage mood={mood} onTap={(tile) => setMood({ kind: 'hop', tile, n: Date.now() })} />
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
       <header className="flex h-16 shrink-0 items-center justify-between px-4 md:h-20 md:px-8" style={{ paddingTop: 'var(--safe-top)' }}>
-        <Link href={localize('/')} aria-label={`POKYH, ${t('home')}`} className="group flex items-center gap-3 rounded-xl">
-          <Image src="/POKYH_Logo.png" alt="" width={44} height={44} loading="eager" fetchPriority="high" className="size-9 md:size-10" />
-          <span className="hidden items-center gap-1.5 text-[14px] font-semibold text-ink-2 transition-colors group-hover:text-ink sm:flex">
-            <ArrowLeft size={14} weight="bold" aria-hidden="true" className="transition-transform duration-300 group-hover:-translate-x-0.5" />
-            {t('home')}
-          </span>
+        <Link href={localize('/')} aria-label={`POKYH, ${t('home')}`} className="group flex items-center gap-2 rounded-full px-2 py-2 text-[14px] font-semibold text-ink-3 transition-colors hover:text-ink">
+          <ArrowLeft size={16} weight="bold" aria-hidden="true" className="transition-transform duration-300 group-hover:-translate-x-0.5" />
+          <span className="hidden sm:inline">{t('home')}</span>
         </Link>
         <div className="flex items-center gap-1">
           <LanguageButton />
@@ -318,253 +342,193 @@ export default function LoginForm() {
         </div>
       </header>
 
-      <main id="main" className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] gap-6 px-4 md:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-10 lg:pb-8" style={{ paddingBottom: 'max(16px, var(--safe-bottom))' }}>
-        {/* The panel: the school day, what POKYH is, and the promises that matter now */}
-        <aside className="login-panel relative hidden min-h-0 overflow-hidden rounded-[32px] bg-[var(--indigo)] p-10 text-white lg:flex lg:flex-col lg:justify-end xl:p-12">
-          <LoginArt />
-          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-[62%] bg-gradient-to-t from-[var(--indigo)] from-55% to-transparent" />
-          <h2 className="font-display relative max-w-[11ch] text-[clamp(40px,4.2vw,72px)] leading-[0.94]">{t('panelTitle')}</h2>
-          <p className="relative mt-4 max-w-[42ch] text-[16px] leading-[1.55] text-white/80 xl:text-[17px]">{t('panelText')}</p>
-          <ul className="relative mt-6 flex flex-col gap-2.5 text-[14px] font-medium text-white/85 xl:text-[15px]">
-            {(['trust1', 'trust2', 'trust3'] as const).map((k) => (
-              <li key={k} className="flex items-start gap-3">
-                <ShieldCheck size={19} weight="fill" aria-hidden="true" className="mt-px shrink-0 text-[var(--glow)]" />
-                {t(k)}
-              </li>
-            ))}
-          </ul>
-        </aside>
+      <main id="main" data-lenis-prevent className="login-scroll flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-5" style={{ paddingBottom: 'max(16px, var(--safe-bottom))' }}>
+        <section aria-labelledby="login-title" className="mx-auto flex w-full max-w-[400px] flex-1 flex-col justify-center py-6">
+          <div className="mb-7 lg:hidden"><NameTiles mood={mood} /></div>
+          <h1 id="login-title" className="font-display text-[clamp(38px,5vw,52px)] leading-[0.95]">{t('title')}</h1>
+          <p className="mt-2 text-[15px] text-ink-3">{t('subtitle')}</p>
 
-        <section aria-labelledby="login-title" className="flex min-h-0 flex-col">
-          <div data-lenis-prevent className="login-scroll flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
-            <div className="mx-auto flex w-full max-w-[480px] flex-1 flex-col py-2 lg:justify-center">
-              {/* Phones and tablets: the panel as a narrow band (only while choosing the school) */}
-              {step === 1 && (
-                <div className="relative mb-6 h-[88px] shrink-0 overflow-hidden rounded-[24px] bg-[var(--indigo)] px-5 py-4 text-white lg:hidden [@media(max-height:640px)]:hidden">
-                  <LoginArt compact />
-                  <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 z-[1] w-[64%] bg-gradient-to-r from-[var(--indigo)] from-60% to-transparent" />
-                  <p className="font-display relative z-[2] max-w-[10ch] text-[22px] leading-[1] sm:text-[26px]">{t('panelTitle')}</p>
-                </div>
+          {!ready ? (
+            <div className="mt-8 h-[180px]" aria-hidden="true" />
+          ) : !school ? (
+            /* ── The school ─────────────────────────────────────────────── */
+            <div key="school" className="login-step mt-8 flex min-h-0 flex-col">
+              <label htmlFor="school-search" className="visually-hidden">{t('schoolLabel')}</label>
+              <div className="login-field flex h-[54px] items-center gap-3 rounded-[16px] bg-[var(--surface)] px-4 shadow-[0_0_0_1px_var(--line)] transition-shadow focus-within:shadow-[0_0_0_2px_var(--accent-ink)]">
+                <MagnifyingGlass size={19} weight="bold" aria-hidden="true" className="shrink-0 text-ink-3" />
+                <input
+                  ref={searchInput}
+                  id="school-search"
+                  type="search"
+                  role="combobox"
+                  aria-expanded={results.length > 0}
+                  aria-controls={listId}
+                  aria-autocomplete="list"
+                  aria-activedescendant={results.length ? `${listId}-${active}` : undefined}
+                  aria-describedby={statusId}
+                  value={query}
+                  onChange={(e) => { setQuery(e.target.value); setActive(0); typed(); }}
+                  onKeyDown={onSearchKey}
+                  placeholder={t('schoolPlaceholder')}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  enterKeyHint="search"
+                  maxLength={80}
+                  suppressHydrationWarning
+                  className="h-full min-w-0 flex-1 bg-transparent text-[16px] font-medium text-ink outline-none placeholder:text-ink-3 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+                />
+                {search.kind === 'loading' && <Spinner size={17} />}
+                {query && search.kind !== 'loading' && (
+                  <button type="button" onClick={() => { setQuery(''); searchInput.current?.focus(); }} aria-label={t('schoolClear')} className="grid size-8 place-items-center rounded-full text-ink-3 transition-colors hover:bg-inset hover:text-ink">
+                    <X size={15} weight="bold" aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+
+              <p id={statusId} className="visually-hidden" role="status" aria-live="polite">{searchAnnouncement}</p>
+              {searchMessage && (
+                <p className={`mt-3 px-1 text-[13.5px] ${search.kind === 'error' ? 'text-[var(--blush-ink)]' : 'text-ink-3'}`}>{searchMessage}</p>
               )}
 
-              {/* Progress through the two steps */}
-              <ol className="mb-6 grid shrink-0 grid-cols-2 gap-2" aria-label={`${t('step1')}, ${t('step2')}`}>
-                {[t('step1'), t('step2')].map((label, i) => {
-                  const n = i + 1;
-                  return (
-                    <li key={label} aria-current={n === step ? 'step' : undefined}>
-                      <span aria-hidden="true" className={`block h-1 rounded-full transition-colors duration-500 ${n <= step ? 'bg-[var(--indigo)]' : 'bg-line'}`} />
-                      <span className={`mt-2 block text-[12.5px] font-bold ${n <= step ? 'text-ink' : 'text-ink-3'}`}>{n}. {label}</span>
+              {results.length > 0 && (
+                <ul id={listId} role="listbox" aria-label={t('schoolLabel')} data-lenis-prevent className="login-results mt-2 max-h-[min(340px,44dvh)] min-h-0 overflow-y-auto overscroll-contain">
+                  {results.map((s, i) => (
+                    <li
+                      key={`${s.loginName}-${s.server}`}
+                      id={`${listId}-${i}`}
+                      role="option"
+                      aria-selected={i === active}
+                      onPointerMove={() => setActive(i)}
+                      onClick={(e) => choose(s, e.currentTarget)}
+                      className={`flex cursor-pointer items-center gap-3 rounded-[14px] px-2.5 py-2 transition-colors ${i === active ? 'bg-inset' : ''}`}
+                      style={{ animationDelay: `${Math.min(i, 8) * 25}ms` }}
+                    >
+                      <SchoolBadge school={s} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[15px] font-semibold text-ink"><Highlight text={s.name} query={query} /></span>
+                        {s.address && <span className="block truncate text-[12.5px] text-ink-3"><Highlight text={s.address} query={query} /></span>}
+                      </span>
                     </li>
-                  );
-                })}
-              </ol>
+                  ))}
+                </ul>
+              )}
 
-              {!ready ? (
-                <div className="h-[320px]" aria-hidden="true" />
-              ) : !school ? (
-                /* ── Step 1: the school ─────────────────────────────────────── */
-                <div key="school" className="login-step flex min-h-0 flex-col">
-                  <h1 id="login-title" className="font-display text-[clamp(34px,4.4vw,56px)] leading-[0.96]">{t('schoolTitle')}</h1>
-                  <p className="mt-3 max-w-[44ch] text-[15.5px] leading-[1.55] text-ink-2 md:text-[16.5px] [@media(max-height:700px)]:hidden">{t('schoolLead')}</p>
-
-                  <label htmlFor="school-search" className="visually-hidden">{t('schoolLabel')}</label>
-                  <div className="login-field mt-6 flex h-14 shrink-0 items-center gap-3 rounded-[18px] bg-[var(--surface)] px-4 shadow-[0_0_0_1.5px_var(--line)] transition-shadow focus-within:shadow-[0_0_0_2px_var(--accent-ink)] md:h-[60px] md:px-5">
-                    <MagnifyingGlass size={21} weight="bold" aria-hidden="true" className="shrink-0 text-ink-3" />
-                    <input
-                      ref={searchInput}
-                      id="school-search"
-                      type="search"
-                      role="combobox"
-                      aria-expanded={results.length > 0}
-                      aria-controls={listId}
-                      aria-autocomplete="list"
-                      aria-activedescendant={results.length ? `${listId}-${active}` : undefined}
-                      aria-describedby={statusId}
-                      value={query}
-                      onChange={(e) => { setQuery(e.target.value); setActive(0); }}
-                      onKeyDown={onSearchKey}
-                      placeholder={t('schoolPlaceholder')}
-                      autoComplete="off"
-                      autoCorrect="off"
-                      spellCheck={false}
-                      enterKeyHint="search"
-                      maxLength={80}
-                      suppressHydrationWarning
-                      className="h-full min-w-0 flex-1 bg-transparent text-[16px] font-medium text-ink outline-none placeholder:text-ink-3 md:text-[17px] [&::-webkit-search-cancel-button]:hidden"
-                    />
-                    {search.kind === 'loading' && <Spinner size={18} />}
-                    {query && search.kind !== 'loading' && (
-                      <button type="button" onClick={() => { setQuery(''); searchInput.current?.focus(); }} aria-label={t('schoolClear')} className="grid size-9 place-items-center rounded-full text-ink-3 transition-colors hover:bg-inset hover:text-ink">
-                        <X size={16} weight="bold" aria-hidden="true" />
-                      </button>
-                    )}
-                  </div>
-
-                  <p id={statusId} role="status" aria-live="polite" className={`mt-2.5 min-h-[20px] shrink-0 px-1 text-[13.5px] ${search.kind === 'error' ? 'text-[var(--blush-ink)]' : 'text-ink-3'}`}>
-                    {searchMessage}
-                  </p>
-
-                  {results.length > 0 && (
-                    <ul id={listId} role="listbox" aria-label={t('schoolLabel')} data-lenis-prevent className="login-results mt-1.5 max-h-[min(360px,42dvh)] min-h-0 overflow-y-auto overscroll-contain rounded-[20px] bg-[var(--surface)] p-1.5 shadow-[0_0_0_1px_var(--line)]">
-                      {results.map((s, i) => (
-                        <li
-                          key={`${s.loginName}-${s.server}`}
-                          id={`${listId}-${i}`}
-                          role="option"
-                          aria-selected={i === active}
-                          onPointerMove={() => setActive(i)}
-                          onClick={() => pick(s)}
-                          className={`flex cursor-pointer items-center gap-3.5 rounded-[14px] px-3 py-2.5 transition-colors ${i === active ? 'bg-inset' : ''}`}
-                          style={{ animationDelay: `${Math.min(i, 8) * 30}ms` }}
-                        >
-                          <SchoolBadge school={s} />
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-[15.5px] font-bold text-ink"><Highlight text={s.name} query={query} /></span>
-                            {s.address && (
-                              <span className="mt-0.5 flex items-center gap-1 truncate text-[13px] text-ink-2">
-                                <MapPin size={12} weight="bold" aria-hidden="true" className="shrink-0" />
-                                <span className="truncate"><Highlight text={s.address} query={query} /></span>
-                              </span>
-                            )}
-                          </span>
-                          <ArrowRight size={17} weight="bold" aria-hidden="true" className={`shrink-0 text-ink-3 transition-transform duration-300 ${i === active ? 'translate-x-0.5 text-ink' : ''}`} />
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
-                  {!query && lastSchool && (
-                    <div className="mt-2">
-                      <p className="mb-2 px-1 text-[12.5px] font-semibold text-ink-3">{t('schoolLast')}</p>
-                      <button type="button" onClick={() => pick(lastSchool)} className="flex w-full items-center gap-3.5 rounded-[18px] bg-[var(--surface)] px-3.5 py-3 text-left shadow-[0_0_0_1px_var(--line)] transition-[box-shadow,transform] hover:shadow-[0_0_0_1.5px_var(--ink-3)] active:scale-[0.99]">
-                        <SchoolBadge school={lastSchool} />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[15.5px] font-bold">{lastSchool.name}</span>
-                          <span className="block truncate text-[13px] text-ink-2">{lastSchool.address || lastSchool.server}</span>
-                        </span>
-                        <ArrowRight size={17} weight="bold" aria-hidden="true" className="shrink-0 text-ink-3" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                /* ── Step 2: the account ────────────────────────────────────── */
-                <div key="account" className="login-step">
-                  <h1 id="login-title" className="font-display text-[clamp(34px,4.4vw,56px)] leading-[0.96]">{t('loginTitle')}</h1>
-                  <p className="mt-3 text-[15.5px] leading-[1.55] text-ink-2 md:text-[16.5px] [@media(max-height:760px)]:hidden">{t('loginLead')}</p>
-
-                  <div className="mt-5 flex items-center gap-3.5 rounded-[18px] bg-[var(--surface)] px-3.5 py-3 shadow-[0_0_0_1px_var(--line)]">
-                    <SchoolBadge school={school} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[15.5px] font-bold">{school.name}</span>
-                      <span className="block truncate text-[13px] text-ink-2">{school.address || school.server}</span>
-                    </span>
-                    <button type="button" onClick={changeSchool} className="shrink-0 rounded-full px-3 py-2 text-[13.5px] font-semibold text-[var(--accent-ink)] transition-colors hover:bg-[var(--accent-tint)]">
-                      {t('schoolChange')}
-                    </button>
-                  </div>
-
-                  {!consentGiven && (
-                    <p role={cookieError ? 'alert' : undefined} className={`mt-4 rounded-[14px] px-4 py-2.5 text-[13.5px] leading-[1.5] transition-colors ${cookieError ? 'bg-[var(--butter)] text-[var(--butter-ink)]' : 'bg-inset text-ink-2'}`}>
-                      {cookieError ? t('cookieError') : t('cookieHint')}
-                    </p>
-                  )}
-
-                  <form onSubmit={handleLogin} className="mt-5 flex flex-col gap-3.5" noValidate>
-                    <div>
-                      <label htmlFor="login-user" className="mb-1.5 block px-1 text-[13.5px] font-semibold text-ink-2">{t('username')}</label>
-                      <div className="login-field flex h-[52px] items-center gap-3 rounded-[16px] bg-[var(--surface)] px-4 shadow-[0_0_0_1.5px_var(--line)] transition-shadow focus-within:shadow-[0_0_0_2px_var(--accent-ink)]">
-                        <User size={18} weight="bold" aria-hidden="true" className="shrink-0 text-ink-3" />
-                        <input
-                          ref={userInput}
-                          id="login-user"
-                          type="text"
-                          placeholder={t('usernamePlaceholder')}
-                          value={username}
-                          onChange={(e) => setUsername(e.target.value)}
-                          autoCapitalize="none"
-                          autoComplete="username"
-                          autoCorrect="off"
-                          spellCheck={false}
-                          maxLength={100}
-                          suppressHydrationWarning
-                          className="h-full min-w-0 flex-1 bg-transparent text-[16px] font-medium outline-none placeholder:text-ink-3"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="mb-1.5 flex items-center justify-between px-1">
-                        <label htmlFor="login-pass" className="text-[13.5px] font-semibold text-ink-2">{t('password')}</label>
-                        <button type="button" onClick={() => setForgotOpen(true)} className="text-[13px] font-semibold text-[var(--accent-ink)] underline-offset-4 hover:underline">
-                          {ta('forgot')}
-                        </button>
-                      </div>
-                      <div className="login-field flex h-[52px] items-center gap-3 rounded-[16px] bg-[var(--surface)] px-4 shadow-[0_0_0_1.5px_var(--line)] transition-shadow focus-within:shadow-[0_0_0_2px_var(--accent-ink)]">
-                        <LockSimple size={18} weight="bold" aria-hidden="true" className="shrink-0 text-ink-3" />
-                        <input
-                          id="login-pass"
-                          type={showPw ? 'text' : 'password'}
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          autoComplete="current-password"
-                          maxLength={200}
-                          suppressHydrationWarning
-                          className="h-full min-w-0 flex-1 bg-transparent text-[16px] font-medium outline-none"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPw((s) => !s)}
-                          aria-label={showPw ? t('hidePassword') : t('showPassword')}
-                          aria-pressed={showPw}
-                          className="grid size-9 shrink-0 place-items-center rounded-full text-ink-3 transition-colors hover:bg-inset hover:text-ink"
-                        >
-                          {showPw ? <EyeSlash size={18} weight="bold" aria-hidden="true" /> : <Eye size={18} weight="bold" aria-hidden="true" />}
-                        </button>
-                      </div>
-                    </div>
-
-                    {error && (
-                      <p role="alert" className="rounded-[14px] bg-[var(--blush)] px-4 py-2.5 text-[13.5px] font-medium leading-[1.5] text-[var(--blush-ink)]">
-                        {error}
-                      </p>
-                    )}
-
-                    <button type="submit" disabled={loading || autoFilling} className="key key-lg key-indigo mt-1 w-full disabled:opacity-60">
-                      {loading || autoFilling ? (
-                        <><Spinner size={18} /><span>{loadingMsg || t('loggingIn')}</span></>
-                      ) : (
-                        <>{t('login')}<span aria-hidden="true" className="key-arrow">→</span></>
-                      )}
-                    </button>
-                  </form>
-
-                  <div className="mt-5 flex flex-col gap-2 text-[12.5px] leading-[1.5] text-ink-2">
-                    <p className="flex items-start gap-2">
-                      <ShieldCheck size={15} weight="bold" aria-hidden="true" className="mt-0.5 shrink-0 text-ink-3" />
-                      <span className="min-w-0 [overflow-wrap:anywhere]">{t('serverHint', { server: school.server })}</span>
-                    </p>
-                    <PrivacyChoices />
-                    <p className="text-ink-3">{t('ageNote')} {t('pokyhHint')}</p>
-                  </div>
-
-                  <Sheet open={forgotOpen} onClose={() => setForgotOpen(false)} title={ta('resetTitle')} description={ta('resetLead')} closeLabel={ta('close')}>
-                    <div className="pb-2">
-                      <ForgotPasswordForm initialUsername={username} school={school} />
-                    </div>
-                  </Sheet>
-                </div>
+              {!query && lastSchool && (
+                <button
+                  type="button"
+                  onClick={(e) => choose(lastSchool, e.currentTarget)}
+                  className="group mt-4 flex items-center gap-3 rounded-[14px] px-2.5 py-2 text-left transition-colors hover:bg-inset"
+                >
+                  <SchoolBadge school={lastSchool} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[12px] font-semibold text-ink-3">{t('schoolLast')}</span>
+                    <span className="block truncate text-[15px] font-semibold">{lastSchool.name}</span>
+                  </span>
+                  <ArrowRight size={16} weight="bold" aria-hidden="true" className="shrink-0 text-ink-3 transition-transform duration-300 group-hover:translate-x-0.5" />
+                </button>
               )}
             </div>
-          </div>
+          ) : (
+            /* ── The account ────────────────────────────────────────────── */
+            <div key="account" className="login-step mt-8">
+              <div className="flex items-center gap-3 rounded-[16px] bg-inset px-2.5 py-2" style={{ viewTransitionName: 'login-school' }}>
+                <SchoolBadge school={school} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[15px] font-semibold">{school.name}</span>
+                  <span className="flex min-w-0 items-center gap-1 text-[12px] text-ink-3">
+                    <LockSimple size={11} weight="bold" aria-hidden="true" className="shrink-0" />
+                    <span className="truncate">{t('serverShort', { server: school.server })}</span>
+                  </span>
+                </span>
+                <button type="button" onClick={changeSchool} aria-label={t('schoolChange')} title={t('schoolChange')} className="grid size-9 shrink-0 place-items-center rounded-full text-ink-3 transition-colors hover:bg-[var(--surface)] hover:text-ink">
+                  <X size={15} weight="bold" aria-hidden="true" />
+                </button>
+              </div>
 
-          <nav aria-label={t('privacy')} className="mx-auto flex w-full max-w-[480px] shrink-0 flex-wrap items-center gap-x-4 gap-y-1 whitespace-nowrap pt-3 text-[12px] font-semibold text-ink-3 sm:gap-x-5 sm:text-[12.5px]">
-            <Link href={localize('/legal?view=impressum')} className="hover:text-ink">{t('imprint')}</Link>
-            <Link href={localize('/legal?view=datenschutz')} className="hover:text-ink">{t('privacy')}</Link>
-            <Link href={localize('/legal?view=nutzungsbedingungen')} className="hover:text-ink">{t('terms')}</Link>
-          </nav>
+              {!consentGiven && (
+                <p role={cookieError ? 'alert' : undefined} className={`mt-3 rounded-[12px] px-3.5 py-2 text-[13px] leading-[1.45] transition-colors ${cookieError ? 'bg-[var(--butter)] text-[var(--butter-ink)]' : 'text-ink-3'}`}>
+                  {cookieError ? t('cookieError') : t('cookieHint')}
+                </p>
+              )}
+
+              <form onSubmit={handleLogin} className="mt-4 flex flex-col gap-2.5" noValidate>
+                <label htmlFor="login-user" className="visually-hidden">{t('username')}</label>
+                <div className="login-field flex h-[54px] items-center gap-3 rounded-[16px] bg-[var(--surface)] px-4 shadow-[0_0_0_1px_var(--line)] transition-shadow focus-within:shadow-[0_0_0_2px_var(--accent-ink)]">
+                  <input
+                    ref={userInput}
+                    id="login-user"
+                    type="text"
+                    placeholder={t('username')}
+                    value={username}
+                    onChange={(e) => { setUsername(e.target.value); typed(); }}
+                    autoCapitalize="none"
+                    autoComplete="username"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    maxLength={100}
+                    suppressHydrationWarning
+                    className="h-full min-w-0 flex-1 bg-transparent text-[16px] font-medium outline-none placeholder:text-ink-3"
+                  />
+                </div>
+                <label htmlFor="login-pass" className="visually-hidden">{t('password')}</label>
+                <div className="login-field flex h-[54px] items-center gap-3 rounded-[16px] bg-[var(--surface)] px-4 shadow-[0_0_0_1px_var(--line)] transition-shadow focus-within:shadow-[0_0_0_2px_var(--accent-ink)]">
+                  <input
+                    id="login-pass"
+                    type={showPw ? 'text' : 'password'}
+                    placeholder={t('password')}
+                    value={password}
+                    onChange={(e) => { setPassword(e.target.value); typed(); }}
+                    autoComplete="current-password"
+                    maxLength={200}
+                    suppressHydrationWarning
+                    className="h-full min-w-0 flex-1 bg-transparent text-[16px] font-medium outline-none placeholder:text-ink-3"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw((s) => !s)}
+                    aria-label={showPw ? t('hidePassword') : t('showPassword')}
+                    aria-pressed={showPw}
+                    className="grid size-9 shrink-0 place-items-center rounded-full text-ink-3 transition-colors hover:bg-inset hover:text-ink"
+                  >
+                    {showPw ? <EyeSlash size={17} weight="bold" aria-hidden="true" /> : <Eye size={17} weight="bold" aria-hidden="true" />}
+                  </button>
+                </div>
+
+                {error && (
+                  <p role="alert" className="px-1 text-[13.5px] font-medium leading-[1.45] text-[var(--blush-ink)]">{error}</p>
+                )}
+
+                <button type="submit" disabled={loading || autoFilling} className="key key-lg key-indigo mt-2 w-full disabled:opacity-60">
+                  {loading || autoFilling ? (
+                    <><Spinner size={18} /><span>{loadingMsg || t('loggingIn')}</span></>
+                  ) : (
+                    <>{t('login')}<span aria-hidden="true" className="key-arrow">→</span></>
+                  )}
+                </button>
+                <button type="button" onClick={() => setForgotOpen(true)} className="mt-1 self-center rounded-full px-3 py-1.5 text-[13px] font-semibold text-ink-3 transition-colors hover:text-ink">
+                  {ta('forgot')}
+                </button>
+              </form>
+
+              <Sheet open={forgotOpen} onClose={() => setForgotOpen(false)} title={ta('resetTitle')} description={ta('resetLead')} closeLabel={ta('close')}>
+                <div className="pb-2">
+                  <ForgotPasswordForm initialUsername={username} school={school} />
+                </div>
+              </Sheet>
+            </div>
+          )}
         </section>
+
+        {/* The fine print, in one line: age, and the privacy policy where the data is entered (GDPR Art. 13). */}
+        <footer className="mx-auto flex w-full max-w-[520px] shrink-0 flex-wrap items-center justify-center gap-x-4 gap-y-1 pt-4 text-[12px] text-ink-3">
+          <span>{t('ageShort')}</span>
+          <Link href={localize('/legal/datenschutz')} className="font-semibold hover:text-ink">{t('privacyLink')}</Link>
+          <Link href={localize('/legal/impressum')} className="font-semibold hover:text-ink">{t('imprint')}</Link>
+          <Link href={localize('/legal/nutzungsbedingungen')} className="font-semibold hover:text-ink">{t('terms')}</Link>
+        </footer>
       </main>
+      </div>
     </div>
   );
 }

@@ -21,6 +21,7 @@ import type { AbsenceEntry } from '@/lib/types';
 import { useLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { classPagesDict } from '@/lib/i18n/dictionaries/classPages';
 import { dayAbbrMonSun, monthShort } from '@/lib/i18n/dateLocale';
+import { schoolWeek } from '@/lib/untis-parse';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -89,21 +90,9 @@ function normalizeClassregEvent(value: unknown, index: number): ClassregEvent {
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 
+// "This week" moves on to the next week from Saturday evening (lib/school-week.ts).
 function getSchoolWeek(offsetWeeks: number) {
-  const now = new Date();
-  const dow = now.getDay();
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1) + offsetWeeks * 7);
-  monday.setHours(0, 0, 0, 0);
-  const friday = new Date(monday);
-  friday.setDate(monday.getDate() + 4);
-
-  const toNum = (d: Date) =>
-    d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-  const toStr = (d: Date) =>
-    `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
-
-  return { startNum: toNum(monday), endNum: toNum(friday), startStr: toStr(monday), endStr: toStr(friday) };
+  return schoolWeek(offsetWeeks);
 }
 
 

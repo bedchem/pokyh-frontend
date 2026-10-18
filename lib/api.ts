@@ -5,7 +5,6 @@
 
 import { cacheGet, cacheSet, cacheIsStale, cacheClear, cacheDel } from './cache';
 import { pcGetStale, pcIsStale, pcSet, pcDel, pcClear } from './persist-cache';
-import { getSessionCredentials } from './passkey';
 import type {
   UntisPermissions,
   AbsenceReason,
@@ -32,17 +31,16 @@ async function clearSessionOnce() {
   }
 }
 
-// Silent re-login: when WebUntis kills the session, re-authenticate transparently
-// using credentials stored in sessionStorage at login time.
+// Silent re-login: when WebUntis kills the session, the server signs in again
+// with the sign-in sealed in the session's httpOnly renewal cookie
+// (lib/server/sign-in-cookies.ts). Without the cookies there is nothing to renew.
 let _reloginInFlight: Promise<boolean> | null = null;
 async function attemptSilentRelogin(): Promise<boolean> {
   if (_reloginInFlight) return _reloginInFlight;
-  const creds = getSessionCredentials();
-  if (!creds) return false;
   _reloginInFlight = fetch('/api/webuntis/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: creds.username, password: creds.password, renewal: true, ...(creds.school ? { school: creds.school } : {}) }),
+    body: JSON.stringify({ renewal: true }),
     credentials: 'same-origin',
   })
     .then(async (r) => {

@@ -22,6 +22,12 @@ const securityHeaders = [
   { key: 'X-XSS-Protection', value: '1; mode=block' },
 ];
 
+// A number from the environment; unset or empty keeps the default.
+const envSeconds = (name: string, fallback: number) => {
+  const value = Number(process.env[name]);
+  return process.env[name]?.trim() && Number.isFinite(value) && value >= 0 ? value : fallback;
+};
+
 const nextConfig: NextConfig = {
   output: 'standalone',
 
@@ -36,6 +42,13 @@ const nextConfig: NextConfig = {
     globalNotFound: true,
     // Only the icons that are used end up in the bundle
     optimizePackageImports: ['@phosphor-icons/react'],
+    // How long pages stay in the browser's router cache (seconds), so going
+    // back and forth between pages does not ask the server again. The data on
+    // the pages loads in the browser and refreshes on its own.
+    staleTimes: {
+      dynamic: envSeconds('NEXT_STALE_DYNAMIC', 60),
+      static: envSeconds('NEXT_STALE_STATIC', 300),
+    },
   },
 
   // Allow LAN devices to access the dev server (e.g. mobile testing)
@@ -46,8 +59,9 @@ const nextConfig: NextConfig = {
   // versions keep working without an update.
   async redirects() {
     return [
-      { source: '/datenschutz', destination: '/legal?view=datenschutz', permanent: false },
-      { source: '/nutzungsbedingungen', destination: '/legal?view=nutzungsbedingungen', permanent: false },
+      { source: '/datenschutz', destination: '/legal/datenschutz/', permanent: false },
+      { source: '/nutzungsbedingungen', destination: '/legal/nutzungsbedingungen/', permanent: false },
+      // Older ?view= links to the legal texts are redirected in proxy.ts.
     ];
   },
   async headers() {

@@ -259,3 +259,68 @@ Nothing was committed or pushed; the owner confirms scope and Git identity first
   intact at the top; device matrix of 6 pages × de/it/en × 8 devices: 144
   checks, 0 issues; `tsc`, `npm test` 31/31 (new: input detection, tuning,
   stretch CSS), ESLint without new errors, `next build` passes.
+
+## 2026-10-18 · Minimal sign-in, week rollover, faster app navigation
+
+- Sign-in (owner: "weniger Text, clean, minimalistic, surprise me"):
+  one quiet column instead of the illustrated side panel, progress bar,
+  leads, field labels (kept for screen readers), status line and the three
+  notes. What stays: title, one short line, the school search (or the chosen
+  school with "only sent to <server>"), two fields, the button, "forgot
+  password", and one line of fine print (age 14+, privacy policy, imprint,
+  terms; the privacy link stays at the form, GDPR Art. 13). The five POKYH
+  letter tiles react to typing (one hops per key), shake on an error and
+  wave on success; the chosen school moves into place as a View Transition
+  where supported; all of it off with reduced motion. `LoginArt.tsx` and ten
+  unused login texts removed. Checked on desktop (light/dark) and phones
+  (iPhone 14, iPhone SE, Galaxy S9+) in de/it/en: no page scroll, no
+  overflow, error and success states, no console errors.
+- Class page (owner: from Saturday 17:00 the next week): `lib/school-week.ts`
+  decides which week is "this week" (`NEXT_PUBLIC_WEEK_ROLLOVER`, default
+  "6 17:00"); used by the class page (exams and homework this/next week) and
+  the app search. Unit-tested (Friday night, Saturday 16:59/17:00, Sunday,
+  own setting, invalid values).
+- App navigation (owner: sidebar clicks slow): the app pages were dynamic
+  routes, so each click waited for a server round trip (and the router cache
+  kept dynamic pages for 0 s). Now the root layout lists the languages
+  (`generateStaticParams`), so every page that needs nothing from the
+  request is prerendered per language (all app pages, the public pages; the
+  legal page and detail pages with ids stay dynamic); `(app)/loading.tsx`
+  shows a skeleton at once; `experimental.staleTimes` (60 s / 300 s,
+  `NEXT_STALE_DYNAMIC` / `NEXT_STALE_STATIC`); the page fade in the app shell
+  shortened (0.45 s from invisible → 0.2 s from 35 %). Measured on the
+  production build with 150 ms simulated latency: click to content 178-394 ms
+  with 1-4 requests per click before, 40-90 ms with no request after.
+  Sign-in redirect without a session unchanged (307 to /login).
+- Verification: `tsc`, `npm test` 34/34, ESLint without new errors,
+  `next build` passes; audit of 23 public pages × de/it/en: 0 issues.
+
+## 2026-10-18 · Desktop sign-in, everything prerendered
+
+- Sign-in on desktops (owner: the minimal column is the phone version; a
+  different one for desktop): beside the form, a squared-paper scene with
+  the five POKYH tiles in large (`app/[lang]/login/NameTiles.tsx`): they
+  float, lean towards the pointer with depth, jump on each key with a
+  shrinking floor shadow, can be clicked, shake on an error and wave on
+  success; no text. Phones keep the small tile row. Off with reduced
+  motion. Checked at 1024, 1280, 1440 and 1920 px (light/dark) and on
+  phones: no page scroll, no overflow, no console errors.
+- Prerendering (owner: "alles prerendern, pre-compilen, SSR"): production
+  already runs a compiled standalone build. Now prerendered as well:
+  - the legal texts, each on its own page (`/<lang>/legal/<text>/`,
+    `legal/[view]`, `dynamicParams = false`), the overview static; older
+    `?view=` (and `?lang=`) links get one permanent redirect in `proxy.ts`;
+    site links updated, `/api/privacy-notice` still names the old path for
+    the native apps (redirected); the texts are in the sitemap;
+  - the detail pages with ids (grade subject, message) render once per id
+    on first visit and are static afterwards;
+  - the link preview cards per language.
+  Still dynamic by nature: the two 404 routes (status 404) and
+  `indexnow.txt` (reads its key at run time). 105 prerendered pages.
+- Build settings in Docker: the new `NEXT_PUBLIC_*` values and the router
+  cache times are passed as build arguments; empty values keep the defaults.
+- Verification: `tsc`, `npm test` 34/34, ESLint without new errors,
+  `next build` passes; legal redirects checked (308 to the clean address,
+  `?lang=` honoured, unknown text 404); audit of 23 public pages × de/it/en
+  on desktop and iPhone: no issues except one transient 502 from the
+  production ratings API, not reproducible (6/6 at ~60 ms).
