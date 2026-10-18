@@ -1,14 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronDown, CheckCircle, XCircle, UserX, Clock, ClockArrowUp, Plus, CalendarDays } from 'lucide-react';
+import { ArrowUpRight, CalendarBlank, CaretDown, CheckCircle, Plus, XCircle } from '@phosphor-icons/react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
 import UntisGuard from '@/components/UntisGuard';
-import Spinner from '@/components/ui/Spinner';
+import { Button } from '@/components/ui/Button';
+import { Page, PageHeader, Section, Segmented } from '@/components/app/Page';
+import { Bone, Line, RowsSkeleton } from '@/components/app/Skeleton';
+import PixelState from '@/components/app/PixelState';
+import { readAbsenceCalc, writeAbsenceCalc } from '@/lib/absence-calc';
 import ErrorView from '@/components/ui/ErrorView';
-import EmptyView from '@/components/ui/EmptyView';
 // Abwesenheit-melden deaktiviert (kein funktionierender WebUntis-Schreib-Endpunkt):
 import ReportAbsenceSheet from '@/components/absences/ReportAbsenceSheet';
 import ExcuseSheet from '@/components/absences/ExcuseSheet';
@@ -17,9 +19,9 @@ import { untisActionsDict } from '@/lib/i18n/dictionaries/untisActions';
 import { useSession } from '@/providers/SessionProvider';
 import type { AbsenceEntry } from '@/lib/types';
 import { parseAbsences } from '@/lib/absences';
-import { useLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
+import { useDateLocale, useLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { absencesDict } from '@/lib/i18n/dictionaries/absences';
-import { monthShort } from '@/lib/i18n/dateLocale';
+import { formatDate, monthShort } from '@/lib/i18n/dateLocale';
 
 // ─── Time helpers ─────────────────────────────────────────────────────────────
 
@@ -58,6 +60,11 @@ function roundHours(m: number): string {
 // ─── Timetable helpers for exact absence minutes ───────────────────────────────
 
 type DaySlot = { startMins: number; endMins: number };
+type GridEntry = {
+  status?: string;
+  position2?: Array<{ current?: unknown; removed?: unknown }>;
+  duration?: { start?: string; end?: string };
+};
 
 // Build a map of dateNum → deduplicated lesson slots from a timetable API response.
 // Only counts non-cancelled entries that have an actual subject (no breaks/free periods).
@@ -66,7 +73,7 @@ function mergeTimetableIntoMap(
   json: unknown,
 ): void {
   try {
-    const root = json as { days?: any[] };
+    const root = json as { days?: Array<{ date: string; gridEntries?: GridEntry[] }> };
     if (!root.days) return;
     for (const day of root.days) {
       if (!day.gridEntries?.length) continue;
@@ -76,8 +83,8 @@ function mergeTimetableIntoMap(
       for (const ge of day.gridEntries) {
         if (ge.status === 'CANCELLED') continue;
         // Skip entries without any subject in position2 (e.g. breaks)
-        const pos2: any[] = ge.position2 ?? [];
-        const hasSub = pos2.some((p: any) => p.current || p.removed);
+        const pos2 = ge.position2 ?? [];
+        const hasSub = pos2.some((p) => p.current || p.removed);
         if (!hasSub) continue;
         const timePart = ge.duration?.start?.split('T')[1];
         const endPart  = ge.duration?.end?.split('T')[1];
@@ -177,15 +184,15 @@ function calcAbsenceMinutes(
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatDate(d: number): string {
+function dateOf(d: number): Date {
   const s = d.toString();
-  return `${s.slice(6, 8)}.${s.slice(4, 6)}.${s.slice(0, 4)}`;
+  return new Date(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8));
 }
 
 function groupByMonth(
   entries: AbsenceEntry[],
   minutesMap: Map<number, number>,
-  months: string[],
+  tag: string,
 ): Array<{ key: string; label: string; entries: AbsenceEntry[]; totalMinutes: number }> {
   const map = new Map<string, AbsenceEntry[]>();
   entries.forEach((e) => {
@@ -204,7 +211,8 @@ function groupByMonth(
 
   map.forEach((es, key) => {
     const [year, month] = key.split('-');
-    const label = `${months[parseInt(month) - 1]} ${year}`;
+    const long = formatDate(new Date(+year, parseInt(month) - 1, 1), tag, { month: 'long', year: 'numeric' });
+    const label = long.charAt(0).toUpperCase() + long.slice(1);
     const totalMinutes = es.reduce((a, e) => a + (minutesMap.get(e.id) ?? e.hours * 50), 0);
     result.push({ key, label, entries: es, totalMinutes });
   });
@@ -217,42 +225,16 @@ function groupByMonth(
 const _nowDate = new Date();
 const CURRENT_SCHOOL_YEAR = _nowDate.getMonth() >= 8 ? _nowDate.getFullYear() : _nowDate.getFullYear() - 1;
 const AVAILABLE_YEARS = Array.from({ length: 4 }, (_, i) => CURRENT_SCHOOL_YEAR - i);
-
-// ─── Lokaler Berechnungs-Cache (nur localStorage) ───────────────────────────────
-// Die Fehlstunden-Berechnung (Stundenplan-Abgleich) ist teuer. Wir berechnen sie
-// einmal und cachen das Ergebnis lokal pro Schüler+Jahr — beim nächsten Mal lädt
-// die Seite sofort, ohne den Stundenplan erneut zu holen. Invalidiert automatisch,
-// wenn sich die Anzahl der Abwesenheiten ändert (neue Einträge) oder nach 7 Tagen.
-const CALC_CACHE_PREFIX = 'pokyh_abscalc_';
-const CALC_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
-interface CalcCache { minutes: [number, number][]; possible: number; count: number; ts: number }
-
-function readCalcCache(studentId: number, year: number): { minutes: Map<number, number>; possible: number; count: number } | null {
-  if (!studentId || typeof window === 'undefined') return null;
-  try {
-    const raw = window.localStorage.getItem(`${CALC_CACHE_PREFIX}${studentId}_${year}`);
-    if (!raw) return null;
-    const o = JSON.parse(raw) as CalcCache;
-    if (!o || !Array.isArray(o.minutes) || Date.now() - o.ts > CALC_CACHE_TTL) return null;
-    return { minutes: new Map(o.minutes), possible: o.possible, count: o.count };
-  } catch { return null; }
-}
-
-function writeCalcCache(studentId: number, year: number, minutes: Map<number, number>, possible: number, count: number): void {
-  if (!studentId || typeof window === 'undefined') return;
-  try {
-    const payload: CalcCache = { minutes: [...minutes], possible, count, ts: Date.now() };
-    window.localStorage.setItem(`${CALC_CACHE_PREFIX}${studentId}_${year}`, JSON.stringify(payload));
-  } catch { /* Quota/privat — ignorieren */ }
-}
+// September to June, the months of a school year.
+const SCHOOL_MONTHS = [8, 9, 10, 11, 0, 1, 2, 3, 4, 5];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AbsencesPage() {
-  const router = useRouter();
   const { user } = useSession();
   const t = useT(absencesDict);
   const { locale } = useLocale();
+  const { tag } = useDateLocale();
   const localize = useLocalizeHref();
   const [selectedYear, setSelectedYear] = useState(CURRENT_SCHOOL_YEAR);
   const [isYearOpen, setIsYearOpen] = useState(false);
@@ -274,6 +256,8 @@ export default function AbsencesPage() {
 
   const fmt = (m: number) => exact ? formatMinutes(m) : roundHours(m);
 
+  const studentId = user?.studentId ?? 0;
+
   const load = useCallback(async () => {
     if (!getAbsencesStale(selectedYear)) setLoading(true);
     setError('');
@@ -284,8 +268,7 @@ export default function AbsencesPage() {
 
       // Schneller Pfad: lokal gecachtes Berechnungs-Ergebnis verwenden, solange
       // sich die Anzahl der Abwesenheiten nicht geändert hat → kein Stundenplan-Laden.
-      const studentId = user?.studentId ?? 0;
-      const cached = readCalcCache(studentId, selectedYear);
+      const cached = readAbsenceCalc(studentId, selectedYear);
       if (cached && cached.count === parsed.length) {
         setMinutesMap(cached.minutes);
         setTotalPossibleMins(Math.max(1, cached.possible));
@@ -339,7 +322,7 @@ export default function AbsencesPage() {
       setTotalPossibleMins(Math.max(1, possibleMins));
 
       // Ergebnis lokal cachen → nächster Aufruf rendert sofort.
-      writeCalcCache(user?.studentId ?? 0, selectedYear, mins, possibleMins, parsed.length);
+      writeAbsenceCalc(studentId, selectedYear, mins, possibleMins, parsed.length);
     } catch (e: unknown) {
       if (e instanceof Error && e.message === 'session_expired') {
         window.location.replace('/login');
@@ -349,10 +332,11 @@ export default function AbsencesPage() {
     } finally {
       setLoading(false);
     }
-  }, [router, selectedYear, user?.studentId]);
+  }, [selectedYear, studentId]);
 
   useEffect(() => {
-    load();
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
   }, [load]);
 
   useEffect(() => {
@@ -382,410 +366,262 @@ export default function AbsencesPage() {
   const unexcusedMinutes = totalMinutes - excusedMinutes;
 
   const rate      = totalPossibleMins > 0 ? Math.min((totalMinutes / totalPossibleMins) * 100, 100) : 0;
-  const rateColor = rate < 5 ? 'var(--tint)' : rate < 15 ? 'var(--warning)' : 'var(--danger)';
 
-  const groups = groupByMonth(absences, minutesMap, monthShort(locale));
+  const groups = groupByMonth(absences, minutesMap, tag);
+
+  const rateInk = rate < 5 ? 'text-success-ink' : rate < 15 ? 'text-butter-ink' : 'text-danger-ink';
+  const unexcusedIds = absences.filter((a) => !a.isExcused).map((a) => a.id);
+  const excusedShare = totalMinutes > 0 ? (excusedMinutes / totalMinutes) * 100 : 0;
+
+  // Sep–Jun of the selected school year, missed time per month.
+  const monthBars = SCHOOL_MONTHS.map((m, i) => {
+    const year = i < 4 ? selectedYear : selectedYear + 1;
+    const key = `${year}-${String(m + 1).padStart(2, '0')}`;
+    const minutes = groups.find((g) => g.key === key)?.totalMinutes ?? 0;
+    const future = new Date(year, m, 1) > _nowDate;
+    return { key, label: monthShort(locale)[m].replace('.', ''), minutes, future };
+  });
+  const monthMax = Math.max(1, ...monthBars.map((b) => b.minutes));
+
+  const jumpTo = (key: string) => {
+    document.getElementById(`m-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   return (
     <AuthGuard>
       <UntisGuard>
-      <div
-        className="h-full flex flex-col"
-        style={{ background: 'var(--app-bg)' }}
-      >
-        {/* Nav */}
-        <div className="px-5 pt-4 pb-4 flex items-center gap-3 fade-in flex-shrink-0" style={{ position: 'relative', zIndex: 10 }}>
-          <button
-            onClick={() => router.back()}
-            className="p-2 rounded-full press-scale"
-            style={{ background: 'var(--app-surface)' }}
-          >
-            <ChevronLeft size={20} color="var(--accent)" />
-          </button>
-          <h1
-            className="flex-1 text-[28px] font-bold tracking-tight"
-            style={{ color: 'var(--app-text-primary)' }}
-          >
-            {t('title')}
-          </h1>
-          {/* Year selector */}
-          <div className="custom-select-container" ref={yearRef}>
-            <button
-              className={`sort-select year-btn${isYearOpen ? ' open' : ''}`}
-              onClick={() => setIsYearOpen(!isYearOpen)}
-              type="button"
-              aria-haspopup="listbox"
-              aria-expanded={isYearOpen}
-            >
-              {selectedYear} / {selectedYear + 1}
-              <ChevronDown
-                size={14}
-                style={{
-                  transform: isYearOpen ? 'rotate(180deg)' : 'none',
-                  transition: 'transform 0.2s',
-                }}
-              />
-            </button>
-            {isYearOpen && (
-              <ul className="custom-select-dropdown fade-in" role="listbox">
-                {AVAILABLE_YEARS.map((y) => (
-                  <li
-                    key={y}
-                    role="option"
-                    aria-selected={selectedYear === y}
-                    className={`custom-select-item${selectedYear === y ? ' selected' : ''}`}
-                    onClick={() => { setSelectedYear(y); setIsYearOpen(false); }}
-                  >
-                    {y} / {y + 1}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <button
-            onClick={() => setExact((v) => !v)}
-            className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium press-scale"
-            style={{
-              background: exact ? 'var(--tint)' : 'transparent',
-              color: exact ? '#fff' : 'var(--tint)',
-              border: exact ? 'none' : '1.5px solid var(--tint)',
-              transition: 'background 0.2s, color 0.2s, border 0.2s',
-            }}
-          >
-            {exact
-              ? <ClockArrowUp size={15} />
-              : <Clock size={15} />}
-            {exact ? t('exact') : t('rounded')}
-          </button>
-          {/* Abwesenheit melden: POST /api/classreg/absences/students/self with the
-              session's CSRF token (the earlier 403 came from the missing token). */}
-          {canReport && (
-            <button
-              onClick={() => setShowReport(true)}
-              className="w-10 h-10 flex items-center justify-center rounded-full press-scale flex-shrink-0"
-              style={{ background: 'var(--accent)', color: '#fff' }}
-              aria-label={t('report')}
-            >
-              <Plus size={20} />
-            </button>
-          )}
-        </div>
+        <Page>
+          <PageHeader
+            title={t('title')}
+            subtitle={`${selectedYear}/${selectedYear + 1}`}
+            actions={
+              <>
+                <div className="relative" ref={yearRef}>
+                  <Button variant="quiet" onClick={() => setIsYearOpen(!isYearOpen)} aria-haspopup="listbox" aria-expanded={isYearOpen}>
+                    {selectedYear}/{String(selectedYear + 1).slice(2)}
+                    <CaretDown size={15} weight="bold" className={`transition-transform duration-200 ${isYearOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+                  </Button>
+                  {isYearOpen && (
+                    <ul role="listbox" className="sheet-in absolute right-0 top-[calc(100%+6px)] z-50 min-w-[160px] rounded-[16px] bg-surface p-1.5 shadow-[var(--shadow-float)]">
+                      {AVAILABLE_YEARS.map((y) => (
+                        <li key={y}>
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={selectedYear === y}
+                            onClick={() => { setSelectedYear(y); setIsYearOpen(false); }}
+                            className={`w-full rounded-[10px] px-3 py-2.5 text-left text-[14.5px] font-semibold transition-colors ${selectedYear === y ? 'bg-periwinkle text-periwinkle-ink' : 'hover:bg-inset'}`}
+                          >
+                            {y} / {y + 1}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <Segmented<'rounded' | 'exact'>
+                  label={t('exact')}
+                  value={exact ? 'exact' : 'rounded'}
+                  onChange={(v) => setExact(v === 'exact')}
+                  options={[{ value: 'rounded', label: t('rounded') }, { value: 'exact', label: t('exact') }]}
+                />
+                {canReport && (
+                  <Button onClick={() => setShowReport(true)}>
+                    <Plus size={18} weight="bold" aria-hidden="true" />
+                    {t('report')}
+                  </Button>
+                )}
+              </>
+            }
+          />
 
-        <div className="flex-1 px-4 pb-10 overflow-auto">
           {loading ? (
-            <div className="flex justify-center py-16">
-              <Spinner size={28} />
+            <div aria-hidden="true" className="flex flex-col gap-9 text-ink">
+              <div className="grid gap-3 md:gap-4 lg:grid-cols-2">
+                <span className="squircle flex h-[258px] flex-col justify-between rounded-[24px] bg-surface p-5 md:p-6">
+                  <span className="flex flex-col gap-3"><Line w={90} h={12} /><Line w={150} h={44} /><Line w={180} h={12} /></span>
+                  <span className="flex flex-col gap-4"><Line w="100%" h={10} /><span className="grid grid-cols-3 gap-3">{[0, 1, 2].map((i) => <Line key={i} w="70%" h={20} />)}</span></span>
+                </span>
+                <span className="squircle flex h-[258px] items-end gap-2 rounded-[24px] bg-surface p-5 md:p-6">
+                  {[40, 70, 25, 55, 35, 60, 20, 45, 30, 50].map((h, i) => <Bone key={i} className="flex-1 !rounded-[6px]" style={{ height: `${h}%` }} />)}
+                </span>
+              </div>
+              <div className="flex flex-col gap-3">
+                <Line w={150} h={20} />
+                <RowsSkeleton rows={4} lead="square" trailing />
+              </div>
             </div>
           ) : error ? (
-            <ErrorView message={error} onRetry={load} />
+            <div className="squircle rounded-[26px] bg-surface"><ErrorView message={error} onRetry={load} /></div>
           ) : (
-            <>
-              {absences.some((a) => !a.isExcused) && (
-                <a
-                  href={excuseLetterUrl(`${selectedYear}0901`, `${selectedYear + 1}0630`, absences.filter((a) => !a.isExcused).map((a) => a.id))}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mb-4 flex items-center justify-between gap-3 rounded-2xl px-5 py-4 press-scale"
-                  style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)' }}
-                >
-                  <span>
-                    <span className="block text-[15px] font-semibold">{ta('exLetter')}</span>
-                    <span className="block text-xs" style={{ color: 'var(--app-text-secondary)' }}>{ta('exLetterHint')}</span>
-                  </span>
-                  <span aria-hidden="true">↗</span>
-                </a>
-              )}
-              {/* Overview card */}
-              <div
-                className="rounded-2xl p-5 mb-4 fade-in delay-1"
-                style={{ background: 'var(--app-surface)' }}
-              >
-                <div className="flex items-center justify-between mb-5">
-                  <div>
-                    <p
-                      className="text-xs"
-                      style={{ color: 'var(--app-text-secondary)' }}
-                    >
-                      {t('totalMissed')}
-                    </p>
-                    <p
-                      className="text-3xl font-bold"
-                      style={{ color: 'var(--app-text-primary)' }}
-                    >
-                      {fmt(totalMinutes)}
-                    </p>
-                  </div>
-                  <div className="flex gap-5">
-                    <div className="text-center">
-                      <p
-                        className="text-xl font-bold"
-                        style={{ color: 'var(--tint)' }}
-                      >
-                        {fmt(excusedMinutes)}
-                      </p>
-                      <p
-                        className="text-xs"
-                        style={{ color: 'var(--app-text-secondary)' }}
-                      >
-                        {t('excused')}
-                      </p>
+            <div className="flex flex-col gap-9">
+              <div className="rise flex flex-col gap-3 md:gap-4">
+                <div className="grid gap-3 md:gap-4 lg:grid-cols-2">
+                  <div className="squircle flex flex-col justify-between gap-7 rounded-[24px] bg-surface p-5 md:p-6">
+                    <div>
+                      <p className="text-[14px] font-semibold text-ink-2">{t('rate')}</p>
+                      <p className={`mt-2 text-[46px] font-extrabold leading-none tracking-[-0.05em] tnum md:text-[54px] ${rateInk}`}>{rate.toFixed(1).replace('.', locale === 'en' ? '.' : ',')} %</p>
+                      <p className="mt-2.5 text-[14px] text-ink-2">{t('ofLessons', { missed: fmt(totalMinutes), total: fmt(totalPossibleMins) })}</p>
                     </div>
-                    <div className="text-center">
-                      <p
-                        className="text-xl font-bold"
-                        style={{ color: 'var(--danger)' }}
-                      >
-                        {fmt(unexcusedMinutes)}
-                      </p>
-                      <p
-                        className="text-xs"
-                        style={{ color: 'var(--app-text-secondary)' }}
-                      >
-                        {t('unexcused')}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Rate bar */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <p
-                      className="text-xs"
-                      style={{ color: 'var(--app-text-secondary)' }}
-                    >
-                      {t('rate')}
-                    </p>
-                    <p
-                      className="text-xs font-semibold"
-                      style={{ color: rateColor }}
-                    >
-                      {rate.toFixed(1)}%
-                    </p>
-                  </div>
-                  <div
-                    className="h-2 rounded-full overflow-hidden"
-                    style={{ background: 'var(--app-card)' }}
-                  >
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${rate}%`,
-                        background: rateColor,
-                        transition: 'width 0.5s ease',
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {absences.length === 0 ? (
-                <EmptyView
-                  icon={<UserX size={56} color="var(--app-text-primary)" />}
-                  title={t('emptyTitle')}
-                  subtitle={t('emptySubtitle')}
-                />
-              ) : (
-                <div className="flex flex-col gap-4">
-                  {groups.map((group) => (
-                    <section key={group.key}>
-                      <div className="flex items-center justify-between mb-2 px-1">
-                        <p
-                          className="text-[15px] font-semibold"
-                          style={{ color: 'var(--app-text-primary)' }}
-                        >
-                          {group.label}
-                        </p>
-                        <p
-                          className="text-sm"
-                          style={{ color: 'var(--app-text-secondary)' }}
-                        >
-                          {fmt(group.totalMinutes)}
-                        </p>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        {group.entries.map((entry) => (
-                          <div
-                            key={entry.id}
-                            className="rounded-2xl p-4"
-                            style={{ background: 'var(--app-surface)' }}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex-1 min-w-0">
-                                <p
-                                  className="text-sm font-medium"
-                                  style={{ color: 'var(--app-text-primary)' }}
-                                >
-                                  {formatDate(entry.startDate)}
-                                  {entry.startDate !== entry.endDate
-                                    ? ` – ${formatDate(entry.endDate)}`
-                                    : ''}
-                                </p>
-                                <p
-                                  className="text-xs mt-0.5"
-                                  style={{ color: 'var(--app-text-secondary)' }}
-                                >
-                                  {formatTime(entry.startTime)} –{' '}
-                                  {formatTime(entry.endTime)}
-                                  {entry.subjectName
-                                    ? ` · ${entry.subjectName}`
-                                    : ''}
-                                  {entry.teacherName
-                                    ? ` · ${entry.teacherName}`
-                                    : ''}
-                                </p>
-                              </div>
-                              <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                                <span
-                                  className="text-sm font-semibold"
-                                  style={{ color: 'var(--app-text-secondary)' }}
-                                >
-                                  {fmt(getMin(entry))}
-                                </span>
-                                <span
-                                  className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                                  style={{
-                                    background: entry.isExcused
-                                      ? 'color-mix(in srgb, var(--tint) 14%, transparent)'
-                                      : 'color-mix(in srgb, var(--danger) 14%, transparent)',
-                                    color: entry.isExcused ? 'var(--tint)' : 'var(--danger)',
-                                  }}
-                                >
-                                  {entry.isExcused ? <CheckCircle size={12} /> : <XCircle size={12} />}
-                                  {entry.isExcused ? t('statusExcused') : t('statusOpen')}
-                                </span>
-                              </div>
-                            </div>
-                            {entry.reasonName && (
-                              <div
-                                className="flex items-baseline gap-2 mt-2 px-3 py-1.5 rounded-lg"
-                                style={{ background: 'var(--app-card)' }}
-                              >
-                                <span
-                                  className="shrink-0 font-semibold"
-                                  style={{ fontSize: '11px', color: 'var(--app-text-tertiary)' }}
-                                >
-                                  {t('reason')}
-                                </span>
-                                <span
-                                  className="text-xs"
-                                  style={{ color: 'var(--app-text-secondary)' }}
-                                >
-                                  {entry.reasonName}
-                                </span>
-                              </div>
-                            )}
-                            {entry.note && (
-                              <div
-                                className="flex items-baseline gap-2 mt-1.5 px-3 py-1.5 rounded-lg"
-                                style={{ background: 'var(--app-card)' }}
-                              >
-                                <span
-                                  className="shrink-0 font-semibold"
-                                  style={{ fontSize: '11px', color: 'var(--app-text-tertiary)' }}
-                                >
-                                  {t('text')}
-                                </span>
-                                <span
-                                  className="text-xs"
-                                  style={{ color: 'var(--app-text-secondary)' }}
-                                >
-                                  {entry.note}
-                                </span>
-                              </div>
-                            )}
-                            <Link
-                              href={localize(`/timetable?date=${entry.startDate}`)}
-                              className="mt-2.5 w-full h-9 rounded-xl text-[13px] font-semibold press-scale flex items-center justify-center gap-1.5"
-                              style={{ background: 'var(--app-card)', color: 'var(--accent)' }}
-                            >
-                              <CalendarDays size={14} />
-                              {t('viewInTimetable')}
-                            </Link>
-                            {!entry.isExcused && (
-                              <button
-                                type="button"
-                                onClick={() => setExcuseIds([entry.id])}
-                                className="mt-2 w-full h-9 rounded-xl text-[13px] font-semibold press-scale flex items-center justify-center gap-1.5"
-                                style={{ background: 'var(--accent)', color: '#fff' }}
-                              >
-                                {ta('exAction')}
-                              </button>
-                            )}
+                    <div>
+                      <span className="flex h-2.5 gap-[3px] overflow-hidden rounded-full bg-inset">
+                        {totalMinutes > 0 && (
+                          <>
+                            <span className="rounded-full bg-success transition-[width] duration-700 ease-[var(--ease-out)]" style={{ width: `${excusedShare}%` }} />
+                            {unexcusedMinutes > 0 && <span className="flex-1 rounded-full bg-danger" />}
+                          </>
+                        )}
+                      </span>
+                      <dl className="mt-4 grid grid-cols-3 gap-3">
+                        {[
+                          { label: t('totalMissed'), value: totalMinutes, dot: '', ink: '' },
+                          { label: t('excused'), value: excusedMinutes, dot: 'bg-success', ink: '' },
+                          { label: t('unexcused'), value: unexcusedMinutes, dot: 'bg-danger', ink: unexcusedMinutes > 0 ? 'text-danger-ink' : '' },
+                        ].map((f) => (
+                          <div key={f.label} className="flex min-w-0 flex-col justify-between gap-1">
+                            <dt className="flex items-center gap-1.5 text-[13px] leading-snug text-ink-2">
+                              {f.dot && <span className={`size-2 shrink-0 rounded-full ${f.dot}`} aria-hidden="true" />}
+                              {f.label}
+                            </dt>
+                            <dd className={`text-[21px] font-extrabold tracking-[-0.03em] tnum ${f.ink}`}>{fmt(f.value)}</dd>
                           </div>
                         ))}
-                      </div>
-                    </section>
-                  ))}
+                      </dl>
+                    </div>
+                  </div>
+
+                <div className="squircle flex flex-col rounded-[24px] bg-surface p-5 md:p-6">
+                  <p className="text-[14px] font-semibold text-ink-2">{t('perMonth')}</p>
+                  <div className="mt-4 flex min-h-[150px] flex-1 items-end gap-1.5">
+                    {monthBars.map((b, i) => {
+                      const has = b.minutes > 0;
+                      return (
+                        <button
+                          key={b.key}
+                          type="button"
+                          disabled={!has}
+                          onClick={() => jumpTo(b.key)}
+                          title={has ? fmt(b.minutes) : undefined}
+                          className="group flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1.5 disabled:cursor-default"
+                        >
+                          <span className={`text-[11px] font-bold tnum transition-colors ${has ? 'text-ink-2 group-hover:text-ink' : 'text-transparent'}`}>{has ? fmt(b.minutes) : '·'}</span>
+                          <span
+                            className={`w-full rounded-[6px] transition-[filter,height] duration-500 ease-[var(--ease-out)] ${
+                              has ? 'bg-accent group-hover:brightness-110' : b.future ? 'bg-[color-mix(in_srgb,var(--inset)_50%,transparent)]' : 'bg-inset'
+                            }`}
+                            style={{ height: has ? `${Math.max(8, (b.minutes / monthMax) * 100)}%` : 4, transitionDelay: `${i * 30}ms` }}
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-2 flex gap-1.5">
+                    {monthBars.map((b) => (
+                      <span key={b.key} className={`min-w-0 flex-1 truncate text-center text-[11px] font-semibold ${b.future ? 'text-ink-3/60' : 'text-ink-3'}`}>{b.label}</span>
+                    ))}
+                  </div>
                 </div>
-              )}
-            </>
+                </div>
+
+                {unexcusedIds.length > 0 && (
+                  <a
+                    href={excuseLetterUrl(`${selectedYear}0901`, `${selectedYear + 1}0630`, unexcusedIds)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="squircle group flex items-center justify-between gap-4 rounded-[22px] bg-butter px-5 py-4 text-butter-ink transition-[filter] hover:brightness-[0.98] dark:hover:brightness-110"
+                  >
+                    <span>
+                      <span className="block text-[15.5px] font-bold">{ta('exLetter')}</span>
+                      <span className="block text-[13.5px] font-semibold opacity-80">{ta('exLetterHint')}</span>
+                    </span>
+                    <ArrowUpRight size={20} weight="bold" className="shrink-0 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" aria-hidden="true" />
+                  </a>
+                )}
+              </div>
+
+              <div className="flex min-w-0 flex-col gap-9">
+                {absences.length === 0 ? (
+                  <div className="squircle rounded-[26px] bg-surface"><PixelState sprite="empty" title={t('emptyTitle')} detail={t('emptySubtitle')} /></div>
+                ) : (
+                  groups.map((group) => (
+                    <Section
+                      key={group.key}
+                      id={`m-${group.key}`}
+                      title={group.label}
+                      action={<span className="text-[14px] font-semibold text-ink-2 tnum">{fmt(group.totalMinutes)}</span>}
+                      className="rise scroll-mt-6"
+                    >
+                      <ul className="squircle flex flex-col rounded-[24px] bg-surface p-2">
+                        {group.entries.map((entry) => {
+                          const start = dateOf(entry.startDate);
+                          const multi = entry.startDate !== entry.endDate;
+                          const title = multi
+                            ? `${formatDate(start, tag, { day: 'numeric', month: 'short' })} – ${formatDate(dateOf(entry.endDate), tag, { day: 'numeric', month: 'short' })}`
+                            : formatDate(start, tag, { weekday: 'long', day: 'numeric', month: 'long' });
+                          const meta = [
+                            entry.startTime || entry.endTime ? `${formatTime(entry.startTime)} – ${formatTime(entry.endTime)}` : '',
+                            entry.subjectName,
+                            entry.teacherName,
+                          ].filter(Boolean).join(' · ');
+                          const tone = entry.isExcused ? 'bg-sage text-sage-ink' : 'bg-blush text-blush-ink';
+                          return (
+                            <li key={entry.id} className="relative px-3 py-3.5 before:absolute before:inset-x-3.5 before:top-0 before:h-px before:bg-line first:before:hidden">
+                              <div className="flex items-start gap-3.5 lg:items-center lg:gap-4">
+                                <span className={`flex size-12 shrink-0 flex-col items-center justify-center rounded-[14px] leading-none ${tone}`}>
+                                  <span className="text-[18px] font-extrabold tracking-[-0.03em] tnum">{start.getDate()}</span>
+                                  <span className="mt-1 text-[10.5px] font-bold uppercase tracking-[0.04em] opacity-80">{formatDate(start, tag, { weekday: 'short' }).replace('.', '')}</span>
+                                </span>
+                                <div className="min-w-0 flex-1 lg:flex lg:items-center lg:gap-6">
+                                  <div className="min-w-0 lg:flex-1">
+                                    <div className="flex items-baseline justify-between gap-3">
+                                      <p className="min-w-0 text-[15.5px] font-semibold first-letter:uppercase">{title}</p>
+                                      <span className="shrink-0 text-[15px] font-bold tnum lg:hidden">{fmt(getMin(entry))}</span>
+                                    </div>
+                                    {meta && <p className="mt-0.5 text-[13.5px] text-ink-2 tnum">{meta}</p>}
+                                    {(entry.reasonName || entry.note) && (
+                                      <p className="mt-1.5 text-[13.5px] leading-snug text-ink-2">
+                                        {entry.reasonName && <span className="font-semibold text-ink">{entry.reasonName}</span>}
+                                        {entry.reasonName && entry.note ? ' · ' : ''}
+                                        {entry.note}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="mt-3 flex flex-wrap items-center gap-2 lg:mt-0 lg:shrink-0 lg:justify-end">
+                                    <span className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-bold ${tone}`}>
+                                      {entry.isExcused ? <CheckCircle size={15} weight="bold" aria-hidden="true" /> : <XCircle size={15} weight="bold" aria-hidden="true" />}
+                                      {entry.isExcused ? t('statusExcused') : t('statusOpen')}
+                                    </span>
+                                    {!entry.isExcused && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setExcuseIds([entry.id])}
+                                        className="inline-flex h-8 items-center rounded-full bg-periwinkle px-3 text-[13px] font-semibold text-periwinkle-ink transition-[filter] hover:brightness-95 dark:hover:brightness-125"
+                                      >
+                                        {ta('exAction')}
+                                      </button>
+                                    )}
+                                    <Link
+                                      href={localize(`/timetable?date=${entry.startDate}`)}
+                                      className="inline-flex h-8 items-center gap-1.5 rounded-full bg-inset px-3 text-[13px] font-semibold text-ink transition-colors hover:bg-[color-mix(in_srgb,var(--inset)_86%,var(--ink))]"
+                                    >
+                                      <CalendarBlank size={14} weight="bold" aria-hidden="true" />
+                                      {t('viewInTimetable')}
+                                    </Link>
+                                  </div>
+                                </div>
+                                <span className="hidden w-[72px] shrink-0 text-right text-[17px] font-extrabold tracking-[-0.02em] tnum lg:block">{fmt(getMin(entry))}</span>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </Section>
+                  ))
+                )}
+              </div>
+            </div>
           )}
-        </div>
-      </div>
-        <style jsx>{`
-          .custom-select-container {
-            position: relative;
-          }
-          .year-btn {
-            width: 140px;
-          }
-          .sort-select {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            font-family: inherit;
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--app-text-primary);
-            background: var(--app-surface);
-            border: 1px solid var(--app-border);
-            border-radius: 8px;
-            padding: 6px 12px;
-            cursor: pointer;
-            transition: border-color 0.15s, background-color 0.15s;
-          }
-          .sort-select:hover {
-            background: color-mix(in srgb, var(--app-bg) 50%, transparent);
-            border-color: color-mix(in srgb, var(--app-border) 70%, var(--app-text-tertiary));
-          }
-          .sort-select:focus,
-          .sort-select.open {
-            outline: none;
-            border-color: color-mix(in srgb, var(--app-border) 70%, var(--app-text-tertiary));
-          }
-          .custom-select-dropdown {
-            position: absolute;
-            top: calc(100% + 6px);
-            right: 0;
-            width: 140px;
-            background: var(--app-surface);
-            border: 1px solid color-mix(in srgb, var(--app-border) 70%, var(--app-text-tertiary));
-            border-radius: 10px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-            z-index: 50;
-            padding: 6px;
-            list-style: none;
-            margin: 0;
-          }
-          .custom-select-item {
-            padding: 8px 12px;
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--app-text-primary);
-            border-radius: 6px;
-            cursor: pointer;
-            transition: background 0.15s, color 0.15s;
-          }
-          .custom-select-item:hover {
-            background: var(--app-bg);
-          }
-          .custom-select-item.selected {
-            background: var(--accent);
-            color: #fff;
-            font-weight: 600;
-          }
-        `}</style>
+        </Page>
         {showReport && (
           <ReportAbsenceSheet
             personName={personName}

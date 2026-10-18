@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: { username?: string; password?: string };
+  let body: { username?: string; password?: string; renewal?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -143,6 +143,9 @@ export async function POST(req: NextRequest) {
   }
 
   const { username: rawUsername, password } = body;
+  // The client renewing an expired session by itself (lib/api.ts), not the
+  // person signing in; the backend leaves it out of the account's sign-ins.
+  const renewal = body.renewal === true;
   // Normalise: trim + lowercase for all internal storage; WebUntis itself is case-insensitive
   const username = rawUsername?.trim().toLowerCase() ?? '';
 
@@ -327,6 +330,7 @@ export async function POST(req: NextRequest) {
           klasseId: accountKlasseId,
           klasseName: accountKlasseName,
           role: isParent ? 'parent' : 'student',
+          renewal,
         }),
         signal: AbortSignal.timeout(10000),
       });

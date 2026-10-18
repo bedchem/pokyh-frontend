@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { BRAND, type DayKind, type MergedSlot } from '@/lib/timetable-logic';
 import s from './timetable.module.css';
+import { PixelSpriteArt, type PixelSprite } from '@/components/app/PixelState';
 import { useT } from '@/providers/LocaleProvider';
 import { timetableDict, type TimetableKey } from '@/lib/i18n/dictionaries/timetable';
 
@@ -68,6 +69,13 @@ export function specialDaySpecFor(kind: DayKind): SpecialSpec {
   }
 }
 
+const DAY_SPRITE: Partial<Record<DayKind, PixelSprite>> = {
+  holiday: 'sun',
+  allCancelled: 'cancelled',
+  allReplacement: 'swap',
+  fullDayEvent: 'event',
+};
+
 /** Shown instead of lessons when a whole day has none — glyph disc, title, one line. No plate. */
 export function SpecialDayCard({ kind, compact = false, style, onClick }: {
   kind: DayKind;
@@ -77,12 +85,18 @@ export function SpecialDayCard({ kind, compact = false, style, onClick }: {
 }) {
   const t = useT(timetableDict);
   const spec = specialDaySpecFor(kind);
+  // Pixel scenes for the days without lessons; the weekend stays as it is.
+  const sprite = DAY_SPRITE[kind];
   const className = `${s.special} ${compact ? s.specialCompact : ''}`;
   const inner = (
     <div className={s.specialInner}>
-      <div className={s.specialDisc}>
-        <spec.Icon size={compact ? 16 : 32} />
-      </div>
+      {sprite ? (
+        <PixelSpriteArt sprite={sprite} className={compact ? s.specialSpriteCompact : s.specialSprite} />
+      ) : (
+        <div className={s.specialDisc}>
+          <spec.Icon size={compact ? 16 : 32} />
+        </div>
+      )}
       <p className={s.specialTitle}>{spec.title ? t(spec.title) : ''}</p>
       <p className={s.specialSub}>{spec.subtitle ? t(spec.subtitle) : ''}</p>
     </div>

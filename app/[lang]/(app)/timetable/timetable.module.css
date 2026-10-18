@@ -22,22 +22,66 @@
   touch-action: pan-y;
 }
 
+/* Same rhythm as the other app pages (components/app/Page.tsx). */
 .page {
-  padding: 12px 0 64px;
+  padding: 0 0 80px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  max-width: 1280px;
+  gap: 20px;
+  max-width: 1440px;
   margin: 0 auto;
-}
-@media (min-width: 768px) {
-  .page { padding: 24px 16px 80px; }
 }
 
 .inset { padding: 0 20px; }
-@media (max-width: 380px) {
-  .inset { padding: 0 14px; }
+@media (min-width: 640px) { .inset { padding: 0 32px; } }
+@media (min-width: 1024px) { .inset { padding: 0 48px; } }
+
+.head { padding-top: 16px; padding-bottom: 8px; }
+@media (min-width: 768px) { .head { padding-top: 32px; } }
+
+.stepBtn,
+.stepToday,
+.pillBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
+.stepBtn { width: 36px; }
+.stepToday { padding: 0 12px; }
+.stepBtn:hover:not(:disabled),
+.stepToday:hover:not(:disabled) { background: var(--inset); }
+.stepBtn:disabled,
+.stepToday:disabled { color: var(--ink-3); }
+.pillBtn {
+  height: 44px;
+  min-width: 44px;
+  padding: 0 14px;
+  border-radius: 14px;
+  background: var(--surface);
+}
+.pillBtn:hover:not(:disabled) { background: color-mix(in srgb, var(--surface) 92%, var(--ink)); }
+
+.figure {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 600;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+.figure strong { font-weight: 800; font-variant-numeric: tabular-nums; }
 
 /* ── Tone plumbing ─────────────────────────────────────────── */
 
@@ -129,7 +173,6 @@
   transition: background 0.15s, transform 0.12s;
 }
 .iconBtn:hover { background: var(--tt-accent-tint); }
-.iconBtn:active { transform: scale(0.94); }
 .iconBtn:disabled { opacity: 0.4; cursor: default; }
 
 .weekCenter {
@@ -217,10 +260,9 @@
   padding: 6px;
   margin: 0;
   list-style: none;
-  background: var(--tt-card);
-  border: 1px solid var(--app-border);
-  border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
+  background: var(--surface);
+  border-radius: 18px;
+  box-shadow: var(--shadow-float);
 }
 .menuItem {
   width: 100%;
@@ -237,14 +279,46 @@
   text-align: left;
   cursor: pointer;
 }
-.menuItem:hover { background: var(--app-bg); }
+.menuItem:hover { background: var(--inset); }
 
 /* ── Week grid ─────────────────────────────────────────────── */
 
+/* The grid on the canvas, its edges lined up with the page. */
 .pager {
   overflow: hidden;
   position: relative;
+  margin: 0 14px;
 }
+@media (min-width: 640px) { .pager { margin: 0 26px; } }
+@media (min-width: 1024px) { .pager { margin: 0 42px; } }
+
+/* The week switch, joined to the grid below it. */
+.weekBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: -8px;
+}
+.weekLabel { flex: 1; min-width: 0; }
+.weekArrow,
+.weekToday {
+  display: inline-grid;
+  place-items: center;
+  height: 44px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+.weekArrow { width: 44px; flex-shrink: 0; }
+.weekToday { padding: 0 14px; flex-shrink: 0; }
+.weekArrow:hover:not(:disabled),
+.weekToday:hover { background: color-mix(in srgb, var(--surface) 90%, var(--ink)); }
+.weekArrow:disabled { color: var(--ink-3); }
 .pagerInner { width: 100%; }
 
 .grid {
@@ -350,7 +424,7 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: color-mix(in srgb, var(--app-separator) 55%, transparent);
+  background: color-mix(in srgb, var(--line) 60%, transparent);
   pointer-events: none;
 }
 
@@ -384,18 +458,17 @@
   height: 100%;
   padding: 0;
   border: 0;
-  border-radius: calc(9px * var(--s));
+  border-radius: calc(11px * var(--s));
   overflow: hidden;
   background: var(--tone-fill);
   color: var(--tone-ink);
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: transform 0.12s ease, filter 0.15s;
+  transition: filter 0.2s ease;
 }
 .cell:hover { filter: brightness(0.98); }
 :global(.dark) .cell:hover { filter: brightness(1.08); }
-.cell:active { transform: scale(0.96); }
 .cellOutlineDanger { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--danger) 60%, transparent); }
 :global(.dark) .cellOutlineDanger { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--danger) 85%, transparent); }
 .cellOutlineWarning { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--warning) 85%, transparent); }
@@ -1055,3 +1128,19 @@ button.special { border: 0; background: transparent; font: inherit; cursor: poin
   .absenceLabelFull { display: none; }
   .absenceLabelShort { display: block; }
 }
+
+/* A week without school: the day headers stay, and under the six days one
+   sky-coloured panel holds the holiday scene. */
+.emptyWeek {
+  display: grid;
+  place-items: center;
+  min-height: 420px;
+  margin-top: 6px;
+  border-radius: 24px;
+  background: var(--periwinkle);
+  color: var(--periwinkle-ink);
+}
+
+/* Day cards without lessons (holiday, all cancelled, …): their pixel scene. */
+.specialSprite { width: min(120px, 80%); }
+.specialSpriteCompact { width: min(72px, 85%); }

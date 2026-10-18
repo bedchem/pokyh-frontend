@@ -1,6 +1,6 @@
 'use client';
 
-import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import type { AbsenceEntry, TimetableEntry } from '@/lib/types';
 import { absenceBands } from '@/lib/absences';
 import { useLocale, useT } from '@/providers/LocaleProvider';
@@ -49,6 +49,7 @@ export default function WeekGrid({
   scale,
   onTap,
   absences = [],
+  empty,
 }: {
   dayEntries: TimetableEntry[][];
   dates: Date[];
@@ -60,6 +61,8 @@ export default function WeekGrid({
   onTap: (slot: MergedSlot) => void;
   /** The student's Abwesenheiten — drawn as a labelled wash over the lessons they cover. */
   absences?: AbsenceEntry[];
+  /** Shown under the day headers instead of the lessons (a week without school). */
+  empty?: ReactNode;
 }) {
   const t = useT(timetableDict);
   const { locale } = useLocale();
@@ -135,6 +138,7 @@ export default function WeekGrid({
         })}
       </div>
 
+      {empty ? <div className={s.emptyWeek} style={{ marginLeft: gutter + colGap }}>{empty}</div> : (<>
       {/* Body */}
       <div ref={bodyRef} className={s.gridBody} style={{ height: totalHeight, gap: colGap }}>
         <div className={s.axis} style={{ width: gutter, height: totalHeight }}>
@@ -183,6 +187,7 @@ export default function WeekGrid({
           </>
         )}
       </div>
+      </>)}
     </div>
   );
 }

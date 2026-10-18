@@ -1,317 +1,201 @@
 'use client';
 
-import ChangePasswordForm from '@/components/account/ChangePasswordForm';
-import { untisActionsDict } from '@/lib/i18n/dictionaries/untisActions';
-import { useState } from 'react';
-import { ChevronLeft, LogOut, Moon, Sun, Monitor, Check } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { ArrowClockwise, ArrowRight, Check, Copy, GearSix } from '@phosphor-icons/react';
 import AuthGuard from '@/components/AuthGuard';
-import Spinner from '@/components/ui/Spinner';
+import { Button, ButtonLink } from '@/components/ui/Button';
+import { Page } from '@/components/app/Page';
+import Avatar from '@/components/app/Avatar';
+import ActivityGrid, { ActivityGridSkeleton, GridLegend } from '@/components/app/ActivityGrid';
+import PixelState from '@/components/app/PixelState';
+import { Line } from '@/components/app/Skeleton';
+import { useUntisPermissions } from '@/components/app/hooks';
 import { useSession } from '@/providers/SessionProvider';
-import { useTheme } from '@/providers/ThemeProvider';
 import { useApp } from '@/providers/AppProvider';
-import { useT } from '@/providers/LocaleProvider';
-import { profileDict, type ProfileKey } from '@/lib/i18n/dictionaries/profile';
-import { privacyDict } from '@/lib/i18n/dictionaries/privacy';
-import PrivacySettings from '@/components/PrivacySettings';
+import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
+import { profileDict } from '@/lib/i18n/dictionaries/profile';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
+import { fetchAccountActivity, type ActivityResult } from '@/lib/account-activity';
 
-type Theme = 'light' | 'dark' | 'system';
+// The profile: who you are, when you used POKYH (a GitHub-style grid of days
+// from the backend) and your account details. Statistics in more depth are
+// one step further (profile/stats).
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function SectionHeader({ label }: { label: string }) {
+function Figure({ label, value, loading }: { label: string; value: string; loading: boolean }) {
   return (
-    <p
-      className="px-1 mb-1.5 text-[13px] font-semibold uppercase tracking-wider"
-      style={{ color: 'var(--app-text-secondary)' }}
-    >
-      {label}
-    </p>
-  );
-}
-
-function InfoRow({
-  label,
-  value,
-  copyable,
-  separator = true,
-}: {
-  label: string;
-  value: string;
-  copyable?: boolean;
-  separator?: boolean;
-}) {
-  const t = useT(profileDict);
-  const [flash, setFlash] = useState(false);
-
-  async function handleCopy() {
-    if (!copyable) return;
-    try {
-      await navigator.clipboard.writeText(value);
-      setFlash(true);
-      setTimeout(() => setFlash(false), 1800);
-    } catch {/* ignore */}
-  }
-
-  return (
-    <div
-      className={`px-4 flex items-center gap-3 ${copyable ? 'press-scale cursor-pointer active:opacity-70' : ''}`}
-      style={{
-        minHeight: 44,
-        borderBottom: separator ? '1px solid var(--app-separator)' : 'none',
-      }}
-      onClick={copyable ? handleCopy : undefined}
-    >
-      <p className="flex-1 text-[15px]" style={{ color: 'var(--app-text-primary)' }}>
-        {label}
-      </p>
-      <p
-        className="text-[15px] transition-colors"
-        style={{ color: flash ? 'var(--tint)' : 'var(--app-text-secondary)' }}
-      >
-        {flash ? t('copied') : value}
-      </p>
+    <div className="squircle flex flex-col justify-between gap-3 rounded-[22px] bg-surface p-4 md:p-5">
+      <span className="text-[13.5px] font-semibold text-ink-2">{label}</span>
+      {loading
+        ? <Line w={56} h={26} className="text-ink" />
+        : <span className="rise text-[28px] font-extrabold leading-none tracking-[-0.05em] tnum md:text-[32px]">{value}</span>}
     </div>
   );
 }
 
-const THEME_OPTS: {
-  value: Theme;
-  label: ProfileKey;
-  bg: string;
-  icon: (active: boolean) => React.ReactNode;
-}[] = [
-  {
-    value: 'light',
-    label: 'light',
-    bg: '#FF9F0A',
-    icon: (a) => <Sun size={16} color={a ? '#fff' : 'var(--app-text-secondary)'} />,
-  },
-  {
-    value: 'dark',
-    label: 'dark',
-    bg: '#636366',
-    icon: (a) => <Moon size={16} color={a ? '#fff' : 'var(--app-text-secondary)'} />,
-  },
-  {
-    value: 'system',
-    label: 'system',
-    bg: '#0A84FF',
-    icon: (a) => <Monitor size={16} color={a ? '#fff' : 'var(--app-text-secondary)'} />,
-  },
-];
+/** Copies a value; the icon turns into a check for a moment, nothing else moves. */
+function CopyButton({ value, label }: { value: string; label: string }) {
+  const t = useT(profileDict);
+  const [done, setDone] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(value);
+          setDone(true);
+          setTimeout(() => setDone(false), 1500);
+        } catch { /* clipboard blocked */ }
+      }}
+      aria-label={`${label} ${t('copy')}`}
+      className={`grid size-8 shrink-0 place-items-center rounded-full transition-colors duration-200 ${done ? 'text-success' : 'text-ink-3 hover:bg-inset hover:text-ink'}`}
+    >
+      {done ? <Check size={16} weight="bold" aria-hidden="true" /> : <Copy size={16} weight="bold" aria-hidden="true" />}
+      <span className="visually-hidden" aria-live="polite">{done ? t('copied') : ''}</span>
+    </button>
+  );
+}
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+function Block({ title, lead, action, children }: { title: string; lead?: string; action?: ReactNode; children: ReactNode }) {
+  return (
+    <section aria-label={title} className="rise grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2.3fr)] lg:gap-12">
+      <div className="lg:sticky lg:top-6 lg:self-start lg:pt-1">
+        <h2 className="text-[22px] font-extrabold tracking-[-0.035em] md:text-[26px]">{title}</h2>
+        {lead && <p className="mt-1.5 max-w-[34ch] text-[15px] leading-relaxed text-ink-2">{lead}</p>}
+        {action && <div className="mt-4 hidden lg:block">{action}</div>}
+      </div>
+      <div className="min-w-0">{children}</div>
+    </section>
+  );
+}
 
-
-export default function ProfilePage() {
-  const router = useRouter();
-  const { user, logout } = useSession();
-  const ta = useT(untisActionsDict);
-  const { theme, toggleWithRipple } = useTheme();
-  const { stableUid, classId } = useApp();
+function ProfileContent() {
   const t = useT(profileDict);
   const tc = useT(commonDict);
-  const tp = useT(privacyDict);
-  const [loggingOut, setLoggingOut] = useState(false);
-  const [confirmLogout, setConfirmLogout] = useState(false);
-  const [avatarFailed, setAvatarFailed] = useState(false);
+  const localize = useLocalizeHref();
+  const { user } = useSession();
+  const { stableUid, classId } = useApp();
+  const perms = useUntisPermissions();
+  const [result, setResult] = useState<ActivityResult | undefined>(undefined);
+  const untis = user?.isUntisUser !== false;
+  const name = perms?.personName || user?.username || '';
 
-  async function handleLogout() {
-    if (!confirmLogout) {
-      setConfirmLogout(true);
-      return;
-    }
-    setLoggingOut(true);
-    await logout();
-  }
+  const load = useCallback((fresh = false) => {
+    let alive = true;
+    if (fresh) setResult(undefined);
+    fetchAccountActivity(fresh).then((r) => { if (alive) setResult(r); });
+    return () => { alive = false; };
+  }, []);
 
-  const initials = (user?.username ?? 'ME').slice(0, 2).toUpperCase();
+  useEffect(() => load(), [load]);
+
+  const loading = result === undefined;
+  const activity = result?.data ?? null;
+  const days = (n: number) => (n === 1 ? t('dayOne') : t('days', { n }));
+  const statsLink = (
+    <ButtonLink href={localize('/profile/stats')} variant="tone">
+      {t('moreStats')}
+      <ArrowRight size={17} weight="bold" aria-hidden="true" />
+    </ButtonLink>
+  );
+
+  // Only what is actually known; IDs can be copied.
+  const details = [
+    { label: t('username'), value: user?.username, copy: true },
+    { label: t('studentId'), value: untis && user?.studentId ? String(user.studentId) : '', copy: true },
+    { label: t('class'), value: user?.klasseName },
+    { label: t('schoolLabel'), value: t('school') },
+    { label: t('userId'), value: stableUid ?? '', copy: true, mono: true },
+    { label: t('classId'), value: classId ?? '', copy: true, mono: true },
+  ].filter((d) => d.value);
 
   return (
-    <AuthGuard>
-      <div
-        className="h-full flex flex-col overflow-hidden"
-      >
-        {/* Nav bar */}
-        <div className="px-5 pt-4 pb-3 flex items-center gap-3 fade-in flex-shrink-0">
-          <button
-            onClick={() => router.back()}
-            className="p-2 rounded-full press-scale"
-            style={{ background: 'var(--app-surface)' }}
-          >
-            <ChevronLeft size={20} color="var(--accent)" />
-          </button>
-          <h1
-            className="flex-1 text-[28px] font-bold tracking-tight"
-            style={{ color: 'var(--app-text-primary)' }}
-          >
-            {t('title')}
-          </h1>
-        </div>
-
-        <div className="flex-1 overflow-auto">
-          {/* Avatar hero */}
-          <div className="flex flex-col items-center pt-5 pb-8 px-5 fade-in">
-            <div
-              className="w-[88px] h-[88px] rounded-full overflow-hidden flex items-center justify-center text-[30px] font-bold text-white mb-4"
-              style={{
-                background: 'linear-gradient(145deg, var(--accent) 0%, #5E5CE6 100%)',
-                boxShadow: '0 8px 28px color-mix(in srgb, var(--accent) 40%, transparent)',
-              }}
-            >
-              {avatarFailed ? (
-                initials
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src="/api/webuntis/profile-image"
-                  alt={user?.username ?? t('title')}
-                  className="w-full h-full object-cover"
-                  onError={() => setAvatarFailed(true)}
-                />
-              )}
-            </div>
-            <h2
-              className="text-[20px] font-bold tracking-tight"
-              style={{ color: 'var(--app-text-primary)' }}
-            >
-              {user?.username ?? '–'}
-            </h2>
-            <p className="text-[15px] mt-0.5" style={{ color: 'var(--app-text-secondary)' }}>
-              {t('school')}{user?.klasseName ? ` · ${user.klasseName}` : ''}
+    <Page>
+      <header className="rise flex flex-col gap-6 pt-4 pb-10 sm:flex-row sm:items-center sm:justify-between md:pt-8 md:pb-14">
+        <div className="flex min-w-0 items-center gap-5">
+          <Avatar name={name || '?'} size={88} picture={untis} />
+          <div className="min-w-0">
+            <h1 className="truncate text-[32px] font-extrabold leading-[1.05] tracking-[-0.05em] md:text-[44px]">{name || '…'}</h1>
+            <p className="mt-1.5 text-[15px] text-ink-2 md:text-[16px]">
+              {[user?.klasseName, t('school'), user?.isParent ? t('guardian') : t('student')].filter(Boolean).join(' · ')}
             </p>
           </div>
-
-          <div className="flex flex-col gap-6 px-4 pb-12">
-            {/* Account */}
-            <section className="fade-in delay-1">
-              <SectionHeader label={t('account')} />
-              <div
-                className="rounded-2xl overflow-hidden"
-                style={{ background: 'var(--app-surface)' }}
-              >
-                <InfoRow label={t('username')} value={user?.username ?? '–'} copyable />
-                <InfoRow label={t('studentId')} value={String(user?.studentId ?? '–')} copyable />
-                <InfoRow label={t('class')} value={user?.klasseName ?? '–'} copyable />
-                <InfoRow label={t('schoolLabel')} value={t('school')} />
-                <InfoRow label={t('userId')} value={stableUid ?? '…'} copyable />
-                <InfoRow label={t('classId')} value={classId ?? '…'} copyable separator={false} />
-              </div>
-            </section>
-
-            {/* Appearance */}
-            <section className="fade-in delay-2">
-              <SectionHeader label={t('appearance')} />
-              <div
-                className="rounded-2xl overflow-hidden"
-                style={{ background: 'var(--app-surface)' }}
-              >
-                {THEME_OPTS.map((opt, i) => {
-                  const active = theme === opt.value;
-                  return (
-                    <button
-                      key={opt.value}
-                      onClick={(e) => toggleWithRipple(e, opt.value)}
-                      className="w-full px-4 flex items-center gap-3 press-scale"
-                      style={{
-                        minHeight: 44,
-                        borderBottom:
-                          i < THEME_OPTS.length - 1
-                            ? '1px solid var(--app-separator)'
-                            : 'none',
-                      }}
-                    >
-                      {/* SF-symbol style colored icon square */}
-                      <div
-                        className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                        style={{ background: active ? opt.bg : 'var(--app-card)' }}
-                      >
-                        {opt.icon(active)}
-                      </div>
-                      <span
-                        className="flex-1 text-left text-[15px]"
-                        style={{ color: 'var(--app-text-primary)' }}
-                      >
-                        {t(opt.label)}
-                      </span>
-                      {active && (
-                        <Check size={18} color="var(--accent)" strokeWidth={2.5} />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-
-            {/* WebUntis password, changed through WebUntis itself */}
-            {user?.isUntisUser !== false && (
-              <section className="fade-in delay-3">
-                <SectionHeader label={ta('pwTitle')} />
-                <div className="rounded-2xl p-5" style={{ background: 'var(--app-surface)' }}>
-                  <p className="mb-4 text-[14px]" style={{ color: 'var(--app-text-secondary)' }}>{ta('pwLead')}</p>
-                  <ChangePasswordForm />
-                </div>
-              </section>
-            )}
-
-            {/* Privacy: usage statistics consent and the notice */}
-            <section className="fade-in delay-3">
-              <SectionHeader label={tp('profileSection')} />
-              <PrivacySettings />
-            </section>
-
-            {/* App info */}
-            <section className="fade-in delay-3">
-              <SectionHeader label={t('app')} />
-              <div
-                className="rounded-2xl overflow-hidden"
-                style={{ background: 'var(--app-surface)' }}
-              >
-                <InfoRow label={t('app')} value="POKYH" />
-                <InfoRow label={t('version')} value="1.0.0" separator={false} />
-              </div>
-            </section>
-
-            {/* Logout */}
-            <section className="fade-in delay-4">
-              <div
-                className="rounded-2xl overflow-hidden"
-                style={{ background: 'var(--app-surface)' }}
-              >
-                <button
-                  onClick={handleLogout}
-                  disabled={loggingOut}
-                  className="w-full px-4 flex items-center justify-center gap-2 press-scale disabled:opacity-50"
-                  style={{ minHeight: 44 }}
-                >
-                  {loggingOut ? (
-                    <Spinner size={18} />
-                  ) : (
-                    <LogOut size={17} color="var(--danger)" />
-                  )}
-                  <span
-                    className="text-[15px] font-semibold"
-                    style={{ color: 'var(--danger)' }}
-                  >
-                    {confirmLogout ? t('confirmLogout') : t('logout')}
-                  </span>
-                </button>
-              </div>
-              {confirmLogout && !loggingOut && (
-                <button
-                  onClick={() => setConfirmLogout(false)}
-                  className="w-full mt-2 text-[15px] py-1.5 press-scale text-center"
-                  style={{ color: 'var(--app-text-secondary)' }}
-                >
-                  {tc('cancel')}
-                </button>
-              )}
-            </section>
-          </div>
         </div>
+        <ButtonLink href={localize('/settings')} variant="quiet" className="self-start sm:self-center">
+          <GearSix size={18} weight="bold" aria-hidden="true" />
+          {t('settings')}
+        </ButtonLink>
+      </header>
+
+      <div className="flex flex-col gap-14 md:gap-20">
+        <Block title={t('activity')} lead={t('activityLead')} action={activity ? statsLink : undefined}>
+          {result && !activity ? (
+            <div className="squircle rounded-[26px] bg-surface">
+              <PixelState
+                title={t('activityUnavailable')}
+                detail={result.error}
+                action={
+                  <Button variant="quiet" onClick={() => load(true)}>
+                    <ArrowClockwise size={17} weight="bold" aria-hidden="true" />
+                    {tc('retry')}
+                  </Button>
+                }
+              />
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <Figure label={t('daysOnline')} value={activity ? String(activity.totals.activeDays) : '–'} loading={loading} />
+                <Figure label={t('logins')} value={activity ? String(activity.totals.logins) : '–'} loading={loading} />
+                <Figure label={t('currentStreak')} value={activity ? days(activity.totals.currentStreak) : '–'} loading={loading} />
+                <Figure label={t('longestStreak')} value={activity ? days(activity.totals.longestStreak) : '–'} loading={loading} />
+              </div>
+
+              <div className="squircle mt-3 rounded-[26px] bg-surface p-5 md:p-6">
+                {activity ? <ActivityGrid days={activity.days} /> : <ActivityGridSkeleton />}
+                <div className="mt-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <p className="max-w-[56ch] text-[13px] leading-relaxed text-ink-3">
+                    {t('activityKept', { n: activity?.retention.activeDays ?? 30 })}
+                    {activity?.usageConsent && <> {t('activityKeptConsent', { n: activity.retention.usage })}</>}
+                  </p>
+                  <GridLegend />
+                </div>
+              </div>
+
+              {activity && !activity.usageConsent && (
+                <p className="mt-4 text-[14.5px] text-ink-2">
+                  {t('consentHint')}{' '}
+                  <Link href={localize('/settings#privacy')} className="font-semibold text-accent-ink underline-offset-4 hover:underline">{t('consentLink')}</Link>
+                </p>
+              )}
+
+              {activity && <div className="mt-6 lg:hidden">{statsLink}</div>}
+            </>
+          )}
+        </Block>
+
+        <Block title={t('account')}>
+          <dl className="squircle grid gap-x-8 gap-y-6 rounded-[26px] bg-surface p-6 sm:grid-cols-2 md:p-7">
+            {details.map((d) => (
+              <div key={d.label} className="min-w-0">
+                <dt className="text-[13px] font-semibold text-ink-3">{d.label}</dt>
+                <dd className="mt-1 flex items-center gap-1.5">
+                  <span className={`min-w-0 truncate text-[16px] font-semibold ${d.mono ? 'mono text-[14.5px]' : ''}`}>{d.value}</span>
+                  {d.copy && d.value && <CopyButton value={d.value} label={d.label} />}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </Block>
       </div>
+    </Page>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <AuthGuard>
+      <ProfileContent />
     </AuthGuard>
   );
 }

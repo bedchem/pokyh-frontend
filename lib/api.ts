@@ -42,7 +42,7 @@ async function attemptSilentRelogin(): Promise<boolean> {
   _reloginInFlight = fetch('/api/webuntis/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: creds.username, password: creds.password }),
+    body: JSON.stringify({ username: creds.username, password: creds.password, renewal: true }),
     credentials: 'same-origin',
   })
     .then(async (r) => {

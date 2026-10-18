@@ -1,0 +1,30 @@
+/* The public Mensa page inside the app frame (page.tsx). It scrolls in the
+   frame like every app page, and its opening loses the room the public site
+   keeps free for its fixed header; the app has its own top bar above it. */
+.frame {
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.frame > header:first-child :global(.wrap) {
+  padding-top: 16px;
+}
+@media (min-width: 768px) {
+  .frame > header:first-child :global(.wrap) {
+    padding-top: 32px;
+  }
+}
+
+/* The page column of the app (components/app/Page.tsx) instead of the public one. */
+.frame :global(.wrap) {
+  max-width: 1440px;
+  padding-inline: 20px;
+}
+@media (min-width: 640px) {
+  .frame :global(.wrap) { padding-inline: 32px; }
+}
+@media (min-width: 1024px) {
+  .frame :global(.wrap) { padding-inline: 48px; }
+}

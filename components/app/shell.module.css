@@ -1,0 +1,300 @@
+/* The signed-in app's frame (components/app/AppShell.tsx).
+   Phones and tablets: top bar, content, bottom bar. From 1024px: a sidebar in
+   the nav tone on the left, the top bar and the page beside it. Surfaces are
+   told apart by their fill, never by a border. The active place is marked by
+   one pill that glides from item to item (framer-motion layoutId). */
+
+.shell {
+  --side-w: 0px;
+  --bar-h: 0px;
+  display: flex;
+  height: 100dvh;
+  background: var(--canvas);
+  color: var(--ink);
+}
+
+.column {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  height: calc(100dvh - var(--bar-h));
+}
+
+.main {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  outline: none;
+}
+
+/* Every page arrives the same way: a short fade with a small rise. Filled
+   only backwards: a transform kept after the animation would make the page a
+   containing block and trap fixed overlays (sheets) beneath the bars. */
+.page {
+  height: 100%;
+  animation: page-in 0.45s var(--ease-out) backwards;
+}
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ── Top bar ────────────────────────────────────────────────── */
+
+.top {
+  flex-shrink: 0;
+  height: calc(64px + var(--safe-top));
+  padding: var(--safe-top) 20px 0;
+}
+/* Same column as the pages below (components/app/Page.tsx). */
+.topInner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+@media (min-width: 640px) { .top { padding-inline: 32px; } }
+@media (min-width: 1024px) { .top { height: 76px; padding: 12px 48px 0; } }
+
+.search {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  max-width: 560px;
+  align-items: center;
+  gap: 10px;
+  height: 46px;
+  padding: 0 8px 0 16px;
+  border-radius: 15px;
+  background: var(--surface);
+  color: var(--ink-3);
+  font-size: 15px;
+  font-weight: 550;
+  text-align: left;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+@supports (corner-shape: squircle) {
+  .search { corner-shape: squircle; border-radius: 22px; }
+}
+.search:hover {
+  color: var(--ink-2);
+  background: color-mix(in srgb, var(--surface) 92%, var(--ink));
+}
+.kbd {
+  margin-left: auto;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: var(--inset);
+  color: var(--ink-2);
+  font-family: var(--app-font-mono);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.iconBtn {
+  position: relative;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  transition: background-color 0.2s ease;
+}
+.iconBtn:hover {
+  background: color-mix(in srgb, var(--surface) 92%, var(--ink));
+}
+/* Module classes win over Tailwind's display utilities, so visibility by
+   width is set here. */
+.wideOnly { display: none; }
+@media (min-width: 1024px) { .wideOnly { display: grid; } }
+
+/* ── Bottom bar ─────────────────────────────────────────────── */
+
+.bar {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 40;
+  height: var(--bar-h);
+  padding: 8px 8px var(--safe-bottom);
+  background: var(--nav);
+  border-radius: 26px 26px 0 0;
+  box-shadow: 0 -10px 30px -18px rgb(40 28 8 / 0.25);
+}
+:global(.dark) .bar {
+  box-shadow: 0 -10px 30px -16px rgb(0 0 0 / 0.7);
+}
+@supports (corner-shape: squircle) {
+  .bar { corner-shape: squircle; border-radius: 40px 40px 0 0; }
+}
+
+.tab {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 56px;
+  border-radius: 16px;
+  color: var(--ink-3);
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: -0.005em;
+  transition: color 0.25s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.tab[aria-current='page'] {
+  color: var(--periwinkle-ink);
+}
+.pill {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 32px;
+}
+.pillBg {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--periwinkle);
+}
+.pill > svg {
+  position: relative;
+}
+.tabLabel {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.badge {
+  position: absolute;
+  top: 2px;
+  left: calc(50% + 8px);
+  z-index: 1;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 18px;
+  text-align: center;
+  box-shadow: 0 0 0 2px var(--nav);
+}
+
+@media (max-width: 1023.98px) {
+  .shell { --bar-h: calc(72px + var(--safe-bottom)); }
+}
+
+/* ── Sidebar ────────────────────────────────────────────────── */
+
+@media (min-width: 1024px) {
+  .shell { --side-w: 264px; }
+  .shell[data-collapsed='true'] { --side-w: 84px; }
+
+  .side {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    width: var(--side-w);
+    height: 100%;
+    padding: 20px 16px 16px;
+    background: var(--nav);
+    overflow: hidden;
+  }
+  .shell[data-ready='true'] .side {
+    transition: width 0.34s var(--ease-out);
+  }
+
+  .bar { display: none; }
+}
+@media (max-width: 1023.98px) {
+  .side { display: none; }
+}
+
+/* Labels fade instead of jumping while the sidebar folds. */
+.fold {
+  white-space: nowrap;
+  transition: opacity 0.2s ease;
+}
+.shell[data-collapsed='true'] .fold {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 44px;
+  padding-inline: 15px;
+  border-radius: 14px;
+  color: var(--ink-2);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+.item > * {
+  position: relative;
+}
+.item:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+}
+.item[aria-current='page'] {
+  color: var(--periwinkle-ink);
+  background: transparent;
+}
+.item > .itemBg {
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  background: var(--periwinkle);
+}
+
+.count {
+  margin-left: auto;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 22px;
+  text-align: center;
+}
+.dot {
+  position: absolute !important;
+  top: 9px;
+  left: 32px;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--nav);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.shell[data-collapsed='true'] .dot { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .side, .fold, .page { transition: none !important; animation: none !important; }
+}

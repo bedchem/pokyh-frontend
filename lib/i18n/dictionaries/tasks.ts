@@ -40,7 +40,20 @@ export type TasksKey =
   | 'memberOne'
   | 'memberMany'
   | 'byUser'
-  | 'deleteAsAdmin';
+  | 'deleteAsAdmin'
+  | 'composePlaceholder'
+  | 'moreDetails'
+  | 'openTitle'
+  | 'doneTitle'
+  | 'overdue'
+  | 'deleteItem'
+  | 'markDone'
+  | 'markOpen'
+  | 'todosLead'
+  | 'remindersLead'
+  | 'newReminder'
+  | 'comments'
+  | 'whenLabel';
 
 export const tasksDict: Dictionary<TasksKey> = {
   de: {
@@ -81,6 +94,19 @@ export const tasksDict: Dictionary<TasksKey> = {
     memberMany: '{n} Mitglieder',
     byUser: 'von {name}',
     deleteAsAdmin: 'Als Admin löschen',
+    composePlaceholder: 'Was steht an?',
+    moreDetails: 'Details',
+    openTitle: 'Offen',
+    doneTitle: 'Erledigt',
+    overdue: 'Überfällig',
+    deleteItem: 'Löschen',
+    markDone: 'Als erledigt markieren',
+    markOpen: 'Wieder öffnen',
+    todosLead: '{n} offen · Erledigte verschwinden nach 24 Stunden',
+    remindersLead: 'Für die ganze Klasse {klasse} sichtbar',
+    newReminder: 'Neue Erinnerung',
+    comments: 'Kommentare',
+    whenLabel: 'Wann',
   },
   it: {
     dateTime: '{date} · {time}',
@@ -120,6 +146,19 @@ export const tasksDict: Dictionary<TasksKey> = {
     memberMany: '{n} membri',
     byUser: 'di {name}',
     deleteAsAdmin: 'Elimina come admin',
+    composePlaceholder: 'Cosa devi fare?',
+    moreDetails: 'Dettagli',
+    openTitle: 'Aperti',
+    doneTitle: 'Completati',
+    overdue: 'Scaduto',
+    deleteItem: 'Elimina',
+    markDone: 'Segna come fatto',
+    markOpen: 'Riapri',
+    todosLead: '{n} aperti · i completati spariscono dopo 24 ore',
+    remindersLead: 'Visibili a tutta la classe {klasse}',
+    newReminder: 'Nuovo promemoria',
+    comments: 'Commenti',
+    whenLabel: 'Quando',
   },
   en: {
     dateTime: '{date} · {time}',
@@ -159,6 +198,19 @@ export const tasksDict: Dictionary<TasksKey> = {
     memberMany: '{n} members',
     byUser: 'by {name}',
     deleteAsAdmin: 'Delete as admin',
+    composePlaceholder: 'What do you need to do?',
+    moreDetails: 'Details',
+    openTitle: 'Open',
+    doneTitle: 'Done',
+    overdue: 'Overdue',
+    deleteItem: 'Delete',
+    markDone: 'Mark as done',
+    markOpen: 'Reopen',
+    todosLead: '{n} open · done ones disappear after 24 hours',
+    remindersLead: 'Visible to the whole class {klasse}',
+    newReminder: 'New reminder',
+    comments: 'Comments',
+    whenLabel: 'When',
   },
   lld: {
     dateTime: "{date} · ai {time}",

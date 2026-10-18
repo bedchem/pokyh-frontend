@@ -2,8 +2,10 @@
 
 import { useEffect } from 'react';
 import { useSession } from '@/providers/SessionProvider';
-import Spinner from '@/components/ui/Spinner';
 
+// Signed-in pages only: sends a missing session to the sign-in form. The
+// session is read from a cookie, so the check is over at once; nothing is
+// drawn meanwhile (each page brings its own skeleton).
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useSession();
 
@@ -13,15 +15,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [isLoading, user]);
 
-  if (isLoading) {
-    return (
-      <div className="h-full flex items-center justify-center" style={{ background: 'var(--app-bg)' }}>
-        <Spinner size={32} />
-      </div>
-    );
-  }
-
-  if (!user) return null;
+  if (isLoading || !user) return null;
 
   return <>{children}</>;
 }

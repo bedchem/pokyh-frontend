@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { decryptSession } from '@/lib/session-crypto';
-import { isMensaRoute, isProtectedAppRoute } from '@/lib/routes';
+import { isCanteenRoute, isMensaRoute, isProtectedAppRoute } from '@/lib/routes';
 
 import { DEFAULT_LOCALE, LOCALE_COOKIE, RETIRED_LOCALES, isLocale, localizePath, type Locale } from '@/lib/i18n/locale';
 
@@ -169,6 +169,15 @@ async function handlePage(request: NextRequest, path: string, locale: Locale): P
       return redirectTo(request, `/${locale}/home/`, '');
     }
     return NextResponse.next();
+  }
+
+  // The Mensa exists twice: the public page for guests (/mensa) and the one
+  // inside the app for signed-in accounts (/canteen). Each is sent to its own.
+  if (isMensaRoute(path) && authenticated) {
+    return redirectTo(request, `/${locale}/canteen/`);
+  }
+  if (isCanteenRoute(path) && !authenticated) {
+    return redirectTo(request, `/${locale}/mensa/`);
   }
 
   // Mensa menu is public; rating and commenting stay behind the login in the UI.

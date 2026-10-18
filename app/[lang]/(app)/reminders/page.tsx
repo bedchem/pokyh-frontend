@@ -1,26 +1,36 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { ChevronLeft, ChevronRight, Plus, Bell, Trash2, BellOff, Users, LogIn, Calendar, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ArrowClockwise, BellRinging, CalendarBlank, Plus, SignIn, TextAlignLeft, Trash, UsersThree } from '@phosphor-icons/react';
 import DateTimePicker from '@/components/ui/DateTimePicker';
 import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
-import EmptyView from '@/components/ui/EmptyView';
+import Sheet from '@/components/ui/Sheet';
 import CommentSection from '@/components/ui/CommentSection';
+import { Button } from '@/components/ui/Button';
+import { Page, PageHeader, Section } from '@/components/app/Page';
+import { RowsSkeleton } from '@/components/app/Skeleton';
+import PixelState from '@/components/app/PixelState';
+import { initialsOf } from '@/components/app/hooks';
+import { technicalReason } from '@/components/ui/ErrorView';
 import { useApp } from '@/providers/AppProvider';
 import { useSession } from '@/providers/SessionProvider';
-import { api, type ApiReminder, type ApiComment } from '@/lib/api-client';
+import { api, type ApiComment, type ApiReminder } from '@/lib/api-client';
 import { useDateLocale, useT } from '@/providers/LocaleProvider';
 import { tasksDict, type TasksKey } from '@/lib/i18n/dictionaries/tasks';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
+import { homeDict } from '@/lib/i18n/dictionaries/home';
 import { formatDate, formatTime } from '@/lib/i18n/dateLocale';
+
+// Class reminders: everyone in the class sees and comments on them. A quick
+// line to add one (a time is required), then the reminders by day — what is
+// already due first — and a sheet with the details and the comments.
 
 type TFn = (key: TasksKey, vars?: Record<string, string | number>) => string;
 
 interface Reminder {
   id: string;
-  classId: string;
   title: string;
   body: string;
   remindAt: Date;
@@ -29,31 +39,11 @@ interface Reminder {
   createdByUsername: string;
 }
 
-interface ClassMember {
-  stableUid: string;
-  username: string;
-}
+const KEEP_MS = 25 * 3600 * 1000;
 
-function memberColor(name: string): string {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h << 5) - h + name.charCodeAt(i);
-  return `hsl(${Math.abs(h) % 360}, 60%, 50%)`;
-}
-
-function timeUntil(date: Date, t: TFn): string {
-  const diff = date.getTime() - Date.now();
-  if (diff < 0) return t('due');
-  const h = Math.floor(diff / 3600000);
-  const d = Math.floor(h / 24);
-  if (d > 0) return d > 1 ? t('inDays', { n: d }) : t('inDay');
-  if (h > 0) return t('inHours', { n: h });
-  return t('soon');
-}
-
-function apiReminderToReminder(r: ApiReminder): Reminder {
+function fromApi(r: ApiReminder): Reminder {
   return {
     id: r.id,
-    classId: r.classId,
     title: r.title,
     body: r.body,
     remindAt: new Date(r.remindAt),
@@ -63,494 +53,333 @@ function apiReminderToReminder(r: ApiReminder): Reminder {
   };
 }
 
-export default function RemindersPage() {
-  const router = useRouter();
+function recent(list: ApiReminder[], now: number): Reminder[] {
+  return list.map(fromApi).filter((r) => r.remindAt.getTime() > now - KEEP_MS);
+}
+
+function timeUntil(date: Date, now: number, t: TFn): string {
+  const diff = date.getTime() - now;
+  if (diff < 0) return t('due');
+  const h = Math.floor(diff / 3_600_000);
+  const d = Math.floor(h / 24);
+  if (d > 0) return d > 1 ? t('inDays', { n: d }) : t('inDay');
+  if (h > 0) return t('inHours', { n: h });
+  return t('soon');
+}
+
+function dayKey(d: Date): string {
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+function RemindersContent() {
   const { user, logout } = useSession();
   const { classId, stableUid, ready, retryInit } = useApp();
   const t = useT(tasksDict);
   const tc = useT(commonDict);
+  const th = useT(homeDict);
   const { tag } = useDateLocale();
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showAdd, setShowAdd] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [members, setMembers] = useState<Array<{ stableUid: string; username: string }>>([]);
   const [showMembers, setShowMembers] = useState(false);
-  const [members, setMembers] = useState<ClassMember[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [showBody, setShowBody] = useState(false);
   const [due, setDue] = useState('');
+  const [picking, setPicking] = useState(false);
   const [saving, setSaving] = useState(false);
   const [addError, setAddError] = useState('');
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [detailReminder, setDetailReminder] = useState<Reminder | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (!ready || !user) return;
-    api.users.get(user.username)
-      .then((u) => setIsAdmin(u.isAdmin))
-      .catch(() => {});
+    api.users.get(user.username).then((u) => setIsAdmin(u.isAdmin)).catch(() => {});
   }, [ready, user]);
 
   useEffect(() => {
     if (!ready || !classId) return;
-    api.classes.get(classId)
-      .then((cls) => {
-        setMembers(cls.members.map((m) => ({ stableUid: m.stableUid, username: m.username })));
-      })
-      .catch(() => {});
+    api.classes.get(classId).then((cls) => setMembers(cls.members.map((m) => ({ stableUid: m.stableUid, username: m.username })))).catch(() => {});
   }, [classId, ready]);
 
+  const load = useCallback(() => {
+    if (!classId) return;
+    api.reminders.list(classId)
+      .then((list) => { setReminders(recent(list, Date.now())); setError(null); })
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : t('remindersLoadError')))
+      .finally(() => setLoading(false));
+  }, [classId, t]);
+
   useEffect(() => {
-    if (!ready) return;
-    if (!classId) { setLoading(false); return; }
-
-    const cutoff = Date.now() - 25 * 3600 * 1000;
-
-    const unsub = api.reminders.subscribe(classId, (apiReminders) => {
-      setReminders(
-        apiReminders
-          .map(apiReminderToReminder)
-          .filter((r) => r.remindAt.getTime() > cutoff)
-      );
+    if (!ready || !classId) return;
+    const unsub = api.reminders.subscribe(classId, (list) => {
+      setReminders(recent(list, Date.now()));
       setLoading(false);
     });
-
-    api.reminders.list(classId)
-      .then((apiReminders) => {
-        setReminders(
-          apiReminders
-            .map(apiReminderToReminder)
-            .filter((r) => r.remindAt.getTime() > cutoff)
-        );
-        setLoading(false);
-      })
-      .catch((e: unknown) => {
-        setError(e instanceof Error ? e.message : t('remindersLoadError'));
-        setLoading(false);
-      });
-
+    load();
     return () => unsub();
-  }, [classId, ready, t]);
+  }, [classId, ready, load]);
 
-  async function addReminder() {
-    if (!title.trim() || !due || !classId || !stableUid || !user) return;
+  async function add() {
+    if (!title.trim() || !due || !classId || saving) return;
     setSaving(true);
     setAddError('');
     try {
-      await api.reminders.create(classId, {
-        title: title.trim(),
-        body: body.trim(),
-        remindAt: new Date(due).toISOString(),
-      });
-      setTitle(''); setBody(''); setDue(''); setShowAdd(false);
+      const created = await api.reminders.create(classId, { title: title.trim(), body: body.trim(), remindAt: new Date(due).toISOString() });
+      setReminders((list) => (list.some((r) => r.id === created.id) ? list : [...list, fromApi(created)]));
+      setTitle('');
+      setBody('');
+      setDue('');
+      setShowBody(false);
     } catch (e: unknown) {
-      setAddError(e instanceof Error ? e.message : t('saveFailed'));
+      setAddError(e instanceof Error && e.message ? e.message : t('saveFailed'));
     } finally {
       setSaving(false);
     }
   }
 
-  async function deleteReminder(reminder: Reminder) {
+  function remove(r: Reminder) {
     if (!classId) return;
-    await api.reminders.delete(classId, reminder.id);
+    setOpenId(null);
+    setReminders((list) => list.filter((x) => x.id !== r.id));
+    api.reminders.delete(classId, r.id).catch(() => setReminders((list) => [...list, r]));
   }
 
-  const upcoming = reminders.filter((r) => r.remindAt >= new Date(Date.now() - 1000));
-  const overdue = reminders.filter((r) => r.remindAt < new Date());
+  const sorted = useMemo(() => [...reminders].sort((a, b) => a.remindAt.getTime() - b.remindAt.getTime()), [reminders]);
+  const overdue = sorted.filter((r) => r.remindAt.getTime() < now);
+  const days = useMemo(() => {
+    const groups = new Map<string, Reminder[]>();
+    for (const r of sorted) {
+      if (r.remindAt.getTime() < now) continue;
+      const k = dayKey(r.remindAt);
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k)!.push(r);
+    }
+    return [...groups.values()];
+  }, [sorted, now]);
 
-  return (
-    <AuthGuard>
-      <div className="h-full flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="px-5 pt-4 pb-3 fade-in flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.back()}
-              className="p-2 rounded-full press-scale"
-              style={{ background: 'var(--app-surface)' }}
-            >
-              <ChevronLeft size={20} color="var(--accent)" />
-            </button>
-            <h1 className="flex-1 text-[28px] font-bold tracking-tight" style={{ color: 'var(--app-text-primary)' }}>
-              {t('remindersTitle')}
-            </h1>
-            {classId && (
-              <button
-                onClick={() => setShowAdd(true)}
-                className="p-2 rounded-full press-scale"
-                style={{ background: 'color-mix(in srgb, var(--orange) 15%, var(--app-surface))' }}
-              >
-                <Plus size={20} color="var(--orange)" />
-              </button>
-            )}
-          </div>
+  const dayTitle = (d: Date) => {
+    const today = new Date(now);
+    const tomorrow = new Date(now + 86_400_000);
+    const long = formatDate(d, tag, { weekday: 'long', day: 'numeric', month: 'long' });
+    if (dayKey(d) === dayKey(today)) return `${th('today')} · ${long}`;
+    if (dayKey(d) === dayKey(tomorrow)) return `${th('tomorrow')} · ${long}`;
+    return long;
+  };
 
-          {ready && classId && (
-            <button
-              onClick={() => setShowMembers(true)}
-              className="mt-2.5 ml-[44px] flex items-center gap-1.5 px-3 py-1.5 rounded-full press-scale"
-              style={{ background: 'var(--app-surface)' }}
-            >
-              <Users size={13} color="var(--accent)" />
-              <span className="text-[13px] font-medium" style={{ color: 'var(--app-text-primary)' }}>
-                {user?.klasseName}
-              </span>
-              {members.length > 0 && (
-                <span className="text-[12px]" style={{ color: 'var(--app-text-secondary)' }}>
-                  · {members.length}
-                </span>
-              )}
-              <ChevronRight size={12} color="var(--app-text-tertiary)" />
-            </button>
-          )}
-        </div>
+  const dueLabel = due
+    ? t('dateTime', {
+        date: formatDate(new Date(due), tag, { weekday: 'short', day: 'numeric', month: 'short' }),
+        time: formatTime(new Date(due), tag, { hour: '2-digit', minute: '2-digit' }),
+      })
+    : null;
+  const openReminder = reminders.find((r) => r.id === openId) ?? null;
 
-        <div className="flex-1 px-4 pb-6 overflow-auto">
-          {!ready || loading ? (
-            <div className="flex justify-center py-16"><Spinner size={28} /></div>
-          ) : error ? (
-            <div className="flex flex-col items-center justify-center gap-3 py-16 text-center px-8">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'color-mix(in srgb, var(--danger) 12%, transparent)' }}>
-                <Bell size={28} color="var(--danger)" />
-              </div>
-              <p className="text-base font-semibold" style={{ color: 'var(--app-text-primary)' }}>{t('loadFailed')}</p>
-              <p className="text-sm" style={{ color: 'var(--app-text-secondary)' }}>{error}</p>
-              <button
-                onClick={() => { setError(null); setLoading(true); if (classId) api.reminders.list(classId).then((r) => { const cutoff = Date.now() - 25 * 3600 * 1000; setReminders(r.map(apiReminderToReminder).filter((x) => x.remindAt.getTime() > cutoff)); setLoading(false); }).catch((e: unknown) => { setError(e instanceof Error ? e.message : t('remindersLoadError')); setLoading(false); }); }}
-                className="px-5 py-2.5 rounded-xl font-semibold text-sm text-white press-scale"
-                style={{ background: 'var(--accent)' }}
-              >
-                {tc('retry')}
-              </button>
-            </div>
-          ) : !classId ? (
-            <div className="flex flex-col items-center justify-center gap-4 py-16 text-center px-8">
-              <div
-                className="w-16 h-16 rounded-2xl flex items-center justify-center"
-                style={{ background: 'color-mix(in srgb, var(--orange) 15%, transparent)' }}
-              >
-                <Users size={32} color="var(--orange)" />
-              </div>
-              <p className="text-base font-semibold" style={{ color: 'var(--app-text-primary)' }}>
-                {t('classNotFound')}
-              </p>
-              <p className="text-sm" style={{ color: 'var(--app-text-secondary)' }}>
-                {t('syncFailed')}
-              </p>
-              <div className="flex flex-col gap-2 w-full max-w-xs">
-                <button
-                  onClick={retryInit}
-                  className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm press-scale"
-                  style={{ background: 'var(--accent)', color: '#fff' }}
-                >
-                  <Users size={16} />
-                  {tc('retry')}
-                </button>
-                <button
-                  onClick={() => logout()}
-                  className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm press-scale"
-                  style={{ background: 'var(--app-surface)', color: 'var(--app-text-primary)' }}
-                >
-                  <LogIn size={16} />
-                  {t('loginAgain')}
-                </button>
-              </div>
-            </div>
-          ) : reminders.length === 0 ? (
-            <EmptyView
-              icon={<BellOff size={56} color="var(--app-text-primary)" />}
-              title={t('remindersEmptyTitle')}
-              subtitle={t('remindersEmptySubtitle')}
-            />
-          ) : (
-            <div className="flex flex-col gap-3 fade-in">
-              {overdue.length > 0 && (
-                <p className="text-xs font-semibold uppercase tracking-wider px-1 mt-1"
-                   style={{ color: 'var(--danger)' }}>
-                  {t('overdueHeader')}
-                </p>
-              )}
-              {overdue.map((r) => (
-                <ReminderCard
-                  key={r.id}
-                  r={r}
-                  stableUid={stableUid}
-                  isAdmin={isAdmin}
-                  onDelete={deleteReminder}
-                  onOpen={() => setDetailReminder(r)}
-                  overdue
-                />
-              ))}
-              {upcoming.filter(r => r.remindAt >= new Date()).length > 0 && (
-                <p className="text-xs font-semibold uppercase tracking-wider px-1 mt-2"
-                   style={{ color: 'var(--app-text-secondary)' }}>
-                  {t('upcomingHeader')}
-                </p>
-              )}
-              {upcoming.filter(r => r.remindAt >= new Date()).map((r) => (
-                <ReminderCard
-                  key={r.id}
-                  r={r}
-                  stableUid={stableUid}
-                  isAdmin={isAdmin}
-                  onDelete={deleteReminder}
-                  onOpen={() => setDetailReminder(r)}
-                  overdue={false}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Reminder detail + comments sheet */}
-        {detailReminder && classId && (
-          <ReminderDetailSheet
-            reminder={detailReminder}
-            classId={classId}
-            stableUid={stableUid}
-            isAdmin={isAdmin}
-            onClose={() => setDetailReminder(null)}
-            onDelete={(r) => { deleteReminder(r); setDetailReminder(null); }}
-          />
-        )}
-
-        {/* Add reminder modal */}
-        {showAdd && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8"
-            style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
-            onClick={() => { setShowAdd(false); setShowDatePicker(false); }}
-          >
-            <div
-              className="w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-[28px] fade-in"
-              style={{ background: 'var(--app-surface)', animationDuration: '0.25s' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between px-6 pt-6 pb-2">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: 'color-mix(in srgb, var(--orange) 15%, transparent)' }}
-                  >
-                    <Bell size={20} color="var(--orange)" />
-                  </div>
-                  <h3 className="text-[18px] font-bold" style={{ color: 'var(--app-text-primary)' }}>
-                    {t('addReminder')}
-                  </h3>
-                </div>
-                <button
-                  onClick={() => setShowAdd(false)}
-                  className="w-8 h-8 flex items-center justify-center rounded-full press-scale flex-shrink-0"
-                  style={{ background: 'var(--app-card)', color: 'var(--app-text-secondary)' }}
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              <div className="px-6 pb-8 flex flex-col gap-3 mt-4">
-                <input
-                  placeholder={t('titleRequired')}
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full rounded-xl px-4 py-3 text-[15px] outline-none"
-                  style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)' }}
-                  autoFocus
-                />
-                <input
-                  placeholder={t('descriptionOptional')}
-                  value={body}
-                  onChange={(e) => setBody(e.target.value)}
-                  className="w-full rounded-xl px-4 py-3 text-[15px] outline-none"
-                  style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowDatePicker(true)}
-                  className="w-full rounded-xl px-4 py-3 text-[15px] text-left flex items-center gap-3 press-scale"
-                  style={{
-                    background: 'var(--app-card)',
-                    color: due ? 'var(--app-text-primary)' : 'var(--app-text-tertiary)',
-                    border: `1.5px solid ${due ? 'var(--accent)' : 'transparent'}`,
-                  }}
-                >
-                  <Calendar size={16} color={due ? 'var(--accent)' : 'var(--app-text-tertiary)'} />
-                  {due
-                    ? (() => {
-                        const d = new Date(due);
-                        return t('dateTime', {
-                          date: formatDate(d, tag, { weekday: 'short', day: 'numeric', month: 'short' }),
-                          time: formatTime(d, tag, { hour: '2-digit', minute: '2-digit' }),
-                        });
-                      })()
-                    : t('chooseDateTime')
-                  }
-                </button>
-                {addError && (
-                  <p className="text-sm px-3 py-2.5 rounded-xl" style={{ background: 'color-mix(in srgb, var(--danger) 12%, transparent)', color: 'var(--danger)' }}>
-                    {addError}
-                  </p>
-                )}
-                <button
-                  onClick={addReminder}
-                  disabled={!title.trim() || !due || saving}
-                  className="h-12 rounded-xl font-semibold text-white press-scale disabled:opacity-50 flex items-center justify-center gap-2 mt-1"
-                  style={{ background: 'var(--accent)' }}
-                >
-                  {saving ? <Spinner size={18} /> : t('add')}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showAdd && showDatePicker && (
-          <DateTimePicker
-            value={due}
-            onChange={(v) => setDue(v)}
-            onBack={() => setShowDatePicker(false)}
-          />
-        )}
-
-        {/* Class members sheet */}
-        {showMembers && (
-          <div
-            className="fixed inset-0 z-50 flex items-end fade-backdrop"
-            style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
-            onClick={() => setShowMembers(false)}
-          >
-            <div
-              className="w-full rounded-t-2xl pb-12 slide-up"
-              style={{ background: 'var(--app-surface)', maxHeight: '70dvh', overflowY: 'auto' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="w-10 h-1 rounded-full mx-auto mt-3 mb-4" style={{ background: 'var(--app-border)' }} />
-              <div className="px-6">
-                <div className="flex items-center gap-3 mb-5">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center"
-                    style={{ background: 'color-mix(in srgb, var(--accent) 15%, transparent)' }}
-                  >
-                    <Users size={20} color="var(--accent)" />
-                  </div>
-                  <div>
-                    <h3 className="text-[18px] font-bold" style={{ color: 'var(--app-text-primary)' }}>
-                      {user?.klasseName}
-                    </h3>
-                    <p className="text-sm" style={{ color: 'var(--app-text-secondary)' }}>
-                      {members.length === 1 ? t('memberOne', { n: 1 }) : t('memberMany', { n: members.length })}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-2">
-                  {members.map((m) => (
-                    <div
-                      key={m.stableUid}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl"
-                      style={{ background: 'var(--app-card)' }}
-                    >
-                      <div
-                        className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
-                        style={{ background: memberColor(m.username) }}
-                      >
-                        {m.username.slice(0, 2).toUpperCase()}
-                      </div>
-                      <p className="font-medium text-[15px]" style={{ color: 'var(--app-text-primary)' }}>
-                        {m.username}
-                      </p>
-                      {m.stableUid === stableUid && (
-                        <span className="ml-auto text-xs font-medium px-2 py-0.5 rounded-full"
-                          style={{ background: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent)' }}>
-                          {t('you')}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </AuthGuard>
-  );
-}
-
-function ReminderCard({
-  r,
-  stableUid,
-  isAdmin,
-  onDelete,
-  onOpen,
-  overdue,
-}: {
-  r: Reminder;
-  stableUid: string | null;
-  isAdmin: boolean;
-  onDelete: (r: Reminder) => void;
-  onOpen: () => void;
-  overdue: boolean;
-}) {
-  const t = useT(tasksDict);
-  const { tag } = useDateLocale();
-  const isMine = stableUid != null && r.createdByUid === stableUid;
-  const canDelete = isMine || isAdmin;
-  return (
-    <button
-      onClick={onOpen}
-      className="w-full rounded-2xl p-4 text-left press-scale"
-      style={{
-        background: 'var(--app-surface)',
-        border: overdue ? '1px solid color-mix(in srgb, var(--danger) 25%, transparent)' : 'none',
-      }}
+  const row = (r: Reminder, isOverdue: boolean) => (
+    <motion.li
+      key={r.id}
+      layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, transition: { duration: 0.15 } }}
+      transition={{ type: 'spring', stiffness: 500, damping: 40 }}
     >
-      <div className="flex items-start gap-3">
-        <div
-          className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
-          style={{
-            background: overdue
-              ? 'color-mix(in srgb, var(--danger) 15%, transparent)'
-              : 'color-mix(in srgb, var(--orange) 15%, transparent)',
-          }}
+      <button
+        type="button"
+        onClick={() => setOpenId(r.id)}
+        className="flex w-full items-start gap-4 rounded-[18px] px-3 py-3 text-left transition-colors duration-200 hover:bg-[color-mix(in_srgb,var(--surface)_92%,var(--ink))]"
+      >
+        <span className="mono w-[46px] shrink-0 pt-0.5 text-[13.5px] font-medium text-ink">{formatTime(r.remindAt, tag, { hour: '2-digit', minute: '2-digit' })}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15.5px] font-semibold leading-snug">{r.title}</span>
+          {r.body && <span className="mt-0.5 block line-clamp-2 text-[14px] text-ink-2">{r.body}</span>}
+          <span className="mt-1 block text-[12.5px] text-ink-3">
+            {r.createdByUid === stableUid ? t('you') : t('byUser', { name: r.createdByUsername || r.createdByName })}
+          </span>
+        </span>
+        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[12px] font-bold ${isOverdue ? 'bg-blush text-blush-ink' : 'bg-inset text-ink-2'}`}>
+          {timeUntil(r.remindAt, now, t)}
+        </span>
+      </button>
+    </motion.li>
+  );
+
+  const header = (
+    <PageHeader
+      title={t('remindersTitle')}
+      subtitle={classId && user?.klasseName ? t('remindersLead', { klasse: user.klasseName }) : undefined}
+      actions={classId && members.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowMembers(true)}
+          className="inline-flex h-11 items-center gap-2.5 rounded-[14px] bg-surface pl-2 pr-4 text-[14.5px] font-semibold transition-colors hover:bg-[color-mix(in_srgb,var(--surface)_92%,var(--ink))]"
         >
-          <Bell size={18} color={overdue ? 'var(--danger)' : 'var(--orange)'} />
+          <span className="flex -space-x-2">
+            {members.slice(0, 3).map((m) => (
+              <span key={m.stableUid} aria-hidden="true" className="grid size-7 place-items-center rounded-full bg-periwinkle text-[11px] font-bold text-periwinkle-ink shadow-[0_0_0_2px_var(--surface)]">
+                {initialsOf(m.username)}
+              </span>
+            ))}
+          </span>
+          {members.length === 1 ? t('memberOne', { n: 1 }) : t('memberMany', { n: members.length })}
+        </button>
+      )}
+    />
+  );
+
+  if (ready && !classId) {
+    return (
+      <Page width="narrow">
+        {header}
+        <div className="squircle rounded-[26px] bg-surface">
+          <PixelState
+            sprite="search"
+            title={t('classNotFound')}
+            detail={t('syncFailed')}
+            action={
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button variant="quiet" onClick={retryInit}><ArrowClockwise size={17} weight="bold" aria-hidden="true" />{tc('retry')}</Button>
+                <Button variant="tone" onClick={() => void logout()}><SignIn size={17} weight="bold" aria-hidden="true" />{t('loginAgain')}</Button>
+              </div>
+            }
+          />
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-[15px]" style={{ color: 'var(--app-text-primary)' }}>
-            {r.title}
-          </p>
-          {r.body && (
-            <p className="text-sm mt-0.5" style={{ color: 'var(--app-text-secondary)' }}>
-              {r.body}
-            </p>
+      </Page>
+    );
+  }
+
+  return (
+    <Page width="narrow">
+      {header}
+
+      <form onSubmit={(e) => { e.preventDefault(); void add(); }} className="squircle rise mb-10 rounded-[24px] bg-surface p-2">
+        <div className="flex items-center gap-2">
+          <span className="grid size-10 shrink-0 place-items-center text-ink-3" aria-hidden="true"><Plus size={20} weight="bold" /></span>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={t('newReminder')}
+            aria-label={t('addReminder')}
+            maxLength={500}
+            className="h-12 min-w-0 flex-1 bg-transparent text-[16px] font-medium outline-none placeholder:text-ink-3"
+          />
+          <Button type="submit" disabled={!title.trim() || !due || saving || !classId} className="shrink-0">
+            {saving ? <Spinner size={16} /> : t('add')}
+          </Button>
+        </div>
+        <AnimatePresence initial={false}>
+          {showBody && (
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.22 }} className="overflow-hidden">
+              <textarea
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                placeholder={t('descriptionOptional')}
+                rows={2}
+                maxLength={5000}
+                className="mx-1 mt-1 block w-[calc(100%-8px)] resize-none rounded-[14px] bg-inset px-4 py-3 text-[15px] outline-none placeholder:text-ink-3"
+              />
+            </motion.div>
           )}
-          <p className="text-xs mt-1.5" style={{ color: overdue ? 'var(--danger)' : 'var(--app-text-tertiary)' }}>
-            {timeUntil(r.remindAt, t)} · {formatDate(r.remindAt, tag, { day: 'numeric', month: 'short' })}{' '}
-            {formatTime(r.remindAt, tag, { hour: '2-digit', minute: '2-digit' })}
-          </p>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--app-text-tertiary)' }}>
-            {t('byUser', { name: r.createdByUsername || r.createdByName })}
-          </p>
-        </div>
-        {canDelete && (
+        </AnimatePresence>
+        <div className="flex flex-wrap items-center gap-1.5 px-1 pb-1 pt-2">
           <button
-            onClick={(e) => { e.stopPropagation(); onDelete(r); }}
-            className="p-1.5 press-scale flex-shrink-0"
-            title={isAdmin && !isMine ? t('deleteAsAdmin') : undefined}
+            type="button"
+            onClick={() => setPicking(true)}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13.5px] font-semibold transition-colors ${dueLabel ? 'bg-periwinkle text-periwinkle-ink' : 'bg-inset text-ink hover:brightness-95'}`}
           >
-            <Trash2 size={16} color={isAdmin && !isMine ? 'var(--orange)' : 'var(--danger)'} />
+            <CalendarBlank size={15} weight="bold" aria-hidden="true" />
+            {dueLabel ?? t('chooseDateTime')}
           </button>
-        )}
-      </div>
-    </button>
+          <button
+            type="button"
+            onClick={() => setShowBody((v) => !v)}
+            aria-expanded={showBody}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13.5px] font-semibold transition-colors ${showBody ? 'bg-periwinkle text-periwinkle-ink' : 'text-ink-2 hover:bg-inset hover:text-ink'}`}
+          >
+            <TextAlignLeft size={15} weight="bold" aria-hidden="true" />
+            {t('moreDetails')}
+          </button>
+        </div>
+        {addError && <p role="alert" className="px-3 pb-2 text-[13.5px] font-semibold text-danger-ink">{addError}</p>}
+      </form>
+
+      {!ready || loading ? (
+        <RowsSkeleton rows={4} lead="time" trailing />
+      ) : error ? (
+        <div className="squircle rounded-[26px] bg-surface">
+          <PixelState
+            title={t('loadFailed')}
+            detail={technicalReason(error)}
+            action={<Button variant="quiet" onClick={() => { setLoading(true); load(); }}><ArrowClockwise size={17} weight="bold" aria-hidden="true" />{tc('retry')}</Button>}
+          />
+        </div>
+      ) : reminders.length === 0 ? (
+        <div className="rise flex flex-col items-center py-12 text-center">
+          <span className="grid size-16 place-items-center rounded-[20px] bg-blush text-blush-ink"><BellRinging size={30} weight="bold" aria-hidden="true" /></span>
+          <p className="mt-5 text-[18px] font-bold tracking-[-0.02em]">{t('remindersEmptyTitle')}</p>
+          <p className="mt-1 max-w-[40ch] text-[15px] text-ink-2">{t('remindersEmptySubtitle')}</p>
+        </div>
+      ) : (
+        <div className="grid gap-10 xl:grid-cols-2 xl:items-start xl:gap-6">
+          {overdue.length > 0 && (
+            <Section title={t('due')}>
+              <ul className="squircle flex flex-col gap-0.5 rounded-[24px] bg-surface p-2">
+                <AnimatePresence initial={false}>{overdue.map((r) => row(r, true))}</AnimatePresence>
+              </ul>
+            </Section>
+          )}
+          {days.map((list) => (
+            <Section key={dayKey(list[0].remindAt)} title={dayTitle(list[0].remindAt)}>
+              <ul className="squircle flex flex-col gap-0.5 rounded-[24px] bg-surface p-2">
+                <AnimatePresence initial={false}>{list.map((r) => row(r, false))}</AnimatePresence>
+              </ul>
+            </Section>
+          ))}
+        </div>
+      )}
+
+      {picking && <DateTimePicker value={due} onChange={(v) => setDue(v)} onBack={() => setPicking(false)} />}
+
+      {openReminder && classId && (
+        <ReminderSheet
+          reminder={openReminder}
+          classId={classId}
+          stableUid={stableUid}
+          isAdmin={isAdmin}
+          now={now}
+          onClose={() => setOpenId(null)}
+          onDelete={remove}
+        />
+      )}
+
+      <Sheet open={showMembers} onClose={() => setShowMembers(false)} title={user?.klasseName ?? ''} description={members.length === 1 ? t('memberOne', { n: 1 }) : t('memberMany', { n: members.length })} closeLabel={tc('close')}>
+        <ul className="flex flex-col gap-0.5 pb-4">
+          {members.map((m) => (
+            <li key={m.stableUid} className="flex items-center gap-3 rounded-[14px] px-2 py-2">
+              <span aria-hidden="true" className="grid size-10 place-items-center rounded-full bg-periwinkle text-[13px] font-bold text-periwinkle-ink">{initialsOf(m.username)}</span>
+              <span className="text-[15.5px] font-semibold">{m.username}</span>
+              {m.stableUid === stableUid && <span className="ml-auto rounded-full bg-inset px-2.5 py-1 text-[12px] font-bold text-ink-2">{t('you')}</span>}
+            </li>
+          ))}
+        </ul>
+      </Sheet>
+    </Page>
   );
 }
 
-function ReminderDetailSheet({
+function ReminderSheet({
   reminder,
   classId,
   stableUid,
   isAdmin,
+  now,
   onClose,
   onDelete,
 }: {
@@ -558,6 +387,7 @@ function ReminderDetailSheet({
   classId: string;
   stableUid: string | null;
   isAdmin: boolean;
+  now: number;
   onClose: () => void;
   onDelete: (r: Reminder) => void;
 }) {
@@ -566,109 +396,63 @@ function ReminderDetailSheet({
   const { tag } = useDateLocale();
   const [comments, setComments] = useState<ApiComment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(true);
-  const overdue = reminder.remindAt < new Date();
-  const isMine = stableUid != null && reminder.createdByUid === stableUid;
-  const canDelete = isMine || isAdmin;
+  const mine = stableUid != null && reminder.createdByUid === stableUid;
+  const overdue = reminder.remindAt.getTime() < now;
 
   useEffect(() => {
-    setCommentsLoading(true);
-
-    // Initial fetch
-    api.reminderComments.list(classId, reminder.id)
-      .then((c) => { setComments(c); setCommentsLoading(false); })
-      .catch(() => setCommentsLoading(false));
-
-    // Live updates
-    const unsub = api.reminderComments.subscribe(reminder.id, (c) => {
-      setComments(c);
-      setCommentsLoading(false);
-    });
-
+    api.reminderComments.list(classId, reminder.id).then(setComments).catch(() => {}).finally(() => setCommentsLoading(false));
+    const unsub = api.reminderComments.subscribe(reminder.id, (c) => { setComments(c); setCommentsLoading(false); });
     return () => unsub();
   }, [classId, reminder.id]);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8"
-      style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
-      onClick={onClose}
+    <Sheet
+      open
+      onClose={onClose}
+      title={reminder.title}
+      description={`${timeUntil(reminder.remindAt, now, t)} · ${t('dateTime', {
+        date: formatDate(reminder.remindAt, tag, { weekday: 'long', day: 'numeric', month: 'long' }),
+        time: formatTime(reminder.remindAt, tag, { hour: '2-digit', minute: '2-digit' }),
+      })}`}
+      closeLabel={tc('close')}
     >
-      <div
-        className="w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-[28px] fade-in"
-        style={{ background: 'var(--app-surface)', animationDuration: '0.25s' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Modal header bar */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-3">
-          <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
-              style={{
-                background: overdue
-                  ? 'color-mix(in srgb, var(--danger) 15%, transparent)'
-                  : 'color-mix(in srgb, var(--orange) 15%, transparent)',
-              }}
-            >
-              <Bell size={20} color={overdue ? 'var(--danger)' : 'var(--orange)'} />
-            </div>
-            <div className="min-w-0">
-              <h3 className="text-[17px] font-bold leading-snug" style={{ color: 'var(--app-text-primary)' }}>
-                {reminder.title}
-              </h3>
-              <p className="text-xs mt-0.5" style={{ color: overdue ? 'var(--danger)' : 'var(--app-text-tertiary)' }}>
-                {timeUntil(reminder.remindAt, t)} · {t('dateTime', {
-                  date: formatDate(reminder.remindAt, tag, { weekday: 'short', day: 'numeric', month: 'short' }),
-                  time: formatTime(reminder.remindAt, tag, { hour: '2-digit', minute: '2-digit' }),
-                })}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            {canDelete && (
-              <button
-                onClick={() => onDelete(reminder)}
-                className="w-8 h-8 flex items-center justify-center rounded-full press-scale"
-                style={{ background: 'color-mix(in srgb, var(--danger) 10%, transparent)' }}
-                title={isAdmin && !isMine ? t('deleteAsAdmin') : tc('delete')}
-              >
-                <Trash2 size={15} color={isAdmin && !isMine ? 'var(--orange)' : 'var(--danger)'} />
-              </button>
-            )}
-            <button
-              onClick={onClose}
-              className="w-8 h-8 flex items-center justify-center rounded-full press-scale"
-              style={{ background: 'var(--app-card)', color: 'var(--app-text-secondary)' }}
-            >
-              <X size={16} />
-            </button>
-          </div>
-        </div>
-
-        {/* Scrollable content */}
-        <div className="px-5 pb-6">
-          {reminder.body && (
-            <p className="text-[14px] mb-3 -mt-1" style={{ color: 'var(--app-text-secondary)' }}>
-              {reminder.body}
-            </p>
-          )}
-          <p className="text-xs mb-4" style={{ color: 'var(--app-text-tertiary)' }}>
-            {t('byUser', { name: reminder.createdByUsername || reminder.createdByName })}
+      <div className="flex flex-col gap-6 pb-4">
+        <div className={`rounded-[18px] px-4 py-3.5 ${overdue ? 'bg-blush text-blush-ink' : 'bg-inset'}`}>
+          {reminder.body && <p className="whitespace-pre-line text-[15px] leading-relaxed">{reminder.body}</p>}
+          <p className={`${reminder.body ? 'mt-2' : ''} text-[13px] font-semibold opacity-75`}>
+            {mine ? t('you') : t('byUser', { name: reminder.createdByUsername || reminder.createdByName })}
           </p>
-
-          {/* Divider */}
-          <div className="h-px mb-4" style={{ background: 'var(--app-border)' }} />
-          {/* Comments */}
+        </div>
+        {(mine || isAdmin) && (
+          <Button variant="danger" onClick={() => onDelete(reminder)} className="self-start">
+            <Trash size={17} weight="bold" aria-hidden="true" />
+            {isAdmin && !mine ? t('deleteAsAdmin') : t('deleteItem')}
+          </Button>
+        )}
+        <section>
+          <h3 className="mb-3 flex items-center gap-2 text-[17px] font-extrabold tracking-[-0.02em]">
+            <UsersThree size={18} weight="bold" aria-hidden="true" />
+            {t('comments')}
+          </h3>
           <CommentSection
             comments={comments}
             stableUid={stableUid}
             isAdmin={isAdmin}
             loading={commentsLoading}
-            onAdd={(body) => api.reminderComments.create(classId, reminder.id, body)}
-            onEdit={(commentId, body) => api.reminderComments.update(classId, reminder.id, commentId, body)}
-            onDelete={(commentId) => api.reminderComments.delete(classId, reminder.id, commentId)}
+            onAdd={(b) => api.reminderComments.create(classId, reminder.id, b)}
+            onEdit={(id, b) => api.reminderComments.update(classId, reminder.id, id, b)}
+            onDelete={(id) => api.reminderComments.delete(classId, reminder.id, id)}
           />
-        </div>
+        </section>
       </div>
-    </div>
+    </Sheet>
+  );
+}
+
+export default function RemindersPage() {
+  return (
+    <AuthGuard>
+      <RemindersContent />
+    </AuthGuard>
   );
 }

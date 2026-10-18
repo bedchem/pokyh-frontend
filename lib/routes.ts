@@ -3,6 +3,7 @@
 export const PROTECTED_APP_ROUTES = [
   '/home',
   '/absences',
+  '/canteen',
   '/class',
   '/classregevents',
   '/grades',
@@ -10,6 +11,7 @@ export const PROTECTED_APP_ROUTES = [
   '/profile',
   '/reminders',
   '/school',
+  '/settings',
   '/timetable',
   '/todos',
 ];
@@ -42,4 +44,11 @@ export function isKnownPageRoute(pathname: string): boolean {
 
 export function isMensaRoute(pathname: string): boolean {
   return matchesRoute(pathname, '/mensa');
+}
+
+// The signed-in Mensa (ratings, comments, inside the app frame). Guests are
+// sent to the public /mensa page instead, and signed-in users from there to
+// this one (proxy.ts).
+export function isCanteenRoute(pathname: string): boolean {
+  return matchesRoute(pathname, '/canteen');
 }

@@ -61,7 +61,10 @@ export type MessagesKey =
   | 'searchTeacher'
   | 'recipientsLoading'
   | 'classTeacher'
-  | 'others';
+  | 'others'
+  | 'groupToday'
+  | 'groupWeek'
+  | 'groupOlder';
 
 export const messagesDict: Dictionary<MessagesKey> = {
   de: {
@@ -75,6 +78,9 @@ export const messagesDict: Dictionary<MessagesKey> = {
     yesterday: 'Gestern',
     markAllRead: 'Alle als gelesen',
     compose: 'Mitteilung verfassen',
+    groupToday: 'Heute',
+    groupWeek: 'Diese Woche',
+    groupOlder: 'Älter',
     emptySentTitle: 'Nichts gesendet',
     emptyDraftsTitle: 'Keine Entwürfe',
     emptyInboxTitle: 'Keine Nachrichten',
@@ -134,6 +140,9 @@ export const messagesDict: Dictionary<MessagesKey> = {
     yesterday: 'Ieri',
     markAllRead: 'Segna tutti come letti',
     compose: 'Scrivi comunicazione',
+    groupToday: 'Oggi',
+    groupWeek: 'Questa settimana',
+    groupOlder: 'Meno recenti',
     emptySentTitle: 'Nessun messaggio inviato',
     emptyDraftsTitle: 'Nessuna bozza',
     emptyInboxTitle: 'Nessun messaggio',
@@ -193,6 +202,9 @@ export const messagesDict: Dictionary<MessagesKey> = {
     yesterday: 'Yesterday',
     markAllRead: 'Mark all as read',
     compose: 'Write a message',
+    groupToday: 'Today',
+    groupWeek: 'This week',
+    groupOlder: 'Older',
     emptySentTitle: 'Nothing sent',
     emptyDraftsTitle: 'No drafts',
     emptyInboxTitle: 'No messages',

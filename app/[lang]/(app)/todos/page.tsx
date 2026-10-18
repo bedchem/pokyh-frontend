@@ -1,18 +1,28 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Plus, Check, Trash2, CheckSquare, Clock, AlignLeft, X, Calendar } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ArrowClockwise, CalendarBlank, Check, CheckSquare, Plus, TextAlignLeft, Trash, X } from '@phosphor-icons/react';
 import DateTimePicker from '@/components/ui/DateTimePicker';
 import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
-import EmptyView from '@/components/ui/EmptyView';
+import { Button } from '@/components/ui/Button';
+import { Page, PageHeader, Section } from '@/components/app/Page';
+import { RowsSkeleton } from '@/components/app/Skeleton';
+import PixelState from '@/components/app/PixelState';
+import { technicalReason } from '@/components/ui/ErrorView';
 import { useApp } from '@/providers/AppProvider';
 import { useSession } from '@/providers/SessionProvider';
 import { api, type ApiTodo } from '@/lib/api-client';
 import { useDateLocale, useT } from '@/providers/LocaleProvider';
-import { tasksDict, type TasksKey } from '@/lib/i18n/dictionaries/tasks';
+import { tasksDict } from '@/lib/i18n/dictionaries/tasks';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
 import { formatDate, formatTime } from '@/lib/i18n/dateLocale';
+
+// Personal to-dos: a quick line to add one (details and a due date when you
+// want them), the open ones on top, the done ones underneath until they go
+// away after a day. Ticking one off moves it at once and glides it into place;
+// the backend's live updates keep every device in step.
 
 interface Todo {
   id: string;
@@ -26,7 +36,7 @@ interface Todo {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-function apiTodoToTodo(t: ApiTodo): Todo {
+function fromApi(t: ApiTodo): Todo {
   return {
     id: t.id,
     title: t.title,
@@ -38,7 +48,72 @@ function apiTodoToTodo(t: ApiTodo): Todo {
   };
 }
 
-export default function TodosPage() {
+function visible(list: ApiTodo[]): Todo[] {
+  const now = Date.now();
+  return list.map(fromApi).filter((t) => !t.done || !t.doneAt || now - t.doneAt.getTime() < DAY_MS);
+}
+
+function TodoRow({ todo, now, onToggle, onDelete }: { todo: Todo; now: number; onToggle: (t: Todo) => void; onDelete: (t: Todo) => void }) {
+  const t = useT(tasksDict);
+  const { tag } = useDateLocale();
+  const overdue = !!todo.dueAt && todo.dueAt.getTime() < now && !todo.done;
+
+  const due = (d: Date) => {
+    const time = formatTime(d, tag, { hour: '2-digit', minute: '2-digit' });
+    if (d.toDateString() === new Date().toDateString()) return t('todayAt', { time });
+    return t('dateTime', { date: formatDate(d, tag, { weekday: 'short', day: 'numeric', month: 'short' }), time });
+  };
+
+  return (
+    <motion.li
+      layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.15 } }}
+      transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+      className="group flex items-start gap-3.5 rounded-[18px] px-3 py-3 transition-colors duration-200 hover:bg-[color-mix(in_srgb,var(--surface)_92%,var(--ink))]"
+    >
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={todo.done}
+        aria-label={todo.done ? t('markOpen') : t('markDone')}
+        onClick={() => onToggle(todo)}
+        className={`mt-0.5 grid size-6 shrink-0 place-items-center rounded-full transition-colors duration-200 ${
+          todo.done ? 'bg-success text-white' : 'shadow-[inset_0_0_0_2px_color-mix(in_srgb,var(--ink)_28%,transparent)] hover:shadow-[inset_0_0_0_2px_var(--success)]'
+        }`}
+      >
+        <AnimatePresence>
+          {todo.done && (
+            <motion.span initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.4, opacity: 0 }} transition={{ duration: 0.18 }}>
+              <Check size={14} weight="bold" />
+            </motion.span>
+          )}
+        </AnimatePresence>
+      </button>
+      <div className="min-w-0 flex-1">
+        <p className={`text-[15.5px] font-semibold leading-snug transition-colors duration-300 ${todo.done ? 'text-ink-3 line-through' : 'text-ink'}`}>{todo.title}</p>
+        {todo.details && !todo.done && <p className="mt-0.5 line-clamp-2 text-[14px] text-ink-2">{todo.details}</p>}
+        {todo.dueAt && !todo.done && (
+          <span className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12.5px] font-bold ${overdue ? 'bg-blush text-blush-ink' : 'bg-inset text-ink-2'}`}>
+            <CalendarBlank size={13} weight="bold" aria-hidden="true" />
+            {overdue ? `${t('overdue')} · ` : ''}{due(todo.dueAt)}
+          </span>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={() => onDelete(todo)}
+        aria-label={`${t('deleteItem')}: ${todo.title}`}
+        className="grid size-9 shrink-0 place-items-center rounded-full text-ink-3 opacity-100 transition-[opacity,background-color,color] duration-200 hover:bg-inset hover:text-danger-ink sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+      >
+        <Trash size={17} weight="bold" />
+      </button>
+    </motion.li>
+  );
+}
+
+function TodosContent() {
   const { user } = useSession();
   const { ready } = useApp();
   const t = useT(tasksDict);
@@ -47,336 +122,203 @@ export default function TodosPage() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showAdd, setShowAdd] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [title, setTitle] = useState('');
   const [details, setDetails] = useState('');
+  const [showDetails, setShowDetails] = useState(false);
   const [dueAt, setDueAt] = useState('');
+  const [picking, setPicking] = useState(false);
   const [saving, setSaving] = useState(false);
   const [addError, setAddError] = useState('');
+  const input = useRef<HTMLInputElement>(null);
+  // The time overdue is measured against, moved on every minute.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const load = useCallback(() => {
+    if (!user) return;
+    api.todos.list(user.username)
+      .then((list) => { setTodos(visible(list)); setError(null); })
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : t('todosLoadError')))
+      .finally(() => setLoading(false));
+  }, [user, t]);
 
   useEffect(() => {
     if (!ready || !user) return;
-
-    // Subscribe to SSE for real-time updates
-    const unsub = api.todos.subscribe(user.username, (apiTodos) => {
-      const now = Date.now();
-      setTodos(
-        apiTodos
-          .map(apiTodoToTodo)
-          .filter((t) => !t.done || !t.doneAt || now - t.doneAt.getTime() < DAY_MS)
-      );
+    const unsub = api.todos.subscribe(user.username, (list) => {
+      setTodos(visible(list));
       setLoading(false);
     });
-
-    // Also fetch immediately in case SSE hasn't fired yet
-    api.todos.list(user.username)
-      .then((apiTodos) => {
-        const now = Date.now();
-        setTodos(
-          apiTodos
-            .map(apiTodoToTodo)
-            .filter((t) => !t.done || !t.doneAt || now - t.doneAt.getTime() < DAY_MS)
-        );
-        setLoading(false);
-      })
-      .catch((e: unknown) => {
-        setError(e instanceof Error ? e.message : t('todosLoadError'));
-        setLoading(false);
-      });
-
+    load();
     return () => unsub();
-  }, [ready, user, t]);
+  }, [ready, user, load]);
 
-  async function addTodo() {
-    if (!title.trim() || !user) return;
+  async function add() {
+    if (!title.trim() || !user || saving) return;
     setSaving(true);
     setAddError('');
     try {
-      await api.todos.create(user.username, {
+      const created = await api.todos.create(user.username, {
         title: title.trim(),
         details: details.trim(),
         dueAt: dueAt ? new Date(dueAt).toISOString() : null,
       });
-      setTitle(''); setDetails(''); setDueAt(''); setShowAdd(false);
+      setTodos((list) => (list.some((x) => x.id === created.id) ? list : [fromApi(created), ...list]));
+      setTitle('');
+      setDetails('');
+      setDueAt('');
+      setShowDetails(false);
+      input.current?.focus();
     } catch (e: unknown) {
-      console.error('[todos] create error:', e);
-      setAddError(e instanceof Error ? e.message : t('saveFailed'));
+      setAddError(e instanceof Error && e.message ? e.message : t('saveFailed'));
     } finally {
       setSaving(false);
     }
   }
 
-  async function toggle(todo: Todo) {
+  function toggle(todo: Todo) {
     if (!user) return;
-    const nowDone = !todo.done;
-    await api.todos.update(user.username, todo.id, {
-      done: nowDone,
-      doneAt: nowDone ? new Date().toISOString() : null,
+    const done = !todo.done;
+    const doneAt = done ? new Date() : null;
+    setTodos((list) => list.map((x) => (x.id === todo.id ? { ...x, done, doneAt } : x)));
+    api.todos.update(user.username, todo.id, { done, doneAt: doneAt ? doneAt.toISOString() : null }).catch(() => {
+      setTodos((list) => list.map((x) => (x.id === todo.id ? todo : x)));
     });
   }
 
-  async function remove(id: string) {
+  function remove(todo: Todo) {
     if (!user) return;
-    await api.todos.delete(user.username, id);
+    setTodos((list) => list.filter((x) => x.id !== todo.id));
+    api.todos.delete(user.username, todo.id).catch(() => setTodos((list) => [todo, ...list]));
   }
 
-  const active = todos.filter((t) => !t.done);
-  const done = todos.filter((t) => t.done);
+  const open = todos
+    .filter((x) => !x.done)
+    .sort((a, b) => (a.dueAt?.getTime() ?? Infinity) - (b.dueAt?.getTime() ?? Infinity) || b.createdAt.getTime() - a.createdAt.getTime());
+  const done = todos.filter((x) => x.done).sort((a, b) => (b.doneAt?.getTime() ?? 0) - (a.doneAt?.getTime() ?? 0));
+  const dueLabel = dueAt
+    ? t('dateTime', {
+        date: formatDate(new Date(dueAt), tag, { weekday: 'short', day: 'numeric', month: 'short' }),
+        time: formatTime(new Date(dueAt), tag, { hour: '2-digit', minute: '2-digit' }),
+      })
+    : null;
 
   return (
-    <AuthGuard>
-      <div className="h-full flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="px-5 pt-4 pb-3 flex items-center gap-3 fade-in flex-shrink-0">
-          <h1 className="flex-1 text-[28px] font-bold tracking-tight" style={{ color: 'var(--app-text-primary)' }}>
-            {t('todosTitle')}
-          </h1>
-          {ready && (
-            <button
-              onClick={() => setShowAdd(true)}
-              className="p-2 rounded-full press-scale"
-              style={{ background: 'color-mix(in srgb, var(--accent) 15%, var(--app-surface))' }}
-            >
-              <Plus size={20} color="var(--accent)" />
+    <Page width="narrow">
+      <PageHeader title={t('todosTitle')} subtitle={!loading && !error ? t('todosLead', { n: open.length }) : undefined} />
+
+      <form
+        onSubmit={(e) => { e.preventDefault(); void add(); }}
+        className="squircle rise mb-10 rounded-[24px] bg-surface p-2"
+      >
+        <div className="flex items-center gap-2">
+          <span className="grid size-10 shrink-0 place-items-center text-ink-3" aria-hidden="true"><Plus size={20} weight="bold" /></span>
+          <input
+            ref={input}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={t('composePlaceholder')}
+            aria-label={t('addTodo')}
+            maxLength={500}
+            className="h-12 min-w-0 flex-1 bg-transparent text-[16px] font-medium outline-none placeholder:text-ink-3"
+          />
+          <Button type="submit" disabled={!title.trim() || saving || !ready} className="shrink-0">
+            {saving ? <Spinner size={16} /> : t('add')}
+          </Button>
+        </div>
+        <AnimatePresence initial={false}>
+          {showDetails && (
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.22 }} className="overflow-hidden">
+              <textarea
+                value={details}
+                onChange={(e) => setDetails(e.target.value)}
+                placeholder={t('detailsOptional')}
+                rows={2}
+                maxLength={5000}
+                className="mx-1 mt-1 block w-[calc(100%-8px)] resize-none rounded-[14px] bg-inset px-4 py-3 text-[15px] outline-none placeholder:text-ink-3"
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <div className="flex flex-wrap items-center gap-1.5 px-1 pb-1 pt-2">
+          <button
+            type="button"
+            onClick={() => setShowDetails((v) => !v)}
+            aria-expanded={showDetails}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13.5px] font-semibold transition-colors ${showDetails ? 'bg-periwinkle text-periwinkle-ink' : 'text-ink-2 hover:bg-inset hover:text-ink'}`}
+          >
+            <TextAlignLeft size={15} weight="bold" aria-hidden="true" />
+            {t('moreDetails')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setPicking(true)}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13.5px] font-semibold transition-colors ${dueLabel ? 'bg-periwinkle text-periwinkle-ink' : 'text-ink-2 hover:bg-inset hover:text-ink'}`}
+          >
+            <CalendarBlank size={15} weight="bold" aria-hidden="true" />
+            {dueLabel ?? t('dueOptional')}
+          </button>
+          {dueLabel && (
+            <button type="button" onClick={() => setDueAt('')} aria-label={tc('delete')} className="grid size-8 place-items-center rounded-full text-ink-3 hover:bg-inset hover:text-ink">
+              <X size={14} weight="bold" />
             </button>
           )}
         </div>
+        {addError && <p role="alert" className="px-3 pb-2 text-[13.5px] font-semibold text-danger-ink">{addError}</p>}
+      </form>
 
-        {/* List */}
-        <div className="flex-1 px-4 pb-10 overflow-auto">
-          {!ready || loading ? (
-            <div className="flex justify-center py-16"><Spinner size={28} /></div>
-          ) : error ? (
-            <div className="flex flex-col items-center justify-center gap-3 py-16 text-center px-8">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'color-mix(in srgb, var(--danger) 12%, transparent)' }}>
-                <CheckSquare size={28} color="var(--danger)" />
-              </div>
-              <p className="text-base font-semibold" style={{ color: 'var(--app-text-primary)' }}>{t('loadFailed')}</p>
-              <p className="text-sm" style={{ color: 'var(--app-text-secondary)' }}>{error}</p>
-              <button
-                onClick={() => { setError(null); setLoading(true); if (user) api.todos.list(user.username).then((list) => { setTodos(list.map(apiTodoToTodo)); setLoading(false); }).catch((e: unknown) => { setError(e instanceof Error ? e.message : t('todosLoadError')); setLoading(false); }); }}
-                className="px-5 py-2.5 rounded-xl font-semibold text-sm text-white press-scale"
-                style={{ background: 'var(--accent)' }}
-              >
-                {tc('retry')}
-              </button>
-            </div>
-          ) : todos.length === 0 ? (
-            <EmptyView
-              icon={<CheckSquare size={56} color="var(--app-text-primary)" />}
-              title={t('todosEmptyTitle')}
-              subtitle={t('todosEmptySubtitle')}
-            />
-          ) : (
-            <div className="flex flex-col gap-4 fade-in">
-              {active.length > 0 && (
-                <section>
-                  <p className="text-xs font-semibold uppercase tracking-wider mb-2 px-1"
-                    style={{ color: 'var(--app-text-secondary)' }}>
-                    {t('open', { n: active.length })}
-                  </p>
-                  <div className="flex flex-col gap-2">
-                    {active.map((t) => (
-                      <TodoCard key={t.id} todo={t} onToggle={toggle} onDelete={remove} />
-                    ))}
-                  </div>
-                </section>
-              )}
-              {done.length > 0 && (
-                <section>
-                  <p className="text-xs font-semibold uppercase tracking-wider mb-2 px-1"
-                    style={{ color: 'var(--app-text-secondary)' }}>
-                    {t('done', { n: done.length })}
-                  </p>
-                  <div className="flex flex-col gap-2">
-                    {done.map((t) => (
-                      <TodoCard key={t.id} todo={t} onToggle={toggle} onDelete={remove} />
-                    ))}
-                  </div>
-                </section>
-              )}
-            </div>
+      {!ready || loading ? (
+        <RowsSkeleton rows={4} lead="round" />
+      ) : error ? (
+        <div className="squircle rounded-[26px] bg-surface">
+          <PixelState
+            title={t('loadFailed')}
+            detail={technicalReason(error)}
+            action={<Button variant="quiet" onClick={() => { setLoading(true); load(); }}><ArrowClockwise size={17} weight="bold" aria-hidden="true" />{tc('retry')}</Button>}
+          />
+        </div>
+      ) : todos.length === 0 ? (
+        <div className="rise flex flex-col items-center py-12 text-center">
+          <span className="grid size-16 place-items-center rounded-[20px] bg-sage text-sage-ink"><CheckSquare size={30} weight="bold" aria-hidden="true" /></span>
+          <p className="mt-5 text-[18px] font-bold tracking-[-0.02em]">{t('todosEmptyTitle')}</p>
+          <p className="mt-1 text-[15px] text-ink-2">{t('todosEmptySubtitle')}</p>
+        </div>
+      ) : (
+        <div className="grid gap-10 xl:grid-cols-2 xl:items-start xl:gap-6">
+          {open.length > 0 && (
+            <Section title={t('openTitle')}>
+              <ul className="squircle flex flex-col gap-0.5 rounded-[24px] bg-surface p-2">
+                <AnimatePresence initial={false}>
+                  {open.map((x) => <TodoRow key={x.id} todo={x} now={now} onToggle={toggle} onDelete={remove} />)}
+                </AnimatePresence>
+              </ul>
+            </Section>
+          )}
+          {done.length > 0 && (
+            <Section title={t('doneTitle')}>
+              <ul className="squircle flex flex-col gap-0.5 rounded-[24px] bg-surface p-2">
+                <AnimatePresence initial={false}>
+                  {done.map((x) => <TodoRow key={x.id} todo={x} now={now} onToggle={toggle} onDelete={remove} />)}
+                </AnimatePresence>
+              </ul>
+            </Section>
           )}
         </div>
+      )}
 
-        {/* Add modal */}
-        {showAdd && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8"
-            style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
-            onClick={() => { setShowAdd(false); setShowDatePicker(false); }}
-          >
-            <div
-              className="w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-[28px] fade-in"
-              style={{ background: 'var(--app-surface)', animationDuration: '0.25s' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between px-6 pt-6 pb-2">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: 'color-mix(in srgb, var(--accent) 15%, transparent)' }}
-                  >
-                    <CheckSquare size={20} color="var(--accent)" />
-                  </div>
-                  <h3 className="text-[18px] font-bold" style={{ color: 'var(--app-text-primary)' }}>
-                    {t('addTodo')}
-                  </h3>
-                </div>
-                <button
-                  onClick={() => setShowAdd(false)}
-                  className="w-8 h-8 flex items-center justify-center rounded-full press-scale flex-shrink-0"
-                  style={{ background: 'var(--app-card)', color: 'var(--app-text-secondary)' }}
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              <div className="px-6 pb-8 flex flex-col gap-3 mt-4">
-                <input
-                  placeholder={t('titleRequired')}
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && title.trim()) addTodo(); }}
-                  className="w-full rounded-xl px-4 py-3 text-[15px] outline-none"
-                  style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)' }}
-                  autoFocus
-                />
-                <div className="relative">
-                  <AlignLeft size={15} className="absolute left-3.5 top-3.5 pointer-events-none" color="var(--app-text-tertiary)" />
-                  <input
-                    placeholder={t('detailsOptional')}
-                    value={details}
-                    onChange={(e) => setDetails(e.target.value)}
-                    className="w-full rounded-xl pl-10 pr-4 py-3 text-[15px] outline-none"
-                    style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)' }}
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowDatePicker(true)}
-                  className="w-full rounded-xl px-4 py-3 text-[15px] text-left flex items-center gap-3 press-scale"
-                  style={{
-                    background: 'var(--app-card)',
-                    color: dueAt ? 'var(--app-text-primary)' : 'var(--app-text-tertiary)',
-                    border: `1.5px solid ${dueAt ? 'var(--accent)' : 'transparent'}`,
-                  }}
-                >
-                  <Calendar size={16} color={dueAt ? 'var(--accent)' : 'var(--app-text-tertiary)'} />
-                  {dueAt
-                    ? (() => {
-                        const d = new Date(dueAt);
-                        return t('dateTime', {
-                          date: formatDate(d, tag, { weekday: 'short', day: 'numeric', month: 'short' }),
-                          time: formatTime(d, tag, { hour: '2-digit', minute: '2-digit' }),
-                        });
-                      })()
-                    : t('dueOptional')
-                  }
-                </button>
-                {addError && (
-                  <p className="text-sm px-3 py-2.5 rounded-xl" style={{ background: 'color-mix(in srgb, var(--danger) 12%, transparent)', color: 'var(--danger)' }}>
-                    {addError}
-                  </p>
-                )}
-                <button
-                  onClick={addTodo}
-                  disabled={!title.trim() || saving}
-                  className="h-12 rounded-xl font-semibold text-white press-scale disabled:opacity-50 flex items-center justify-center gap-2 mt-1"
-                  style={{ background: 'var(--accent)' }}
-                >
-                  {saving ? <Spinner size={18} /> : t('add')}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showAdd && showDatePicker && (
-          <DateTimePicker
-            value={dueAt}
-            onChange={(v) => setDueAt(v)}
-            onBack={() => setShowDatePicker(false)}
-          />
-        )}
-      </div>
-    </AuthGuard>
+      {picking && (
+        <DateTimePicker value={dueAt} onChange={(v) => setDueAt(v)} onBack={() => setPicking(false)} />
+      )}
+    </Page>
   );
 }
 
-function TodoCard({
-  todo,
-  onToggle,
-  onDelete,
-}: {
-  todo: Todo;
-  onToggle: (t: Todo) => void;
-  onDelete: (id: string) => void;
-}) {
-  const t = useT(tasksDict);
-  const { tag } = useDateLocale();
-  function formatDue(d: Date) {
-    const today = new Date();
-    const isToday = d.toDateString() === today.toDateString();
-    const time = formatTime(d, tag, { hour: '2-digit', minute: '2-digit' });
-    if (isToday) return t('todayAt', { time });
-    return formatDate(d, tag, { day: 'numeric', month: 'short' }) + ' ' + time;
-  }
-
-  const isPast = !!todo.dueAt && todo.dueAt < new Date() && !todo.done;
-
+export default function TodosPage() {
   return (
-    <div
-      className="rounded-2xl px-4 py-3.5"
-      style={{
-        background: 'var(--app-surface)',
-        border: isPast
-          ? '1px solid color-mix(in srgb, var(--danger) 30%, transparent)'
-          : '1px solid var(--app-border)',
-      }}
-    >
-      <div className="flex items-start gap-3">
-        <button
-          onClick={() => onToggle(todo)}
-          className="w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 press-scale mt-0.5"
-          style={{
-            borderColor: todo.done ? 'var(--tint)' : 'var(--app-border)',
-            background: todo.done ? 'var(--tint)' : 'transparent',
-          }}
-        >
-          {todo.done && <Check size={13} color="#fff" />}
-        </button>
-        <div className="flex-1 min-w-0">
-          <p
-            className="text-[15px] font-medium leading-snug"
-            style={{
-              color: 'var(--app-text-primary)',
-              textDecoration: todo.done ? 'line-through' : 'none',
-              opacity: todo.done ? 0.45 : 1,
-            }}
-          >
-            {todo.title}
-          </p>
-          {todo.details && !todo.done && (
-            <p className="text-sm mt-0.5 line-clamp-2" style={{ color: 'var(--app-text-secondary)' }}>
-              {todo.details}
-            </p>
-          )}
-          {todo.dueAt && !todo.done && (
-            <div className="flex items-center gap-1 mt-1.5">
-              <Clock size={11} color={isPast ? 'var(--danger)' : 'var(--app-text-tertiary)'} />
-              <span className="text-xs" style={{ color: isPast ? 'var(--danger)' : 'var(--app-text-tertiary)' }}>
-                {formatDue(todo.dueAt)}
-              </span>
-            </div>
-          )}
-        </div>
-        <button onClick={() => onDelete(todo.id)} className="p-1 press-scale flex-shrink-0 mt-0.5">
-          <Trash2 size={15} color="var(--app-text-tertiary)" />
-        </button>
-      </div>
-    </div>
+    <AuthGuard>
+      <TodosContent />
+    </AuthGuard>
   );
 }

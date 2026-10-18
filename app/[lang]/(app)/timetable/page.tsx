@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, GraduationCap, Share2, WifiOff } from 'lucide-react';
+import { ArrowClockwise, CalendarBlank, CaretDown, CaretLeft, CaretRight, Exam, ShareFat, WifiSlash } from '@phosphor-icons/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
 import UntisGuard from '@/components/UntisGuard';
@@ -30,11 +30,13 @@ import {
 } from '@/lib/timetable-logic';
 import WeekGrid, { WeekGridSkeleton } from './WeekGrid';
 import LessonDetailSheet from './LessonDetailSheet';
-import { SpecialDayCard } from './parts';
 import s from './timetable.module.css';
 import { useDateLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { timetableDict } from '@/lib/i18n/dictionaries/timetable';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
+import { shellDict } from '@/lib/i18n/dictionaries/shell';
+import PixelState, { PixelSpriteArt } from '@/components/app/PixelState';
+import { Button } from '@/components/ui/Button';
 import { formatDate, formatTime } from '@/lib/i18n/dateLocale';
 
 type WeekPageState =
@@ -92,6 +94,7 @@ function TimetableContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const t = useT(timetableDict);
+  const ts = useT(shellDict);
   const { tag } = useDateLocale();
   const localize = useLocalizeHref();
 
@@ -415,7 +418,27 @@ function TimetableContent() {
     if (page.status === 'loading') return <WeekGridSkeleton />;
     if (page.status === 'error') return <div className={s.stateBox}><ErrorView message={page.message} onRetry={retry} /></div>;
     if (page.entries.length === 0 && page.stale) return <OfflineState onRetry={retry} />;
-    if (page.entries.length === 0) return <div className={s.inset}><SpecialDayCard kind="holiday" /></div>;
+    if (page.entries.length === 0) {
+      return (
+        <WeekGrid
+          dayEntries={dayEntries}
+          dates={dates}
+          dayNums={dayNums}
+          todayNum={todayNum}
+          weekNumber={weekNumber}
+          minute={minute}
+          scale={scale}
+          onTap={setActiveSlot}
+          empty={
+            <div className="rise flex flex-col items-center px-6 py-10 text-center">
+              <PixelSpriteArt sprite="holiday" width="min(280px, 60vw)" />
+              <p className="mt-7 text-[28px] font-extrabold tracking-[-0.045em] md:text-[34px]">{t('holiday')}</p>
+              <p className="mt-1 text-[15px] font-semibold opacity-75">{t('noLessons')}</p>
+            </div>
+          }
+        />
+      );
+    }
     return (
       <WeekGrid
         dayEntries={dayEntries}
@@ -437,103 +460,120 @@ function TimetableContent() {
         <div className={s.wrap}>
           <div ref={hostRef} className={s.host}>
             <main className={s.page}>
-              {/* Week stepper */}
-              <div className={`${s.inset} ${s.weekHeader}`}>
-                <button type="button" className={s.iconBtn} onClick={() => goWeek(-1)} aria-label={t('prevWeek')} disabled={weekOffset <= -PAGE_SPAN}>
-                  <ChevronLeft size={18} />
-                </button>
-                <div className={s.weekCenter}>
-                  <h1 className={s.rangeText}>{rangeText(weekOffset, tag)}</h1>
-                  {weekOffset !== 0
-                    ? <button type="button" className={s.textBtn} onClick={goToday}>{t('toToday')}</button>
-                    : <p className={s.caption}>{t('cw')} {weekNumber} · {t('thisWeek')}</p>}
-                  <div className={s.yearWrap} ref={yearRef}>
-                    <button
-                      type="button"
-                      className={s.yearBtn}
-                      onClick={() => setYearOpen(o => !o)}
-                      aria-haspopup="listbox"
-                      aria-expanded={yearOpen}
-                    >
-                      {t('schoolYear')} {selectedYear}/{String(selectedYear + 1).slice(2)}
-                      <ChevronDown size={13} style={{ transform: yearOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
-                    </button>
-                    {yearOpen && (
-                      <ul className={`${s.menu} ${s.yearMenu} fade-in`} role="listbox">
-                        {availableYears.map(y => (
-                          <li key={y}>
-                            <button
-                              type="button"
-                              role="option"
-                              aria-selected={y === selectedYear}
-                              className={`${s.menuItem} ${y === selectedYear ? s.menuItemActive : ''}`}
-                              onClick={() => jumpToYear(y)}
-                            >
-                              {y} / {y + 1}
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
+              {/* Header: title, the week, stepper and menus, then the week in figures */}
+              <header className={`${s.inset} ${s.head}`}>
+                <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+                  <div className="min-w-0">
+                    <h1 className="text-[34px] font-extrabold leading-[1.04] tracking-[-0.05em] md:text-[46px]">{ts('timetable')}</h1>
+                    {page.status === 'data' && page.stale && page.savedAt > 0 && (
+                      <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-butter px-2.5 py-1 text-[12.5px] font-semibold text-butter-ink">
+                        <WifiSlash size={13} weight="bold" aria-hidden="true" />
+                        {t('asOf', { time: asOfText(page.savedAt, tag) })}
+                      </span>
                     )}
                   </div>
-                  {page.status === 'data' && page.stale && page.savedAt > 0 && (
-                    <span className={s.asOf}><WifiOff size={12} />&nbsp;{t('asOf', { time: asOfText(page.savedAt, tag) })}</span>
-                  )}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className={s.menuWrap} ref={yearRef}>
+                      <button
+                        type="button"
+                        className={s.pillBtn}
+                        onClick={() => setYearOpen((o) => !o)}
+                        aria-haspopup="listbox"
+                        aria-expanded={yearOpen}
+                      >
+                        {selectedYear}/{String(selectedYear + 1).slice(2)}
+                        <CaretDown size={14} weight="bold" className={`transition-transform duration-200 ${yearOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                      {yearOpen && (
+                        <ul className={`${s.menu} sheet-in`} role="listbox" aria-label={t('schoolYear')}>
+                          {availableYears.map((y) => (
+                            <li key={y}>
+                              <button
+                                type="button"
+                                role="option"
+                                aria-selected={y === selectedYear}
+                                className={`${s.menuItem} ${y === selectedYear ? s.menuItemActive : ''}`}
+                                onClick={() => jumpToYear(y)}
+                              >
+                                {t('schoolYear')} {y}/{y + 1}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                    <div className={s.menuWrap} ref={menuRef}>
+                      <button
+                        type="button"
+                        className={s.pillBtn}
+                        onClick={() => setMenuOpen((o) => !o)}
+                        aria-label={t('export')}
+                        aria-haspopup="menu"
+                        aria-expanded={menuOpen}
+                        disabled={exporting}
+                      >
+                        {exporting ? <Spinner size={16} /> : <ShareFat size={18} weight="bold" />}
+                      </button>
+                      {menuOpen && (
+                        <ul className={`${s.menu} sheet-in`} role="menu">
+                          <li>
+                            <button type="button" role="menuitem" className={s.menuItem} onClick={exportWeek}>
+                              <CalendarBlank size={18} weight="bold" />{t('exportWeek')}
+                            </button>
+                          </li>
+                          <li>
+                            <button type="button" role="menuitem" className={s.menuItem} onClick={exportExams}>
+                              <Exam size={18} weight="bold" />{t('exportExams')}
+                            </button>
+                          </li>
+                        </ul>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <button type="button" className={s.iconBtn} onClick={() => goWeek(1)} aria-label={t('nextWeek')} disabled={weekOffset >= PAGE_SPAN}>
-                  <ChevronRight size={18} />
+
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <span className={`${s.figure} bg-surface text-ink`}>
+                    <strong>{weekStats.todayLessons}</strong> {t('hoursUnit')} · {t('today')}
+                  </span>
+                  <span className={`${s.figure} ${weekStats.cancellations > 0 ? 'bg-blush text-blush-ink' : 'bg-surface text-ink-2'}`}>
+                    <strong>{weekStats.cancellations}</strong> {t('cancellations')}
+                  </span>
+                  <span className={`${s.figure} ${weekStats.exams > 0 ? 'bg-butter text-butter-ink' : 'bg-surface text-ink-2'}`}>
+                    <strong>{weekStats.exams}</strong> {t('exams')}
+                  </span>
+                  <span className={`${s.figure} ${weekStats.substitutions > 0 ? 'bg-periwinkle text-periwinkle-ink' : 'bg-surface text-ink-2'}`}>
+                    <strong>{weekStats.substitutions}</strong> {t('substitutions')}
+                  </span>
+                </div>
+              </header>
+
+              <div className={`${s.inset} ${s.weekBar}`}>
+                <button type="button" className={s.weekArrow} onClick={() => goWeek(-1)} aria-label={t('prevWeek')} disabled={weekOffset <= -PAGE_SPAN}>
+                  <CaretLeft size={20} weight="bold" />
+                </button>
+                <div className={s.weekLabel}>
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.span
+                      key={weekOffset}
+                      initial={{ opacity: 0, y: direction >= 0 ? 6 : -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: direction >= 0 ? -6 : 6 }}
+                      transition={{ duration: 0.18 }}
+                      className="block"
+                    >
+                      <span className="block text-[17px] font-bold tracking-[-0.02em] md:text-[19px]">{rangeText(weekOffset, tag)}</span>
+                      <span className="mt-0.5 block text-[13.5px] font-semibold text-ink-2">{t('cw')} {weekNumber}{weekOffset === 0 ? ` · ${t('thisWeek')}` : ''}</span>
+                    </motion.span>
+                  </AnimatePresence>
+                </div>
+                {weekOffset !== 0 && (
+                  <button type="button" className={s.weekToday} onClick={goToday}>{t('toToday')}</button>
+                )}
+                <button type="button" className={s.weekArrow} onClick={() => goWeek(1)} aria-label={t('nextWeek')} disabled={weekOffset >= PAGE_SPAN}>
+                  <CaretRight size={20} weight="bold" />
                 </button>
               </div>
-
-              {/* Stats + export */}
-              <div className={`${s.inset} ${s.statsRow}`}>
-                <div className={s.stats}>
-                  <div className={s.stat}>
-                    <span className={s.statLabel}>{t('today')}</span>
-                    <span className={s.statValue}>{weekStats.todayLessons}<span className={s.statUnit}>{t('hoursUnit')}</span></span>
-                  </div>
-                  <div className={s.stat}>
-                    <span className={s.statLabel}>{t('cancellations')}</span>
-                    <span className={`${s.statValue} ${weekStats.cancellations > 0 ? s.isDanger : ''}`}>{weekStats.cancellations}</span>
-                  </div>
-                  <div className={s.stat}>
-                    <span className={s.statLabel}>{t('exams')}</span>
-                    <span className={`${s.statValue} ${weekStats.exams > 0 ? s.isWarning : ''}`}>{weekStats.exams}</span>
-                  </div>
-                  <div className={s.stat}>
-                    <span className={s.statLabel}>{t('substitutions')}</span>
-                    <span className={`${s.statValue} ${weekStats.substitutions > 0 ? s.isOrange : ''}`}>{weekStats.substitutions}</span>
-                  </div>
-                </div>
-                <div className={s.menuWrap} ref={menuRef}>
-                  <button
-                    type="button"
-                    className={`${s.iconBtn} ${s.exportBtn}`}
-                    onClick={() => setMenuOpen(o => !o)}
-                    aria-label={t('export')}
-                    aria-haspopup="menu"
-                    aria-expanded={menuOpen}
-                    disabled={exporting}
-                  >
-                    {exporting ? <Spinner size={16} /> : <Share2 size={18} />}
-                  </button>
-                  {menuOpen && (
-                    <ul className={`${s.menu} fade-in`} role="menu">
-                      <li>
-                        <button type="button" role="menuitem" className={s.menuItem} onClick={exportWeek}>
-                          <CalendarDays size={18} />{t('exportWeek')}
-                        </button>
-                      </li>
-                      <li>
-                        <button type="button" role="menuitem" className={s.menuItem} onClick={exportExams}>
-                          <GraduationCap size={18} />{t('exportExams')}
-                        </button>
-                      </li>
-                    </ul>
-                  )}
-                </div>
-              </div>
-
               <div className={s.pager}>
                 <AnimatePresence initial={false} custom={direction} mode="popLayout">
                   <motion.div
@@ -572,24 +612,21 @@ function OfflineState({ onRetry }: { onRetry: () => void }) {
   const t = useT(timetableDict);
   const tc = useT(commonDict);
   return (
-    <div className={s.stateBox}>
-      <WifiOff size={44} color="var(--app-text-tertiary)" strokeWidth={1.5} />
-      <h2>{t('unknownTitle')}</h2>
-      <p>{t('offlineUnknown')}</p>
-      <button type="button" className={s.retryBtn} onClick={onRetry}>{tc('retry')}</button>
+    <div className={s.inset}>
+      <div className="squircle rounded-[26px] bg-surface">
+        <PixelState
+          title={t('unknownTitle')}
+          detail={t('offlineUnknown')}
+          action={<Button variant="quiet" onClick={onRetry}><ArrowClockwise size={17} weight="bold" aria-hidden="true" />{tc('retry')}</Button>}
+        />
+      </div>
     </div>
   );
 }
 
 export default function TimetablePage() {
   return (
-    <Suspense fallback={
-      <AuthGuard>
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', width: '100%' }}>
-          <Spinner />
-        </div>
-      </AuthGuard>
-    }>
+    <Suspense fallback={<div className={s.page}><div className={s.pager}><WeekGridSkeleton /></div></div>}>
       <TimetableContent />
     </Suspense>
   );

@@ -17,6 +17,8 @@ export type AbsencesKey =
   | 'text'
   | 'viewInTimetable'
   | 'report'
+  | 'ofLessons'
+  | 'perMonth'
   // ReportAbsenceSheet
   | 'choose'
   | 'errChooseRange'
@@ -63,6 +65,8 @@ export const absencesDict: Dictionary<AbsencesKey> = {
     text: 'Text',
     viewInTimetable: 'Im Stundenplan ansehen',
     report: 'Abwesenheit melden',
+    ofLessons: '{missed} von {total} Unterricht',
+    perMonth: 'Pro Monat',
     choose: 'Wählen',
     errChooseRange: 'Bitte Start und Ende wählen.',
     errEndAfterStart: 'Ende muss nach dem Start liegen.',
@@ -105,6 +109,8 @@ export const absencesDict: Dictionary<AbsencesKey> = {
     text: 'Testo',
     viewInTimetable: 'Vedi nell’orario',
     report: 'Segnala assenza',
+    ofLessons: '{missed} su {total} di lezione',
+    perMonth: 'Per mese',
     choose: 'Scegli',
     errChooseRange: 'Scegli inizio e fine.',
     errEndAfterStart: 'La fine deve essere dopo l’inizio.',
@@ -147,6 +153,8 @@ export const absencesDict: Dictionary<AbsencesKey> = {
     text: 'Note',
     viewInTimetable: 'View in timetable',
     report: 'Report absence',
+    ofLessons: '{missed} of {total} of lessons',
+    perMonth: 'Per month',
     choose: 'Choose',
     errChooseRange: 'Please choose a start and an end.',
     errEndAfterStart: 'The end must be after the start.',

@@ -1,20 +1,23 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { ChevronRight, Paperclip, Inbox, CheckCheck, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { LayoutGroup, motion } from 'framer-motion';
+import { Checks, Paperclip, PencilSimple, Trash, Tray } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AuthGuard from '@/components/AuthGuard';
 import UntisGuard from '@/components/UntisGuard';
 import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
-import EmptyView from '@/components/ui/EmptyView';
+import { Button } from '@/components/ui/Button';
+import { Page, PageHeader, Section } from '@/components/app/Page';
+import { RowsSkeleton } from '@/components/app/Skeleton';
+import { initialsOf } from '@/components/app/hooks';
 import ComposeMessageSheet, { type ComposeInitial } from '@/components/messages/ComposeMessageSheet';
 import { fetchMessages, markAllMessagesRead, fetchDraft, deleteDraft, type MessageFolder } from '@/lib/api';
 import type { MessagePreview } from '@/lib/types';
 import { useDateLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { messagesDict, type MessagesKey } from '@/lib/i18n/dictionaries/messages';
-import { commonDict } from '@/lib/i18n/dictionaries/common';
 import { formatDate, formatTime } from '@/lib/i18n/dateLocale';
 
 type TFn = (key: MessagesKey, vars?: Record<string, string | number>) => string;
@@ -25,13 +28,6 @@ const FOLDERS: { key: MessageFolder; label: MessagesKey }[] = [
   { key: 'drafts', label: 'drafts' },
 ];
 
-function senderColor(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++)
-    hash = (hash << 5) - hash + name.charCodeAt(i);
-  const hue = Math.abs(hash) % 360;
-  return `hsl(${hue}, 60%, 50%)`;
-}
 
 function parseMessages(json: unknown, t: TFn): MessagePreview[] {
   try {
@@ -130,13 +126,16 @@ export default function MessagesPage() {
   const [openingDraftId, setOpeningDraftId] = useState<number | null>(null);
   const [deletingDraftId, setDeletingDraftId] = useState<number | null>(null);
   const [folder, setFolder] = useState<MessageFolder>('inbox');
+  // When the list was loaded; "Heute" and "Diese Woche" are counted from it.
+  const [loadedAt, setLoadedAt] = useState(0);
 
+  // Fetches the folder; the caller shows the loading state first.
   const load = useCallback(async () => {
-    setLoading(true);
-    setError('');
     try {
       const res = await fetchMessages(folder);
       setMessages(parseMessages(res, t));
+      setLoadedAt(Date.now());
+      setError('');
     } catch (e: unknown) {
       if (e instanceof Error && e.message === 'session_expired') {
         router.replace('/login');
@@ -149,8 +148,22 @@ export default function MessagesPage() {
   }, [router, folder, t]);
 
   useEffect(() => {
-    load();
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
   }, [load]);
+
+  const reload = () => {
+    setLoading(true);
+    setError('');
+    void load();
+  };
+
+  const switchFolder = (next: MessageFolder) => {
+    if (next === folder) return;
+    setLoading(true);
+    setError('');
+    setFolder(next);
+  };
 
   const unreadIds = messages.filter((m) => !m.isRead).map((m) => m.id);
 
@@ -202,175 +215,147 @@ export default function MessagesPage() {
     }
   }
 
+  const groups = useMemo(() => {
+    const now = loadedAt;
+    const out: Array<{ key: 'groupToday' | 'groupWeek' | 'groupOlder'; list: MessagePreview[] }> = [
+      { key: 'groupToday', list: [] },
+      { key: 'groupWeek', list: [] },
+      { key: 'groupOlder', list: [] },
+    ];
+    for (const m of messages) {
+      const d = new Date(m.sentDate);
+      const valid = !Number.isNaN(d.getTime());
+      const days = valid ? Math.floor((now - d.getTime()) / 86_400_000) : 99;
+      const sameDay = valid && d.toDateString() === new Date(now).toDateString();
+      out[sameDay ? 0 : days < 7 ? 1 : 2].list.push(m);
+    }
+    return out.filter((g) => g.list.length > 0);
+  }, [messages, loadedAt]);
+
+  const row = (msg: MessagePreview) => {
+    const isDraft = folder === 'drafts';
+    const inner = (
+      <span className="flex items-center gap-3.5 px-3 py-3">
+        <span
+          aria-hidden="true"
+          className={`relative grid size-11 shrink-0 place-items-center rounded-full text-[14px] font-bold ${msg.isRead ? 'bg-inset text-ink-2' : 'bg-periwinkle text-periwinkle-ink'}`}
+        >
+          {initialsOf(msg.senderName)}
+          {!msg.isRead && <span className="absolute -right-0.5 -top-0.5 size-3 rounded-full bg-accent shadow-[0_0_0_2px_var(--surface)]" />}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-baseline justify-between gap-3">
+            <span className={`truncate text-[15.5px] text-ink ${msg.isRead ? 'font-medium' : 'font-bold'}`}>{msg.subject}</span>
+            <span className="shrink-0 text-[12.5px] text-ink-3">{formatMessageDate(msg.sentDate, tag, t('yesterday'))}</span>
+          </span>
+          <span className="mt-0.5 flex items-center gap-1.5">
+            <span className="min-w-0 truncate text-[13.5px] text-ink-2">
+              <span className={msg.isRead ? '' : 'font-semibold text-ink'}>{msg.senderName}</span>
+              {msg.contentPreview ? ` · ${msg.contentPreview}` : ''}
+            </span>
+            {msg.hasAttachments && <Paperclip size={14} weight="bold" className="shrink-0 text-ink-3" aria-hidden="true" />}
+          </span>
+        </span>
+      </span>
+    );
+    const cls = 'block rounded-[18px] transition-colors duration-200 hover:bg-[color-mix(in_srgb,var(--surface)_92%,var(--ink))]';
+    if (!isDraft) {
+      return <li key={msg.id} className="relative before:pointer-events-none before:absolute before:inset-x-3.5 before:top-0 before:h-px before:bg-line before:transition-opacity first:before:hidden hover:before:opacity-0 [&:hover+li]:before:opacity-0"><Link href={localize(`/messages/${msg.id}`)} className={cls}>{inner}</Link></li>;
+    }
+    return (
+      <li key={msg.id} className="flex items-center relative before:pointer-events-none before:absolute before:inset-x-3.5 before:top-0 before:h-px before:bg-line before:transition-opacity first:before:hidden hover:before:opacity-0 [&:hover+li]:before:opacity-0">
+        <button type="button" onClick={() => openDraft(msg.id)} disabled={openingDraftId != null || deletingDraftId === msg.id} className={`${cls} min-w-0 flex-1 text-left disabled:opacity-60`}>
+          {inner}
+        </button>
+        <button
+          type="button"
+          onClick={() => handleDeleteDraft(msg.id)}
+          disabled={deletingDraftId != null || openingDraftId != null}
+          className="mr-1 grid size-10 shrink-0 place-items-center rounded-full text-ink-3 transition-colors hover:bg-inset hover:text-danger-ink disabled:opacity-50"
+          aria-label={t('deleteDraft')}
+        >
+          {deletingDraftId === msg.id ? <Spinner size={16} /> : <Trash size={17} weight="bold" />}
+        </button>
+      </li>
+    );
+  };
+
   return (
     <AuthGuard>
       <UntisGuard>
-      <div
-        className="h-full flex flex-col overflow-hidden"
-      >
-        {/* Nav */}
-        <div className="px-5 pt-4 pb-4 flex items-center gap-3 fade-in flex-shrink-0">
-          <h1
-            className="flex-1 text-[28px] font-bold tracking-tight"
-            style={{ color: 'var(--app-text-primary)' }}
-          >
-            {t('title')}
-          </h1>
-          {folder === 'inbox' && (
-            <button
-              onClick={handleMarkAllRead}
-              disabled={markingAll || unreadIds.length === 0}
-              className="flex items-center gap-1.5 px-3 h-9 rounded-xl text-sm font-medium press-scale disabled:opacity-50"
-              style={{ background: 'var(--app-surface)', color: 'var(--accent)' }}
-            >
-              {markingAll ? <Spinner size={14} /> : <CheckCheck size={16} />}
-              {!markingAll && t('markAllRead')}
-            </button>
-          )}
-          <button
-            onClick={newCompose}
-            className="w-10 h-10 flex items-center justify-center rounded-full press-scale flex-shrink-0"
-            style={{ background: 'var(--accent)', color: '#fff' }}
-            aria-label={t('compose')}
-          >
-            <Pencil size={18} />
-          </button>
-        </div>
+        <Page>
+          <PageHeader
+            title={t('title')}
+            actions={
+              <>
+                {folder === 'inbox' && unreadIds.length > 0 && (
+                  <Button variant="quiet" onClick={handleMarkAllRead} disabled={markingAll}>
+                    {markingAll ? <Spinner size={16} /> : <Checks size={18} weight="bold" aria-hidden="true" />}
+                    {t('markAllRead')}
+                  </Button>
+                )}
+                <Button onClick={newCompose}>
+                  <PencilSimple size={18} weight="bold" aria-hidden="true" />
+                  {t('compose')}
+                </Button>
+              </>
+            }
+          />
 
-        {/* Folder tabs */}
-        <div className="px-5 pb-3 flex gap-2 flex-shrink-0 fade-in">
-          {FOLDERS.map((f) => {
-            const active = folder === f.key;
-            return (
-              <button
-                key={f.key}
-                onClick={() => setFolder(f.key)}
-                className="px-4 h-9 rounded-full text-[13px] font-semibold press-scale"
-                style={{
-                  background: active ? 'var(--accent)' : 'var(--app-surface)',
-                  color: active ? '#fff' : 'var(--app-text-secondary)',
-                  transition: 'background 0.2s, color 0.2s',
-                }}
-              >
-                {t(f.label)}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="flex-1 overflow-auto pb-8">
-          {loading ? (
-            <div className="flex justify-center py-16">
-              <Spinner size={28} />
-            </div>
-          ) : error ? (
-            <ErrorView message={error} onRetry={load} />
-          ) : messages.length === 0 ? (
-            <EmptyView
-              icon={<Inbox size={56} color="var(--app-text-primary)" />}
-              title={folder === 'sent' ? t('emptySentTitle') : folder === 'drafts' ? t('emptyDraftsTitle') : t('emptyInboxTitle')}
-              subtitle={
-                folder === 'sent'
-                  ? t('emptySentText')
-                  : folder === 'drafts'
-                    ? t('emptyDraftsText')
-                    : t('emptyInboxText')
-              }
-            />
-          ) : (
-            <div style={{ background: 'var(--app-surface)' }} className="fade-in delay-1">
-              {messages.map((msg, i) => {
-                const isDraft = folder === 'drafts';
-                const borderTop = i > 0 ? '1px solid var(--app-separator)' : 'none';
-
-                const inner = (
-                  <div className="px-4 py-4 flex items-center gap-3">
-                    {/* Avatar with unread dot */}
-                    <div className="relative flex-shrink-0">
-                      <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white"
-                        style={{ background: senderColor(msg.senderName) }}
-                      >
-                        {msg.senderName.slice(0, 1).toUpperCase()}
-                      </div>
-                      {!msg.isRead && (
-                        <div
-                          className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full border-2"
-                          style={{ background: 'var(--accent)', borderColor: 'var(--app-surface)' }}
-                        />
-                      )}
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <p
-                          className="text-sm truncate"
-                          style={{ color: 'var(--app-text-primary)', fontWeight: msg.isRead ? 400 : 700 }}
-                        >
-                          {msg.subject}
-                        </p>
-                        <p className="text-xs flex-shrink-0" style={{ color: 'var(--app-text-tertiary)' }}>
-                          {formatMessageDate(msg.sentDate, tag, t('yesterday'))}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <p
-                          className="text-xs truncate flex-1"
-                          style={{ color: 'var(--app-text-secondary)', fontWeight: msg.isRead ? 400 : 500 }}
-                        >
-                          {msg.senderName}
-                          {msg.contentPreview ? ` · ${msg.contentPreview}` : ''}
-                        </p>
-                        {msg.hasAttachments && <Paperclip size={12} color="var(--app-text-tertiary)" />}
-                      </div>
-                    </div>
-
-                    {!isDraft && <ChevronRight size={16} color="var(--app-text-tertiary)" />}
-                  </div>
-                );
-
-                if (!isDraft) {
-                  return (
-                    <Link key={msg.id} href={localize(`/messages/${msg.id}`)} className="block press-scale" style={{ borderTop }}>
-                      {inner}
-                    </Link>
-                  );
-                }
-
-                // Drafts: tap to edit, with a delete action.
+          <LayoutGroup id="message-folders">
+            <div role="tablist" aria-label={t('title')} className="rise mb-8 inline-flex gap-1 rounded-[16px] bg-surface p-1">
+              {FOLDERS.map((f) => {
+                const active = folder === f.key;
                 return (
-                  <div key={msg.id} className="flex items-center" style={{ borderTop }}>
-                    <button
-                      onClick={() => openDraft(msg.id)}
-                      disabled={openingDraftId != null || deletingDraftId === msg.id}
-                      className="flex-1 min-w-0 text-left press-scale disabled:opacity-60"
-                    >
-                      {inner}
-                    </button>
-                    <button
-                      onClick={() => handleDeleteDraft(msg.id)}
-                      disabled={deletingDraftId != null || openingDraftId != null}
-                      className="w-11 h-11 mr-2 flex items-center justify-center rounded-full press-scale flex-shrink-0 disabled:opacity-50"
-                      style={{ color: 'var(--danger)' }}
-                      aria-label={t('deleteDraft')}
-                    >
-                      {deletingDraftId === msg.id ? <Loader2 size={17} className="animate-spin" /> : <Trash2 size={17} />}
-                    </button>
-                  </div>
+                  <button
+                    key={f.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => switchFolder(f.key)}
+                    className={`relative h-10 rounded-[12px] px-4 text-[14.5px] font-semibold transition-colors duration-200 ${active ? 'text-periwinkle-ink' : 'text-ink-2 hover:text-ink'}`}
+                  >
+                    {active && <motion.span layoutId="folder-active" className="absolute inset-0 rounded-[12px] bg-periwinkle" transition={{ type: 'spring', stiffness: 520, damping: 42 }} />}
+                    <span className="relative">{t(f.label)}</span>
+                  </button>
                 );
               })}
             </div>
+          </LayoutGroup>
+
+          {loading ? (
+            <RowsSkeleton rows={6} lead="round" trailing />
+          ) : error ? (
+            <div className="squircle rounded-[26px] bg-surface"><ErrorView message={error} onRetry={reload} /></div>
+          ) : messages.length === 0 ? (
+            <div className="rise flex flex-col items-center py-14 text-center">
+              <span className="grid size-16 place-items-center rounded-[20px] bg-periwinkle text-periwinkle-ink"><Tray size={30} weight="bold" aria-hidden="true" /></span>
+              <p className="mt-5 text-[18px] font-bold tracking-[-0.02em]">
+                {folder === 'sent' ? t('emptySentTitle') : folder === 'drafts' ? t('emptyDraftsTitle') : t('emptyInboxTitle')}
+              </p>
+              <p className="mt-1 max-w-[40ch] text-[15px] text-ink-2">
+                {folder === 'sent' ? t('emptySentText') : folder === 'drafts' ? t('emptyDraftsText') : t('emptyInboxText')}
+              </p>
+            </div>
+          ) : (
+            <div key={folder} className="flex flex-col gap-10">
+              {groups.map((g) => (
+                <Section key={g.key} title={t(g.key)} className="rise">
+                  <ul className="squircle flex flex-col rounded-[24px] bg-surface p-2">
+                    {g.list.map(row)}
+                  </ul>
+                </Section>
+              ))}
+            </div>
           )}
-        </div>
-      </div>
-      {showCompose && (
-        <ComposeMessageSheet
-          initial={composeInitial}
-          onClose={() => { setShowCompose(false); setComposeInitial(undefined); }}
-          onSent={load}
-        />
-      )}
+        </Page>
+        {showCompose && (
+          <ComposeMessageSheet
+            initial={composeInitial}
+            onClose={() => { setShowCompose(false); setComposeInitial(undefined); }}
+            onSent={reload}
+          />
+        )}
       </UntisGuard>
     </AuthGuard>
   );
