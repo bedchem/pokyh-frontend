@@ -48,7 +48,9 @@ export type ShellKey =| 'mainNav'| 'skip'| 'home'| 'timetable'
   | 'srcMessage'
   | 'srcDish'
   | 'searchingContent'
-  | 'searchEmpty';
+  | 'searchEmpty'
+  | 'website'
+  | 'language';
 
 export const shellDict: Dictionary<ShellKey> = {
   de: {
@@ -68,6 +70,8 @@ export const shellDict: Dictionary<ShellKey> = {
     profile: 'Profil',
     settings: 'Einstellungen',
     collapse: 'Seitenleiste einklappen',
+    website: 'Zur Website',
+    language: 'Sprache',
     expand: 'Seitenleiste ausklappen',
     unread: '{n} ungelesen',
     openProfile: 'Profil öffnen',
@@ -120,6 +124,8 @@ export const shellDict: Dictionary<ShellKey> = {
     profile: 'Profilo',
     settings: 'Impostazioni',
     collapse: 'Comprimi la barra laterale',
+    website: 'Al sito',
+    language: 'Lingua',
     expand: 'Espandi la barra laterale',
     unread: '{n} non letti',
     openProfile: 'Apri il profilo',
@@ -172,6 +178,8 @@ export const shellDict: Dictionary<ShellKey> = {
     profile: 'Profile',
     settings: 'Settings',
     collapse: 'Collapse sidebar',
+    website: 'To the website',
+    language: 'Language',
     expand: 'Expand sidebar',
     unread: '{n} unread',
     openProfile: 'Open profile',

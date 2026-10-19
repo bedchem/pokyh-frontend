@@ -71,6 +71,24 @@ export default async function GetPage({ params }: PageProps) {
             </Link>
           </div>
 
+          {/* Native apps */}
+          {native.map(({ icon: Icon, title, body, guide, releases, tone }) => (
+            <div key={title} data-reveal className={`squircle flex flex-col rounded-[28px] p-7 md:rounded-[40px] md:p-10 ${TONE[tone]}`}>
+              <Icon size={40} aria-hidden="true" />
+              <h2 className="mt-6 text-[clamp(28px,3vw,40px)] font-extrabold leading-[1.02] tracking-[-0.04em]">{title}</h2>
+              <p className="mt-3 flex-1 text-[16px] leading-[1.6] opacity-85 md:text-[17px]">{body}</p>
+              <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3">
+                <Link href={guide} className="key">
+                  {t('guide')}
+                  <ArrowRight size={16} weight="bold" className="key-arrow" aria-hidden="true" />
+                </Link>
+                <a href={releases} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[15px] font-semibold underline-offset-[6px] decoration-2 hover:underline">
+                  {t('releases')}
+                  <ArrowUpRight size={15} weight="bold" aria-hidden="true" />
+                </a>
+              </div>
+            </div>
+          ))}
           {/* Web-App on the home screen */}
           <div data-reveal className={`squircle flex flex-col rounded-[28px] p-7 md:col-span-2 md:rounded-[40px] md:p-12 ${TONE.butter}`}>
             <div className="grid gap-8 md:grid-cols-[1.2fr_1fr] md:items-end">
@@ -93,24 +111,6 @@ export default async function GetPage({ params }: PageProps) {
             </div>
           </div>
 
-          {/* Native apps */}
-          {native.map(({ icon: Icon, title, body, guide, releases, tone }) => (
-            <div key={title} data-reveal className={`squircle flex flex-col rounded-[28px] p-7 md:rounded-[40px] md:p-10 ${TONE[tone]}`}>
-              <Icon size={40} aria-hidden="true" />
-              <h2 className="mt-6 text-[clamp(28px,3vw,40px)] font-extrabold leading-[1.02] tracking-[-0.04em]">{title}</h2>
-              <p className="mt-3 flex-1 text-[16px] leading-[1.6] opacity-85 md:text-[17px]">{body}</p>
-              <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3">
-                <Link href={guide} className="key">
-                  {t('guide')}
-                  <ArrowRight size={16} weight="bold" className="key-arrow" aria-hidden="true" />
-                </Link>
-                <a href={releases} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[15px] font-semibold underline-offset-[6px] decoration-2 hover:underline">
-                  {t('releases')}
-                  <ArrowUpRight size={15} weight="bold" aria-hidden="true" />
-                </a>
-              </div>
-            </div>
-          ))}
         </section>
 
         <section aria-labelledby="pwa-what" className="wrap pb-24 md:pb-32">

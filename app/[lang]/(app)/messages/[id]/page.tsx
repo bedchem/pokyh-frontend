@@ -5,39 +5,41 @@ import ComposeMessageSheet from '@/components/messages/ComposeMessageSheet';
 import { fetchReplyForm } from '@/lib/api';
 import { untisActionsDict } from '@/lib/i18n/dictionaries/untisActions';
 import {
-  ChevronLeft,
-  FileText,
-  Image as ImageIcon,
-  Archive,
-  Film,
+  ArrowLeft,
+  ArrowSquareOut,
+  ArrowClockwise,
+  ArrowUUpLeft,
+  DownloadSimple,
   File,
-  Music,
-  AlertTriangle,
-  ExternalLink,
+  FileArchive,
+  FileAudio,
+  FileDoc,
+  FileImage,
+  FilePdf,
+  FilePpt,
+  FileVideo,
+  FileXls,
   Paperclip,
-  RefreshCw,
-  Download,
-} from 'lucide-react';
+  WarningCircle,
+} from '@phosphor-icons/react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
+import Sheet from '@/components/ui/Sheet';
+import { Button } from '@/components/ui/Button';
+import { Page } from '@/components/app/Page';
+import { Bone, Line } from '@/components/app/Skeleton';
+import { initialsOf } from '@/components/app/hooks';
 import ErrorView from '@/components/ui/ErrorView';
 import { fetchMessageDetail, fetchMessageAttachments, markMessageRead, getAttachmentUrl } from '@/lib/api';
 import type { MessageDetail, MessageAttachment } from '@/lib/types';
-import { useDateLocale, useT } from '@/providers/LocaleProvider';
+import { useDateLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { messagesDict, type MessagesKey } from '@/lib/i18n/dictionaries/messages';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
 import { formatDateTime } from '@/lib/i18n/dateLocale';
 
 type TFn = (key: MessagesKey, vars?: Record<string, string | number>) => string;
-
-function senderColor(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++)
-    hash = (hash << 5) - hash + name.charCodeAt(i);
-  const hue = Math.abs(hash) % 360;
-  return `hsl(${hue}, 60%, 50%)`;
-}
 
 function formatDate(dateStr: string, tag: string): string {
   if (!dateStr) return '';
@@ -53,7 +55,9 @@ function formatDate(dateStr: string, tag: string): string {
 
 const URL_REGEX = /(https?:\/\/[^\s<>"{}|\\^`[\]]+)/g;
 
-function sanitizeMessageHtml(raw: string): string {
+function sanitizeMessageHtml(input: string): string {
+  // Trailing blank lines and breaks only add empty space under the text.
+  const raw = (input ?? '').replace(/(\s|<br\s*\/?>|&nbsp;)+$/i, '');
   if (!raw) return '';
   if (typeof window === 'undefined') return raw.replace(/<[^>]+>/g, '').trim();
 
@@ -162,7 +166,11 @@ function parseMessageDetail(json: unknown, t: TFn): MessageDetail | null {
       : [];
     const storageAttachments = storageList.map((a) => parseStorageAttachment(a, t('attachment')));
 
-    const attachments = normalAttachments.length > 0 ? normalAttachments : storageAttachments;
+    // A single file sent with the message itself (WebUntis "blobAttachment").
+    const blob = msg.blobAttachment && typeof msg.blobAttachment === 'object' ? msg.blobAttachment as Record<string, unknown> : null;
+    const blobAttachments = blob && (blob.id ?? blob.name) ? [parseOneAttachment(blob, t('attachment'))] : [];
+
+    const attachments = normalAttachments.length > 0 ? normalAttachments : storageAttachments.length > 0 ? storageAttachments : blobAttachments;
 
     const hasAttachments =
       attachments.length > 0 ||
@@ -212,25 +220,19 @@ function parseAttachmentsFallback(json: unknown, fallbackName: string): MessageA
   }
 }
 
-function getFileStyle(name: string): { icon: React.ReactNode; color: string } {
+/** A tile per file kind, in the app's tones. */
+function fileKind(name: string): { Icon: typeof File; tone: string } {
   const n = name.toLowerCase();
-  if (n.endsWith('.pdf'))
-    return { icon: <FileText size={22} />, color: '#E53935' };
-  if (['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.heic'].some((e) => n.endsWith(e)))
-    return { icon: <ImageIcon size={22} />, color: '#1E88E5' };
-  if (['.doc', '.docx'].some((e) => n.endsWith(e)))
-    return { icon: <FileText size={22} />, color: '#1565C0' };
-  if (['.xls', '.xlsx'].some((e) => n.endsWith(e)))
-    return { icon: <FileText size={22} />, color: '#2E7D32' };
-  if (['.ppt', '.pptx'].some((e) => n.endsWith(e)))
-    return { icon: <FileText size={22} />, color: '#E65100' };
-  if (['.zip', '.rar', '.7z', '.tar', '.gz'].some((e) => n.endsWith(e)))
-    return { icon: <Archive size={22} />, color: '#6D4C41' };
-  if (['.mp4', '.mov', '.avi', '.mkv', '.webm'].some((e) => n.endsWith(e)))
-    return { icon: <Film size={22} />, color: '#6A1B9A' };
-  if (['.mp3', '.m4a', '.wav'].some((e) => n.endsWith(e)))
-    return { icon: <Music size={22} />, color: '#AD1457' };
-  return { icon: <File size={22} />, color: 'var(--accent)' };
+  const ends = (...ext: string[]) => ext.some((e) => n.endsWith(e));
+  if (ends('.pdf')) return { Icon: FilePdf, tone: 'bg-blush text-blush-ink' };
+  if (ends('.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.heic')) return { Icon: FileImage, tone: 'bg-periwinkle text-periwinkle-ink' };
+  if (ends('.doc', '.docx', '.odt', '.rtf', '.txt')) return { Icon: FileDoc, tone: 'bg-periwinkle text-periwinkle-ink' };
+  if (ends('.xls', '.xlsx', '.ods', '.csv')) return { Icon: FileXls, tone: 'bg-sage text-sage-ink' };
+  if (ends('.ppt', '.pptx', '.odp')) return { Icon: FilePpt, tone: 'bg-butter text-butter-ink' };
+  if (ends('.zip', '.rar', '.7z', '.tar', '.gz')) return { Icon: FileArchive, tone: 'bg-butter text-butter-ink' };
+  if (ends('.mp4', '.mov', '.avi', '.mkv', '.webm')) return { Icon: FileVideo, tone: 'bg-blush text-blush-ink' };
+  if (ends('.mp3', '.m4a', '.wav')) return { Icon: FileAudio, tone: 'bg-sage text-sage-ink' };
+  return { Icon: File, tone: 'bg-inset text-ink-2' };
 }
 
 function formatFileSize(bytes: number): string {
@@ -240,9 +242,11 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+const rowLine = 'relative before:absolute before:inset-x-3.5 before:top-0 before:h-px before:bg-line before:transition-opacity first:before:hidden hover:before:opacity-0 [&:hover+li]:before:opacity-0';
+
 function AttachmentRow({ att, msgId }: { att: MessageAttachment; msgId: number }) {
   const [downloading, setDownloading] = useState(false);
-  const { icon, color } = getFileStyle(att.name);
+  const { Icon, tone } = fileKind(att.name);
   const url = getAttachmentUrl(msgId, att.storageId, att.name, att.id);
 
   async function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
@@ -260,69 +264,47 @@ function AttachmentRow({ att, msgId }: { att: MessageAttachment; msgId: number }
       a.click();
       setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
     } catch {
-      // silently reset on error
+      // the row stays as it was; tapping it again retries
     } finally {
       setDownloading(false);
     }
   }
 
   return (
-    <a
-      href={url}
-      onClick={handleClick}
-      className="flex items-center gap-3 px-2.5 rounded-xl press-scale"
-      style={{
-        background: 'var(--app-bg)',
-        textDecoration: 'none',
-        cursor: 'pointer',
-        transition: 'background 0.15s',
-        minHeight: 64,
-      }}
-      onMouseEnter={(e) =>
-        (e.currentTarget.style.background = 'color-mix(in srgb, var(--app-text-primary) 5%, var(--app-bg))')
-      }
-      onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--app-bg)')}
-    >
-      {downloading ? (
-        <div className="flex-1 flex items-center justify-center py-2.5">
-          <Spinner size={20} />
-        </div>
-      ) : (
-        <>
-          <div
-            className="flex items-center justify-center rounded-xl flex-shrink-0"
-            style={{ width: 44, height: 44, background: `${color}1f`, color }}
-          >
-            {icon}
-          </div>
+    <li className={rowLine}>
+      <a
+        href={url}
+        onClick={handleClick}
+        aria-busy={downloading}
+        className="flex items-center gap-3.5 rounded-[18px] px-3 py-3 transition-colors duration-200 hover:bg-[color-mix(in_srgb,var(--surface)_92%,var(--ink))]"
+      >
+        <span className={`grid size-11 shrink-0 place-items-center rounded-[13px] ${tone}`} aria-hidden="true">
+          <Icon size={22} weight="bold" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[15px] font-semibold">{att.name}</span>
+          {att.size > 0 && <span className="mt-0.5 block text-[13px] text-ink-3 tnum">{formatFileSize(att.size)}</span>}
+        </span>
+        <span className="grid size-10 shrink-0 place-items-center rounded-full bg-inset text-ink" aria-hidden="true">
+          {downloading ? <Spinner size={16} /> : <DownloadSimple size={18} weight="bold" />}
+        </span>
+      </a>
+    </li>
+  );
+}
 
-          <div className="flex-1 min-w-0 py-2.5">
-            <p
-              className="text-sm font-medium leading-snug truncate"
-              style={{ color: 'var(--app-text-primary)' }}
-            >
-              {att.name}
-            </p>
-            {att.size > 0 && (
-              <p className="text-xs mt-0.5" style={{ color: 'var(--app-text-tertiary)' }}>
-                {formatFileSize(att.size)}
-              </p>
-            )}
-          </div>
-
-          <div
-            className="flex items-center justify-center flex-shrink-0 rounded-xl"
-            style={{
-              width: 36,
-              height: 36,
-              background: 'color-mix(in srgb, var(--accent) 12%, transparent)',
-            }}
-          >
-            <Download size={16} color="var(--accent)" />
-          </div>
-        </>
-      )}
-    </a>
+function MessageSkeleton() {
+  return (
+    <div aria-hidden="true" className="flex flex-col gap-6 text-ink">
+      <span className="flex flex-col gap-3"><Line w="70%" h={30} /><Line w="45%" h={30} /></span>
+      <span className="flex items-center gap-3">
+        <Bone className="!rounded-full" style={{ width: 44, height: 44 }} />
+        <span className="flex flex-col gap-2"><Line w={140} h={13} /><Line w={110} h={11} /></span>
+      </span>
+      <span className="squircle flex flex-col gap-3 rounded-[24px] bg-surface p-5 md:p-7">
+        {['92%', '86%', '95%', '60%', '', '88%', '74%'].map((w, i) => (w ? <Line key={i} w={w} h={13} /> : <span key={i} className="h-2" />))}
+      </span>
+    </div>
   );
 }
 
@@ -335,9 +317,10 @@ export default function MessageDetailPage({
   const router = useRouter();
   const t = useT(messagesDict);
   const tc = useT(commonDict);
-  const { tag } = useDateLocale();
-  const [msg, setMsg] = useState<MessageDetail | null>(null);
   const ta = useT(untisActionsDict);
+  const { tag } = useDateLocale();
+  const localize = useLocalizeHref();
+  const [msg, setMsg] = useState<MessageDetail | null>(null);
   const [reply, setReply] = useState<{ messageId: number; subject: string; recipientName: string } | null>(null);
   const [replyBusy, setReplyBusy] = useState(false);
   const [replyError, setReplyError] = useState('');
@@ -355,8 +338,7 @@ export default function MessageDetailPage({
     setAttachmentsFetchFailed(false);
     try {
       const data = await fetchMessageAttachments(msgId);
-      const list = parseAttachmentsFallback(data, t('attachment'));
-      setLoadedAttachments(list);
+      setLoadedAttachments(parseAttachmentsFallback(data, t('attachment')));
     } catch {
       setAttachmentsFetchFailed(true);
       setLoadedAttachments([]);
@@ -375,152 +357,87 @@ export default function MessageDetailPage({
       const parsed = parseMessageDetail(data, t);
       setMsg(parsed);
       markMessageRead(parseInt(id)).catch(() => {});
-
-      if (parsed && parsed.attachments.length === 0) {
-        fetchFallbackAttachments(parsed.id);
-      }
+      if (parsed && parsed.attachments.length === 0) fetchFallbackAttachments(parsed.id);
     } catch (e: unknown) {
-      if (e instanceof Error && e.message === 'session_expired') {
-        router.replace('/login');
-      } else {
-        setError(e instanceof Error ? e.message : 'error');
-      }
+      if (e instanceof Error && e.message === 'session_expired') router.replace('/login');
+      else setError(e instanceof Error ? e.message : 'error');
     } finally {
       setLoading(false);
     }
   }, [id, router, fetchFallbackAttachments, t]);
 
   useEffect(() => {
-    load();
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
   }, [load]);
 
-  const attachments: MessageAttachment[] =
-    msg && msg.attachments.length > 0
-      ? msg.attachments
-      : loadedAttachments ?? [];
+  async function openReply() {
+    if (!msg) return;
+    setReplyBusy(true);
+    setReplyError('');
+    try {
+      // WebUntis' own reply form: prefilled subject and the original sender.
+      const form = await fetchReplyForm(msg.id);
+      setReply({ messageId: msg.id, subject: form.subject || msg.subject, recipientName: form.recipient?.name || msg.senderName });
+    } catch (e) {
+      const m = e instanceof Error ? e.message : '';
+      setReplyError(m && m !== 'session_expired' && !/^HTTP \d/.test(m) ? m : ta('replyUnavailable'));
+    } finally {
+      setReplyBusy(false);
+    }
+  }
 
-  const showAttachmentSection =
-    attachments.length > 0 ||
-    attachmentsLoading ||
-    attachmentsFetchFailed;
+  const attachments: MessageAttachment[] = msg && msg.attachments.length > 0 ? msg.attachments : loadedAttachments ?? [];
+  const showAttachments = attachments.length > 0 || attachmentsLoading || attachmentsFetchFailed;
+  const attachmentsTitle = attachmentsLoading
+    ? t('attachmentsLoading')
+    : attachments.length === 1
+      ? t('oneAttachment')
+      : attachments.length > 1
+        ? t('nAttachments', { n: attachments.length })
+        : t('attachmentsError');
 
   return (
     <AuthGuard>
-      <div
-        className="h-full flex flex-col overflow-hidden"
-      >
-        {/* Nav */}
-        <div className="px-5 pt-4 pb-4 flex items-center gap-3 fade-in">
-          <button
-            onClick={() => router.back()}
-            className="p-2 rounded-full press-scale"
-            style={{ background: 'var(--app-surface)' }}
+      <Page width="narrow">
+        <div className="mx-auto w-full max-w-[860px] pb-6 pt-4 md:pt-8">
+          <Link
+            href={localize('/messages')}
+            className="-ml-1 mb-5 inline-flex h-9 items-center gap-1.5 rounded-full pl-1 pr-3 text-[15px] font-semibold text-ink-2 transition-colors hover:bg-inset hover:text-ink"
           >
-            <ChevronLeft size={20} color="var(--accent)" />
-          </button>
-          <h1
-            className="flex-1 text-[17px] font-semibold truncate"
-            style={{ color: 'var(--app-text-primary)' }}
-          >
-            {msg?.subject ?? t('message')}
-          </h1>
-          {msg && (
-            <button
-              type="button"
-              disabled={replyBusy}
-              onClick={async () => {
-                setReplyBusy(true);
-                setReplyError('');
-                try {
-                  // WebUntis' own reply form: prefilled subject and the original sender.
-                  const form = await fetchReplyForm(msg.id);
-                  setReply({
-                    messageId: msg.id,
-                    subject: form.subject || msg.subject,
-                    recipientName: form.recipient?.name || msg.senderName,
-                  });
-                } catch (e) {
-                  const m = e instanceof Error ? e.message : '';
-                  setReplyError(m && m !== 'session_expired' && !/^HTTP \d/.test(m) ? m : ta('replyUnavailable'));
-                } finally {
-                  setReplyBusy(false);
-                }
-              }}
-              className="h-9 px-4 rounded-full text-[14px] font-semibold press-scale disabled:opacity-50"
-              style={{ background: 'var(--accent)', color: '#fff' }}
-            >
-              {ta('reply')}
-            </button>
-          )}
-        </div>
-        {replyError && (
-          <p role="alert" className="mx-5 -mt-2 mb-3 text-[13px]" style={{ color: 'var(--danger)' }}>{replyError}</p>
-        )}
-        {reply && (
-          <ComposeMessageSheet reply={reply} onClose={() => setReply(null)} onSent={() => setReply(null)} />
-        )}
+            <ArrowLeft size={17} weight="bold" aria-hidden="true" />
+            {t('title')}
+          </Link>
 
-        <div className="flex-1 px-4 pb-10 overflow-auto">
           {loading ? (
-            <div className="flex justify-center py-16">
-              <Spinner size={28} />
-            </div>
+            <MessageSkeleton />
           ) : error ? (
-            <ErrorView message={error} onRetry={load} />
+            <div className="squircle rounded-[26px] bg-surface"><ErrorView message={error} onRetry={load} /></div>
           ) : msg ? (
-            <div className="flex flex-col gap-3">
-              {/* Header card */}
-              <div
-                className="rounded-2xl p-4 fade-in delay-1"
-                style={{ background: 'var(--app-surface)' }}
-              >
-                <p
-                  className="text-[20px] font-bold mb-3 leading-tight"
-                  style={{ color: 'var(--app-text-primary)', letterSpacing: '-0.3px' }}
-                >
-                  {msg.subject}
-                </p>
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
-                    style={{
-                      background: `color-mix(in srgb, ${senderColor(msg.senderName)} 15%, transparent)`,
-                      color: senderColor(msg.senderName),
-                    }}
-                  >
-                    {msg.senderName.slice(0, 1).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className="text-sm font-semibold"
-                      style={{ color: 'var(--app-text-primary)' }}
-                    >
-                      {msg.senderName}
-                    </p>
-                    <p
-                      className="text-xs"
-                      style={{ color: 'var(--app-text-secondary)' }}
-                    >
-                      {formatDate(msg.sentDate, tag)}
-                    </p>
-                  </div>
-                </div>
-              </div>
+            <article className="rise flex flex-col gap-6">
+              <h1 className="text-[clamp(26px,4.2vw,40px)] font-extrabold leading-[1.08] tracking-[-0.045em] [overflow-wrap:anywhere]">{msg.subject}</h1>
 
-              {/* Body + Attachments */}
-              <div
-                className="rounded-2xl overflow-hidden fade-in delay-2"
-                style={{ background: 'var(--app-surface)' }}
-              >
-                {msg.body ? (
-                  /* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-full bg-periwinkle text-[14px] font-bold text-periwinkle-ink">
+                    {initialsOf(msg.senderName)}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-[15.5px] font-bold">{msg.senderName}</span>
+                    <span className="block text-[13.5px] text-ink-2">{formatDate(msg.sentDate, tag)}</span>
+                  </span>
+                </div>
+                <Button variant="tone" onClick={openReply} disabled={replyBusy} className="w-full sm:w-auto">
+                  {replyBusy ? <Spinner size={16} /> : <ArrowUUpLeft size={18} weight="bold" aria-hidden="true" />}
+                  {ta('reply')}
+                </Button>
+              </div>
+              {replyError && <p role="alert" className="-mt-3 text-[13.5px] font-semibold text-danger-ink">{replyError}</p>}
+
+              {msg.body && (
+                <div className="squircle rounded-[24px] bg-surface px-5 py-5 md:px-7 md:py-6">
                   <div
-                    className="message-html-body text-[15px] leading-relaxed px-4"
-                    style={{
-                      color: 'var(--app-text-primary)',
-                      paddingTop: 16,
-                      paddingBottom: showAttachmentSection ? 12 : 16,
-                    }}
+                    className="message-html-body text-[16px] leading-[1.65] text-ink [overflow-wrap:anywhere]"
                     dangerouslySetInnerHTML={{ __html: sanitizeMessageHtml(msg.body) }}
                     onClick={(e) => {
                       const anchor = (e.target as HTMLElement).closest('a');
@@ -530,145 +447,63 @@ export default function MessageDetailPage({
                       if (href) setLinkWarning(href);
                     }}
                   />
-                ) : null}
+                </div>
+              )}
 
-                {showAttachmentSection && msg.body ? (
-                  <div style={{ height: 1, background: 'var(--app-separator)', opacity: 0.5 }} />
-                ) : null}
-
-                {showAttachmentSection && (
-                  <div>
-                    <div className="flex items-center gap-1.5 px-4 pt-2.5 pb-1.5">
-                      <Paperclip size={13} color="var(--app-text-tertiary)" />
-                      {attachmentsLoading ? (
-                        <>
-                          <Spinner size={10} />
-                          <span className="text-xs" style={{ color: 'var(--app-text-tertiary)' }}>
-                            {t('attachmentsLoading')}
-                          </span>
-                        </>
-                      ) : (
-                        <span
-                          className="text-xs font-semibold"
-                          style={{ color: 'var(--app-text-tertiary)', letterSpacing: '0.2px' }}
-                        >
-                          {attachments.length === 1 ? t('oneAttachment') : attachments.length > 1 ? t('nAttachments', { n: attachments.length }) : t('attachmentsError')}
-                        </span>
-                      )}
+              {showAttachments && (
+                <section aria-label={attachmentsTitle}>
+                  <h2 className="mb-3 flex items-center gap-2 text-[17px] font-extrabold tracking-[-0.02em]">
+                    <Paperclip size={18} weight="bold" aria-hidden="true" />
+                    {attachmentsTitle}
+                  </h2>
+                  {attachmentsLoading ? (
+                    <span aria-hidden="true" className="squircle flex items-center gap-3.5 rounded-[24px] bg-surface p-5 text-ink">
+                      <Bone className="!rounded-[13px]" style={{ width: 44, height: 44 }} />
+                      <span className="flex flex-1 flex-col gap-2"><Line w="55%" h={13} /><Line w={60} h={11} /></span>
+                    </span>
+                  ) : attachments.length > 0 ? (
+                    <ul className="squircle flex flex-col rounded-[24px] bg-surface p-2">
+                      {attachments.map((att) => <AttachmentRow key={att.id || att.storageId} att={att} msgId={msg.id} />)}
+                    </ul>
+                  ) : (
+                    <div className="squircle flex flex-wrap items-center justify-between gap-3 rounded-[24px] bg-surface px-5 py-4">
+                      <span className="text-[14.5px] text-ink-2">{t('tapToReload')}</span>
+                      <Button variant="quiet" size="sm" onClick={() => fetchFallbackAttachments(msg.id)}>
+                        <ArrowClockwise size={16} weight="bold" aria-hidden="true" />
+                        {tc('retry')}
+                      </Button>
                     </div>
-
-                    {attachments.length > 0 && (
-                      <div className="px-3 pb-3 flex flex-col gap-1.5">
-                        {attachments.map((att) => (
-                          <AttachmentRow
-                            key={att.id || att.storageId}
-                            att={att}
-                            msgId={msg.id}
-                          />
-                        ))}
-                      </div>
-                    )}
-
-                    {attachmentsFetchFailed && attachments.length === 0 && !attachmentsLoading && (
-                      <div className="px-3 pb-3">
-                        <button
-                          onClick={() => fetchFallbackAttachments(msg.id)}
-                          className="flex items-center gap-3 rounded-xl px-3.5 py-3.5 press-scale w-full text-left"
-                          style={{ background: 'var(--app-bg)' }}
-                        >
-                          <div
-                            className="flex items-center justify-center rounded-xl flex-shrink-0"
-                            style={{
-                              width: 44,
-                              height: 44,
-                              background: 'color-mix(in srgb, var(--accent) 12%, transparent)',
-                            }}
-                          >
-                            <RefreshCw size={22} color="var(--accent)" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium" style={{ color: 'var(--accent)' }}>
-                              {tc('retry')}
-                            </p>
-                            <p className="text-xs mt-0.5" style={{ color: 'var(--app-text-tertiary)' }}>
-                              {t('tapToReload')}
-                            </p>
-                          </div>
-                          <RefreshCw size={18} color="var(--accent)" style={{ flexShrink: 0 }} />
-                        </button>
-                      </div>
-                    )}
-
-                    {(attachmentsLoading || (attachments.length === 0 && !attachmentsFetchFailed)) && (
-                      <div style={{ height: 8 }} />
-                    )}
-                  </div>
-                )}
-
-                {!showAttachmentSection && !msg.body && <div style={{ height: 16 }} />}
-              </div>
-            </div>
+                  )}
+                </section>
+              )}
+            </article>
           ) : null}
         </div>
-      </div>
+      </Page>
 
-      {/* Link warning modal */}
-      {linkWarning && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
-          onClick={() => setLinkWarning(null)}
-        >
-          <div
-            className="rounded-2xl p-6 w-full max-w-sm shadow-2xl"
-            style={{ background: 'var(--app-surface)' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: 'color-mix(in srgb, var(--warning) 15%, transparent)' }}
-              >
-                <AlertTriangle size={20} color="var(--warning)" />
-              </div>
-              <div>
-                <p className="font-bold text-[16px]" style={{ color: 'var(--app-text-primary)' }}>
-                  {t('externalLink')}
-                </p>
-                <p className="text-xs" style={{ color: 'var(--app-text-secondary)' }}>
-                  {t('leavingApp')}
-                </p>
-              </div>
-            </div>
-            <p
-              className="text-sm break-all px-3 py-2.5 rounded-xl mb-5"
-              style={{ background: 'var(--app-card)', color: 'var(--accent)' }}
+      {reply && <ComposeMessageSheet reply={reply} onClose={() => setReply(null)} onSent={() => setReply(null)} />}
+
+      <Sheet open={!!linkWarning} onClose={() => setLinkWarning(null)} title={t('externalLink')} description={t('leavingApp')} closeLabel={tc('close')}>
+        <div className="flex flex-col gap-5 pb-2">
+          <p className="flex items-start gap-3 rounded-[16px] bg-inset px-4 py-3 text-[14px] font-medium text-ink [overflow-wrap:anywhere]">
+            <WarningCircle size={20} weight="bold" className="mt-px shrink-0 text-butter-ink" aria-hidden="true" />
+            {linkWarning}
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="quiet" onClick={() => setLinkWarning(null)}>{tc('cancel')}</Button>
+            <a
+              href={linkWarning ?? undefined}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setLinkWarning(null)}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-[14px] bg-accent px-5 text-[15px] font-semibold text-on-accent transition-[filter] hover:brightness-[0.93] dark:hover:brightness-110"
             >
-              {linkWarning}
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setLinkWarning(null)}
-                className="flex-1 py-3 rounded-xl font-medium text-sm"
-                style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)' }}
-              >
-                {tc('cancel')}
-              </button>
-              <a
-                href={linkWarning}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 py-3 rounded-xl font-semibold text-sm text-white text-center press-scale flex items-center justify-center gap-1.5"
-                style={{ background: 'var(--accent)' }}
-                onClick={() => setLinkWarning(null)}
-              >
-                {t('open')}
-                <ExternalLink size={13} />
-              </a>
-            </div>
+              {t('open')}
+              <ArrowSquareOut size={16} weight="bold" aria-hidden="true" />
+            </a>
           </div>
         </div>
-      )}
+      </Sheet>
     </AuthGuard>
   );
 }

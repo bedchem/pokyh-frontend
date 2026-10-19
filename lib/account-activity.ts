@@ -21,7 +21,8 @@ export interface AccountActivity {
   today: string;
   from: string;
   timezone: string;
-  retention: { activeDays: number; usage: number };
+  /** Days kept; `schoolYear`: kept for the running school year and archived at its end. */
+  retention: { activeDays: number; usage: number; schoolYear?: boolean; pages?: number };
   usageConsent: boolean;
   memberSince: string | null;
   days: ActivityDay[];

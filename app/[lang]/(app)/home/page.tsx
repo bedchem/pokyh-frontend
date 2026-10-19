@@ -25,7 +25,7 @@ import {
 import { dateNumOf, nextUpcomingExam, parseTimetable } from '@/lib/timetable-logic';
 import { schoolClock } from '@/lib/school-day';
 import { averageRating, dietOf, dishesFrom, isTodayKey, localized, upcomingDays } from '@/lib/mensa';
-import { untisDate } from '@/lib/untis-parse';
+import { messageIsRead, untisDate } from '@/lib/untis-parse';
 import { parseAbsences } from '@/lib/absences';
 import { absenceSummary, readAbsenceCalc, schoolYearOf } from '@/lib/absence-calc';
 import type { MessagePreview, TimetableEntry } from '@/lib/types';
@@ -105,7 +105,7 @@ function parseMessages(json: unknown, unknown: string, noSubject: string): Messa
         senderName: (sender?.displayName as string) ?? (sender?.name as string) ?? (m.senderName as string) ?? unknown,
         senderId: (sender?.userId as number) ?? 0,
         sentDate: (m.sentDateTime as string) ?? (m.sentDate as string) ?? (m.date as string) ?? '',
-        isRead: (m.isRead as boolean) ?? true,
+        isRead: messageIsRead(m),
         hasAttachments: (m.hasAttachments as boolean) ?? false,
       };
     });
@@ -316,14 +316,14 @@ function Dashboard() {
 
   const actions = untis && (
     <>
-      <Button variant="tone" onClick={openCompose}>
-        <PencilSimple size={18} weight="bold" aria-hidden="true" />
-        {t('writeMessage')}
+      <Button variant="tone" onClick={openCompose} className="min-w-0 !px-3 !text-[14px] sm:!px-5 sm:!text-[15px]">
+        <PencilSimple size={18} weight="bold" className="hidden shrink-0 min-[400px]:block" aria-hidden="true" />
+        <span className="truncate">{t('writeMessage')}</span>
       </Button>
       {openReport && (
-        <Button variant="quiet" onClick={openReport}>
-          <UserMinus size={18} weight="bold" aria-hidden="true" />
-          {t('reportAbsence')}
+        <Button variant="quiet" onClick={openReport} className="min-w-0 !px-3 !text-[14px] sm:!px-5 sm:!text-[15px]">
+          <UserMinus size={18} weight="bold" className="hidden shrink-0 min-[400px]:block" aria-hidden="true" />
+          <span className="truncate">{t('reportAbsence')}</span>
         </Button>
       )}
     </>

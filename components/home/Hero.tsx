@@ -183,7 +183,10 @@ export default function Hero() {
         headline.style.visibility = 'hidden';
       }
       const fade = clamp01(1 - p / 0.04).toFixed(3);
-      chrome.forEach((el) => { el.style.opacity = fade; });
+      chrome.forEach((el) => {
+        el.style.opacity = fade;
+        el.style.pointerEvents = fade === '0.000' ? 'none' : '';
+      });
 
       if (!scene) {
         portal.style.visibility = 'hidden';
@@ -299,36 +302,42 @@ export default function Hero() {
     };
   }, [items, tileText]);
 
+  // The cue under the name starts the flight: down to where the camera has
+  // gone through the name and the next section takes over.
+  const startFlight = () => {
+    const section = root.current;
+    const box = stage.current;
+    if (!section || !box) return;
+    const target = section.offsetTop + Math.max(0, section.offsetHeight - box.offsetHeight) * ARRIVE + 2;
+    const lenis = lenisRef.current;
+    if (lenis) lenis.scrollTo(target, { duration: 2.8 });
+    else window.scrollTo({ top: target, behavior: 'smooth' });
+  };
+
   // ── The opening, then the letters lean towards the pointer ─────────────
+  // The opening itself is CSS (globals.css, .home-hero): it starts with the
+  // first paint instead of waiting for the scripts, so the name is there at
+  // once on a slow connection too. Here: the tiles set off 0.6 s into it, and
+  // afterwards the letters lean towards the pointer.
   useGsap(({ gsap, reduced, scope }) => {
-    const title = scope.querySelector<HTMLElement>('[data-title]')!;
     const letters = Array.from(scope.querySelectorAll<HTMLElement>('[data-letter]'));
-    const chrome = scope.querySelectorAll<HTMLElement>('[data-chrome] > *');
-    // From here on the script decides what shows (the CSS fallback stands down).
-    [...letters, ...scope.querySelectorAll<HTMLElement>('[data-chrome]')].forEach((el) => { el.style.animation = 'none'; });
 
     if (reduced) {
       opened.current?.();
       return;
     }
 
-    // The h1 masks the letters while they rise, and lets go afterwards so the
-    // lean below is not cut off.
-    gsap.set(title, { overflow: 'hidden' });
-    const tl = gsap.timeline({ defaults: { ease: 'expo.out' } });
-    tl.fromTo(letters, { yPercent: 108, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 1.4, stagger: 0.07 }, 0.1)
-      .fromTo(letters, { filter: 'blur(18px)' }, { filter: 'blur(0px)', duration: 1.1, ease: 'power2.out', stagger: 0.07 }, 0.1)
-      .fromTo(title, { scale: 1.07 }, { scale: 1, duration: 2, transformOrigin: '50% 60%' }, 0.05)
-      .add(() => opened.current?.(), 0.6)
-      .fromTo(chrome, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 1.1, stagger: 0.08 }, 0.85)
-      .set(title, { overflow: 'visible' })
-      .set(letters, { clearProps: 'filter' });
+    // How far the opening already is (the page may have been visible a while
+    // before the scripts arrived).
+    const elapsed = Number(letters[0]?.getAnimations?.()[0]?.currentTime ?? 0) || 0;
+    const start = window.setTimeout(() => opened.current?.(), Math.max(0, 600 - elapsed));
+    const introEnds = performance.now() + Math.max(0, 1900 - elapsed);
 
-    if (!window.matchMedia('(pointer: fine)').matches) return () => { tl.kill(); };
+    if (!window.matchMedia('(pointer: fine)').matches) return () => { window.clearTimeout(start); };
     const lift = letters.map((el) => gsap.quickTo(el, 'yPercent', { duration: 0.7, ease: 'power3' }));
     const tilt = letters.map((el) => gsap.quickTo(el, 'rotation', { duration: 0.7, ease: 'power3' }));
     const onMove = (e: PointerEvent) => {
-      if (window.scrollY > window.innerHeight * 0.3 || tl.isActive()) return;
+      if (window.scrollY > window.innerHeight * 0.3 || performance.now() < introEnds) return;
       letters.forEach((el, i) => {
         const r = el.getBoundingClientRect();
         const dx = e.clientX - (r.left + r.width / 2);
@@ -342,7 +351,7 @@ export default function Hero() {
     window.addEventListener('pointermove', onMove, { passive: true });
     document.documentElement.addEventListener('pointerleave', onLeave);
     return () => {
-      tl.kill();
+      window.clearTimeout(start);
       window.removeEventListener('pointermove', onMove);
       document.documentElement.removeEventListener('pointerleave', onLeave);
     };
@@ -367,7 +376,7 @@ export default function Hero() {
           <h1 id="hero-title" data-title className="font-display flex pb-[0.04em] text-[min(27vw,44svh)] font-extrabold leading-[0.8] tracking-[-0.055em]">
             <span className="visually-hidden">{t('heroHidden')}</span>
             {t('heroTitle').split('').map((l, i) => (
-              <span key={i} data-letter aria-hidden="true" className="inline-block origin-bottom">
+              <span key={i} data-letter aria-hidden="true" className="inline-block origin-bottom" style={{ animationDelay: `${0.1 + i * 0.07}s` }}>
                 {l}
               </span>
             ))}
@@ -391,12 +400,14 @@ export default function Hero() {
             </svg>
             <span className="border-b border-transparent transition-colors group-hover:border-current">{t('heroGithub')}</span>
           </a>
-          <div className="flex flex-col items-center gap-3">
-            <span className="text-[13px] text-ink-2">{t('heroScroll')}</span>
-            <span aria-hidden="true" className="block h-10 w-px overflow-hidden bg-ink/15">
-              <span className="home-scroll-cue block h-full w-full bg-ink" />
+          <button type="button" onClick={startFlight} aria-label={t('heroScroll')} className="home-scroll group flex flex-col items-center gap-2.5 rounded-2xl px-3 py-1.5">
+            <span aria-hidden="true" className="home-scroll-word flex text-[13px] font-semibold text-ink-2 transition-colors duration-300 group-hover:text-ink">
+              {[...t('heroScroll')].map((c, i) => <span key={i} style={{ animationDelay: `${i * 55}ms` }}>{c}</span>)}
             </span>
-          </div>
+            <span aria-hidden="true" className="home-scroll-track relative block h-11 w-[26px] rounded-full">
+              <span className="home-scroll-dot absolute left-1/2 top-[7px] block h-[9px] w-1 rounded-full bg-ink" />
+            </span>
+          </button>
           <p className="justify-self-end text-right text-ink-2">{t('heroRight')}</p>
         </div>
       </div>

@@ -197,7 +197,7 @@ export function loadSearchContent(ctx: ContentContext, emit: Emit): void {
       title: localized(dish.name, ctx.locale),
       subtitle: d.date.toLocaleDateString(ctx.tag, { weekday: 'long', day: 'numeric', month: 'short' }),
       keywords: `${dish.category ?? ''} ${(dish.tags ?? []).join(' ')}`,
-      href: '/canteen',
+      href: `/canteen/dish/${encodeURIComponent(dish.id)}`,
     })));
   }]);
 

@@ -12,13 +12,15 @@ import ErrorView from '@/components/ui/ErrorView';
 import { Button } from '@/components/ui/Button';
 import { Page, PageHeader, Section } from '@/components/app/Page';
 import { RowsSkeleton } from '@/components/app/Skeleton';
+import Fab from '@/components/app/Fab';
 import { initialsOf } from '@/components/app/hooks';
 import ComposeMessageSheet, { type ComposeInitial } from '@/components/messages/ComposeMessageSheet';
-import { fetchMessages, markAllMessagesRead, fetchDraft, deleteDraft, type MessageFolder } from '@/lib/api';
+import { fetchMessages, getMessagesStale, markAllMessagesRead, fetchDraft, deleteDraft, type MessageFolder } from '@/lib/api';
 import type { MessagePreview } from '@/lib/types';
 import { useDateLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { messagesDict, type MessagesKey } from '@/lib/i18n/dictionaries/messages';
 import { formatDate, formatTime } from '@/lib/i18n/dateLocale';
+import { messageIsRead } from '@/lib/untis-parse';
 
 type TFn = (key: MessagesKey, vars?: Record<string, string | number>) => string;
 
@@ -66,20 +68,7 @@ function parseMessages(json: unknown, t: TFn): MessagePreview[] {
         (m.sentDate as string) ??
         (m.date as string) ??
         '';
-      const rawRead =
-        (m.isRead as unknown) ??
-        (m.read as unknown) ??
-        (m.isread as unknown) ??
-        (m.readFlag as unknown) ??
-        (m.readStatus as unknown);
-      const isRead =
-        typeof rawRead === 'boolean'
-          ? rawRead
-          : typeof rawRead === 'number'
-            ? rawRead === 1
-            : typeof rawRead === 'string'
-              ? rawRead.toLowerCase() === 'true' || rawRead === '1'
-              : true;
+      const isRead = messageIsRead(m);
       return {
         id: m.id as number,
         subject: (m.subject as string) ?? t('noSubject'),
@@ -131,6 +120,13 @@ export default function MessagesPage() {
 
   // Fetches the folder; the caller shows the loading state first.
   const load = useCallback(async () => {
+    // What this device stored last time shows at once; the fresh list follows.
+    const stale = getMessagesStale(folder);
+    if (stale !== undefined) {
+      setMessages(parseMessages(stale, t));
+      setLoadedAt(Date.now());
+      setLoading(false);
+    }
     try {
       const res = await fetchMessages(folder);
       setMessages(parseMessages(res, t));
@@ -286,8 +282,22 @@ export default function MessagesPage() {
         <Page>
           <PageHeader
             title={t('title')}
+            mobileAside={
+              folder === 'inbox' && unreadIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleMarkAllRead}
+                  disabled={markingAll}
+                  aria-label={t('markAllRead')}
+                  title={t('markAllRead')}
+                  className="grid size-11 place-items-center rounded-full bg-surface text-ink transition-colors hover:bg-inset disabled:opacity-50"
+                >
+                  {markingAll ? <Spinner size={16} /> : <Checks size={20} weight="bold" aria-hidden="true" />}
+                </button>
+              )
+            }
             actions={
-              <>
+              <span className="hidden md:contents">
                 {folder === 'inbox' && unreadIds.length > 0 && (
                   <Button variant="quiet" onClick={handleMarkAllRead} disabled={markingAll}>
                     {markingAll ? <Spinner size={16} /> : <Checks size={18} weight="bold" aria-hidden="true" />}
@@ -298,12 +308,15 @@ export default function MessagesPage() {
                   <PencilSimple size={18} weight="bold" aria-hidden="true" />
                   {t('compose')}
                 </Button>
-              </>
+              </span>
             }
           />
+          <Fab label={t('compose')} onClick={newCompose}>
+            <PencilSimple size={24} weight="bold" aria-hidden="true" />
+          </Fab>
 
           <LayoutGroup id="message-folders">
-            <div role="tablist" aria-label={t('title')} className="rise mb-8 inline-flex gap-1 rounded-[16px] bg-surface p-1">
+            <div role="tablist" aria-label={t('title')} className="rise mb-8 inline-flex max-w-full gap-1 rounded-[16px] bg-surface p-1">
               {FOLDERS.map((f) => {
                 const active = folder === f.key;
                 return (
@@ -348,6 +361,8 @@ export default function MessagesPage() {
               ))}
             </div>
           )}
+          {/* Room for the floating button over the last row */}
+          <div className="h-20 lg:hidden" aria-hidden="true" />
         </Page>
         {showCompose && (
           <ComposeMessageSheet

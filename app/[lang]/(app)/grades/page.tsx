@@ -8,7 +8,7 @@ import UntisGuard from '@/components/UntisGuard';
 import { Bone, Line, RowsSkeleton } from '@/components/app/Skeleton';
 import PixelState from '@/components/app/PixelState';
 import ErrorView from '@/components/ui/ErrorView';
-import { fetchGrades } from '@/lib/api';
+import { fetchGrades, getGradesStale } from '@/lib/api';
 import type { SubjectGrades } from '@/lib/types';
 import { subjectTone, toneVars } from '@/lib/timetable-logic';
 import { useDateLocale, useLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
@@ -102,7 +102,10 @@ export default function GradesPage() {
   }, []);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    // The grades this device stored show at once; the fresh ones follow.
+    const stale = getGradesStale(selectedYear);
+    if (stale !== undefined) setSubjects(parseGrades(stale));
+    setLoading(stale === undefined);
     setError('');
     try {
       const res = await fetchGrades(selectedYear);

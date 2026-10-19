@@ -89,6 +89,8 @@ export function installConsoleSecret({ locale, toggleTheme }: Options): () => vo
   // F12, Ctrl/Cmd+Shift+I/J/C and Cmd+Option+I/J/C: the hidden commands appear.
   let revealed = false;
   const onKey = (e: KeyboardEvent) => {
+    // Autofill sends keydown events without a key.
+    if (typeof e.key !== 'string') return;
     const key = e.key.toLowerCase();
     const devtools = e.key === 'F12'
       || ((e.ctrlKey || e.metaKey) && e.shiftKey && ['i', 'j', 'c'].includes(key))

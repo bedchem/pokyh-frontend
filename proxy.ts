@@ -29,7 +29,6 @@ const PUBLIC_PREFIXES = [
   '/api/mensa',
   '/api/privacy-notice',
   '/models',
-  '/hdr',
   '/draco',
   '/og-image',
   '/tutorials_Screenshots',
@@ -198,11 +197,12 @@ async function handlePage(request: NextRequest, path: string, locale: Locale): P
 
   // The Mensa exists twice: the public page for guests (/mensa) and the one
   // inside the app for signed-in accounts (/canteen). Each is sent to its own.
+  // A dish page keeps its dish: /mensa/dish/x ↔ /canteen/dish/x.
   if (isMensaRoute(path) && authenticated) {
-    return redirectTo(request, `/${locale}/canteen/`);
+    return redirectTo(request, `/${locale}/canteen${path.slice('/mensa'.length)}/`);
   }
   if (isCanteenRoute(path) && !authenticated) {
-    return redirectTo(request, `/${locale}/mensa/`);
+    return redirectTo(request, `/${locale}/mensa${path.slice('/canteen'.length)}/`);
   }
 
   // Mensa menu is public; rating and commenting stay behind the login in the UI.

@@ -127,3 +127,15 @@ export function schoolWeek(offset: number, now = new Date()) {
   friday.setDate(monday.getDate() + 4);
   return { monday, friday, startNum: untisNum(monday), endNum: untisNum(friday), startStr: untisStr(monday), endStr: untisStr(friday) };
 }
+
+/**
+ * Whether a WebUntis message counts as read. WebUntis sends `isMessageRead`;
+ * the other names cover older response shapes.
+ */
+export function messageIsRead(m: Record<string, unknown>): boolean {
+  const raw = m.isMessageRead ?? m.isRead ?? m.read ?? m.isread ?? m.readFlag ?? m.readStatus;
+  if (typeof raw === 'boolean') return raw;
+  if (typeof raw === 'number') return raw === 1;
+  if (typeof raw === 'string') return raw.toLowerCase() === 'true' || raw === '1';
+  return true;
+}

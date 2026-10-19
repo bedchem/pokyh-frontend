@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { ArrowClockwise, ArrowRight, Check, Copy, GearSix } from '@phosphor-icons/react';
+import { ArrowClockwise, ArrowRight, Check, Copy, GearSix, Globe } from '@phosphor-icons/react';
 import AuthGuard from '@/components/AuthGuard';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { Page } from '@/components/app/Page';
@@ -11,11 +11,13 @@ import ActivityGrid, { ActivityGridSkeleton, GridLegend } from '@/components/app
 import PixelState from '@/components/app/PixelState';
 import { Line } from '@/components/app/Skeleton';
 import { useUntisPermissions } from '@/components/app/hooks';
+import LogoutButton from '@/components/app/LogoutButton';
 import { useSession } from '@/providers/SessionProvider';
 import { useApp } from '@/providers/AppProvider';
 import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { profileDict } from '@/lib/i18n/dictionaries/profile';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
+import { shellDict } from '@/lib/i18n/dictionaries/shell';
 import { fetchAccountActivity, type ActivityResult } from '@/lib/account-activity';
 
 // The profile: who you are, when you used POKYH (a GitHub-style grid of days
@@ -72,6 +74,7 @@ function Block({ title, lead, action, children }: { title: string; lead?: string
 function ProfileContent() {
   const t = useT(profileDict);
   const tc = useT(commonDict);
+  const ts = useT(shellDict);
   const localize = useLocalizeHref();
   const { user } = useSession();
   const { stableUid, classId } = useApp();
@@ -87,7 +90,11 @@ function ProfileContent() {
     return () => { alive = false; };
   }, []);
 
-  useEffect(() => load(), [load]);
+  useEffect(() => {
+    let stop = () => {};
+    const timer = window.setTimeout(() => { stop = load(); }, 0);
+    return () => { window.clearTimeout(timer); stop(); };
+  }, [load]);
 
   const loading = result === undefined;
   const activity = result?.data ?? null;
@@ -121,10 +128,17 @@ function ProfileContent() {
             </p>
           </div>
         </div>
-        <ButtonLink href={localize('/settings')} variant="quiet" className="self-start sm:self-center">
-          <GearSix size={18} weight="bold" aria-hidden="true" />
-          {t('settings')}
-        </ButtonLink>
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          <ButtonLink href={localize('/settings')} variant="quiet">
+            <GearSix size={18} weight="bold" aria-hidden="true" />
+            {t('settings')}
+          </ButtonLink>
+          <ButtonLink href={localize('/')} variant="quiet">
+            <Globe size={18} weight="bold" aria-hidden="true" />
+            {ts('website')}
+          </ButtonLink>
+          <LogoutButton />
+        </div>
       </header>
 
       <div className="flex flex-col gap-14 md:gap-20">
@@ -155,8 +169,8 @@ function ProfileContent() {
                 {activity ? <ActivityGrid days={activity.days} /> : <ActivityGridSkeleton />}
                 <div className="mt-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <p className="max-w-[56ch] text-[13px] leading-relaxed text-ink-3">
-                    {t('activityKept', { n: activity?.retention.activeDays ?? 30 })}
-                    {activity?.usageConsent && <> {t('activityKeptConsent', { n: activity.retention.usage })}</>}
+                    {activity?.retention.schoolYear ? t('activityKeptYear') : t('activityKept', { n: activity?.retention.activeDays ?? 30 })}
+                    {activity?.usageConsent && <> {activity.retention.schoolYear ? t('activityKeptYearConsent') : t('activityKeptConsent', { n: activity.retention.usage })}</>}
                   </p>
                   <GridLegend />
                 </div>

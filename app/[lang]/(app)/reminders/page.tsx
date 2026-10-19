@@ -190,11 +190,12 @@ function RemindersContent() {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, transition: { duration: 0.15 } }}
       transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+      className="relative before:pointer-events-none before:absolute before:inset-x-3.5 before:top-0 before:h-px before:bg-line before:transition-opacity first:before:hidden hover:before:opacity-0 [&:hover+li]:before:opacity-0"
     >
       <button
         type="button"
         onClick={() => setOpenId(r.id)}
-        className="flex w-full items-start gap-4 rounded-[18px] px-3 py-3 text-left transition-colors duration-200 hover:bg-[color-mix(in_srgb,var(--surface)_92%,var(--ink))]"
+        className="flex w-full items-start gap-4 rounded-[18px] px-3 py-3.5 text-left transition-colors duration-200 hover:bg-[color-mix(in_srgb,var(--surface)_92%,var(--ink))]"
       >
         <span className="mono w-[46px] shrink-0 pt-0.5 text-[13.5px] font-medium text-ink">{formatTime(r.remindAt, tag, { hour: '2-digit', minute: '2-digit' })}</span>
         <span className="min-w-0 flex-1">
@@ -327,17 +328,17 @@ function RemindersContent() {
           <p className="mt-1 max-w-[40ch] text-[15px] text-ink-2">{t('remindersEmptySubtitle')}</p>
         </div>
       ) : (
-        <div className="grid gap-10 xl:grid-cols-2 xl:items-start xl:gap-6">
+        <div className="flex flex-col gap-10">
           {overdue.length > 0 && (
             <Section title={t('due')}>
-              <ul className="squircle flex flex-col gap-0.5 rounded-[24px] bg-surface p-2">
+              <ul className="squircle flex flex-col rounded-[24px] bg-surface p-2">
                 <AnimatePresence initial={false}>{overdue.map((r) => row(r, true))}</AnimatePresence>
               </ul>
             </Section>
           )}
           {days.map((list) => (
             <Section key={dayKey(list[0].remindAt)} title={dayTitle(list[0].remindAt)}>
-              <ul className="squircle flex flex-col gap-0.5 rounded-[24px] bg-surface p-2">
+              <ul className="squircle flex flex-col rounded-[24px] bg-surface p-2">
                 <AnimatePresence initial={false}>{list.map((r) => row(r, false))}</AnimatePresence>
               </ul>
             </Section>

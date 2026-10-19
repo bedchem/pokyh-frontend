@@ -71,7 +71,7 @@ function TodoRow({ todo, now, onToggle, onDelete }: { todo: Todo; now: number; o
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.15 } }}
       transition={{ type: 'spring', stiffness: 500, damping: 40 }}
-      className="group flex items-start gap-3.5 rounded-[18px] px-3 py-3 transition-colors duration-200 hover:bg-[color-mix(in_srgb,var(--surface)_92%,var(--ink))]"
+      className="group relative before:pointer-events-none before:absolute before:inset-x-3.5 before:top-0 before:h-px before:bg-line before:transition-opacity first:before:hidden hover:before:opacity-0 [&:hover+li]:before:opacity-0 flex items-start gap-3.5 rounded-[18px] px-3 py-3.5 transition-colors duration-200 hover:bg-[color-mix(in_srgb,var(--surface)_92%,var(--ink))]"
     >
       <button
         type="button"
@@ -95,9 +95,12 @@ function TodoRow({ todo, now, onToggle, onDelete }: { todo: Todo; now: number; o
         <p className={`text-[15.5px] font-semibold leading-snug transition-colors duration-300 ${todo.done ? 'text-ink-3 line-through' : 'text-ink'}`}>{todo.title}</p>
         {todo.details && !todo.done && <p className="mt-0.5 line-clamp-2 text-[14px] text-ink-2">{todo.details}</p>}
         {todo.dueAt && !todo.done && (
-          <span className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12.5px] font-bold ${overdue ? 'bg-blush text-blush-ink' : 'bg-inset text-ink-2'}`}>
-            <CalendarBlank size={13} weight="bold" aria-hidden="true" />
-            {overdue ? `${t('overdue')} · ` : ''}{due(todo.dueAt)}
+          <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            {overdue && <span className="rounded-full bg-blush px-2.5 py-0.5 text-[12.5px] font-bold text-blush-ink">{t('overdue')}</span>}
+            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12.5px] font-bold ${overdue ? 'text-blush-ink' : 'bg-inset text-ink-2'}`}>
+              <CalendarBlank size={13} weight="bold" aria-hidden="true" />
+              {due(todo.dueAt)}
+            </span>
           </span>
         )}
       </div>
@@ -286,10 +289,10 @@ function TodosContent() {
           <p className="mt-1 text-[15px] text-ink-2">{t('todosEmptySubtitle')}</p>
         </div>
       ) : (
-        <div className="grid gap-10 xl:grid-cols-2 xl:items-start xl:gap-6">
+        <div className="flex flex-col gap-10">
           {open.length > 0 && (
             <Section title={t('openTitle')}>
-              <ul className="squircle flex flex-col gap-0.5 rounded-[24px] bg-surface p-2">
+              <ul className="squircle flex flex-col rounded-[24px] bg-surface p-2">
                 <AnimatePresence initial={false}>
                   {open.map((x) => <TodoRow key={x.id} todo={x} now={now} onToggle={toggle} onDelete={remove} />)}
                 </AnimatePresence>
@@ -298,7 +301,7 @@ function TodosContent() {
           )}
           {done.length > 0 && (
             <Section title={t('doneTitle')}>
-              <ul className="squircle flex flex-col gap-0.5 rounded-[24px] bg-surface p-2">
+              <ul className="squircle flex flex-col rounded-[24px] bg-surface p-2">
                 <AnimatePresence initial={false}>
                   {done.map((x) => <TodoRow key={x.id} todo={x} now={now} onToggle={toggle} onDelete={remove} />)}
                 </AnimatePresence>

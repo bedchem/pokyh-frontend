@@ -45,7 +45,16 @@ export type ClassPagesKey =
   | 'topCategory'
   | 'byCount'
   | 'entries'
-  | 'noEntriesRange';
+  | 'noEntriesRange'
+  | 'sortBy'
+  | 'all'
+  | 'recentEntries'
+  | 'weekRange'
+  | 'noCategory'
+  | 'entriesOne'
+  | 'entriesMany'
+  | 'subjectsOne'
+  | 'subjectsMany';
 
 export const classPagesDict: Dictionary<ClassPagesKey> = {
   de: {
@@ -81,7 +90,7 @@ export const classPagesDict: Dictionary<ClassPagesKey> = {
     asOf: ' · Stand {date}',
     emptyTitle: 'Keine Einträge',
     emptySubtitle: 'Für dieses Schuljahr wurden keine Klassenbucheinträge gefunden.',
-    totalEntries: 'Total Einträge',
+    totalEntries: 'Einträge gesamt',
     wholeYear: 'Schuljahr gesamt',
     subjects: 'Fächer',
     affectedSubjects: 'Betroffene Fächer',
@@ -91,6 +100,15 @@ export const classPagesDict: Dictionary<ClassPagesKey> = {
     byCount: 'Nach Anzahl',
     entries: 'Einträge',
     noEntriesRange: 'Keine Einträge im gewählten Zeitraum',
+    sortBy: 'Sortieren',
+    all: 'Alle',
+    recentEntries: 'Klassenbuch · letzte 3 Monate',
+    weekRange: '{from} – {to}',
+    noCategory: 'Ohne Kategorie',
+    entriesOne: '1 Eintrag',
+    entriesMany: '{n} Einträge',
+    subjectsOne: '1 Fach',
+    subjectsMany: '{n} Fächer',
   },
   it: {
     classTitle: 'Classe {name}',
@@ -135,6 +153,15 @@ export const classPagesDict: Dictionary<ClassPagesKey> = {
     byCount: 'Per numero',
     entries: 'Annotazioni',
     noEntriesRange: 'Nessuna annotazione nel periodo scelto',
+    sortBy: 'Ordina',
+    all: 'Tutte',
+    recentEntries: 'Registro · ultimi 3 mesi',
+    weekRange: '{from} – {to}',
+    noCategory: 'Senza categoria',
+    entriesOne: '1 annotazione',
+    entriesMany: '{n} annotazioni',
+    subjectsOne: '1 materia',
+    subjectsMany: '{n} materie',
   },
   en: {
     classTitle: 'Class {name}',
@@ -179,6 +206,15 @@ export const classPagesDict: Dictionary<ClassPagesKey> = {
     byCount: 'By count',
     entries: 'Entries',
     noEntriesRange: 'No entries in the selected period',
+    sortBy: 'Sort',
+    all: 'All',
+    recentEntries: 'Class register · last 3 months',
+    weekRange: '{from} – {to}',
+    noCategory: 'No category',
+    entriesOne: '1 entry',
+    entriesMany: '{n} entries',
+    subjectsOne: '1 subject',
+    subjectsMany: '{n} subjects',
   },
   lld: {
     classTitle: "Tlas {name}",

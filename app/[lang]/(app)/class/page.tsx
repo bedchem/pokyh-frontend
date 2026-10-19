@@ -1,14 +1,16 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import Link from 'next/link';
-import { ChevronRight } from 'lucide-react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import { Exam, NotePencil, XCircle } from '@phosphor-icons/react';
 import { useSession } from '@/providers/SessionProvider';
 import AuthGuard from '@/components/AuthGuard';
 import UntisGuard from '@/components/UntisGuard';
-import Spinner from '@/components/ui/Spinner';
-import ErrorView from '@/components/ui/ErrorView';
+import { Page, PageHeader, Section, SectionLink } from '@/components/app/Page';
+import { RowsSkeleton } from '@/components/app/Skeleton';
+import PixelState from '@/components/app/PixelState';
+import { initialsOf } from '@/components/app/hooks';
+import { EntryRow, dateOf, parseClassregRows, type ClassregEvent } from '@/components/class/ClassregEntry';
 import {
   fetchAbsences,
   fetchClassregEvents,
@@ -18,12 +20,16 @@ import {
   getClassregEventsStale,
 } from '@/lib/api';
 import type { AbsenceEntry } from '@/lib/types';
-import { useLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
+import { useDateLocale, useT } from '@/providers/LocaleProvider';
 import { classPagesDict } from '@/lib/i18n/dictionaries/classPages';
-import { dayAbbrMonSun, monthShort } from '@/lib/i18n/dateLocale';
+import { commonDict } from '@/lib/i18n/dictionaries/common';
+import { formatDate } from '@/lib/i18n/dateLocale';
 import { schoolWeek } from '@/lib/untis-parse';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// The class at a glance: the newest class-register entries, the class duties,
+// your own open absences, and the exams and homework of this and next week
+// ("this week" moves on from Saturday evening, lib/school-week.ts). Every
+// part loads on its own, so a slow one doesn't hold the others back.
 
 type ClassRole = {
   id: number;
@@ -31,10 +37,9 @@ type ClassRole = {
   foreName: string;
   longName: string;
   duty: { id: number; label: string };
-  klasse: { id: number; name: string };
 };
 
-type Exam = {
+type ExamItem = {
   subject: string;
   examDate: number;
   startTime: number;
@@ -43,101 +48,44 @@ type Exam = {
   text: string;
 };
 
-type HomeworkLesson = {
-  id: number;
-  subject: string;
-};
-
 type HomeworkRecord = {
   id: number;
   lessonId: number;
-  date: number;
   dueDate: number;
   text: string;
   completed: boolean;
 };
 
-type ClassregEvent = {
-  id: number;
-  elementName: string;
-  subjectName: string;
-  categoryName: string;
-  text: string;
-  eventReasonName: string;
-  createDate: number;
-  createTime: number;
-  creatorName: string;
-};
+type Part<T> = { loading: boolean; failed: boolean; data: T };
 
-function textValue(value: unknown): string {
-  return typeof value === 'string' ? value : '';
+const start = <T,>(data: T): Part<T> => ({ loading: true, failed: false, data });
+
+function dataOf(raw: unknown): Record<string, unknown> {
+  const r = (raw ?? {}) as Record<string, unknown>;
+  return ((r.data ?? r) as Record<string, unknown>) ?? {};
 }
-
-function normalizeClassregEvent(value: unknown, index: number): ClassregEvent {
-  const event = value && typeof value === 'object' ? value as Record<string, unknown> : {};
-  return {
-    id: typeof event.id === 'number' ? event.id : index,
-    elementName: textValue(event.elementName),
-    subjectName: textValue(event.subjectName),
-    categoryName: textValue(event.categoryName),
-    text: textValue(event.text),
-    eventReasonName: textValue(event.eventReasonName),
-    createDate: typeof event.createDate === 'number' ? event.createDate : 0,
-    createTime: typeof event.createTime === 'number' ? event.createTime : 0,
-    creatorName: textValue(event.creatorName),
-  };
-}
-
-// ─── Date helpers ─────────────────────────────────────────────────────────────
-
-// "This week" moves on to the next week from Saturday evening (lib/school-week.ts).
-function getSchoolWeek(offsetWeeks: number) {
-  return schoolWeek(offsetWeeks);
-}
-
-
-function parseUntisDate(d: number): Date {
-  const s = String(d);
-  return new Date(parseInt(s.slice(0, 4)), parseInt(s.slice(4, 6)) - 1, parseInt(s.slice(6, 8)));
-}
-
-function fmtDateShortWith(d: number, months: string[]): string {
-  const dt = parseUntisDate(d);
-  return `${dt.getDate()}. ${months[dt.getMonth()]}`;
-}
-
-function fmtTime(t: number): string {
-  const s = t.toString().padStart(4, '0');
-  return `${s.slice(0, 2)}:${s.slice(2, 4)}`;
-}
-
-// ─── Parsers ──────────────────────────────────────────────────────────────────
 
 function parseAbsences(raw: unknown): AbsenceEntry[] {
-  const r = raw as Record<string, unknown>;
-  const data = (r?.data ?? r) as Record<string, unknown>;
-  const arr = (data?.absences ?? []) as Record<string, unknown>[];
+  const arr = (dataOf(raw).absences ?? []) as Record<string, unknown>[];
   return arr.map((a) => ({
-    id:           (a.id as number)        ?? 0,
-    startDate:    (a.startDate as number) ?? 0,
-    endDate:      (a.endDate as number)   ?? 0,
-    startTime:    (a.startTime as number) ?? 0,
-    endTime:      (a.endTime as number)   ?? 0,
-    isExcused:    (a.isExcused as boolean) ?? false,
-    reasonName:   a.reasonName as string | undefined,
-    absenceType:  a.absenceType as string | undefined,
-    hours:        (a.hours as number)     ?? 0,
-    note:         a.note as string | undefined,
-    excuseNote:   a.excuseNote as string | undefined,
-    teacherName:  a.teacherName as string | undefined,
-    subjectName:  a.subjectName as string | undefined,
+    id: (a.id as number) ?? 0,
+    startDate: (a.startDate as number) ?? 0,
+    endDate: (a.endDate as number) ?? 0,
+    startTime: (a.startTime as number) ?? 0,
+    endTime: (a.endTime as number) ?? 0,
+    isExcused: (a.isExcused as boolean) ?? false,
+    reasonName: a.reasonName as string | undefined,
+    absenceType: a.absenceType as string | undefined,
+    hours: (a.hours as number) ?? 0,
+    note: a.note as string | undefined,
+    excuseNote: a.excuseNote as string | undefined,
+    teacherName: a.teacherName as string | undefined,
+    subjectName: a.subjectName as string | undefined,
   }));
 }
 
 function parseClassServices(raw: unknown): ClassRole[] {
-  const r = raw as Record<string, unknown>;
-  const data = (r?.data ?? r) as Record<string, unknown>;
-  const roles = (data?.classRoles ?? []) as ClassRole[];
+  const roles = (dataOf(raw).classRoles ?? []) as ClassRole[];
   const seen = new Set<string>();
   return roles.filter((role) => {
     const key = `${role.personId}-${role.duty?.id}`;
@@ -147,811 +95,286 @@ function parseClassServices(raw: unknown): ClassRole[] {
   });
 }
 
-function parseExams(raw: unknown): Exam[] {
-  const r = raw as Record<string, unknown>;
-  const data = (r?.data ?? r) as Record<string, unknown>;
-  return (data?.exams ?? []) as Exam[];
+function parseExams(raw: unknown): ExamItem[] {
+  const list = (dataOf(raw).exams ?? []) as ExamItem[];
+  return [...list].sort((a, b) => a.examDate - b.examDate || a.startTime - b.startTime);
 }
 
-function parseHomework(raw: unknown): { homeworks: HomeworkRecord[]; lessons: HomeworkLesson[] } {
-  const r = raw as Record<string, unknown>;
-  const data = (r?.data ?? r) as Record<string, unknown>;
+function parseHomework(raw: unknown): { homeworks: HomeworkRecord[]; lessons: { id: number; subject: string }[] } {
+  const data = dataOf(raw);
   return {
-    homeworks: ([...((data?.homeworks as HomeworkRecord[]) ?? []), ...((data?.records as HomeworkRecord[]) ?? [])]),
-    lessons:   (data?.lessons ?? []) as HomeworkLesson[],
+    homeworks: [...((data.homeworks as HomeworkRecord[]) ?? []), ...((data.records as HomeworkRecord[]) ?? [])],
+    lessons: (data.lessons ?? []) as { id: number; subject: string }[],
   };
 }
 
-function parseClassregEvents(raw: unknown): ClassregEvent[] {
-  const r = raw as Record<string, unknown>;
-  const data = (r?.data ?? r) as Record<string, unknown>;
-  const rows = data?.rows;
-  return Array.isArray(rows) ? rows.map(normalizeClassregEvent) : [];
+function recentOf(events: ClassregEvent[]): ClassregEvent[] {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 3);
+  const cutoff = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  return events
+    .filter((e) => e.createDate >= cutoff)
+    .sort((a, b) => b.createDate - a.createDate || b.createTime - a.createTime)
+    .slice(0, 5);
 }
 
-// ─── Badge colors for Klassenbuch ────────────────────────────────────────────
+const hhmm = (t: number) => {
+  const s = String(t).padStart(4, '0');
+  return `${s.slice(0, 2)}:${s.slice(2, 4)}`;
+};
 
-function categoryColor(cat: string): string {
-  const l = cat.toLowerCase();
-  if (l.includes('täuschung') || l.includes('betrug')) return 'var(--danger)';
-  if (l.includes('vermerk')) return 'var(--warning)';
-  return 'var(--accent)';
+const rowLine = 'relative px-3 py-3 before:absolute before:inset-x-3.5 before:top-0 before:h-px before:bg-line first:before:hidden';
+
+/** A list card, its skeleton while loading and a short sentence when it is empty or failed. */
+function ListBody<T>({ part, rows = 3, empty, failed, children }: {
+  part: Part<T[]>;
+  rows?: number;
+  empty: string;
+  failed: string;
+  children: (items: T[]) => ReactNode;
+}) {
+  if (part.loading && part.data.length === 0) return <RowsSkeleton rows={rows} lead="square" />;
+  if (part.data.length === 0) {
+    return (
+      <div className="squircle rounded-[24px] bg-surface">
+        <PixelState compact sprite={part.failed ? 'unplugged' : 'empty'} title={part.failed ? failed : empty} />
+      </div>
+    );
+  }
+  return <ul className="squircle flex flex-col rounded-[24px] bg-surface p-2">{children(part.data)}</ul>;
 }
 
-function categoryBg(cat: string): string {
-  const l = cat.toLowerCase();
-  if (l.includes('täuschung') || l.includes('betrug'))
-    return 'color-mix(in srgb, var(--danger) 14%, transparent)';
-  if (l.includes('vermerk'))
-    return 'color-mix(in srgb, var(--warning) 14%, transparent)';
-  return 'color-mix(in srgb, var(--accent) 14%, transparent)';
+/** A small calendar tile: weekday over the day of the month. */
+function DayTile({ date, tone, tag }: { date: Date; tone: string; tag: string }) {
+  return (
+    <span className={`flex size-12 shrink-0 flex-col items-center justify-center rounded-[14px] leading-none ${tone}`}>
+      <span className="text-[10.5px] font-bold uppercase tracking-[0.04em] opacity-80">{formatDate(date, tag, { weekday: 'short' }).replace('.', '')}</span>
+      <span className="mt-1 text-[18px] font-extrabold tracking-[-0.03em] tnum">{date.getDate()}</span>
+    </span>
+  );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
-export default function ClassPage() {
+function ClassContent() {
   const router = useRouter();
   const { user } = useSession();
   const t = useT(classPagesDict);
-  const { locale } = useLocale();
-  const localize = useLocalizeHref();
-  const MONTHS = monthShort(locale);
-  const monSun = dayAbbrMonSun(locale);
-  const WEEKDAYS = [monSun[6], ...monSun.slice(0, 6)];
-  const fmtDateShort = (d: number) => fmtDateShortWith(d, MONTHS);
+  const tc = useT(commonDict);
+  const { tag } = useDateLocale();
 
-  const [absences,        setAbsences]        = useState<AbsenceEntry[]>([]);
-  const [classServices,   setClassServices]   = useState<ClassRole[]>([]);
-  const [examsThis,       setExamsThis]       = useState<Exam[]>([]);
-  const [examsNext,       setExamsNext]       = useState<Exam[]>([]);
-  const [hwThis,          setHwThis]          = useState<HomeworkRecord[]>([]);
-  const [hwNext,          setHwNext]          = useState<HomeworkRecord[]>([]);
-  const [hwLessons,       setHwLessons]       = useState<HomeworkLesson[]>([]);
-  const [recentEvents,    setRecentEvents]    = useState<ClassregEvent[]>(() => {
+  const [events, setEvents] = useState<Part<ClassregEvent[]>>(() => {
     const stale = getClassregEventsStale();
-    if (!stale) return [];
-    const r = stale as Record<string, unknown>;
-    const data = (r?.data ?? r) as Record<string, unknown>;
-    const rows = data?.rows;
-    const all = Array.isArray(rows) ? rows.map(normalizeClassregEvent) : [];
-    const cutoff = (() => {
-      const d = new Date();
-      d.setMonth(d.getMonth() - 3);
-      return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-    })();
-    return all
-      .filter((e) => e.createDate >= cutoff)
-      .sort((a, b) => b.createDate - a.createDate || b.createTime - a.createTime)
-      .slice(0, 10);
+    return { loading: true, failed: false, data: stale ? recentOf(parseClassregRows(stale)) : [] };
   });
-  const [loading,         setLoading]         = useState(true);
-  const [error,           setError]           = useState('');
+  const [services, setServices] = useState<Part<ClassRole[]>>(() => start([]));
+  const [absences, setAbsences] = useState<Part<AbsenceEntry[]>>(() => start([]));
+  const [exams, setExams] = useState<Part<{ now: ExamItem[]; next: ExamItem[] }>>(() => start({ now: [], next: [] }));
+  const [homework, setHomework] = useState<Part<{ now: HomeworkRecord[]; next: HomeworkRecord[]; subjects: Map<number, string> }>>(
+    () => start({ now: [], next: [], subjects: new Map() }),
+  );
 
-  const examThisRef = useRef<HTMLDivElement>(null);
-  const hwThisRef   = useRef<HTMLDivElement>(null);
-  const examNextRef = useRef<HTMLDivElement>(null);
-  const hwNextRef   = useRef<HTMLDivElement>(null);
+  const thisWeek = schoolWeek(0);
+  const nextWeek = schoolWeek(1);
 
-  useLayoutEffect(() => {
-    const sync = (a: HTMLDivElement | null, b: HTMLDivElement | null) => {
-      if (!a || !b) return;
-      a.style.minHeight = '';
-      b.style.minHeight = '';
-      const h = Math.max(a.scrollHeight, b.scrollHeight);
-      a.style.minHeight = `${h}px`;
-      b.style.minHeight = `${h}px`;
+  const load = useCallback(() => {
+    const now = schoolWeek(0);
+    const next = schoolWeek(1);
+    const expired = (e: unknown) => {
+      if (e instanceof Error && e.message === 'session_expired') { router.replace('/login'); return true; }
+      return false;
     };
-    sync(examThisRef.current, hwThisRef.current);
-    sync(examNextRef.current, hwNextRef.current);
-  }, [examsThis, examsNext, hwThis, hwNext]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError('');
-
-    const thisWeek = getSchoolWeek(0);
-    const nextWeek = getSchoolWeek(1);
-
-    try {
-      const [absRes, servRes, exThisRes, exNextRes, hwRes, evRes] = await Promise.allSettled([
-        fetchAbsences(),
-        fetchClassServices(),
-        fetchExams(thisWeek.startStr, thisWeek.endStr),
-        fetchExams(nextWeek.startStr, nextWeek.endStr),
-        fetchHomeworkRange(thisWeek.startStr, nextWeek.endStr),
-        fetchClassregEvents(),
-      ]);
-
-      const anyExpired = [absRes, servRes, exThisRes, exNextRes, hwRes, evRes].some(
-        (r) => r.status === 'rejected' && (r as PromiseRejectedResult).reason?.message === 'session_expired',
-      );
-      if (anyExpired) { router.replace('/login'); return; }
-
-      if (absRes.status === 'fulfilled') {
-        setAbsences(parseAbsences(absRes.value).filter((a) => !a.isExcused));
-      }
-      if (servRes.status === 'fulfilled') {
-        setClassServices(parseClassServices(servRes.value));
-      }
-      if (exThisRes.status === 'fulfilled') setExamsThis(parseExams(exThisRes.value));
-      if (exNextRes.status === 'fulfilled') setExamsNext(parseExams(exNextRes.value));
-
-      if (hwRes.status === 'fulfilled') {
-        const { homeworks, lessons } = parseHomework(hwRes.value);
-        setHwLessons(lessons);
-        const open = homeworks.filter((h) => !h.completed && h.dueDate > 0);
-        setHwThis(open.filter((h) => h.dueDate >= thisWeek.startNum && h.dueDate <= thisWeek.endNum));
-        setHwNext(open.filter((h) => h.dueDate >= nextWeek.startNum && h.dueDate <= nextWeek.endNum));
-      }
-
-      if (evRes.status === 'fulfilled') {
-        const all = parseClassregEvents(evRes.value);
-        const cutoff = (() => {
-          const d = new Date();
-          d.setMonth(d.getMonth() - 3);
-          return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-        })();
-        setRecentEvents(
-          all
-            .filter((e) => e.createDate >= cutoff)
-            .sort((a, b) => b.createDate - a.createDate || b.createTime - a.createTime)
-            .slice(0, 10),
-        );
-      }
-    } catch (e: unknown) {
-      if (e instanceof Error && e.message === 'session_expired') router.replace('/login');
-      else setError(e instanceof Error ? e.message : 'error');
-    } finally {
-      setLoading(false);
-    }
+    fetchClassregEvents()
+      .then((raw) => setEvents({ loading: false, failed: false, data: recentOf(parseClassregRows(raw)) }))
+      .catch((e) => { if (!expired(e)) setEvents((p) => ({ ...p, loading: false, failed: true })); });
+    fetchClassServices()
+      .then((raw) => setServices({ loading: false, failed: false, data: parseClassServices(raw) }))
+      .catch((e) => { if (!expired(e)) setServices((p) => ({ ...p, loading: false, failed: true })); });
+    fetchAbsences()
+      .then((raw) => setAbsences({
+        loading: false,
+        failed: false,
+        data: parseAbsences(raw).filter((a) => !a.isExcused).sort((a, b) => b.startDate - a.startDate),
+      }))
+      .catch((e) => { if (!expired(e)) setAbsences((p) => ({ ...p, loading: false, failed: true })); });
+    Promise.all([fetchExams(now.startStr, now.endStr), fetchExams(next.startStr, next.endStr)])
+      .then(([a, b]) => setExams({ loading: false, failed: false, data: { now: parseExams(a), next: parseExams(b) } }))
+      .catch((e) => { if (!expired(e)) setExams((p) => ({ ...p, loading: false, failed: true })); });
+    fetchHomeworkRange(now.startStr, next.endStr)
+      .then((raw) => {
+        const { homeworks, lessons } = parseHomework(raw);
+        const open = homeworks.filter((h) => !h.completed && h.dueDate > 0).sort((a, b) => a.dueDate - b.dueDate);
+        setHomework({
+          loading: false,
+          failed: false,
+          data: {
+            now: open.filter((h) => h.dueDate >= now.startNum && h.dueDate <= now.endNum),
+            next: open.filter((h) => h.dueDate >= next.startNum && h.dueDate <= next.endNum),
+            subjects: new Map(lessons.map((l) => [l.id, l.subject.split(' (')[0]])),
+          },
+        });
+      })
+      .catch((e) => { if (!expired(e)) setHomework((p) => ({ ...p, loading: false, failed: true })); });
   }, [router]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => { void load(); }, 0);
+    const timer = window.setTimeout(load, 0);
     return () => window.clearTimeout(timer);
   }, [load]);
 
-  function subjectShort(lessonId: number): string {
-    const lesson = hwLessons.find((l) => l.id === lessonId);
-    return lesson ? lesson.subject.split(' (')[0] : '-';
-  }
-
-  const now        = new Date();
+  const now = new Date();
   const schoolYear = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+  const range = (w: { monday: Date; friday: Date }) => t('weekRange', {
+    from: formatDate(w.monday, tag, { day: 'numeric', month: 'short' }),
+    to: formatDate(w.friday, tag, { day: 'numeric', month: 'short' }),
+  });
+  const shortDate = (d: number) => formatDate(dateOf(d), tag, { weekday: 'short', day: 'numeric', month: 'short' });
 
+  const weekBlock = (
+    label: string,
+    when: string,
+    loading: boolean,
+    failed: boolean,
+    count: number,
+    emptyText: string,
+    rows: ReactNode,
+  ) => (
+    <div>
+      <p className="flex items-baseline justify-between gap-3 px-1 pb-2.5">
+        <span className="text-[14.5px] font-bold">{label}</span>
+        <span className="text-[13px] font-semibold text-ink-3 tnum">{when}</span>
+      </p>
+      {loading ? (
+        <RowsSkeleton rows={2} lead="square" />
+      ) : count === 0 ? (
+        <p className="squircle rounded-[20px] bg-surface px-4 py-4 text-[14px] text-ink-2">{failed ? tc('errGenericTitle') : emptyText}</p>
+      ) : (
+        <ul className="squircle flex flex-col rounded-[24px] bg-surface p-2">{rows}</ul>
+      )}
+    </div>
+  );
+
+  const examRows = (list: ExamItem[]) => list.map((exam, i) => (
+    <li key={`${exam.examDate}-${exam.startTime}-${i}`} className={rowLine}>
+      <div className="flex items-start gap-3.5">
+        <DayTile date={dateOf(exam.examDate)} tone="bg-butter text-butter-ink" tag={tag} />
+        <div className="min-w-0 flex-1">
+          <p className="text-[15.5px] font-semibold leading-snug">{exam.subject}</p>
+          <p className="mt-0.5 text-[13.5px] text-ink-2 tnum">
+            {hhmm(exam.startTime)} – {hhmm(exam.endTime)}{exam.rooms?.length ? ` · ${exam.rooms.join(', ')}` : ''}
+          </p>
+          {exam.text && <p className="mt-1 text-[13.5px] leading-snug text-ink-2 [overflow-wrap:anywhere]">{exam.text}</p>}
+        </div>
+      </div>
+    </li>
+  ));
+
+  const homeworkRows = (list: HomeworkRecord[]) => list.map((hw) => (
+    <li key={hw.id} className={rowLine}>
+      <div className="flex items-start gap-3.5">
+        <span className="grid size-12 shrink-0 place-items-center rounded-[14px] bg-sage text-sage-ink" aria-hidden="true">
+          <NotePencil size={22} weight="bold" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[15.5px] font-semibold leading-snug">{homework.data.subjects.get(hw.lessonId) ?? '-'}</p>
+          {hw.text && <p className="mt-0.5 whitespace-pre-line text-[14px] leading-snug text-ink-2 [overflow-wrap:anywhere]">{hw.text}</p>}
+          <p className="mt-1.5 inline-flex rounded-full bg-inset px-2.5 py-0.5 text-[12.5px] font-bold text-ink-2">{t('dueOn', { date: shortDate(hw.dueDate) })}</p>
+        </div>
+      </div>
+    </li>
+  ));
+
+  return (
+    <Page>
+      <PageHeader
+        title={user?.klasseName ? t('classTitle', { name: user.klasseName }) : t('myClass')}
+        subtitle={t('schoolYear', { year: `${schoolYear}/${schoolYear + 1}` })}
+      />
+
+      <div className="flex flex-col gap-12">
+        <div className="rise grid gap-12 lg:grid-cols-12 lg:gap-6">
+          <Section className="lg:col-span-7" title={t('recentEntries')} action={<SectionLink href="/classregevents">{t('all')}</SectionLink>}>
+            <ListBody part={events} rows={4} empty={t('noEntries3m')} failed={tc('errGenericTitle')}>
+              {(list) => list.map((ev, i) => <EntryRow key={`${ev.id}-${i}`} ev={ev} tag={tag} />)}
+            </ListBody>
+          </Section>
+
+          <div className="flex flex-col gap-12 lg:col-span-5">
+            <Section title={t('classServices')}>
+              <ListBody part={services} rows={2} empty={t('noClassServices')} failed={tc('errGenericTitle')}>
+                {(list) => list.map((role, i) => (
+                  <li key={`${role.id}-${i}`} className={rowLine}>
+                    <div className="flex items-center gap-3.5">
+                      <span
+                        aria-hidden="true"
+                        className={`grid size-11 shrink-0 place-items-center rounded-full text-[14px] font-bold ${i % 2 ? 'bg-sage text-sage-ink' : 'bg-periwinkle text-periwinkle-ink'}`}
+                      >
+                        {initialsOf(`${role.foreName} ${role.longName}`)}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[15.5px] font-semibold">{role.foreName} {role.longName}</span>
+                        <span className="block truncate text-[13.5px] text-ink-2">{role.duty?.label}</span>
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ListBody>
+            </Section>
+
+            <Section title={t('openAbsences')} action={<SectionLink href="/absences">{t('all')}</SectionLink>}>
+              <ListBody part={{ ...absences, data: absences.data.slice(0, 4) }} rows={2} empty={t('noOpenAbsences')} failed={tc('errGenericTitle')}>
+                {(list) => (
+                  <>
+                    {list.map((a) => (
+                      <li key={a.id} className={rowLine}>
+                        <div className="flex items-center gap-3.5">
+                          <DayTile date={dateOf(a.startDate)} tone="bg-blush text-blush-ink" tag={tag} />
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-[15.5px] font-semibold leading-snug">
+                              {a.endDate !== a.startDate ? `${shortDate(a.startDate)} – ${shortDate(a.endDate)}` : shortDate(a.startDate)}
+                            </span>
+                            {(a.subjectName || a.reasonName) && <span className="block truncate text-[13.5px] text-ink-2">{a.subjectName || a.reasonName}</span>}
+                          </span>
+                          <span className="inline-flex h-7 shrink-0 items-center gap-1 rounded-full bg-blush px-2.5 text-[12.5px] font-bold text-blush-ink">
+                            <XCircle size={14} weight="bold" aria-hidden="true" />
+                            {t('open')}
+                          </span>
+                        </div>
+                      </li>
+                    ))}
+                    {absences.data.length > 4 && (
+                      <li className="px-3 pb-1 pt-2 text-[13.5px] font-semibold text-ink-2">{t('more', { n: absences.data.length - 4 })}</li>
+                    )}
+                  </>
+                )}
+              </ListBody>
+            </Section>
+          </div>
+        </div>
+
+        <div className="rise grid gap-12 [animation-delay:60ms] lg:grid-cols-2 lg:gap-6">
+          <Section title={<span className="inline-flex items-center gap-2"><Exam size={22} weight="bold" className="text-butter-ink" aria-hidden="true" />{t('exams')}</span>}>
+            <div className="flex flex-col gap-6">
+              {weekBlock(t('thisWeek'), range(thisWeek), exams.loading, exams.failed, exams.data.now.length, t('noExamsThisWeek'), examRows(exams.data.now))}
+              {weekBlock(t('nextWeek'), range(nextWeek), exams.loading, exams.failed, exams.data.next.length, t('noExamsNextWeek'), examRows(exams.data.next))}
+            </div>
+          </Section>
+          <Section title={<span className="inline-flex items-center gap-2"><NotePencil size={22} weight="bold" className="text-sage-ink" aria-hidden="true" />{t('homework')}</span>}>
+            <div className="flex flex-col gap-6">
+              {weekBlock(t('thisWeek'), range(thisWeek), homework.loading, homework.failed, homework.data.now.length, t('noHwThisWeek'), homeworkRows(homework.data.now))}
+              {weekBlock(t('nextWeek'), range(nextWeek), homework.loading, homework.failed, homework.data.next.length, t('noHwNextWeek'), homeworkRows(homework.data.next))}
+            </div>
+          </Section>
+        </div>
+      </div>
+    </Page>
+  );
+}
+
+export default function ClassPage() {
   return (
     <AuthGuard>
       <UntisGuard>
-        <div className="cl-wrap">
-          {loading ? (
-            <div className="cl-state"><Spinner size={28} /></div>
-          ) : error ? (
-            <div className="cl-state"><ErrorView message={error} onRetry={load} /></div>
-          ) : (
-            <main className="cl-dashboard">
-
-              {/* ── Header ── */}
-              <div className="page-head">
-                <div>
-                  <h1 className="page-title">
-                    {user?.klasseName ? t('classTitle', { name: user.klasseName }) : t('myClass')}
-                  </h1>
-                  <div className="page-sub">{t('schoolYear', { year: `${schoolYear} / ${schoolYear + 1}` })}</div>
-                </div>
-              </div>
-
-              {/* ── 1. Neue Klassenbuch Einträge (volle Breite) ── */}
-              <section className="section-wrap mb-grid">
-                <div className="section-head">
-                  <span className="section-title">{t('newEntries')}</span>
-                  <Link href="/classregevents" className="section-link" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', flexWrap: 'nowrap', fontSize: '12px', fontWeight: 500, color: 'var(--accent)', textDecoration: 'none', opacity: 1 }}><span>Alle</span><ChevronRight size={12} style={{ display: 'inline-block', flexShrink: 0 }} /></Link>
-                </div>
-                {recentEvents.length === 0 ? (
-                  <div className="empty-row">{t('noEntries3m')}</div>
-                ) : (
-                  <div className="item-list">
-                    {recentEvents.map((ev, i) => {
-                      const dt = parseUntisDate(ev.createDate);
-                      return (
-                        <div key={`ev-${ev.id}-${i}`} className="ev-row" style={{ borderTop: i > 0 ? '1px solid var(--g-line)' : 'none' }}>
-                          <div className="ev-date">
-                            <span className="ev-day">{dt.getDate()}.</span>
-                            <span className="ev-month">{MONTHS[dt.getMonth()]}</span>
-                          </div>
-                          <div className="ev-content">
-                            <span className="ev-subject">{ev.subjectName}</span>
-                            <span className="ev-text">{ev.text || ev.eventReasonName}</span>
-                            <span className="ev-meta">{ev.creatorName} · {fmtTime(ev.createTime)}</span>
-                          </div>
-                          <span
-                            className="ev-cat-badge"
-                            style={{ color: categoryColor(ev.categoryName), background: categoryBg(ev.categoryName) }}
-                          >
-                            <span className="ev-cat-group">{ev.categoryName}</span>
-                            <span className="ev-cat-reason">{ev.eventReasonName}</span>
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
-
-              {/* ── 2. Offene Abwesenheiten (links) · Klassendienste (rechts) ── */}
-              <div className="main-grid mb-grid">
-
-                <section className="section-wrap">
-                  <div className="section-head">
-                    <span className="section-title">{t('openAbsences')}</span>
-                    <Link href="/absences" className="section-link" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', flexWrap: 'nowrap', fontSize: '12px', fontWeight: 500, color: 'var(--accent)', textDecoration: 'none', opacity: 1 }}><span>Alle</span><ChevronRight size={12} style={{ display: 'inline-block', flexShrink: 0 }} /></Link>
-                  </div>
-                  {absences.length === 0 ? (
-                    <div className="empty-row">{t('noOpenAbsences')}</div>
-                  ) : (
-                    <div className="item-list">
-                      {absences.slice(0, 6).map((a, i) => (
-                        <div key={a.id} className="list-row" style={{ borderTop: i > 0 ? '1px solid var(--g-line)' : 'none' }}>
-                          <div className="row-dot" style={{ background: 'var(--danger)' }} />
-                          <div className="row-content">
-                            <span className="row-main">
-                              {fmtDateShort(a.startDate)}
-                              {a.endDate !== a.startDate ? ` - ${fmtDateShort(a.endDate)}` : ''}
-                            </span>
-                            {(a.subjectName || a.reasonName) && (
-                              <span className="row-sub">{a.subjectName ?? a.reasonName}</span>
-                            )}
-                          </div>
-                          <span className="badge-danger">{t('open')}</span>
-                        </div>
-                      ))}
-                      {absences.length > 6 && (
-                        <Link href={localize('/absences')} className="see-more">{t('more', { n: absences.length - 6 })}</Link>
-                      )}
-                    </div>
-                  )}
-                </section>
-
-                <section className="section-wrap">
-                  <div className="section-head">
-                    <span className="section-title">{t('classServices')}</span>
-                  </div>
-                  {classServices.length === 0 ? (
-                    <div className="empty-row">{t('noClassServices')}</div>
-                  ) : (
-                    <div className="item-list">
-                      {classServices.map((role, i) => (
-                        <div key={role.id} className="list-row" style={{ borderTop: i > 0 ? '1px solid var(--g-line)' : 'none' }}>
-                          <div
-                            className="row-avatar"
-                            style={{ background: `hsl(${(role.personId * 73) % 360}, 52%, 48%)` }}
-                          >
-                            {role.foreName.slice(0, 1)}{role.longName.slice(0, 1)}
-                          </div>
-                          <div className="row-content">
-                            <span className="row-main">{role.foreName} {role.longName}</span>
-                            <span className="row-sub">{role.duty?.label}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </section>
-              </div>
-
-              {/* ── 3. Prüfungen (links) · Hausaufgaben (rechts) ── */}
-              <div className="main-grid">
-
-                <section className="section-wrap">
-                  <div className="section-head">
-                    <span className="section-title">{t('exams')}</span>
-                  </div>
-                  <div className="week-label">{t('thisWeek')}</div>
-                  <div ref={examThisRef} className="week-content">
-                    {examsThis.length === 0 ? (
-                      <div className="empty-row-sm">{t('noExamsThisWeek')}</div>
-                    ) : (
-                      examsThis.map((exam, i) => {
-                        const dt = parseUntisDate(exam.examDate);
-                        return (
-                          <div key={`et-${i}`} className="list-row" style={{ borderTop: i > 0 ? '1px solid var(--g-line)' : 'none' }}>
-                            <div className="exam-date-col">
-                              <span className="exam-wd">{WEEKDAYS[dt.getDay()]}</span>
-                              <span className="exam-dnum">{dt.getDate()}.</span>
-                            </div>
-                            <div className="row-content">
-                              <span className="row-main">{exam.subject}</span>
-                              <span className="row-sub">{fmtTime(exam.startTime)} - {fmtTime(exam.endTime)}{exam.rooms?.length ? ` · ${exam.rooms[0]}` : ''}</span>
-                              {exam.text && <span className="row-note">{exam.text}</span>}
-                            </div>
-                            <span className="badge-warn">{t('exam')}</span>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                  <div className="week-label week-label-sep">{t('nextWeek')}</div>
-                  <div ref={examNextRef} className="week-content">
-                    {examsNext.length === 0 ? (
-                      <div className="empty-row-sm">{t('noExamsNextWeek')}</div>
-                    ) : (
-                      examsNext.map((exam, i) => {
-                        const dt = parseUntisDate(exam.examDate);
-                        return (
-                          <div key={`en-${i}`} className="list-row" style={{ borderTop: i > 0 ? '1px solid var(--g-line)' : 'none' }}>
-                            <div className="exam-date-col">
-                              <span className="exam-wd">{WEEKDAYS[dt.getDay()]}</span>
-                              <span className="exam-dnum">{dt.getDate()}.</span>
-                            </div>
-                            <div className="row-content">
-                              <span className="row-main">{exam.subject}</span>
-                              <span className="row-sub">{fmtTime(exam.startTime)} - {fmtTime(exam.endTime)}{exam.rooms?.length ? ` · ${exam.rooms[0]}` : ''}</span>
-                              {exam.text && <span className="row-note">{exam.text}</span>}
-                            </div>
-                            <span className="badge-warn">{t('exam')}</span>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </section>
-
-                <section className="section-wrap">
-                  <div className="section-head">
-                    <span className="section-title">{t('homework')}</span>
-                  </div>
-                  <div className="week-label">{t('thisWeek')}</div>
-                  <div ref={hwThisRef} className="week-content">
-                    {hwThis.length === 0 ? (
-                      <div className="empty-row-sm">{t('noHwThisWeek')}</div>
-                    ) : (
-                      hwThis.map((hw, i) => (
-                        <div key={hw.id} className="list-row" style={{ borderTop: i > 0 ? '1px solid var(--g-line)' : 'none' }}>
-                          <div className="row-content">
-                            <span className="row-main">{subjectShort(hw.lessonId)}</span>
-                            <span className="row-sub">{hw.text}</span>
-                            <span className="row-note">{t('dueOn', { date: fmtDateShort(hw.dueDate) })}</span>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                  <div className="week-label week-label-sep">{t('nextWeek')}</div>
-                  <div ref={hwNextRef} className="week-content">
-                    {hwNext.length === 0 ? (
-                      <div className="empty-row-sm">{t('noHwNextWeek')}</div>
-                    ) : (
-                      hwNext.map((hw, i) => (
-                        <div key={hw.id} className="list-row" style={{ borderTop: i > 0 ? '1px solid var(--g-line)' : 'none' }}>
-                          <div className="row-content">
-                            <span className="row-main">{subjectShort(hw.lessonId)}</span>
-                            <span className="row-sub">{hw.text}</span>
-                            <span className="row-note">{t('dueOn', { date: fmtDateShort(hw.dueDate) })}</span>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </section>
-              </div>
-
-            </main>
-          )}
-        </div>
-
-        <style jsx>{`
-          .cl-wrap {
-            --g-bg:     var(--app-bg);
-            --g-surface: var(--app-surface);
-            --g-line:   var(--app-border);
-            --g-line-2: color-mix(in srgb, var(--app-border) 70%, var(--app-text-tertiary));
-            --g-ink:    var(--app-text-primary);
-            --g-muted:  var(--app-text-secondary);
-            --g-muted-2: var(--app-text-tertiary);
-
-            height: 100%;
-            overflow: auto;
-            background: var(--g-bg);
-            color: var(--g-ink);
-            font-feature-settings: 'ss01', 'cv11';
-            text-rendering: optimizeLegibility;
-            letter-spacing: -0.005em;
-          }
-
-          .cl-state {
-            min-height: 100%;
-            display: grid;
-            place-items: center;
-            padding: 24px;
-          }
-
-          .cl-dashboard {
-            max-width: 1320px;
-            margin: 0 auto;
-            padding: 36px 28px 80px;
-            font-family: var(--font-inter, 'Inter'), -apple-system, BlinkMacSystemFont, sans-serif;
-          }
-
-          /* ── Header ── */
-          .page-head {
-            display: flex;
-            align-items: flex-end;
-            justify-content: space-between;
-            gap: 32px;
-            margin-bottom: 28px;
-          }
-
-          .page-title {
-            font-size: 28px;
-            font-weight: 700;
-            letter-spacing: -0.02em;
-            margin: 0;
-          }
-
-          .page-sub {
-            color: var(--g-muted);
-            font-size: 13.5px;
-            margin-top: 6px;
-          }
-
-          /* ── Grids ── */
-          .main-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
-          }
-
-          .mb-grid {
-            margin-bottom: 24px;
-          }
-
-          /* ── Sections ── */
-          .section-wrap {
-            background: var(--g-surface);
-            border: 1px solid var(--g-line);
-            border-radius: 16px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-          }
-
-          .section-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 13px 18px;
-            border-bottom: 1px solid var(--g-line);
-          }
-
-          .section-title {
-            font-size: 13.5px;
-            font-weight: 700;
-            letter-spacing: -0.01em;
-            color: var(--g-ink);
-          }
-
-          .section-link {
-            display: inline-flex;
-            align-items: center;
-            flex-wrap: nowrap;
-            gap: 4px;
-            font-size: 12px;
-            font-weight: 500;
-            color: var(--accent);
-            text-decoration: none;
-            transition: opacity 0.15s;
-            line-height: 1;
-            white-space: nowrap;
-          }
-
-          .section-link svg { display: block; flex-shrink: 0; }
-
-          .section-link:hover { opacity: 0.7; }
-
-          .item-list { display: block; flex: 1; }
-
-          .empty-row {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px 18px;
-            font-size: 13px;
-            color: var(--g-muted-2);
-            text-align: center;
-          }
-
-          /* ── List rows ── */
-          .list-row {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 18px;
-            min-height: 54px;
-            transition: background 0.15s;
-          }
-
-          .list-row:hover {
-            background: color-mix(in srgb, var(--g-bg) 75%, transparent);
-          }
-
-          .row-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            flex-shrink: 0;
-          }
-
-          .row-avatar {
-            width: 34px;
-            height: 34px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 11.5px;
-            font-weight: 700;
-            color: #fff;
-            flex-shrink: 0;
-          }
-
-          .row-content {
-            flex: 1;
-            min-width: 0;
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-          }
-
-          .row-main {
-            font-size: 13.5px;
-            font-weight: 600;
-            color: var(--g-ink);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-          }
-
-          .row-sub {
-            font-size: 12px;
-            color: var(--g-muted);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-          }
-
-          .row-note {
-            font-size: 11px;
-            color: var(--g-muted-2);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-          }
-
-          /* ── Exam date column ── */
-          .exam-date-col {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 34px;
-            flex-shrink: 0;
-          }
-
-          .exam-wd {
-            font-size: 10px;
-            font-weight: 600;
-            color: var(--g-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-            line-height: 1;
-          }
-
-          .exam-dnum {
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--g-ink);
-            line-height: 1.1;
-            font-variant-numeric: tabular-nums;
-            letter-spacing: -0.02em;
-          }
-
-          /* ── Badges ── */
-          .badge-danger {
-            display: inline-flex;
-            align-items: center;
-            font-size: 11px;
-            font-weight: 600;
-            padding: 3px 9px;
-            border-radius: 999px;
-            white-space: nowrap;
-            flex-shrink: 0;
-            color: var(--danger);
-            background: color-mix(in srgb, var(--danger) 14%, transparent);
-          }
-
-          .badge-warn {
-            display: inline-flex;
-            align-items: center;
-            font-size: 11px;
-            font-weight: 600;
-            padding: 3px 9px;
-            border-radius: 999px;
-            white-space: nowrap;
-            flex-shrink: 0;
-            color: var(--warning);
-            background: color-mix(in srgb, var(--warning) 14%, transparent);
-          }
-
-          .see-more {
-            display: block;
-            padding: 10px 18px;
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--accent);
-            text-align: center;
-            text-decoration: none;
-            border-top: 1px solid var(--g-line);
-            transition: background 0.15s;
-          }
-
-          .see-more:hover {
-            background: color-mix(in srgb, var(--g-bg) 60%, transparent);
-          }
-
-          /* ── Klassenbuch event rows ── */
-          .ev-row {
-            display: grid;
-            grid-template-columns: 44px 1fr auto;
-            align-items: center;
-            gap: 14px;
-            padding: 12px 18px;
-            min-height: 60px;
-            transition: background 0.15s;
-          }
-
-          .ev-row:hover {
-            background: color-mix(in srgb, var(--g-bg) 75%, transparent);
-          }
-
-          .ev-date {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            flex-shrink: 0;
-          }
-
-          .ev-day {
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--g-ink);
-            line-height: 1;
-            font-variant-numeric: tabular-nums;
-            letter-spacing: -0.02em;
-          }
-
-          .ev-month {
-            font-size: 10px;
-            font-weight: 600;
-            color: var(--g-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.03em;
-            margin-top: 2px;
-          }
-
-          .ev-content {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-            min-width: 0;
-          }
-
-          .ev-subject {
-            font-size: 13.5px;
-            font-weight: 600;
-            color: var(--g-ink);
-            white-space: normal;
-            word-break: break-word;
-          }
-
-          .ev-text {
-            font-size: 12px;
-            color: var(--g-muted);
-            white-space: normal;
-            word-break: break-word;
-          }
-
-          .ev-meta {
-            font-size: 11px;
-            color: var(--g-muted-2);
-            white-space: normal;
-            word-break: break-word;
-          }
-
-          .ev-cat-badge {
-            display: inline-flex;
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 1px;
-            padding: 5px 11px;
-            border-radius: 12px;
-            white-space: nowrap;
-            flex-shrink: 0;
-          }
-
-          .ev-cat-group {
-            font-size: 10px;
-            font-weight: 500;
-            opacity: 0.6;
-            line-height: 1;
-          }
-
-          .ev-cat-reason {
-            font-size: 12.5px;
-            font-weight: 700;
-            line-height: 1.2;
-          }
-
-          /* ── Week labels (Prüfungen / Hausaufgaben) ── */
-          .week-label {
-            font-size: 10.5px;
-            font-weight: 700;
-            color: var(--g-muted-2);
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            padding: 8px 18px 7px;
-            border-bottom: 1px solid var(--g-line);
-          }
-
-          .week-label-sep {
-            border-top: 1px solid var(--g-line);
-          }
-
-          .week-content {
-            display: flex;
-            flex-direction: column;
-          }
-
-          .empty-row-sm {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 52px;
-            padding: 14px 18px;
-            font-size: 12.5px;
-            color: var(--g-muted-2);
-            text-align: center;
-          }
-
-          /* ── Responsive ── */
-          @media (max-width: 1200px) {
-            .kpis {
-              grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-          }
-
-          @media (max-width: 900px) {
-            .cl-dashboard {
-              padding: 24px 16px 76px;
-            }
-            .page-head {
-              flex-direction: column;
-              align-items: flex-start;
-              gap: 12px;
-            }
-            .main-grid {
-              grid-template-columns: 1fr;
-            }
-          }
-
-          @media (max-width: 600px) {
-            .ev-row {
-              grid-template-columns: 36px 1fr;
-            }
-            .ev-cat-badge {
-              display: none;
-            }
-          }
-        `}</style>
+        <ClassContent />
       </UntisGuard>
     </AuthGuard>
   );

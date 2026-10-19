@@ -35,11 +35,14 @@ export function PageHeader({
   subtitle,
   actions,
   back,
+  mobileAside,
   children,
 }: {
   title: ReactNode;
   subtitle?: ReactNode;
   actions?: ReactNode;
+  /** A compact control beside the title on phones (wide screens show `actions`). */
+  mobileAside?: ReactNode;
   /** A parent page to return to (shown above the title). */
   back?: { href: string; label: string };
   children?: ReactNode;
@@ -57,9 +60,12 @@ export function PageHeader({
         </Link>
       )}
       <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-[34px] font-extrabold leading-[1.04] tracking-[-0.05em] md:text-[46px]">{title}</h1>
-          {subtitle && <p className="mt-2 text-[15px] leading-relaxed text-ink-2 md:text-[17px]">{subtitle}</p>}
+        <div className="flex min-w-0 items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-[34px] font-extrabold leading-[1.04] tracking-[-0.05em] md:text-[46px]">{title}</h1>
+            {subtitle && <p className="mt-2 text-[15px] leading-relaxed text-ink-2 md:text-[17px]">{subtitle}</p>}
+          </div>
+          {mobileAside && <div className="shrink-0 md:hidden">{mobileAside}</div>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2 md:shrink-0 md:justify-end">{actions}</div>}
       </div>

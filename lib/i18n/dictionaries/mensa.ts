@@ -34,7 +34,9 @@ export type MensaKey =
   | 'rateLabels'
   | 'allDays'
   | 'nutrition'
-  | 'carbsLong';
+  | 'carbsLong'
+  | 'backToPlan'
+  | 'dishGone';
 
 export const mensaDict: Dictionary<MensaKey> = {
   de: {
@@ -71,6 +73,8 @@ export const mensaDict: Dictionary<MensaKey> = {
     allDays: 'Der ganze Plan',
     nutrition: 'Nährwerte',
     carbsLong: 'Kohlenhydrate',
+    backToPlan: 'Zum Speiseplan',
+    dishGone: 'Dieses Gericht steht nicht mehr auf dem Plan.',
   },
   it: {
     title: 'Mensa',
@@ -106,6 +110,8 @@ export const mensaDict: Dictionary<MensaKey> = {
     allDays: 'Tutto il menù',
     nutrition: 'Valori nutrizionali',
     carbsLong: 'Carboidrati',
+    backToPlan: 'Al menù',
+    dishGone: 'Questo piatto non è più nel menù.',
   },
   en: {
     title: 'Cafeteria',
@@ -141,6 +147,8 @@ export const mensaDict: Dictionary<MensaKey> = {
     allDays: 'The whole plan',
     nutrition: 'Nutrition',
     carbsLong: 'Carbohydrates',
+    backToPlan: 'Back to the menu',
+    dishGone: 'This dish is no longer on the menu.',
   },
   lld: {
     title: "Mensa",

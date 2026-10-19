@@ -35,6 +35,8 @@ export type ProfileKey =
   | 'activityUnavailable'
   | 'activityKept'
   | 'activityKeptConsent'
+  | 'activityKeptYear'
+  | 'activityKeptYearConsent'
   | 'consentHint'
   | 'consentLink'
   | 'statsTitle'
@@ -104,6 +106,8 @@ export const profileDict: Dictionary<ProfileKey> = {
     activityUnavailable: 'Deine Aktivität kann gerade nicht geladen werden.',
     activityKept: 'POKYH bewahrt Server-Protokolle {n} Tage auf; ältere Tage bleiben leer.',
     activityKeptConsent: 'Nutzungszeit wird mit deiner Zustimmung {n} Tage deinem Konto zugeordnet.',
+    activityKeptYear: 'POKYH bewahrt deine aktiven Tage und Anmeldungen für das laufende Schuljahr auf; am Schuljahresende kommen sie ins Schuljahresarchiv.',
+    activityKeptYearConsent: 'Nutzungszeit wird mit deiner Zustimmung ebenso lange deinem Konto zugeordnet.',
     consentHint: 'Mit der persönlichen Nutzungsstatistik siehst du hier auch, wie lange du online warst.',
     consentLink: 'In den Einstellungen einschalten',
     statsTitle: 'Statistiken',
@@ -172,6 +176,8 @@ export const profileDict: Dictionary<ProfileKey> = {
     activityUnavailable: 'Al momento non è possibile caricare la tua attività.',
     activityKept: 'POKYH conserva i log del server per {n} giorni; i giorni più vecchi restano vuoti.',
     activityKeptConsent: 'Con il tuo consenso il tempo d’uso resta collegato al tuo account per {n} giorni.',
+    activityKeptYear: 'POKYH conserva i tuoi giorni attivi e i tuoi accessi per l’anno scolastico in corso; alla fine dell’anno passano nell’archivio dell’anno scolastico.',
+    activityKeptYearConsent: 'Con il tuo consenso il tempo d’uso resta collegato al tuo account per lo stesso periodo.',
     consentHint: 'Con le statistiche d’uso personali vedi qui anche quanto tempo sei stato online.',
     consentLink: 'Attiva nelle impostazioni',
     statsTitle: 'Statistiche',
@@ -240,6 +246,8 @@ export const profileDict: Dictionary<ProfileKey> = {
     activityUnavailable: 'Your activity can’t be loaded right now.',
     activityKept: 'POKYH keeps server logs for {n} days; older days stay empty.',
     activityKeptConsent: 'With your consent, time in POKYH stays linked to your account for {n} days.',
+    activityKeptYear: 'POKYH keeps your active days and sign-ins for the current school year; at its end they move to the school-year archive.',
+    activityKeptYearConsent: 'With your consent, your time in POKYH stays linked to your account just as long.',
     consentHint: 'With personal usage statistics you also see how long you were online.',
     consentLink: 'Turn it on in settings',
     statsTitle: 'Statistics',

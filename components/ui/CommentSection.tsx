@@ -49,8 +49,17 @@ export default function CommentSection({ comments, stableUid, isAdmin, loading, 
   const editRef = useRef<HTMLTextAreaElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // New comments are followed only while the end of the list is in view, and
+  // never when the list first fills: opening a page must not jump down to it.
+  const lastCount = useRef<number | null>(null);
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const prev = lastCount.current;
+    lastCount.current = comments.length;
+    if (!prev || comments.length <= prev) return;
+    const el = bottomRef.current;
+    if (el && el.getBoundingClientRect().top < window.innerHeight + 160) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
   }, [comments.length]);
 
   useEffect(() => {

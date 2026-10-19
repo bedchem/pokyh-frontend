@@ -12,6 +12,7 @@ import type {
   ReportAbsenceInput,
   SendMessageInput,
 } from './types';
+import { messageIsRead } from './untis-parse';
 
 const DEBUG = process.env.NEXT_PUBLIC_DEBUG_API === 'true';
 
@@ -151,12 +152,13 @@ export function getTimetableStale(date?: string): unknown | undefined {
   return pcGetStale(`/api/webuntis/timetable?date=${date ?? todayFormatted()}`);
 }
 
-export function getGradesStale(): unknown | undefined {
-  return pcGetStale('/api/webuntis/grades');
+/** Stored grades: without a year the current ones (as the dashboard loads them), with a year that year's. */
+export function getGradesStale(year?: number): unknown | undefined {
+  return pcGetStale(year ? `/api/webuntis/grades?year=${year}` : '/api/webuntis/grades');
 }
 
-export function getMessagesStale(): unknown | undefined {
-  return pcGetStale('/api/webuntis/messages');
+export function getMessagesStale(folder: MessageFolder = 'inbox'): unknown | undefined {
+  return pcGetStale(`/api/webuntis/messages?folder=${folder}`);
 }
 
 export function getAbsencesStale(year?: number): unknown | undefined {
@@ -225,18 +227,44 @@ export function fetchMessageAttachments(id: number) {
   return apiFetch(`/api/webuntis/messages?id=${id}&attachments=1`);
 }
 
+const INBOX_URL = '/api/webuntis/messages?folder=inbox';
+
+/**
+ * Marks messages as read in the stored inbox as well, so the list, the
+ * dashboard and every unread badge agree at once, and tells the badges the
+ * new count ('pokyh-messages-updated', components/app/hooks.ts).
+ */
+function markReadInStoredInbox(ids: number[]): void {
+  const stored = cacheGet<unknown>(INBOX_URL) ?? pcGetStale<unknown>(INBOX_URL);
+  if (!stored || typeof stored !== 'object') return;
+  const read = new Set(ids);
+  const patch = (list: unknown) => Array.isArray(list)
+    ? list.map((m) => (m && typeof m === 'object' && read.has((m as { id?: number }).id ?? -1) ? { ...m, isMessageRead: true, isRead: true } : m))
+    : list;
+  const root = stored as Record<string, unknown>;
+  const data = root.data && typeof root.data === 'object' ? root.data as Record<string, unknown> : null;
+  const next: Record<string, unknown> = data?.incomingMessages
+    ? { ...root, data: { ...data, incomingMessages: patch(data.incomingMessages) } }
+    : { ...root, incomingMessages: patch(root.incomingMessages) };
+  cacheSet(INBOX_URL, next);
+  pcSet(INBOX_URL, next);
+  const list = (next.incomingMessages ?? (next.data as Record<string, unknown> | undefined)?.incomingMessages ?? []) as Array<Record<string, unknown>>;
+  const unread = list.filter((m) => m && !messageIsRead(m)).length;
+  window.dispatchEvent(new CustomEvent('pokyh-messages-updated', { detail: { unread } }));
+}
+
 export async function markMessageRead(id: number) {
   await fetch(`/api/webuntis/messages?id=${id}`, {
     method: 'POST',
     credentials: 'same-origin',
   });
+  markReadInStoredInbox([id]);
 }
 
 export async function markAllMessagesRead(ids: number[]): Promise<void> {
   if (!ids.length) return;
-  await Promise.allSettled(ids.map((id) => markMessageRead(id)));
-  cacheDel('/api/webuntis/messages');
-  pcDel('/api/webuntis/messages');
+  await Promise.allSettled(ids.map((id) => fetch(`/api/webuntis/messages?id=${id}`, { method: 'POST', credentials: 'same-origin' })));
+  markReadInStoredInbox(ids);
 }
 
 export function fetchHomework() {
@@ -267,8 +295,16 @@ export function fetchHomeworkRange(startDate: string, endDate: string) {
 }
 
 /** The public menu (default school), or with `account` the menu of the signed-in account's school. */
+const mensaUrl = (scope: 'public' | 'account') => (scope === 'account' ? '/api/mensa/mine' : '/api/mensa');
+
+/** The menu, from memory when it is fresh; stored on the device for an instant next visit. */
 export function fetchMensa(scope: 'public' | 'account' = 'public') {
-  return apiFetch(scope === 'account' ? '/api/mensa/mine' : '/api/mensa');
+  return apiFetchCached(mensaUrl(scope));
+}
+
+/** The menu this device stored last time, to show while the fresh one loads. */
+export function getMensaStale(scope: 'public' | 'account' = 'public'): unknown | undefined {
+  return cacheGet<unknown>(mensaUrl(scope)) ?? pcGetStale(mensaUrl(scope));
 }
 
 export function getAttachmentUrl(messageId: number, storageId: string, name: string, attachmentId?: number): string {

@@ -26,7 +26,22 @@ export function RoundFlag({ locale, size = 20 }: { locale: Locale; size?: number
   );
 }
 
-export default function LanguageButton({ className = '', align = 'right' }: { className?: string; align?: 'left' | 'right' }) {
+export default function LanguageButton({
+  className = '',
+  align = 'right',
+  placement = 'below',
+  compact = false,
+  buttonClassName,
+}: {
+  className?: string;
+  align?: 'left' | 'right';
+  /** Where the menu opens; 'above' for a button at the bottom of the screen. */
+  placement?: 'below' | 'above';
+  /** Only the flag. */
+  compact?: boolean;
+  /** Replaces the button's own look. */
+  buttonClassName?: string;
+}) {
   const t = useT(siteDict);
   const { locale, setLocale } = useLocale();
   const [open, setOpen] = useState(false);
@@ -80,11 +95,19 @@ export default function LanguageButton({ className = '', align = 'right' }: { cl
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         aria-label={`${t('language')}: ${LOCALE_NAMES[locale]}`}
-        className="flex h-10 items-center gap-2 rounded-full px-2.5 text-[14px] font-semibold opacity-85 transition-[opacity,background-color] hover:bg-current/[0.06] hover:opacity-100 aria-expanded:opacity-100"
+        title={compact ? `${t('language')}: ${LOCALE_NAMES[locale]}` : undefined}
+        className={buttonClassName ?? 'flex h-10 items-center gap-2 rounded-full px-2.5 text-[14px] font-semibold opacity-85 transition-[opacity,background-color] hover:bg-current/[0.06] hover:opacity-100 aria-expanded:opacity-100'}
       >
         <RoundFlag locale={locale} size={20} />
-        <span>{LOCALE_LABELS[locale]}</span>
-        <CaretDown size={12} weight="bold" aria-hidden="true" className={`transition-transform duration-300 ${open ? 'rotate-180' : ''}`} />
+        {!compact && <span>{LOCALE_LABELS[locale]}</span>}
+        {!compact && (
+          <CaretDown
+            size={12}
+            weight="bold"
+            aria-hidden="true"
+            className={`transition-transform duration-300 ${(placement === 'above') !== open ? 'rotate-180' : ''}`}
+          />
+        )}
       </button>
 
       {open && (
@@ -93,8 +116,12 @@ export default function LanguageButton({ className = '', align = 'right' }: { cl
           role="menu"
           aria-label={t('languageTitle')}
           onKeyDown={onMenuKey}
-          className={`lang-menu absolute top-full z-20 mt-2 w-[208px] rounded-[18px] bg-[var(--surface)] p-1.5 text-ink shadow-[0_18px_44px_-16px_rgb(0_0_0/0.35),0_0_0_1px_var(--line)] ${
-            align === 'right' ? 'right-0 origin-top-right' : 'left-0 origin-top-left'
+          className={`lang-menu absolute z-50 w-[208px] rounded-[18px] bg-[var(--surface)] p-1.5 text-ink shadow-[0_18px_44px_-16px_rgb(0_0_0/0.35),0_0_0_1px_var(--line)] ${
+            placement === 'above' ? 'bottom-full mb-2' : 'top-full mt-2'
+          } ${
+            align === 'right'
+              ? placement === 'above' ? 'right-0 origin-bottom-right' : 'right-0 origin-top-right'
+              : placement === 'above' ? 'left-0 origin-bottom-left' : 'left-0 origin-top-left'
           }`}
         >
           {ACTIVE_LOCALES.map((l, i) => {

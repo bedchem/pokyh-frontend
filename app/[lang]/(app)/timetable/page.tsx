@@ -26,6 +26,7 @@ import {
   rangeText,
   schoolMinuteNow,
   toMins,
+  weekRolledOver,
   type MergedSlot,
 } from '@/lib/timetable-logic';
 import WeekGrid, { WeekGridSkeleton } from './WeekGrid';
@@ -563,7 +564,7 @@ function TimetableContent() {
                       className="block"
                     >
                       <span className="block text-[17px] font-bold tracking-[-0.02em] md:text-[19px]">{rangeText(weekOffset, tag)}</span>
-                      <span className="mt-0.5 block text-[13.5px] font-semibold text-ink-2">{t('cw')} {weekNumber}{weekOffset === 0 ? ` · ${t('thisWeek')}` : ''}</span>
+                      <span className="mt-0.5 block text-[13.5px] font-semibold text-ink-2">{t('cw')} {weekNumber}{weekOffset === 0 ? ` · ${weekRolledOver() ? t('nextWeek') : t('thisWeek')}` : ''}</span>
                     </motion.span>
                   </AnimatePresence>
                 </div>

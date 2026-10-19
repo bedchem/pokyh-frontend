@@ -2,13 +2,14 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode, type SyntheticEvent } from 'react';
 import { LayoutGroup, motion } from 'framer-motion';
-import { EnvelopeSimple, GearSix, MagnifyingGlass, Moon, SidebarSimple, Sun } from '@phosphor-icons/react';
+import { EnvelopeSimple, GearSix, Globe, MagnifyingGlass, Moon, SidebarSimple, Sun } from '@phosphor-icons/react';
 import { useLocalizeHref, useRoutePath, useT } from '@/providers/LocaleProvider';
 import { useSession } from '@/providers/SessionProvider';
 import { useTheme } from '@/providers/ThemeProvider';
 import { shellDict } from '@/lib/i18n/dictionaries/shell';
+import LanguageButton from '@/components/site/LanguageButton';
 import Avatar from './Avatar';
 import SearchPalette from './SearchPalette';
 import { AppActionsProvider } from './actions';
@@ -95,7 +96,7 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
         <span className="truncate">{t('search')}</span>
         <span className={`${s.kbd} hidden lg:inline`} aria-hidden="true">{mac ? '⌘ K' : 'Strg K'}</span>
       </button>
-      <span className="flex-1" />
+      <span className="hidden flex-1 lg:block" />
       <button
         type="button"
         onClick={(e) => toggleWithRipple(e)}
@@ -140,12 +141,49 @@ function Sidebar({ collapsed }: { collapsed: boolean }) {
   const name = perms?.personName || user?.username || '';
   const settingsActive = isActive(path, '/settings');
   const profileActive = isActive(path, '/profile');
+  const [tip, setTip] = useState<{ text: string; top: number } | null>(null);
+  const nav = useRef<HTMLElement>(null);
+
+  // Which way the list of places goes on beyond its edges (the fades in CSS).
+  useEffect(() => {
+    const el = nav.current;
+    if (!el) return;
+    const update = () => {
+      const more = [el.scrollTop > 2 && 'up', el.scrollTop + el.clientHeight < el.scrollHeight - 2 && 'down'].filter(Boolean).join(' ');
+      if (more) el.dataset.more = more;
+      else delete el.dataset.more;
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    el.addEventListener('scroll', update, { passive: true });
+    return () => { ro.disconnect(); el.removeEventListener('scroll', update); };
+  }, [collapsed]);
+
+  // Folded, every place keeps its name in a label beside the icon. One label
+  // for the whole sidebar, placed on the hovered or focused item; fixed, so
+  // the scrolling list doesn't cut it off.
+  const showTip = (e: SyntheticEvent) => {
+    if (!collapsed) return;
+    const el = (e.target as HTMLElement).closest<HTMLElement>('[data-tip]');
+    if (!el) { setTip(null); return; }
+    const r = el.getBoundingClientRect();
+    setTip({ text: el.dataset.tip ?? '', top: r.top + r.height / 2 });
+  };
+  const hideTip = () => setTip(null);
 
   return (
-    <aside className={s.side}>
+    <aside
+      className={s.side}
+      onPointerOver={showTip}
+      onPointerLeave={hideTip}
+      onFocus={showTip}
+      onBlur={hideTip}
+      onScroll={hideTip}
+    >
       <Link
         href={localize('/home')}
-        className="mb-7 flex h-11 items-center gap-3 rounded-[14px] px-[9px]"
+        className="mb-7 flex h-11 shrink-0 items-center gap-3 overflow-hidden rounded-[14px] px-[9px]"
         aria-label="POKYH, Home"
       >
         <Image src="/POKYH_Logo.png" alt="" width={34} height={34} priority className="size-[34px] shrink-0 rounded-[10px]" />
@@ -153,7 +191,7 @@ function Sidebar({ collapsed }: { collapsed: boolean }) {
       </Link>
 
       <LayoutGroup id="sidebar">
-        <nav className="flex flex-1 flex-col gap-6 overflow-y-auto overflow-x-hidden" aria-label={t('mainNav')}>
+        <nav ref={nav} className={s.nav} aria-label={t('mainNav')} onScroll={hideTip}>
           {SIDEBAR_GROUPS.map((group, i) => {
             const items = group.filter(visible);
             if (items.length === 0) return null;
@@ -165,7 +203,6 @@ function Sidebar({ collapsed }: { collapsed: boolean }) {
                       dest={d}
                       label={t(d.key)}
                       active={isActive(path, d.href)}
-                      collapsed={collapsed}
                       badge={d === DEST.messages ? unread : 0}
                       badgeLabel={t('unread', { n: unread })}
                     />
@@ -176,46 +213,64 @@ function Sidebar({ collapsed }: { collapsed: boolean }) {
           })}
         </nav>
 
-        <div className="mt-4 flex flex-col gap-1">
+        {/* Settings, language, the public website and folding, in one row */}
+        <div className={s.tools}>
           <Link
             href={localize('/settings')}
             aria-current={settingsActive ? 'page' : undefined}
-            title={collapsed ? t('settings') : undefined}
-            className={s.item}
+            aria-label={t('settings')}
+            data-tip={t('settings')}
+            title={collapsed ? undefined : t('settings')}
+            className={s.tool}
           >
             {settingsActive && <motion.span layoutId="side-active" className={s.itemBg} transition={GLIDE} aria-hidden="true" />}
-            <GearSix size={21} weight={settingsActive ? 'fill' : 'regular'} className="shrink-0" aria-hidden="true" />
-            <span className={s.fold}>{t('settings')}</span>
+            <GearSix size={21} weight={settingsActive ? 'fill' : 'regular'} aria-hidden="true" />
+          </Link>
+          <div data-tip={t('language')} className="flex">
+            <LanguageButton placement="above" align="left" compact={collapsed} buttonClassName={`${s.tool} ${collapsed ? '' : s.toolWide}`} />
+          </div>
+          <Link
+            href={localize('/')}
+            aria-label={t('website')}
+            data-tip={t('website')}
+            title={collapsed ? undefined : t('website')}
+            className={s.tool}
+          >
+            <Globe size={21} aria-hidden="true" />
           </Link>
           <button
             type="button"
-            onClick={() => setCollapsed(!collapsed)}
+            onClick={() => { setTip(null); setCollapsed(!collapsed); }}
             aria-label={collapsed ? t('expand') : t('collapse')}
             aria-expanded={!collapsed}
-            title={collapsed ? t('expand') : undefined}
-            className={`${s.item} w-full text-left`}
+            data-tip={t('expand')}
+            title={collapsed ? undefined : t('collapse')}
+            className={`${s.tool} ${s.fold2}`}
           >
-            <SidebarSimple size={21} className={`shrink-0 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} aria-hidden="true" />
-            <span className={s.fold}>{t('collapse')}</span>
+            <SidebarSimple size={21} className={`transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} aria-hidden="true" />
           </button>
-
-          <Link
-            href={localize('/profile')}
-            aria-current={profileActive ? 'page' : undefined}
-            title={collapsed ? t('openProfile') : undefined}
-            className={`${s.item} mt-2 !h-[60px] !px-2`}
-          >
-            {profileActive && <motion.span layoutId="side-active" className={s.itemBg} transition={GLIDE} aria-hidden="true" />}
-            <Avatar name={name || '?'} size={40} picture={untis} />
-            <span className={`${s.fold} min-w-0 leading-tight`}>
-              <span className="block truncate text-[15px] font-bold text-ink">{name || '…'}</span>
-              <span className="mt-0.5 block truncate text-[13px] font-medium text-ink-2">
-                {user?.klasseName || (user?.isParent ? t('guardian') : t('student'))}
-              </span>
-            </span>
-          </Link>
         </div>
+
+        <Link
+          href={localize('/profile')}
+          aria-current={profileActive ? 'page' : undefined}
+          data-tip={name || t('openProfile')}
+          className={`${s.item} mt-2 !h-[60px] shrink-0 overflow-hidden !px-2`}
+        >
+          {profileActive && <motion.span layoutId="side-active" className={s.itemBg} transition={GLIDE} aria-hidden="true" />}
+          <Avatar name={name || '?'} size={40} picture={untis} />
+          <span className={`${s.fold} min-w-0 leading-tight`}>
+            <span className="block truncate text-[15px] font-bold text-ink">{name || '…'}</span>
+            <span className="mt-0.5 block truncate text-[13px] font-medium text-ink-2">
+              {user?.klasseName || (user?.isParent ? t('guardian') : t('student'))}
+            </span>
+          </span>
+        </Link>
       </LayoutGroup>
+
+      {collapsed && tip && (
+        <span role="tooltip" className={s.tip} style={{ top: tip.top }}>{tip.text}</span>
+      )}
     </aside>
   );
 }
@@ -224,14 +279,12 @@ function SideItem({
   dest,
   label,
   active,
-  collapsed,
   badge,
   badgeLabel,
 }: {
   dest: AppDestination;
   label: string;
   active: boolean;
-  collapsed: boolean;
   badge: number;
   badgeLabel: string;
 }) {
@@ -241,7 +294,7 @@ function SideItem({
     <Link
       href={localize(dest.href)}
       aria-current={active ? 'page' : undefined}
-      title={collapsed ? label : undefined}
+      data-tip={label}
       className={s.item}
     >
       {active && <motion.span layoutId="side-active" className={s.itemBg} transition={GLIDE} aria-hidden="true" />}

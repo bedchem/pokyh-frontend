@@ -27,6 +27,20 @@
   }
 }
 
+/* The floating action button (components/app/Fab.tsx) arrives with a small pop. */
+.fab { animation: fab-in 0.35s var(--ease-out) both; }
+@keyframes fab-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.85); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .fab { animation: none; } }
+
+/* Phones: a grid cell may shrink below its longest line (long names are
+   truncated or wrap inside it), so no page is pushed wider than the screen. */
+#app-main .grid > * {
+  min-width: 0;
+}
+
 /* Profile activity grid (components/app/ActivityGrid.tsx): squares arrive column by column. */
 @keyframes grid-cell-in {
   from { opacity: 0; transform: scale(0.6); }

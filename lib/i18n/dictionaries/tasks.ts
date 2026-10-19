@@ -63,7 +63,7 @@ export const tasksDict: Dictionary<TasksKey> = {
     loadFailed: 'Fehler beim Laden',
     saveFailed: 'Fehler beim Speichern. Bitte erneut versuchen.',
     you: 'Du',
-    todosTitle: 'Todos',
+    todosTitle: 'To-dos',
     todosLoadError: 'Fehler beim Laden der Todos.',
     todosEmptyTitle: 'Keine Todos',
     todosEmptySubtitle: 'Füge deine ersten Aufgaben hinzu.',

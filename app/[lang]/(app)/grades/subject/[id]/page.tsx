@@ -10,7 +10,7 @@ import { Bone, Line } from '@/components/app/Skeleton';
 import PixelState from '@/components/app/PixelState';
 import TrendChart from '@/components/grades/TrendChart';
 import ErrorView from '@/components/ui/ErrorView';
-import { fetchGrades } from '@/lib/api';
+import { fetchGrades, getGradesStale } from '@/lib/api';
 import type { SubjectGrades } from '@/lib/types';
 import {
   parseGrades,
@@ -111,7 +111,11 @@ export default function SubjectDetailPage({
   }, [drafts]);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    // Stored grades (from the dashboard or the grades page) show at once.
+    const now = new Date();
+    const stale = getGradesStale() ?? getGradesStale(now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1);
+    if (stale !== undefined) setSubjects(parseGrades(stale));
+    setLoading(stale === undefined);
     setError('');
     try {
       const res = await fetchGrades();

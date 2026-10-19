@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import * as THREE from 'three';
+// Types only: three.js itself loads when the ring is built, so it is not part
+// of the page's first download.
+import type * as THREE from 'three';
 import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { homepageDict, type HomepageKey } from '@/lib/i18n/dictionaries/homepage';
 import { frontpageDict, type FrontpageKey } from '@/lib/i18n/dictionaries/frontpage';
@@ -45,15 +47,18 @@ function stepped(x: number): number {
   return i + (1 - Math.cos(Math.PI * t)) / 2;
 }
 
+type Three = typeof import('three');
+
 /** A slightly bent plane: a slice of a cylinder of `radius`, `width` along the arc, centred on the origin. */
-function bentPlane(radius: number, width: number, height: number) {
+function bentPlane(T: Three, radius: number, width: number, height: number) {
   const theta = width / radius;
-  const g = new THREE.CylinderGeometry(radius, radius, height, 40, 1, true, -theta / 2, theta);
+  const g = new T.CylinderGeometry(radius, radius, height, 40, 1, true, -theta / 2, theta);
   g.translate(0, 0, -radius);
   return g;
 }
 
 interface Scene {
+  T: Three;
   camera: THREE.PerspectiveCamera;
   cards: THREE.Mesh[];
 }
@@ -77,14 +82,13 @@ export default function FeatureCarousel() {
   const swingRef = useRef({ y: 0, x: 0, lift: 0 });
   const [index, setIndex] = useState(0);
   const indexRef = useRef(0);
-  const [shown, setShown] = useState(0);
   const drag = useRef<{ x: number; scroll: number; moved: boolean } | null>(null);
   const dark = useSiteDark();
   const tones = FEATURES.map((f) => (dark ? f.dark : f.light));
   const colours = useRef(tones.map((tone) => tone.bg));
   useEffect(() => { colours.current = FEATURES.map((f) => (dark ? f.dark : f.light).bg); }, [dark]);
-  const front = FEATURES[shown];
-  const frontTone = tones[shown];
+  const front = FEATURES[index];
+  const frontTone = tones[index];
 
   // ── scrolling ──────────────────────────────────────────────────────────
   const scrollTo = useCallback((y: number, immediate = false) => {
@@ -162,33 +166,40 @@ export default function FeatureCarousel() {
         document.fonts.load(`600 16px ${fonts.sans}`),
       ]).catch(() => undefined);
       if (disposed) return;
+      let T: Three;
+      try {
+        T = await import('three');
+      } catch {
+        return; // Not loaded: names, colours and the link still work.
+      }
+      if (disposed) return;
 
       try {
-        renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+        renderer = new T.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
       } catch {
         return; // No WebGL: names, colours and the link still work.
       }
       renderer.setClearColor(0x000000, 0);
-      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.outputColorSpace = T.SRGBColorSpace;
       const aniso = renderer.capabilities.getMaxAnisotropy();
-      camera = new THREE.PerspectiveCamera(27, 1, 10, 20000);
-      three = new THREE.Scene();
-      const turning = new THREE.Group();
-      swing = new THREE.Group();
+      camera = new T.PerspectiveCamera(27, 1, 10, 20000);
+      three = new T.Scene();
+      const turning = new T.Group();
+      swing = new T.Group();
       ring = turning;
       swing.add(turning);
       three.add(swing);
 
       const cards: THREE.Mesh[] = [];
       FEATURES.forEach((f, i) => {
-        const pivot = new THREE.Group();
+        const pivot = new T.Group();
         pivot.rotation.y = i * STEP;
-        const tex = new THREE.CanvasTexture(drawPoster(f.poster, 1000, fonts));
-        tex.colorSpace = THREE.SRGBColorSpace;
+        const tex = new T.CanvasTexture(drawPoster(f.poster, 1000, fonts));
+        tex.colorSpace = T.SRGBColorSpace;
         tex.anisotropy = aniso;
-        const mesh = new THREE.Mesh(
-          new THREE.BufferGeometry(),
-          new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.FrontSide, toneMapped: false }),
+        const mesh = new T.Mesh(
+          new T.BufferGeometry(),
+          new T.MeshBasicMaterial({ map: tex, transparent: true, side: T.FrontSide, toneMapped: false }),
         );
         mesh.userData.index = i;
         pivot.add(mesh);
@@ -213,14 +224,14 @@ export default function FeatureCarousel() {
         ring.position.z = -radius;
         cards.forEach((m) => {
           m.geometry.dispose();
-          m.geometry = bentPlane(card * BEND, card, card * 1.24);
+          m.geometry = bentPlane(T, card * BEND, card, card * 1.24);
           m.position.z = radius;
         });
       };
 
       layout();
       frame();
-      scene.current = { camera, cards };
+      scene.current = { T, camera, cards };
       gsap.to(canvas, { opacity: 1, duration: 0.6 });
       ScrollTrigger.refresh();
     })();
@@ -233,9 +244,10 @@ export default function FeatureCarousel() {
       trigger.current?.kill();
       trigger.current = null;
       three?.traverse((o) => {
-        if (o instanceof THREE.Mesh) {
-          o.geometry.dispose();
-          const mat = o.material as THREE.MeshBasicMaterial;
+        const mesh = o as THREE.Mesh;
+        if (mesh.isMesh) {
+          mesh.geometry.dispose();
+          const mat = mesh.material as THREE.MeshBasicMaterial;
           mat.map?.dispose();
           mat.dispose();
         }
@@ -246,20 +258,9 @@ export default function FeatureCarousel() {
   }, []);
 
   // ── the sentence below changes with the function in front ──────────────
-  useEffect(() => {
-    if (index === shown) return;
-    const gsap = ensureGsap();
-    const reduced = prefersReducedMotion();
-    gsap.to(caption.current?.querySelectorAll('[data-swap]') ?? [], {
-      yPercent: reduced ? 0 : -100,
-      opacity: 0,
-      duration: reduced ? 0 : 0.3,
-      ease: 'power2.in',
-      overwrite: true,
-      onComplete: () => setShown(index),
-    });
-  }, [index, shown]);
-
+  // It changes at once and rises in, so it always belongs to the function in
+  // front, however fast the ring is turned (waiting for the old sentence to
+  // leave first left it behind while scrolling quickly).
   const firstShow = useRef(true);
   useEffect(() => {
     const items = caption.current?.querySelectorAll('[data-swap]');
@@ -270,8 +271,8 @@ export default function FeatureCarousel() {
       gsap.set(items, { yPercent: 0, opacity: 1 });
       return;
     }
-    gsap.fromTo(items, { yPercent: 100, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 0.8, stagger: 0.06, ease: 'expo.out' });
-  }, [shown]);
+    gsap.fromTo(items, { yPercent: 60, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 0.55, stagger: 0.05, ease: 'expo.out', overwrite: true });
+  }, [index]);
 
   // ── drag turns the ring by scrolling the page; a tap on a side item brings it round ─
   const onPointerDown = (e: React.PointerEvent) => {
@@ -304,8 +305,8 @@ export default function FeatureCarousel() {
     const host = stage.current;
     if (!s || !host) return;
     const r = host.getBoundingClientRect();
-    const ray = new THREE.Raycaster();
-    ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), s.camera);
+    const ray = new s.T.Raycaster();
+    ray.setFromCamera(new s.T.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), s.camera);
     const hit = ray.intersectObjects(s.cards, false)[0];
     if (hit && hit.object.userData.index !== indexRef.current) goTo(hit.object.userData.index);
   };

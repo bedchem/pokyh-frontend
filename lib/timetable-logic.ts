@@ -3,6 +3,7 @@
 
 import type { TimetableEntry } from '@/lib/types';
 import { formatDate } from '@/lib/i18n/dateLocale';
+import { calendarMonday, currentWeekMonday } from '@/lib/school-week';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -80,11 +81,20 @@ export function dateNumOf(d: Date): number {
   return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
 }
 
-export function mondayOf(offset: number, today = new Date()): Date {
-  const base = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const dow = base.getDay() || 7;
-  base.setDate(base.getDate() - (dow - 1) + offset * 7);
+/**
+ * Monday of the week `offset` weeks from the current one. Without a date,
+ * "current" is the school week: from Saturday 17:00 on, the coming week
+ * (lib/school-week.ts); with a date, the calendar week that date is in.
+ */
+export function mondayOf(offset: number, today?: Date): Date {
+  const base = today ? calendarMonday(today) : currentWeekMonday();
+  base.setDate(base.getDate() + offset * 7);
   return base;
+}
+
+/** Whether the current school week is already the coming calendar week (Saturday evening, Sunday). */
+export function weekRolledOver(now = new Date()): boolean {
+  return currentWeekMonday(now).getTime() !== calendarMonday(now).getTime();
 }
 
 export function dateOf(offset: number, dayIndex: number): Date {

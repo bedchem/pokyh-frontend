@@ -316,7 +316,7 @@ export function MensaCard({ dishes, loading, noRating }: { dishes: DashDish[]; l
   if (!lead) return null;
   return (
     <div className={`${card} rise`}>
-      <Link href={localize('/canteen')} className={`group flex items-center gap-4 rounded-[20px] p-2 ${hoverRow}`}>
+      <Link href={localize(`/canteen/dish/${encodeURIComponent(lead.id)}`)} className={`group flex items-center gap-4 rounded-[20px] p-2 ${hoverRow}`}>
         <span className="relative block aspect-[4/3] w-32 shrink-0 overflow-hidden rounded-[16px] bg-butter text-butter-ink sm:w-44 xl:w-52">
           {lead.imageUrl && photos ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -334,7 +334,7 @@ export function MensaCard({ dishes, loading, noRating }: { dishes: DashDish[]; l
         </span>
       </Link>
       {rest.map((d) => (
-        <Link key={d.id} href={localize('/canteen')} className={`flex items-center gap-3 rounded-[18px] px-3 py-2 ${hoverRow}`}>
+        <Link key={d.id} href={localize(`/canteen/dish/${encodeURIComponent(d.id)}`)} className={`flex items-center gap-3 rounded-[18px] px-3 py-2 ${hoverRow}`}>
           <span className="relative size-11 shrink-0 overflow-hidden rounded-[12px] bg-butter text-butter-ink">
             {d.imageUrl && photos
               // eslint-disable-next-line @next/next/no-img-element
@@ -363,16 +363,16 @@ export function QuickTile({ dest, label, note, index = 0 }: { dest: AppDestinati
   return (
     <Link
       href={localize(dest.href)}
-      className={`${tileBase} rise group flex min-h-[148px] flex-col justify-between p-5 transition-[filter] duration-300 hover:brightness-[0.97] dark:hover:brightness-110 ${TONE_CLASS[dest.tone]}`}
+      className={`${tileBase} rise group flex min-h-[132px] min-w-0 flex-col justify-between p-4 transition-[filter] sm:min-h-[148px] sm:p-5 duration-300 hover:brightness-[0.97] dark:hover:brightness-110 ${TONE_CLASS[dest.tone]}`}
       style={{ animationDelay: `${index * 45}ms` }}
     >
       <span className="flex items-start justify-between">
-        <Icon size={30} weight="bold" aria-hidden="true" />
+        <Icon size={28} weight="bold" aria-hidden="true" />
         <ArrowRight size={18} weight="bold" className="-translate-x-1 opacity-0 transition-[opacity,transform] duration-300 ease-[var(--ease-out)] group-hover:translate-x-0 group-hover:opacity-100" aria-hidden="true" />
       </span>
-      <span>
-        <span className="block text-[19px] font-bold leading-tight tracking-[-0.02em]">{label}</span>
-        {note && <span className="mt-1 block text-[13.5px] font-semibold opacity-80">{note}</span>}
+      <span className="min-w-0">
+        <span className="block truncate text-[17px] font-bold leading-tight tracking-[-0.02em] sm:text-[19px]">{label}</span>
+        {note && <span className="mt-1 block text-[13px] font-semibold leading-snug opacity-80 sm:text-[13.5px]">{note}</span>}
       </span>
     </Link>
   );

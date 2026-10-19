@@ -22,6 +22,10 @@ export default function Avatar({
 }) {
   const [failed, setFailed] = useState(pictureMissing);
   const showPicture = picture && !failed;
+  const fail = () => {
+    pictureMissing = true;
+    setFailed(true);
+  };
 
   return (
     <span
@@ -36,10 +40,10 @@ export default function Avatar({
           src="/api/webuntis/profile-image"
           alt=""
           className="absolute inset-0 size-full object-cover"
-          onError={() => {
-            pictureMissing = true;
-            setFailed(true);
-          }}
+          // A picture that failed before the page came alive fires no error
+          // event React sees; a loaded image without size has failed too.
+          ref={(img) => { if (img?.complete && img.naturalWidth === 0) fail(); }}
+          onError={fail}
         />
       )}
     </span>

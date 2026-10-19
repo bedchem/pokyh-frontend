@@ -4,6 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import { fetchMessages, fetchPermissions, getMessagesStale } from '@/lib/api';
 import { useSession } from '@/providers/SessionProvider';
 import type { UntisPermissions } from '@/lib/types';
+import { messageIsRead } from '@/lib/untis-parse';
 
 // Small shared reads for the app frame. Each is fetched once per page load and
 // shared by every component that asks, so the sidebar, the dashboard and the
@@ -35,8 +36,8 @@ export function useUntisPermissions(): UntisPermissions | null {
 export function countUnread(json: unknown): number {
   const root = (json ?? {}) as Record<string, unknown>;
   const data = (root.data ?? {}) as Record<string, unknown>;
-  const list = (root.incomingMessages ?? data.incomingMessages ?? root.messages ?? []) as Array<{ isRead?: boolean }>;
-  return Array.isArray(list) ? list.filter((m) => m && m.isRead === false).length : 0;
+  const list = (root.incomingMessages ?? data.incomingMessages ?? root.messages ?? []) as Array<Record<string, unknown>>;
+  return Array.isArray(list) ? list.filter((m) => m && !messageIsRead(m)).length : 0;
 }
 
 // The unread count lives outside React: one value for every badge, filled

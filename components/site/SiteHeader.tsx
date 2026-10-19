@@ -43,6 +43,7 @@ export default function SiteHeader() {
   const darkTheme = useSiteDark();
   const [tone, setTone] = useState<Tone>('light');
   const [hidden, setHidden] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const root = useRef<HTMLElement>(null);
 
@@ -55,6 +56,7 @@ export default function SiteHeader() {
       if (!el) return;
       setTone(toneAt(window.innerWidth / 2, el.offsetHeight / 2, el));
       const y = window.scrollY;
+      setScrolled(y > 40);
       if (y < 120) setHidden(false);
       else if (y > lastY + 6) setHidden(true);
       else if (y < lastY - 6) setHidden(false);
@@ -95,6 +97,9 @@ export default function SiteHeader() {
         }}
         onFocusCapture={() => setHidden(false)}
       >
+        {/* Away from the top, what scrolls beneath the bar is blurred, so the
+            bar stays readable over text and photos in any section colour. */}
+        <span aria-hidden="true" className="header-blur" data-on={scrolled && !away ? '' : undefined} />
         <div className="mx-auto grid h-[72px] max-w-[1600px] grid-cols-[1fr_auto] items-center px-5 md:h-[84px] md:px-10 lg:grid-cols-[1fr_auto_1fr] lg:px-[6.5vw]">
           <Link href={localize('/')} data-bar-item className="justify-self-start rounded-lg" aria-label={`POKYH, ${t('home')}`}>
             <Image src="/POKYH_Logo.png" alt="" width={44} height={44} loading="eager" fetchPriority="high" className="size-10 md:size-11" />

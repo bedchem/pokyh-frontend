@@ -70,11 +70,6 @@ const nextConfig: NextConfig = {
         source: '/(.*)',
         headers: securityHeaders,
       },
-      // Studio lighting of the Mensa plate (rarely changes)
-      {
-        source: '/hdr/:path*',
-        headers: [{ key: 'Cache-Control', value: 'public, max-age=2592000, stale-while-revalidate=31536000' }],
-      },
       // Long-lived cache for the 3D model (immutable, content-hashed by filename)
       {
         source: '/models/:path*',
