@@ -26,7 +26,7 @@ export default function NotFoundView() {
 
   return (
     <section className="wrap flex min-h-[calc(92*var(--svh))] flex-col items-center justify-center pb-16 pt-28 text-center md:pt-32">
-      <Pixel404 className="rise block w-[min(600px,94vw)]" label="404" />
+      <Pixel404 className="rise block w-[min(680px,94vw)]" label="404" />
       <h1 className="rise mt-8 max-w-[18ch] text-[clamp(28px,4vw,46px)] font-extrabold leading-[1.06] tracking-[-0.045em] [animation-delay:80ms] md:mt-10">
         {t('title')}
       </h1>

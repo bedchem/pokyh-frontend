@@ -757,15 +757,24 @@ html.lenis body {
 }
 
 /* The 404 in pixel art (components/site/Pixel404.tsx): the digits drop in
-   one after the other in sprite steps, the zero asks, a tumbleweed rolls by. */
+   one after the other in sprite steps; the missing page floats beside them
+   as a ghost, its hem fluttering, its shadow following below. */
 .nf-art {
   --nf-ink: var(--accent);
   --nf-depth: color-mix(in srgb, var(--accent) 48%, #000);
   --nf-faint: color-mix(in srgb, var(--ink) 20%, transparent);
-  --nf-cactus: var(--success);
-  --nf-weed: var(--butter-ink);
-  --nf-star: var(--star);
+  --nf-paper: #FFFFFF;
+  --nf-outline: #D9D3C8;
+  --nf-fold: #DDD7CC;
+  --nf-line: color-mix(in srgb, var(--accent) 45%, #FFFFFF);
+  --nf-eye: #241C16;
+  --nf-cheek: #F6A5A5;
   overflow: visible;
+}
+.dark .nf-art {
+  --nf-paper: #ECE9E3;
+  --nf-outline: transparent;
+  --nf-fold: #B9B4AB;
 }
 .nf-digit { animation: nf-drop 0.8s steps(8, end) both; }
 @keyframes nf-drop {
@@ -774,40 +783,54 @@ html.lenis body {
   70% { transform: translateY(1px); }
   100% { opacity: 1; transform: none; }
 }
-.nf-question { opacity: 0; animation: nf-ask 2.4s steps(1, end) 1s infinite; }
-@keyframes nf-ask {
-  0%, 30% { opacity: 1; }
-  32% { opacity: 0; }
-  36%, 70% { opacity: 1; }
-  72%, 100% { opacity: 0; }
+/* Floating: up two pixels and back down, one pixel at a time. */
+.nf-ghost { animation: nf-float 2.4s steps(1, end) infinite; }
+@keyframes nf-float {
+  0%, 24% { transform: none; }
+  25%, 49% { transform: translateY(-1px); }
+  50%, 74% { transform: translateY(-2px); }
+  75%, 100% { transform: translateY(-1px); }
 }
-.nf-tumble { animation: nf-roll 5.6s steps(56, end) 0.9s infinite both; }
-@keyframes nf-roll {
-  0% { transform: translateX(-10px); }
-  90%, 100% { transform: translateX(58px); }
+.nf-shadow { animation: nf-shadow 2.4s steps(1, end) infinite; }
+.nf-shadow-high { animation-name: nf-shadow-high; }
+@keyframes nf-shadow {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
 }
-.nf-hop { animation: nf-hop 0.7s steps(1, end) infinite; }
-@keyframes nf-hop {
-  0%, 24% { transform: translateY(0); }
-  25%, 39% { transform: translateY(-1px); }
-  40%, 59% { transform: translateY(-2px); }
-  60%, 74% { transform: translateY(-1px); }
-  75%, 100% { transform: translateY(0); }
+@keyframes nf-shadow-high {
+  0%, 49% { opacity: 0; }
+  50%, 100% { opacity: 1; }
 }
-.nf-turn {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: nf-turn 0.8s steps(4, end) infinite;
+/* Now and then it fades, as ghosts do. */
+.nf-fade { animation: nf-fade 6s steps(1, end) 1.2s infinite; }
+@keyframes nf-fade {
+  0%, 62% { opacity: 1; }
+  64% { opacity: 0.7; }
+  66%, 74% { opacity: 0.4; }
+  76% { opacity: 0.7; }
+  78%, 100% { opacity: 1; }
 }
-@keyframes nf-turn { to { transform: rotate(360deg); } }
-.nf-dust { animation: nf-dust 1.2s steps(1, end) infinite; }
-@keyframes nf-dust {
-  0%, 59% { opacity: 1; }
-  60%, 100% { opacity: 0.25; }
+.nf-hem { animation: nf-flip 0.6s steps(1, end) infinite; }
+.nf-hem-alt { animation-direction: reverse; }
+@keyframes nf-flip {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+.nf-eyes { animation: nf-blink 4.2s steps(1, end) 0.8s infinite; }
+.nf-eyes-shut { opacity: 0; animation-name: nf-blink-shut; }
+@keyframes nf-blink {
+  0%, 91% { opacity: 1; }
+  92%, 95% { opacity: 0; }
+  96%, 100% { opacity: 1; }
+}
+@keyframes nf-blink-shut {
+  0%, 91% { opacity: 0; }
+  92%, 95% { opacity: 1; }
+  96%, 100% { opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .nf-digit, .nf-question, .nf-tumble, .nf-hop, .nf-turn, .nf-dust { animation: none; opacity: 1; }
-  .nf-tumble { transform: translateX(2px); }
+  .nf-digit, .nf-ghost, .nf-fade, .nf-shadow, .nf-hem, .nf-eyes { animation: none; opacity: 1; }
+  .nf-shadow-high, .nf-hem-alt, .nf-eyes-shut { opacity: 0; }
 }
 
 /* Sheets and menus rise in. */

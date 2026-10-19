@@ -82,6 +82,13 @@ Nothing was committed or pushed.
 - 404: a pixel-art "404" (digits drop in, a question mark blinks in the zero, a
   tumbleweed rolls past a cactus), one sentence, "Zurück" and the start page
   (`components/site/Pixel404.tsx`, `NotFoundView.tsx`, `app/global-not-found.tsx`).
+  Later replaced, because the tumbleweed and cactus are already the app's
+  "empty" picture (`PixelState`): the missing page is now a paper ghost
+  beside the digits (ruled sheet, folded corner, eyes and cheeks, fluttering
+  hem), floating up and down with its shadow below, fading now and then,
+  blinking. A faint outline keeps the white sheet visible in the light theme.
+  The scene is 60 pixels wide instead of 52; the drawing is a little wider
+  on the page (680 px, standalone 640 px) so the digits keep their size.
 - Homepage scroll cue: the word rises letter by letter, a dot glides down a
   track; a click starts the flight through the name.
 - Header: away from the top, what scrolls beneath it is blurred (`.header-blur`).
