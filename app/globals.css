@@ -651,69 +651,10 @@ html.lenis body {
 }
 .header-blur[data-on] { opacity: 1; }
 
-/* Plate and cutlery of the Mensa page: glazed ceramic with a rim, a well and
-   a highlight; polished steel (gradient stops read by the SVGs). In the dark
-   theme a dark stoneware plate and slightly darker steel. */
-.site {
-  --plate-1: #FFFFFF;
-  --plate-2: #F4F2EE;
-  --plate-3: #DEDAD2;
-  --steel-1: #7C7C85;
-  --steel-2: #F1F1F4;
-  --steel-3: #ABABB4;
-  --steel-4: #FFFFFF;
-  --steel-5: #6C6C75;
-}
-.dark .site {
-  --plate-1: #4B4B53;
-  --plate-2: #2F2F35;
-  --plate-3: #1D1D22;
-  --steel-1: #5A5A62;
-  --steel-2: #D7D7DD;
-  --steel-3: #8A8A93;
-  --steel-4: #F0F0F4;
-  --steel-5: #4E4E56;
-}
-.plate {
-  background: radial-gradient(circle at 34% 26%, var(--plate-1) 0%, var(--plate-2) 42%, var(--plate-3) 100%);
-  box-shadow:
-    0 34px 60px -30px rgb(0 0 0 / 0.55),
-    0 10px 20px -12px rgb(0 0 0 / 0.25),
-    inset 0 2px 2px rgb(255 255 255 / 0.7),
-    inset 0 -8px 16px rgb(0 0 0 / 0.12);
-}
-.dark .plate {
-  box-shadow:
-    0 34px 60px -30px rgb(0 0 0 / 0.85),
-    inset 0 1px 1px rgb(255 255 255 / 0.18),
-    inset 0 -8px 16px rgb(0 0 0 / 0.35);
-}
-.plate-well {
-  box-shadow:
-    inset 0 4px 10px rgb(0 0 0 / 0.16),
-    inset 0 -2px 4px rgb(255 255 255 / 0.6),
-    0 1px 0 rgb(255 255 255 / 0.5);
-}
-.dark .plate-well {
-  box-shadow:
-    inset 0 4px 10px rgb(0 0 0 / 0.45),
-    inset 0 -1px 3px rgb(255 255 255 / 0.1);
-}
-/* The glaze catches the light on the rim only, not on the food. */
-.plate-glaze {
-  background: radial-gradient(ellipse 60% 40% at 30% 16%, rgb(255 255 255 / 0.9), transparent 70%);
-  opacity: 0.5;
-  -webkit-mask-image: radial-gradient(circle closest-side, transparent 77%, #000 79%);
-  mask-image: radial-gradient(circle closest-side, transparent 77%, #000 79%);
-}
-.dark .plate-glaze { opacity: 0.22; }
-.cutlery {
-  filter: drop-shadow(0 12px 12px rgb(0 0 0 / 0.22)) drop-shadow(0 2px 2px rgb(0 0 0 / 0.16));
-}
-
 /* The served dish as pixel art (components/mensa/PixelPlate.tsx): glazed
-   ceramic and steel in a few flat tones each, a dithered shadow on the table;
-   it builds itself line by line, steam rises in steps, glints come and go. */
+   ceramic and steel in a few flat tones each, a dithered shadow on the table,
+   the dish photo sharp in the well; it builds itself line by line, steam
+   rises in steps, glints come and go. */
 .pxp {
   --pxp-rim: #F4F1EB;
   --pxp-rim-hi: #FFFFFF;
@@ -756,8 +697,12 @@ html.lenis body {
 .pxp-steel-hi { fill: var(--pxp-steel-hi); }
 .pxp-steel-lo { fill: var(--pxp-steel-lo); }
 .pxp-wisp { fill: var(--pxp-steam); }
-.pxp-spark, .pxp-glint-run { fill: var(--pxp-spark); }
-.pxp-food { image-rendering: pixelated; }
+.pxp-spark, .pxp-glint-run, .pxp-spark-hover { fill: var(--pxp-spark); }
+.pxp-meal { image-rendering: pixelated; }
+/* The photo is shown as it is; the drawn meal under it leaves once it's in. */
+.pxp-photo { opacity: 0; transition: opacity 0.3s steps(3, end); }
+.pxp-food[data-photo] .pxp-photo { opacity: 1; }
+.pxp-food[data-photo] .pxp-meal { visibility: hidden; transition: visibility 0s 0.3s; }
 
 .pxp-art, .pxp-food { animation: pxp-build 0.55s steps(11, end) both; }
 .pxp-food { animation-delay: 0.12s; }
@@ -768,6 +713,8 @@ html.lenis body {
 .pxp-fork, .pxp-knife { transition: transform 0.25s steps(2, end); }
 :is(button, a):hover .pxp-fork { transform: translateX(-1px); }
 :is(button, a):hover .pxp-knife { transform: translateX(1px); }
+.pxp-spark-hover { opacity: 0; transition: opacity 0.2s steps(2, end); }
+:is(button, a):hover .pxp-spark-hover { opacity: 1; }
 
 .pxp-wisp {
   opacity: 0;
@@ -806,7 +753,7 @@ html.lenis body {
 @media (prefers-reduced-motion: reduce) {
   .pxp-art, .pxp-food, .pxp-wisp, .pxp-spark, .pxp-glint-run { animation: none; }
   .pxp-wisp { opacity: 0.7; }
-  .pxp-fork, .pxp-knife { transition: none; }
+  .pxp-fork, .pxp-knife, .pxp-photo, .pxp-spark-hover { transition: none; }
 }
 
 /* The 404 in pixel art (components/site/Pixel404.tsx): the digits drop in
@@ -863,27 +810,11 @@ html.lenis body {
   .nf-tumble { transform: translateX(2px); }
 }
 
-/* Mensa (app/[lang]/(site)/mensa): a dish is served, the plate turns in
-   between fork and knife; the dish sheet rises. */
-@keyframes plate-in {
-  from { opacity: 0; transform: rotate(-40deg) scale(0.86); }
-  to { opacity: 1; transform: none; }
-}
-@keyframes cutlery-l {
-  from { opacity: 0; transform: translateX(-20px); }
-  to { opacity: 1; transform: none; }
-}
-@keyframes cutlery-r {
-  from { opacity: 0; transform: translateX(20px); }
-  to { opacity: 1; transform: none; }
-}
+/* Sheets and menus rise in. */
 @keyframes sheet-in {
   from { opacity: 0; transform: translateY(48px); }
   to { opacity: 1; transform: none; }
 }
-.plate-in { animation: plate-in 0.8s var(--ease-out) both; }
-.plate-cutlery-l { animation: cutlery-l 0.7s var(--ease-out) 0.12s both; }
-.plate-cutlery-r { animation: cutlery-r 0.7s var(--ease-out) 0.12s both; }
 .sheet-in { animation: sheet-in 0.45s var(--ease-out) both; }
 
 /* Small phones (down to 320px): nothing may push the page sideways. Grid

@@ -8,9 +8,9 @@ import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { mensaDict } from '@/lib/i18n/dictionaries/mensa';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
 import { useExternalMedia } from '@/lib/external-media';
-import type { FoodStyle } from './PixelPlate';
+import PixelPlate, { type FoodStyle } from './PixelPlate';
 
-// Pieces the Mensa plan and the dish pages share: the dish photo on a plate,
+// Pieces the Mensa plan and the dish pages share: the dish on a small plate,
 // stars, diet tags and the sign-in question for guests.
 
 export const STAR = '#F5B301';
@@ -76,17 +76,17 @@ export function Food({ dish, alt, eager = false }: { dish: Dish; alt: string; ea
   );
 }
 
-/** A dish photo served on a round plate: rim, well, glaze. */
-export function Plate({ dish, alt, className = '' }: { dish: Dish; alt: string; className?: string }) {
+/** A dish on the small pixel plate (without cutlery), for rows and chips. */
+export function Plate({ dish, className = '' }: { dish: Dish; className?: string }) {
+  const external = useExternalMedia();
   return (
-    <span className={`plate relative block aspect-square rounded-full ${className}`}>
-      <span aria-hidden="true" className="plate-well absolute inset-[7%] rounded-full" />
-      <span className="absolute inset-[11%] overflow-hidden rounded-full">
-        <Food dish={dish} alt={alt} />
-        <span aria-hidden="true" className="absolute inset-0 rounded-full shadow-[inset_0_6px_18px_rgb(0_0_0/0.28)]" />
-      </span>
-      <span aria-hidden="true" className="plate-glaze pointer-events-none absolute inset-0 rounded-full" />
-    </span>
+    <PixelPlate
+      size="plate"
+      photo={external ? dish.imageUrl : null}
+      style={foodStyleOf(dish)}
+      seed={dish.id}
+      className={className}
+    />
   );
 }
 

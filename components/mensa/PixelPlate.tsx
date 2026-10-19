@@ -1,26 +1,42 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-// The next dish, served as pixel art: a glazed plate between fork and knife,
-// lit from the top left, with its shadow dithered onto the table. The dish
-// photo lies in the well, scaled down to the scene's pixels; without a photo
-// a small pixel meal in the dish's style stands in. Steam rises in steps, the
-// rim and the blade glint now and then, and the scene builds itself line by
-// line when it arrives (CSS in globals.css, .pxp-*). It is drawn on the spot:
-// nothing to download but the photo.
+// A dish served as pixel art: a glazed plate, lit from the top left, with its
+// shadow dithered onto the table. The dish photo lies sharp in the well, cut
+// to the plate's pixel edge; without a photo a small pixel meal in the dish's
+// style stands in. Two sizes: 'table' for the next dish (between fork and
+// knife, steam rising in steps, rim and blade glinting now and then) and
+// 'plate' for the plan's rows (the plate alone, a glint on hover). Both build
+// themselves line by line when they arrive (CSS in globals.css, .pxp-*). Drawn
+// on the spot: nothing to download but the photo.
 
-const W = 112;
-const H = 64;
-const CX = 56;
-const CY = 31;
-const R_OUT = 28.5;
-const R_RIM = 23;
-const R_FOOD = 19.5;
-/** Food canvas: one canvas pixel per scene pixel. */
-const FOOD_X = Math.floor(CX - R_FOOD);
-const FOOD_Y = Math.floor(CY - R_FOOD);
-const FOOD_N = Math.ceil(R_FOOD * 2);
+export type PlateSize = 'table' | 'plate';
+
+interface Geometry {
+  w: number;
+  h: number;
+  cx: number;
+  cy: number;
+  rOut: number;
+  rRim: number;
+  rFood: number;
+  /** Offsets of the plate's shadow on the table: the solid and the dithered one. */
+  shadow: [number, number];
+  shadowSoft: [number, number];
+}
+
+const GEOMETRY: Record<PlateSize, Geometry> = {
+  table: { w: 112, h: 64, cx: 56, cy: 31, rOut: 28.5, rRim: 23, rFood: 19.5, shadow: [2, 3], shadowSoft: [3, 5] },
+  plate: { w: 36, h: 36, cx: 17, cy: 17, rOut: 15.5, rRim: 12.5, rFood: 10.5, shadow: [1, 2], shadowSoft: [2, 3] },
+};
+
+/** The food's square on the scene, in whole pixels, centred on the plate. */
+function foodBox(g: Geometry) {
+  const x = Math.floor(g.cx - g.rFood);
+  const y = Math.floor(g.cy - g.rFood);
+  return { x, y, n: Math.ceil(g.cx + g.rFood) - x };
+}
 
 /** Light from the top left. */
 const LX = -0.61;
@@ -32,12 +48,12 @@ function add(layer: Layer, x: number, y: number) {
   layer.push(`M${x} ${y}h1v1h-1z`);
 }
 
-const dist = (x: number, y: number, cx = CX, cy = CY) => Math.hypot(x + 0.5 - cx, y + 0.5 - cy);
+const dist = (x: number, y: number, cx: number, cy: number) => Math.hypot(x + 0.5 - cx, y + 0.5 - cy);
 
 /** How much a point on the plate faces the light (-1 … 1). */
-function facing(x: number, y: number): number {
-  const dx = x + 0.5 - CX;
-  const dy = y + 0.5 - CY;
+function facing(g: Geometry, x: number, y: number): number {
+  const dx = x + 0.5 - g.cx;
+  const dy = y + 0.5 - g.cy;
   const d = Math.hypot(dx, dy) || 1;
   return (dx / d) * LX + (dy / d) * LY;
 }
@@ -97,43 +113,48 @@ function knifeRows(): Rows {
   return rows;
 }
 
-function buildScene(): Scene {
+function buildScene(g: Geometry, cutlery: boolean): Scene {
   const s: Scene = {
     shadow: [], shadowSoft: [], rim: [], rimHi: [], rimLo: [], edge: [], well: [], wellLo: [],
     fork: { shadow: [], base: [], hi: [], lo: [] },
     knife: { shadow: [], base: [], hi: [], lo: [] },
   };
+  // Widths on the plate grow with its size.
+  const k = g.rOut / 28.5;
 
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      const d = dist(x, y);
-      if (d <= R_OUT) {
-        const f = facing(x, y);
-        if (d <= R_FOOD) continue;
-        if (d > R_RIM) {
+  for (let y = 0; y < g.h; y++) {
+    for (let x = 0; x < g.w; x++) {
+      const d = dist(x, y, g.cx, g.cy);
+      if (d <= g.rOut) {
+        const f = facing(g, x, y);
+        if (d > g.rRim) {
           // The rim: an outline, the lit and the shaded side, a glaze line.
-          if (d > R_OUT - 1) add(f > 0.3 ? s.rimLo : s.edge, x, y);
-          else if (f > 0.42 && d > R_OUT - 3.6) add(s.rimHi, x, y);
+          if (d > g.rOut - 1) add(f > 0.3 ? s.rimLo : s.edge, x, y);
+          else if (f > 0.42 && d > g.rOut - 3.6 * k) add(s.rimHi, x, y);
           else if (f < -0.38) add(s.rimLo, x, y);
           else add(s.rim, x, y);
-        } else if (d > R_RIM - 1) {
+        } else if (d > g.rRim - 1) {
           // The step down into the well: shaded where the rim faces the light.
           add(f > 0 ? s.rimLo : s.rimHi, x, y);
-        } else if (d <= R_FOOD + 1.5 && f < -0.2) {
+        } else if (d <= g.rFood) {
+          // Under the food: the plate shows around a pixel meal's heap.
+          add(s.well, x, y);
+        } else if (d <= g.rFood + 1.5 * k && f < -0.2) {
           // The food's own shadow on the plate.
           add(s.wellLo, x, y);
-        } else if (f > 0.3 && d > R_RIM - 3) {
+        } else if (f > 0.3 && d > g.rRim - 3 * k) {
           add(s.wellLo, x, y);
         } else {
           add(s.well, x, y);
         }
-      } else if (dist(x, y, CX + 2, CY + 3) <= R_OUT) {
+      } else if (dist(x, y, g.cx + g.shadow[0], g.cy + g.shadow[1]) <= g.rOut) {
         add(s.shadow, x, y);
-      } else if (dist(x, y, CX + 3, CY + 5) <= R_OUT + 0.5 && (x + y) % 2 === 0) {
+      } else if (dist(x, y, g.cx + g.shadowSoft[0], g.cy + g.shadowSoft[1]) <= g.rOut + 0.5 && (x + y) % 2 === 0) {
         add(s.shadowSoft, x, y);
       }
     }
   }
+  if (!cutlery) return s;
 
   const piece = (out: Steel, rows: Rows, gaps: Set<string> = new Set()) => {
     const filled = new Set<string>();
@@ -157,8 +178,41 @@ function buildScene(): Scene {
   return s;
 }
 
-let scene: Scene | null = null;
+/** Whether a pixel of the food's square lies on the food. */
+function inFood(g: Geometry, x: number, y: number) {
+  const box = foodBox(g);
+  return dist(x, y, g.cx - box.x, g.cy - box.y) <= g.rFood;
+}
+
+/** The food's outline in whole pixels as a CSS polygon, so the photo keeps the plate's edge. */
+function foodClip(g: Geometry): string {
+  const { n } = foodBox(g);
+  const right: string[] = [];
+  const left: string[] = [];
+  const p = (x: number, y: number) => `${+((x / n) * 100).toFixed(3)}% ${+((y / n) * 100).toFixed(3)}%`;
+  for (let y = 0; y < n; y++) {
+    let x0 = -1;
+    let x1 = -1;
+    for (let x = 0; x < n; x++) if (inFood(g, x, y)) { if (x0 < 0) x0 = x; x1 = x; }
+    if (x0 < 0) continue;
+    right.push(p(x1 + 1, y), p(x1 + 1, y + 1));
+    left.unshift(p(x0, y + 1), p(x0, y));
+  }
+  return `polygon(${[...right, ...left].join(',')})`;
+}
+
+interface Built {
+  scene: Scene;
+  clip: string;
+}
+
+const built: Partial<Record<PlateSize, Built>> = {};
 const d = (layer: Layer) => layer.join('');
+
+function sceneFor(size: PlateSize): Built {
+  const g = GEOMETRY[size];
+  return (built[size] ??= { scene: buildScene(g, size === 'table'), clip: foodClip(g) });
+}
 
 // ── Food ──────────────────────────────────────────────────────────────────
 
@@ -184,78 +238,62 @@ function random(seed: string) {
   };
 }
 
-function inFood(x: number, y: number) {
-  return Math.hypot(x + 0.5 - FOOD_N / 2, y + 0.5 - FOOD_N / 2) <= R_FOOD;
-}
-
 /** Keeps only the round food area of the canvas, cut in whole pixels. */
-function cutRound(ctx: CanvasRenderingContext2D) {
+function cutRound(ctx: CanvasRenderingContext2D, g: Geometry) {
+  const { n } = foodBox(g);
   // One path for the whole disc: 'destination-in' clears everything outside
   // each single drawing call.
   ctx.globalCompositeOperation = 'destination-in';
   ctx.fillStyle = '#000';
   ctx.beginPath();
-  for (let y = 0; y < FOOD_N; y++) for (let x = 0; x < FOOD_N; x++) if (inFood(x, y)) ctx.rect(x, y, 1, 1);
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (inFood(g, x, y)) ctx.rect(x, y, 1, 1);
   ctx.fill();
   ctx.globalCompositeOperation = 'source-over';
 }
 
-function drawMeal(ctx: CanvasRenderingContext2D, style: FoodStyle, seed: string) {
+function drawMeal(ctx: CanvasRenderingContext2D, g: Geometry, style: FoodStyle, seed: string) {
   const rnd = random(seed);
   const { base, spots } = FOOD_COLORS[style];
-  ctx.clearRect(0, 0, FOOD_N, FOOD_N);
+  const { n } = foodBox(g);
+  const c = n / 2;
+  // Distances on the meal grow with the plate.
+  const k = g.rFood / 19.5;
+  ctx.clearRect(0, 0, n, n);
   // A heap, not a disc: the meal covers the middle, the plate shows around it.
-  for (let y = 0; y < FOOD_N; y++) {
-    for (let x = 0; x < FOOD_N; x++) {
-      const r = Math.hypot(x + 0.5 - FOOD_N / 2, y + 0.5 - FOOD_N / 2);
-      if (r <= R_FOOD - 3 - rnd() * 2.5) {
+  for (let y = 0; y < n; y++) {
+    for (let x = 0; x < n; x++) {
+      const r = Math.hypot(x + 0.5 - c, y + 0.5 - c);
+      if (r <= g.rFood - (3 + rnd() * 2.5) * k) {
         ctx.fillStyle = base;
         ctx.fillRect(x, y, 1, 1);
       }
     }
   }
-  const count = style === 'pasta' ? 90 : 70;
+  const count = Math.round((style === 'pasta' ? 90 : 70) * k * k);
   for (let i = 0; i < count; i++) {
     const a = rnd() * Math.PI * 2;
-    const r = Math.sqrt(rnd()) * (R_FOOD - 6);
-    const x = Math.round(FOOD_N / 2 + Math.cos(a) * r);
-    const y = Math.round(FOOD_N / 2 + Math.sin(a) * r);
+    const r = Math.sqrt(rnd()) * (g.rFood - 6 * k);
+    const x = Math.round(c + Math.cos(a) * r);
+    const y = Math.round(c + Math.sin(a) * r);
     const color = spots[Math.floor(rnd() * spots.length)];
     ctx.fillStyle = color;
     if (style === 'pasta') {
       // Strands: short diagonal runs.
       const dir = rnd() > 0.5 ? 1 : -1;
-      for (let k = 0; k < 3; k++) ctx.fillRect(x + k, y + k * dir, 1, 1);
+      for (let s = 0; s < 3; s++) ctx.fillRect(x + s, y + s * dir, 1, 1);
     } else {
       ctx.fillRect(x, y, rnd() > 0.5 ? 2 : 1, rnd() > 0.6 ? 2 : 1);
     }
   }
   // Light on the top left of the heap.
   ctx.fillStyle = 'rgb(255 255 255 / 0.22)';
-  for (let y = 0; y < FOOD_N; y++) for (let x = 0; x < FOOD_N; x++) {
-    const dx = x + 0.5 - FOOD_N / 2;
-    const dy = y + 0.5 - FOOD_N / 2;
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const dx = x + 0.5 - c;
+    const dy = y + 0.5 - c;
     const r = Math.hypot(dx, dy);
-    if (r < R_FOOD - 6 && r > R_FOOD - 9 && (dx * LX + dy * LY) / (r || 1) > 0.5) ctx.fillRect(x, y, 1, 1);
+    if (r < g.rFood - 6 * k && r > g.rFood - 9 * k && (dx * LX + dy * LY) / (r || 1) > 0.5) ctx.fillRect(x, y, 1, 1);
   }
-  cutRound(ctx);
-}
-
-/** The photo scaled down to the scene's pixels, in two steps so it doesn't shimmer. */
-function drawPhoto(ctx: CanvasRenderingContext2D, img: HTMLImageElement) {
-  const mid = document.createElement('canvas');
-  mid.width = mid.height = FOOD_N * 4;
-  const m = mid.getContext('2d');
-  if (!m) return false;
-  const side = Math.min(img.naturalWidth, img.naturalHeight);
-  m.imageSmoothingQuality = 'high';
-  m.drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, mid.width, mid.height);
-  ctx.clearRect(0, 0, FOOD_N, FOOD_N);
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(mid, 0, 0, FOOD_N, FOOD_N);
-  cutRound(ctx);
-  return true;
+  cutRound(ctx, g);
 }
 
 // ── The scene ─────────────────────────────────────────────────────────────
@@ -264,6 +302,7 @@ export default function PixelPlate({
   photo,
   style,
   seed,
+  size = 'table',
   className = '',
 }: {
   /** The dish photo, when there is one and the visitor allows outside pictures. */
@@ -271,33 +310,26 @@ export default function PixelPlate({
   style: FoodStyle;
   /** Keeps the drawn meal the same for the same dish. */
   seed: string;
+  size?: PlateSize;
   className?: string;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
-  scene ??= buildScene();
-  const sc = scene;
+  // The photo that has arrived, and one that could not be loaded.
+  const [loaded, setLoaded] = useState<string | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
+  const g = GEOMETRY[size];
+  const box = foodBox(g);
+  const { scene: sc, clip } = sceneFor(size);
+  const table = size === 'table';
 
   useEffect(() => {
-    const el = canvas.current;
-    const ctx = el?.getContext('2d');
-    if (!el || !ctx) return;
-    drawMeal(ctx, style, seed);
-    if (!photo) return;
-    let alive = true;
-    const img = new Image();
-    img.decoding = 'async';
-    img.referrerPolicy = 'no-referrer';
-    img.onload = () => {
-      if (!alive) return;
-      el.dataset.photo = drawPhoto(ctx, img) ? 'true' : 'false';
-    };
-    img.src = photo;
-    return () => { alive = false; img.onload = null; };
-  }, [photo, style, seed]);
+    const ctx = canvas.current?.getContext('2d');
+    if (ctx) drawMeal(ctx, GEOMETRY[size], style, seed);
+  }, [size, style, seed]);
 
   return (
-    <span className={`pxp relative block w-full ${className}`} style={{ aspectRatio: `${W} / ${H}` }}>
-      <svg viewBox={`0 0 ${W} ${H}`} className="pxp-art absolute inset-0 h-full w-full" shapeRendering="crispEdges" aria-hidden="true">
+    <span className={`pxp relative block ${table ? 'w-full' : ''} ${className}`} style={{ aspectRatio: `${g.w} / ${g.h}` }}>
+      <svg viewBox={`0 0 ${g.w} ${g.h}`} className="pxp-art absolute inset-0 h-full w-full" shapeRendering="crispEdges" aria-hidden="true">
         <path d={d(sc.shadowSoft)} className="pxp-shadow-soft" />
         <path d={d(sc.shadow)} className="pxp-shadow" />
         <path d={d(sc.edge)} className="pxp-edge" />
@@ -306,37 +338,59 @@ export default function PixelPlate({
         <path d={d(sc.rimLo)} className="pxp-rim-lo" />
         <path d={d(sc.well)} className="pxp-well" />
         <path d={d(sc.wellLo)} className="pxp-well-lo" />
-        <g className="pxp-fork">
-          <path d={d(sc.fork.shadow)} className="pxp-shadow" />
-          <path d={d(sc.fork.base)} className="pxp-steel" />
-          <path d={d(sc.fork.hi)} className="pxp-steel-hi" />
-          <path d={d(sc.fork.lo)} className="pxp-steel-lo" />
-        </g>
-        <g className="pxp-knife">
-          <path d={d(sc.knife.shadow)} className="pxp-shadow" />
-          <path d={d(sc.knife.base)} className="pxp-steel" />
-          <path d={d(sc.knife.hi)} className="pxp-steel-hi" />
-          <path d={d(sc.knife.lo)} className="pxp-steel-lo" />
-          {/* A glint that runs down the blade */}
-          <path d="M100 7h1v1h-1z" className="pxp-glint-run" />
-        </g>
-        {/* The glaze catches the light: a small star on the rim */}
-        <path d="M35 9h1v1h-1zM34 10h3v1h-3zM35 11h1v1h-1z" className="pxp-spark" />
-        <path d="M76 52h1v1h-1z" className="pxp-spark pxp-spark-late" />
+        {table ? (
+          <>
+            <g className="pxp-fork">
+              <path d={d(sc.fork.shadow)} className="pxp-shadow" />
+              <path d={d(sc.fork.base)} className="pxp-steel" />
+              <path d={d(sc.fork.hi)} className="pxp-steel-hi" />
+              <path d={d(sc.fork.lo)} className="pxp-steel-lo" />
+            </g>
+            <g className="pxp-knife">
+              <path d={d(sc.knife.shadow)} className="pxp-shadow" />
+              <path d={d(sc.knife.base)} className="pxp-steel" />
+              <path d={d(sc.knife.hi)} className="pxp-steel-hi" />
+              <path d={d(sc.knife.lo)} className="pxp-steel-lo" />
+              {/* A glint that runs down the blade */}
+              <path d="M100 7h1v1h-1z" className="pxp-glint-run" />
+            </g>
+            {/* The glaze catches the light: a small star on the rim */}
+            <path d="M35 9h1v1h-1zM34 10h3v1h-3zM35 11h1v1h-1z" className="pxp-spark" />
+            <path d="M76 52h1v1h-1z" className="pxp-spark pxp-spark-late" />
+          </>
+        ) : (
+          <path d="M8 4h1v1h-1zM7 5h3v1h-3zM8 6h1v1h-1z" className="pxp-spark-hover" />
+        )}
       </svg>
-      <canvas
-        ref={canvas}
-        width={FOOD_N}
-        height={FOOD_N}
+      <span
         className="pxp-food absolute"
-        style={{ left: `${(FOOD_X / W) * 100}%`, top: `${(FOOD_Y / H) * 100}%`, width: `${(FOOD_N / W) * 100}%`, height: `${(FOOD_N / H) * 100}%` }}
+        data-photo={photo && loaded === photo ? 'true' : undefined}
+        style={{ left: `${(box.x / g.w) * 100}%`, top: `${(box.y / g.h) * 100}%`, width: `${(box.n / g.w) * 100}%`, height: `${(box.n / g.h) * 100}%` }}
         aria-hidden="true"
-      />
-      <svg viewBox={`0 0 ${W} ${H}`} className="pxp-steam pointer-events-none absolute inset-0 h-full w-full" shapeRendering="crispEdges" aria-hidden="true">
-        <path d="M50 13h1v1h-1zM51 11h1v1h-1zM51 9h1v1h-1zM50 7h1v1h-1z" className="pxp-wisp" />
-        <path d="M56 12h1v1h-1zM55 10h1v1h-1zM56 8h1v1h-1zM57 6h1v1h-1zM56 4h1v1h-1z" className="pxp-wisp pxp-wisp-2" />
-        <path d="M62 13h1v1h-1zM61 11h1v1h-1zM61 9h1v1h-1zM62 7h1v1h-1z" className="pxp-wisp pxp-wisp-3" />
-      </svg>
+      >
+        <canvas ref={canvas} width={box.n} height={box.n} className="pxp-meal absolute inset-0 h-full w-full" />
+        {photo && failed !== photo && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={photo}
+            alt=""
+            loading={table ? 'eager' : 'lazy'}
+            decoding="async"
+            referrerPolicy="no-referrer"
+            onLoad={() => setLoaded(photo)}
+            onError={() => setFailed(photo)}
+            className="pxp-photo absolute inset-0 h-full w-full object-cover"
+            style={{ clipPath: clip }}
+          />
+        )}
+      </span>
+      {table && (
+        <svg viewBox={`0 0 ${g.w} ${g.h}`} className="pxp-steam pointer-events-none absolute inset-0 h-full w-full" shapeRendering="crispEdges" aria-hidden="true">
+          <path d="M50 13h1v1h-1zM51 11h1v1h-1zM51 9h1v1h-1zM50 7h1v1h-1z" className="pxp-wisp" />
+          <path d="M56 12h1v1h-1zM55 10h1v1h-1zM56 8h1v1h-1zM57 6h1v1h-1zM56 4h1v1h-1z" className="pxp-wisp pxp-wisp-2" />
+          <path d="M62 13h1v1h-1zM61 11h1v1h-1zM61 9h1v1h-1zM62 7h1v1h-1z" className="pxp-wisp pxp-wisp-3" />
+        </svg>
+      )}
     </span>
   );
 }

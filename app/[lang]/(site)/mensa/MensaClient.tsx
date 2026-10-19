@@ -18,7 +18,7 @@ import { useExternalMedia } from '@/lib/external-media';
 
 // The Mensa plan, on the public site for guests and inside the app (/canteen)
 // for accounts: the next dish served as pixel art between fork and knife, the
-// whole plan below by week. Every dish opens its own page (components/mensa/
+// whole plan below by week, each dish on a small pixel plate. Every dish opens its own page (components/mensa/
 // DishView.tsx) with the ratings, nutrition, allergens and comments.
 
 /** Monday of the week `d` is in, as a week count, to group days by week. */
@@ -181,7 +181,7 @@ export default function MensaClient() {
                   <div className="mt-2 flex max-w-full flex-wrap gap-2">
                     {next.dishes.filter((d) => d !== served).map((d) => (
                       <Link key={d.id} href={href(d.id)} className="flex min-w-0 max-w-full items-center gap-2 rounded-full bg-surface py-1 pl-1 pr-4 text-[14px] font-semibold text-ink hover:bg-inset">
-                        <Plate dish={d} alt="" className="w-9 shrink-0" />
+                        <Plate dish={d} className="w-9 shrink-0" />
                         <span className="truncate">{localized(d.name, locale)}</span>
                       </Link>
                     ))}
@@ -203,7 +203,7 @@ export default function MensaClient() {
                   {w.days.flatMap((day) => day.dishes.map((dish) => (
                     <li key={dish.id}>
                       <Link href={href(dish.id)} className="card flex w-full items-center gap-4 p-3 pr-5 text-left transition-colors hover:bg-inset">
-                        <Plate dish={dish} alt="" className="w-[68px] shrink-0 sm:w-[76px] md:w-[88px]" />
+                        <Plate dish={dish} className="w-[72px] shrink-0 md:w-[90px]" />
                         <span className="min-w-0 flex-1">
                           <span className="block text-[13px] font-semibold text-ink-3 first-letter:uppercase">{dayLabel(day)}</span>
                           <span className="mt-0.5 block truncate text-[17px] font-bold tracking-[-0.015em] text-ink">{localized(dish.name, locale)}</span>

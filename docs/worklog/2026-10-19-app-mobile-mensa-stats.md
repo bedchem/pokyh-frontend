@@ -67,6 +67,15 @@ Nothing was committed or pushed.
   Dashboard card and search results link to the dish pages.
 - The menu is cached in memory and on the device; plan and dish pages render
   from the stored copy first (`fetchMensa`, `getMensaStale`).
+- The dish photo on the pixel plate is no longer scaled down to the scene's
+  pixels: it is shown sharp, cut to the plate's stepped edge (CSS polygon),
+  and fades in over the drawn meal once loaded. The food disc is now centred
+  on the plate (it sat half a pixel up and left) and the well is drawn under
+  it, so the plate shows around a pixel meal's heap.
+- The plan's rows and the other dishes of the day use a small pixel plate
+  (`PixelPlate size="plate"`: plate only, no cutlery or steam, a glint on
+  hover) instead of the CSS plate; `Plate` in `parts.tsx` wraps it. The unused
+  CSS plate, steel and plate-in/cutlery rules were removed from `globals.css`.
 
 ## Public pages
 
