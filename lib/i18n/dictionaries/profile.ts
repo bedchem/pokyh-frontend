@@ -37,8 +37,9 @@ export type ProfileKey =
   | 'activityKeptConsent'
   | 'activityKeptYear'
   | 'activityKeptYearConsent'
-  | 'consentHint'
   | 'consentLink'
+  | 'statsOffTitle'
+  | 'statsOffText'
   | 'statsTitle'
   | 'statsLead'
   | 'usageTime'
@@ -112,8 +113,9 @@ export const profileDict: Dictionary<ProfileKey> = {
     activityKeptConsent: 'Nutzungszeit wird mit deiner Zustimmung {n} Tage deinem Konto zugeordnet.',
     activityKeptYear: 'POKYH bewahrt deine aktiven Tage und Anmeldungen für das laufende Schuljahr auf; am Schuljahresende kommen sie ins Schuljahresarchiv.',
     activityKeptYearConsent: 'Nutzungszeit wird mit deiner Zustimmung ebenso lange deinem Konto zugeordnet.',
-    consentHint: 'Mit der persönlichen Nutzungsstatistik siehst du hier auch, wie lange du online warst.',
     consentLink: 'In den Einstellungen einschalten',
+    statsOffTitle: 'Persönliche Statistiken sind ausgeschaltet',
+    statsOffText: 'Darum siehst du hier nur, an welchen Tagen du online warst, nicht wie lange und was du am meisten öffnest. Du kannst sie jederzeit einschalten und wieder ausschalten.',
     statsTitle: 'Statistiken',
     statsLead: 'Wie du POKYH nutzt, nur für dich sichtbar.',
     usageTime: 'Nutzungszeit',
@@ -184,8 +186,9 @@ export const profileDict: Dictionary<ProfileKey> = {
     activityKeptConsent: 'Con il tuo consenso il tempo d’uso resta collegato al tuo account per {n} giorni.',
     activityKeptYear: 'POKYH conserva i tuoi giorni attivi e i tuoi accessi per l’anno scolastico in corso; alla fine dell’anno passano nell’archivio dell’anno scolastico.',
     activityKeptYearConsent: 'Con il tuo consenso il tempo d’uso resta collegato al tuo account per lo stesso periodo.',
-    consentHint: 'Con le statistiche d’uso personali vedi qui anche quanto tempo sei stato online.',
     consentLink: 'Attiva nelle impostazioni',
+    statsOffTitle: 'Le statistiche personali sono disattivate',
+    statsOffText: 'Per questo qui vedi solo in quali giorni sei stato online, non per quanto tempo né cosa apri di più. Puoi attivarle e disattivarle in qualsiasi momento.',
     statsTitle: 'Statistiche',
     statsLead: 'Come usi POKYH, visibile solo a te.',
     usageTime: 'Tempo d’uso',
@@ -256,8 +259,9 @@ export const profileDict: Dictionary<ProfileKey> = {
     activityKeptConsent: 'With your consent, time in POKYH stays linked to your account for {n} days.',
     activityKeptYear: 'POKYH keeps your active days and sign-ins for the current school year; at its end they move to the school-year archive.',
     activityKeptYearConsent: 'With your consent, your time in POKYH stays linked to your account just as long.',
-    consentHint: 'With personal usage statistics you also see how long you were online.',
     consentLink: 'Turn it on in settings',
+    statsOffTitle: 'Personal statistics are turned off',
+    statsOffText: 'That is why you only see the days you were online here, not for how long or what you open most. You can turn them on and off at any time.',
     statsTitle: 'Statistics',
     statsLead: 'How you use POKYH, visible only to you.',
     usageTime: 'Time in POKYH',

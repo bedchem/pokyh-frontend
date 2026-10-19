@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { BRAND, type DayKind, type MergedSlot } from '@/lib/timetable-logic';
 import s from './timetable.module.css';
-import { PixelSpriteArt, type PixelSprite } from '@/components/app/PixelState';
+import { PixelSpriteArt, holidaySprite, type PixelSprite } from '@/components/app/PixelState';
 import { useT } from '@/providers/LocaleProvider';
 import { timetableDict, type TimetableKey } from '@/lib/i18n/dictionaries/timetable';
 
@@ -69,16 +69,18 @@ export function specialDaySpecFor(kind: DayKind): SpecialSpec {
   }
 }
 
+// A holiday looks like the time of year (holidaySprite).
 const DAY_SPRITE: Partial<Record<DayKind, PixelSprite>> = {
-  holiday: 'sun',
   allCancelled: 'cancelled',
   allReplacement: 'swap',
   fullDayEvent: 'event',
 };
 
 /** Shown instead of lessons when a whole day has none, glyph disc, title, one line. No plate. */
-export function SpecialDayCard({ kind, compact = false, style, onClick }: {
+export function SpecialDayCard({ kind, month, compact = false, style, onClick }: {
   kind: DayKind;
+  /** The day's month (1–12), for the season of a holiday. */
+  month: number;
   compact?: boolean;
   style?: CSSProperties;
   onClick?: () => void;
@@ -86,7 +88,7 @@ export function SpecialDayCard({ kind, compact = false, style, onClick }: {
   const t = useT(timetableDict);
   const spec = specialDaySpecFor(kind);
   // Pixel scenes for the days without lessons; the weekend stays as it is.
-  const sprite = DAY_SPRITE[kind];
+  const sprite = kind === 'holiday' ? holidaySprite(month, false) : DAY_SPRITE[kind];
   const className = `${s.special} ${compact ? s.specialCompact : ''}`;
   const inner = (
     <div className={s.specialInner}>

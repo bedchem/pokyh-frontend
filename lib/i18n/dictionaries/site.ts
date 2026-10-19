@@ -15,6 +15,8 @@ export type SiteKey =
   | 'login'
   | 'openApp'
   | 'menu'
+  | 'more'
+  | 'here'
   | 'close'
   | 'home'
   | 'language'
@@ -54,6 +56,8 @@ export const siteDict: Dictionary<SiteKey> = {
     login: 'Anmelden',
     openApp: 'Zum Dashboard',
     menu: 'Menü',
+    more: 'Mehr',
+    here: 'Du bist hier',
     close: 'Schließen',
     home: 'Startseite',
     language: 'Sprache',
@@ -92,6 +96,8 @@ export const siteDict: Dictionary<SiteKey> = {
     login: 'Accedi',
     openApp: 'Vai alla dashboard',
     menu: 'Menu',
+    more: 'Altro',
+    here: 'Sei qui',
     close: 'Chiudi',
     home: 'Home',
     language: 'Lingua',
@@ -130,6 +136,8 @@ export const siteDict: Dictionary<SiteKey> = {
     login: 'Sign in',
     openApp: 'Go to dashboard',
     menu: 'Menu',
+    more: 'More',
+    here: 'You are here',
     close: 'Close',
     home: 'Home',
     language: 'Language',

@@ -149,6 +149,9 @@ async function localJson<T>(path: string, init: RequestInit = {}): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+/** The school a Mensa read names, as a query part ("&school=…"), or nothing. */
+const schoolQuery = (school: string | null | undefined, lead: '?' | '&') => (school ? `${lead}school=${encodeURIComponent(school)}` : '');
+
 export async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
   const token = await currentToken();
   const headers: Record<string, string> = {
@@ -484,9 +487,10 @@ export const api = {
   },
 
   dishComments: {
-    // Read through the app's own route, so the Mensa backend (MENSA_API_URL) answers.
-    async list(dishId: string): Promise<ApiComment[]> {
-      return localJson<ApiComment[]>(`/api/mensa/comments?id=${encodeURIComponent(dishId)}`);
+    // Read through the app's own route, so the Mensa backend (MENSA_API_URL)
+    // answers; with `school` what a guest sees of that school's comments.
+    async list(dishId: string, school?: string | null): Promise<ApiComment[]> {
+      return localJson<ApiComment[]>(`/api/mensa/comments?id=${encodeURIComponent(dishId)}${schoolQuery(school, '&')}`);
     },
 
     async create(dishId: string, body: string): Promise<ApiComment> {
@@ -580,12 +584,13 @@ export const api = {
   },
 
   dishRatings: {
-    async get(dishId: string): Promise<DishRatingsData> {
-      return localJson<DishRatingsData>(`/api/mensa/ratings?id=${encodeURIComponent(dishId)}`);
+    // With `school`: what a guest sees of that school's ratings.
+    async get(dishId: string, school?: string | null): Promise<DishRatingsData> {
+      return localJson<DishRatingsData>(`/api/mensa/ratings?id=${encodeURIComponent(dishId)}${schoolQuery(school, '&')}`);
     },
 
-    async getBatch(dishIds: string[]): Promise<Record<string, DishRatingsData>> {
-      return localJson<Record<string, DishRatingsData>>('/api/mensa/ratings', {
+    async getBatch(dishIds: string[], school?: string | null): Promise<Record<string, DishRatingsData>> {
+      return localJson<Record<string, DishRatingsData>>(`/api/mensa/ratings${schoolQuery(school, '?')}`, {
         method: 'POST',
         body: JSON.stringify({ dishIds }),
       });

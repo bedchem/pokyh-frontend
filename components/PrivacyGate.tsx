@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ExternalLink, ShieldCheck } from 'lucide-react';
+import { ArrowSquareOut, ShieldCheck } from '@phosphor-icons/react';
 import Spinner from '@/components/ui/Spinner';
+import { Button } from '@/components/ui/Button';
 import { useSession } from '@/providers/SessionProvider';
 import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { privacyDict } from '@/lib/i18n/dictionaries/privacy';
@@ -98,36 +99,25 @@ export default function PrivacyGate({ paused = false }: { paused?: boolean }) {
       className="fixed bottom-0 left-0 right-0 z-[95] px-4 pt-0 sm:px-6 slide-up"
       style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
     >
-      <div
-        className="mx-auto max-w-2xl rounded-2xl p-4 sm:p-5 shadow-2xl flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4"
-        style={{
-          background: 'var(--app-surface)',
-          border: '1px solid var(--app-border)',
-          backdropFilter: 'blur(20px)',
-        }}
-      >
-        <div className="flex items-start gap-3 flex-1 min-w-0">
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: 'color-mix(in srgb, var(--accent) 14%, transparent)' }}
-          >
-            <ShieldCheck size={17} color="var(--accent)" />
-          </div>
+      <div className="squircle mx-auto flex max-w-2xl flex-col gap-4 rounded-[24px] bg-surface p-5 text-ink shadow-[var(--shadow-float)] sm:flex-row sm:items-center sm:p-6">
+        <div className="flex min-w-0 flex-1 items-start gap-3.5">
+          <span aria-hidden="true" className="grid size-10 flex-shrink-0 place-items-center rounded-full bg-periwinkle text-periwinkle-ink">
+            <ShieldCheck size={19} weight="bold" />
+          </span>
           <div className="min-w-0">
-            <p id="privacy-banner-title" className="text-[15px] font-bold leading-snug" style={{ color: 'var(--app-text-primary)' }}>
+            <p id="privacy-banner-title" className="text-[16px] font-bold leading-snug tracking-[-0.015em]">
               {t('gateTitle')}
             </p>
-            <p className="text-[13px] mt-0.5 leading-relaxed" style={{ color: 'var(--app-text-secondary)' }}>
+            <p className="mt-1 text-[13.5px] leading-relaxed text-ink-2">
               {t('gateIntro', { date: PRIVACY_NOTICE_DATE.toLocaleDateString('de-AT') })}{' '}
               <Link
                 href={localize('/legal/datenschutz')}
                 target="_blank"
                 rel="noopener"
-                className="inline-flex items-center gap-1 font-semibold hover:underline"
-                style={{ color: 'var(--accent)' }}
+                className="inline-flex items-center gap-1 font-semibold text-accent-ink underline-offset-4 hover:underline"
               >
                 {t('readPolicy')}
-                <ExternalLink size={12} />
+                <ArrowSquareOut size={13} weight="bold" aria-hidden="true" />
               </Link>
             </p>
             {error && (
@@ -135,15 +125,10 @@ export default function PrivacyGate({ paused = false }: { paused?: boolean }) {
             )}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => void confirm()}
-          disabled={saving}
-          className="popup-primary-btn h-11 px-5 rounded-xl inline-flex items-center justify-center gap-2 text-[15px] font-semibold flex-shrink-0"
-        >
+        <Button onClick={() => void confirm()} disabled={saving} className="flex-shrink-0">
           {saving && <Spinner size={16} />}
           {saving ? t('saving') : t('confirm')}
-        </button>
+        </Button>
       </div>
     </div>
   );

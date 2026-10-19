@@ -45,6 +45,8 @@ export const MATERIALS: Record<string, Material> = {
     hex: '#eef2fb',
     fixed: { 0: '#28234d', 1: '#a9b5db', 3: '#ffffff', 4: '#ffffff' },
   },
+  // Orange: pumpkins, autumn leaves, a carrot nose.
+  or: { base: '#f0892b', hex: '#f0892b', shade: '#7a2a10', out: '#3d1406' },
   // Wood and dry grass.
   wd: { base: '#a8693a', hex: '#a8693a', shade: '#3d1d2a', out: '#24100f' },
   // Sand.

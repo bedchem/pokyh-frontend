@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { Check, ChevronLeft, ChevronRight, Megaphone, X } from 'lucide-react';
+import { CaretLeft, CaretRight, Check, Megaphone, X } from '@phosphor-icons/react';
+import { Button } from '@/components/ui/Button';
 import { fetchDuePopups, markSeen, type ActivePopup, type PopupAudience } from '@/lib/popups';
 import { isPageCovered, subscribePageCover } from '@/lib/page-cover';
 import { useT } from '@/providers/LocaleProvider';
@@ -26,7 +27,8 @@ import { commonDict } from '@/lib/i18n/dictionaries/common';
 // the landing page) would otherwise flash a popup and take it away again.
 //
 // `html` is rendered and sanitised by the backend (services/popupRender.ts);
-// its content styles live in globals.css under `.popup-content`.
+// its content styles live in globals.css under `.popup-content`. The card is
+// built like the shared sheets (components/ui/Sheet.tsx) and buttons.
 
 const RECHECK_MS = 10 * 60 * 1000;
 const SETTLE_MS = 1500;
@@ -222,30 +224,29 @@ export default function AnnouncementPopup({ audience, route, paused = false }: {
   return (
     <div
       ref={overlay}
-      className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:px-4 sm:py-8 fade-backdrop"
-      style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)' }}
+      className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center sm:p-6"
       onClick={close}
     >
-      <div className="relative w-full sm:max-w-lg slide-up" onClick={(e) => e.stopPropagation()}>
+      <div className="absolute inset-0 bg-[#0b0b0d]/45 fade-backdrop" aria-hidden="true" />
+      <div className="relative w-full sm:max-w-[520px] slide-up" onClick={(e) => e.stopPropagation()}>
         {/* The popups still waiting peek out above the card. */}
-        <div aria-hidden className="popup-layer absolute inset-x-10 -top-[18px] h-10 rounded-t-[24px]" style={{ opacity: waiting >= 2 ? 0.55 : 0 }} />
-        <div aria-hidden className="popup-layer absolute inset-x-5 -top-[9px] h-10 rounded-t-[26px]" style={{ opacity: waiting >= 1 ? 1 : 0 }} />
+        <div aria-hidden className="popup-layer absolute inset-x-10 -top-[18px] h-10 rounded-t-[24px]" style={{ opacity: waiting >= 2 ? 0.4 : 0 }} />
+        <div aria-hidden className="popup-layer absolute inset-x-5 -top-[9px] h-10 rounded-t-[26px]" style={{ opacity: waiting >= 1 ? 0.75 : 0 }} />
 
         <div
-          className="relative max-h-[90dvh] overflow-hidden flex flex-col outline-none rounded-t-[28px] sm:rounded-[28px]"
-          style={{ background: 'var(--app-surface)', boxShadow: '0 24px 64px rgba(0,0,0,0.3)' }}
+          className="squircle relative flex max-h-[90dvh] flex-col overflow-hidden rounded-t-[28px] bg-surface text-ink shadow-[var(--shadow-float)] outline-none sm:rounded-[28px]"
           ref={dialog}
           tabIndex={-1}
           role="dialog"
           aria-modal="true"
           aria-labelledby="announcement-title"
         >
-          <div className="flex items-start gap-3 px-5 pt-5 pb-3 flex-shrink-0">
-            <div key={currentKey} className={`flex-1 min-w-0 ${step}`}>
-              <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--accent)' }}>
-                <Megaphone size={12} /> {t('popupLabel')}
+          <div className="flex flex-shrink-0 items-start gap-4 px-6 pb-3 pt-6">
+            <div key={currentKey} className={`min-w-0 flex-1 ${step}`}>
+              <p className="mb-1.5 inline-flex items-center gap-1.5 text-[13.5px] font-semibold text-accent-ink">
+                <Megaphone size={16} weight="fill" aria-hidden="true" /> {t('popupLabel')}
               </p>
-              <h2 id="announcement-title" className="text-[19px] font-bold leading-snug" style={{ color: 'var(--app-text-primary)' }}>
+              <h2 id="announcement-title" className="text-[22px] font-extrabold leading-tight tracking-[-0.03em] [overflow-wrap:anywhere]">
                 {current.title}
               </h2>
             </div>
@@ -253,11 +254,10 @@ export default function AnnouncementPopup({ audience, route, paused = false }: {
               <div
                 role="timer"
                 aria-label={t('popupWait', { n: secondsLeft })}
-                className="relative w-9 h-9 flex items-center justify-center rounded-full flex-shrink-0"
-                style={{ background: 'var(--app-card)' }}
+                className="relative -mr-1 grid size-10 flex-shrink-0 place-items-center rounded-full bg-inset"
               >
                 <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36" aria-hidden>
-                  <circle cx="18" cy="18" r={RING_R} fill="none" strokeWidth="2.5" style={{ stroke: 'var(--app-card-alt)' }} />
+                  <circle cx="18" cy="18" r={RING_R} fill="none" strokeWidth="2.5" style={{ stroke: 'var(--line)' }} />
                   <circle
                     ref={ring}
                     cx="18"
@@ -270,7 +270,7 @@ export default function AnnouncementPopup({ audience, route, paused = false }: {
                     style={{ stroke: 'var(--accent)' }}
                   />
                 </svg>
-                <span className="relative text-[13px] font-bold tabular-nums" style={{ color: 'var(--app-text-primary)' }} aria-hidden>
+                <span className="relative text-[13px] font-bold tabular-nums" aria-hidden>
                   {secondsLeft}
                 </span>
               </div>
@@ -278,39 +278,34 @@ export default function AnnouncementPopup({ audience, route, paused = false }: {
               <button
                 type="button"
                 onClick={close}
-                className="popup-icon-btn popup-fade w-9 h-9 flex items-center justify-center rounded-full flex-shrink-0"
+                className="popup-fade -mr-2 -mt-1 grid size-10 flex-shrink-0 place-items-center rounded-full text-ink-2 transition-colors hover:bg-inset hover:text-ink"
                 aria-label={tc('close')}
               >
-                <X size={18} />
+                <X size={20} weight="bold" />
               </button>
             )}
           </div>
 
-          <div key={currentKey} className={`flex-1 overflow-y-auto px-5 min-h-0 ${step}`}>
+          <div key={currentKey} className={`min-h-0 flex-1 overflow-y-auto px-6 pt-1 ${step}`}>
             <div className="popup-content" dangerouslySetInnerHTML={{ __html: current.html }} />
           </div>
 
           {/* Back · dots (centred) · Weiter/Fertig */}
           <div
-            className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-5 pt-4 flex-shrink-0"
-            style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
+            className="mt-5 grid flex-shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 border-t border-line px-6 pt-4"
+            style={{ paddingBottom: 'max(20px, var(--safe-bottom))' }}
           >
             <div className="justify-self-start">
               {index > 0 && (
-                <button
-                  type="button"
-                  onClick={() => goTo(index - 1)}
-                  className="popup-ghost-btn h-11 pl-2 pr-3 rounded-xl inline-flex items-center gap-0.5 text-[14px] font-semibold"
-                  aria-label={tc('back')}
-                >
-                  <ChevronLeft size={18} />
+                <Button variant="quiet" onClick={() => goTo(index - 1)} aria-label={tc('back')} className="pl-3 pr-4">
+                  <CaretLeft size={17} weight="bold" aria-hidden="true" />
                   <span className="hidden min-[380px]:inline">{tc('back')}</span>
-                </button>
+                </Button>
               )}
             </div>
 
             {stack.length > MAX_DOTS ? (
-              <p className="text-[13px] font-semibold tabular-nums" style={{ color: 'var(--app-text-secondary)' }} aria-live="polite">
+              <p className="text-[13px] font-semibold tabular-nums text-ink-2" aria-live="polite">
                 {index + 1} / {stack.length}
               </p>
             ) : stack.length > 1 ? (
@@ -321,7 +316,7 @@ export default function AnnouncementPopup({ audience, route, paused = false }: {
                     type="button"
                     onClick={() => goTo(i)}
                     disabled={i !== index && !canReach(i)}
-                    className="popup-dot-hit h-8 px-[3px] flex items-center"
+                    className="popup-dot-hit flex h-8 items-center px-[3px]"
                     aria-label={t('popupStep', { n: i + 1, total: stack.length })}
                     aria-current={i === index ? 'step' : undefined}
                   >
@@ -331,15 +326,10 @@ export default function AnnouncementPopup({ audience, route, paused = false }: {
               </div>
             ) : <span />}
 
-            <button
-              type="button"
-              onClick={next}
-              disabled={locked}
-              className="popup-primary-btn justify-self-end h-11 pl-5 pr-4 rounded-xl inline-flex items-center gap-1.5 text-[15px] font-semibold"
-            >
+            <Button onClick={next} disabled={locked} className="justify-self-end pl-5 pr-4">
               {isLast ? t('popupDone') : t('popupNext')}
-              {isLast ? <Check size={17} strokeWidth={2.5} /> : <ChevronRight size={18} strokeWidth={2.5} />}
-            </button>
+              {isLast ? <Check size={17} weight="bold" aria-hidden="true" /> : <CaretRight size={17} weight="bold" aria-hidden="true" />}
+            </Button>
           </div>
         </div>
       </div>

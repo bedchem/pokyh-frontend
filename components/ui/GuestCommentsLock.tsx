@@ -12,7 +12,9 @@ const NOPE_SRC = '/img/nope.webp';
 
 // Guests see the real comments, but only as an unreadable blur. Anyone who
 // strips the blur or the overlay in DevTools gets the comments swapped out.
-export default function GuestCommentsLock({ loginHref, children }: { loginHref: string; children: ReactNode }) {
+// Without `loginHref` (signed in, but another school's canteen) there is
+// nothing to sign in to: only `message` is shown.
+export default function GuestCommentsLock({ loginHref, message, children }: { loginHref?: string; message?: string; children: ReactNode }) {
   const blurRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const [tampered, setTampered] = useState(false);
@@ -75,16 +77,18 @@ export default function GuestCommentsLock({ loginHref, children }: { loginHref: 
             >
               <Lock size={20} color="var(--accent)" />
             </div>
-            <p className="text-sm font-semibold" style={{ color: 'var(--app-text-primary)' }}>
-              {t('guestCommentsLocked')}
+            <p className="max-w-[36ch] text-sm font-semibold" style={{ color: 'var(--app-text-primary)' }}>
+              {message ?? t('guestCommentsLocked')}
             </p>
-            <Link
-              href={localize(loginHref)}
-              className="px-5 py-2.5 rounded-xl font-semibold text-sm text-white press-scale"
-              style={{ background: 'var(--accent)' }}
-            >
-              {t('login')}
-            </Link>
+            {loginHref && (
+              <Link
+                href={localize(loginHref)}
+                className="px-5 py-2.5 rounded-xl font-semibold text-sm text-white press-scale"
+                style={{ background: 'var(--accent)' }}
+              >
+                {t('login')}
+              </Link>
+            )}
           </>
         )}
       </div>

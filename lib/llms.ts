@@ -28,7 +28,7 @@ const PAGES: { path: string; title: string; about: string }[] = [
   { path: '/get/pwa/ios', title: 'Web app on iPhone', about: 'add POKYH to the home screen in Safari, step by step' },
   { path: '/get/pwa/android', title: 'Web app on Android', about: 'install POKYH from Chrome, step by step' },
   { path: '/about', title: 'About', about: 'the story behind POKYH' },
-  { path: '/mensa', title: 'Cafeteria', about: 'menu of LBS Brixen with ratings; schools without a menu on POKYH show none' },
+  { path: '/mensa', title: 'Cafeteria', about: 'school cafeteria menus with ratings; with several cafeterias a choice with search, each named with its schools; schools without a menu on POKYH show none' },
   { path: '/howto', title: 'Self-hosting', about: 'run the open-source web app on your own computer or server' },
   { path: '/legal', title: 'Legal', about: 'imprint, privacy policy, terms of use and cookies' },
 ];

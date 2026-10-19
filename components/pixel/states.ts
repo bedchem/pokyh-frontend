@@ -5,7 +5,8 @@ import { Sprite, disc, dither, ellipse, grid, line, minus, rect, rounded, shift,
 // rows 21–22. Layers that move are named after their animation (app CSS,
 // .px-*).
 
-export type PixelSprite = 'unplugged' | 'search' | 'lock' | 'empty' | 'holiday' | 'sun' | 'cancelled' | 'event' | 'swap' | 'chat' | 'mail' | 'excused' | 'bell';
+export type PixelSprite = 'unplugged' | 'search' | 'lock' | 'empty' | 'holiday' | 'sun' | 'cancelled' | 'event' | 'swap' | 'chat' | 'mail' | 'excused' | 'bell'
+  | 'winter' | 'spring' | 'autumn' | 'coffee';
 
 export const W = 40;
 export const H = 25;
@@ -209,6 +210,165 @@ function holiday(): Scene {
       layer('ray', rays(8, 7, 4.2, true), ['px-ray']),
       layer('beach', beach),
       layer('waves', water, ['px-waves']),
+    ],
+  };
+}
+
+// ── The holidays through the year (holidaySprite): snow, flowers, the beach
+// above, falling leaves.
+
+/** The scene for days off in the month `month` (1–12): the beach in summer (`sun` for a single day). */
+export function holidaySprite(month: number, wholeWeek = true): PixelSprite {
+  if (month === 12 || month <= 2) return 'winter';
+  if (month <= 5) return 'spring';
+  if (month <= 8) return wholeWeek ? 'holiday' : 'sun';
+  return 'autumn';
+}
+
+/** Flakes or leaves scattered over the picture, one tone each. */
+function scatter(points: Pt[], tone: string): Sprite {
+  const s = new Sprite();
+  for (const [x, y] of points) s.fill([[x, y - 1], [x - 1, y], [x, y], [x + 1, y], [x, y + 1]], `${tone}2`).set(x, y, `${tone}4`);
+  return s;
+}
+
+// winter: a snowman in a drift, a fir with snow on its branches, snow falling
+
+function winter(): Scene {
+  const land = new Sprite();
+  const drift = ellipse(20, 24.5, 22, 4.6).filter(([, y]) => y >= 20);
+  land.mass(drift, 'pp');
+  land.fill(dither(drift.filter(([, y]) => y >= 23), 1), 'pp1');
+  // The fir: a trunk and three tiers, snow along the top of each.
+  land.mass(rect(32, 17, 2, 4), 'wd');
+  const tier = (top: number, half: number, rows: number): Pt[] => {
+    const out: Pt[] = [];
+    for (let j = 0; j < rows; j++) {
+      const w = Math.round(1 + (half * (j + 1)) / rows);
+      for (let x = 33 - w; x <= 32 + w; x++) out.push([x, top + j]);
+    }
+    return out;
+  };
+  const tiers = [tier(3, 3, 5), tier(7, 4, 5), tier(11, 6, 6)];
+  for (const t of tiers) land.mass(t, 'gn', { deep: true });
+  for (const t of tiers) {
+    const top = Math.min(...t.map(([, y]) => y));
+    land.fill(t.filter(([, y]) => y === top + 1 || y === top + 2).filter((_, i) => i % 3 !== 1), 'pp3');
+  }
+  // The snowman: body and head, coal eyes and buttons, a carrot, a red scarf, a hat, stick arms.
+  const man = shadow(new Sprite(), 15, 20.8, 6.5, 0.9);
+  man.mass([...line(10, 13, 5, 9), [5, 8], [4, 9]], 'wd');
+  man.mass([...line(20, 13, 25, 10), [25, 9], [26, 10]], 'wd');
+  man.mass(disc(15, 15.5, 5.2), 'pp', { round: [15, 15.5] });
+  man.mass(disc(15, 8.3, 3.6), 'pp', { round: [15, 8.3] });
+  man.fill([[13, 7], [16, 7], [15, 14], [15, 17]], 'ik2');
+  man.mass([[15, 9], [16, 9], [17, 9], [18, 10]], 'or', { outline: false });
+  man.mass([...rect(11, 11, 9, 2), ...rect(17, 13, 2, 3)], 'rd');
+  man.mass([...rect(11, 4, 9, 1), ...rect(12, 1, 7, 3)], 'ik');
+  man.fill(rect(12, 3, 7, 1), 'rd2');
+  const flakes = scatter([[3, 2], [24, 1], [36, 6], [8, 13], [28, 15]], 'wt');
+  const flakes2 = scatter([[18, 3], [2, 9], [38, 12], [26, 5], [9, 3]], 'wt');
+  return {
+    w: W, h: H,
+    layers: [
+      layer('land', land),
+      layer('man', man),
+      layer('snow', flakes, ['px-snow']),
+      layer('snow-late', flakes2, ['px-snow', 'px-snow-late']),
+    ],
+  };
+}
+
+// spring: tulips on a meadow, a butterfly fluttering over them
+
+function tulip(s: Sprite, x: number, top: number, mat: string) {
+  s.mass(rect(x, top + 4, 1, 20 - top - 4), 'gn');
+  s.mass([[x - 1, 16], [x - 2, 15], [x - 2, 14], [x - 1, 15], [x - 3, 13]], 'gn', { outline: false });
+  s.mass(grid(['#.#.#', '#####', '#####', '.###.'], x - 2, top), mat, { deep: true });
+}
+
+function wings(open: boolean): Sprite {
+  const shape = open ? grid(['##...##', '###.###', '.##.##.', '.#...#.'], 28, 3) : grid(['.#.#.', '.###.', '..#..'], 29, 4);
+  const s = new Sprite().mass(shape, 'pk', { deep: true });
+  return s.mass(rect(31, 3, 1, 4), 'ik', { outline: false });
+}
+
+function spring(): Scene {
+  const meadow = new Sprite();
+  const mound = ellipse(20, 23.5, 19, 3.6).filter(([, y]) => y >= 20);
+  meadow.mass(mound, 'gn', { outline: false });
+  meadow.fill(dither(mound.filter(([, y]) => y >= 22)), 'gn1');
+  meadow.fill([[6, 21], [33, 21], [16, 23]], 'gn3');
+  tulip(meadow, 12, 9, 'rd');
+  tulip(meadow, 19, 6, 'gd');
+  tulip(meadow, 26, 10, 'ac');
+  // Small daisies in the grass.
+  for (const [x, y] of [[5, 20], [31, 21], [36, 20]] as Pt[]) meadow.fill([[x, y - 1], [x - 1, y], [x + 1, y]], 'pp3').set(x, y, 'gd2');
+  return {
+    w: W, h: H,
+    layers: [
+      layer('meadow', meadow),
+      layer('wings', wings(true), ['px-flutter', 'px-flag']),
+      layer('wings-alt', wings(false), ['px-flutter', 'px-flag', 'px-flag-alt'], true),
+    ],
+  };
+}
+
+// autumn: a tree in orange and red, leaves falling, a pumpkin under it
+
+function autumn(): Scene {
+  const ground = new Sprite();
+  const mound = ellipse(20, 23.5, 19, 3.6).filter(([, y]) => y >= 20);
+  ground.mass(mound, 'gn', { outline: false });
+  ground.fill(dither(mound.filter(([, y]) => y >= 22)), 'gn1');
+  // Leaves already down.
+  ground.fill([[5, 21], [7, 22], [19, 21], [22, 22], [34, 21]], 'or2').fill([[6, 21], [20, 22], [35, 22]], 'rd2');
+  // The tree.
+  ground.mass([...rect(12, 10, 3, 11), ...line(14, 12, 18, 9), ...line(12, 13, 9, 10)], 'wd', { deep: true });
+  const crown = [...disc(13.5, 6, 5.4), ...disc(9, 9, 3.8), ...disc(18.5, 8.5, 3.9), ...disc(13.5, 10.4, 3.4)];
+  ground.mass(crown, 'or', { round: [13, 6] });
+  // Leaves turning red low down and gold where the light falls, dithered into the orange.
+  const inside = (pts: Pt[]) => new Set(dither(pts).map(([x, y]) => `${x},${y}`));
+  const red = inside([...disc(9, 11, 2.6), ...disc(18, 11, 2.8), ...disc(16, 3, 1.8)]);
+  const gold = inside([...disc(10.5, 4.5, 2.4), ...disc(6.5, 8, 1.6)]);
+  ground.recolor(crown.filter(([x, y]) => red.has(`${x},${y}`)), 'or', 'rd');
+  ground.recolor(crown.filter(([x, y]) => gold.has(`${x},${y}`)), 'or', 'gd');
+  // The pumpkin, its ribs and stalk.
+  shadow(ground, 29, 20.8, 6, 0.9);
+  ground.mass(ellipse(29, 17.6, 5.4, 3.2), 'or', { round: [28, 16.5] });
+  ground.fill([[27, 15], [27, 16], [27, 17], [27, 18], [31, 15], [31, 16], [31, 17], [31, 18]], 'or1');
+  ground.mass([...rect(29, 12, 1, 3), [30, 12]], 'gn');
+  const leaf = (x: number, y: number, mat: string) => new Sprite().mass([[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1], [x + 2, y + 1]], mat, { outline: false });
+  return {
+    w: W, h: H,
+    layers: [
+      layer('ground', ground),
+      layer('leaf-1', leaf(5, 13, 'or'), ['px-fall']),
+      layer('leaf-2', leaf(20, 13, 'rd'), ['px-fall', 'px-fall-2']),
+      layer('leaf-3', leaf(14, 14, 'gd'), ['px-fall', 'px-fall-3']),
+    ],
+  };
+}
+
+// ── coffee: a mug of coffee on a saucer, steam rising (supporting POKYH)
+
+function coffee(): Scene {
+  const table = shadow(new Sprite(), 19, 21.4, 12, 1);
+  // The saucer, then the mug in the accent with its handle, coffee at the top.
+  table.mass(ellipse(19, 20.2, 11, 1.6), 'pp');
+  table.mass([...rect(25, 10, 5, 2), ...rect(28, 11, 2, 6), ...rect(25, 16, 5, 2)], 'ac', { deep: true });
+  table.mass(rounded(10, 8, 17, 12, 3), 'ac', { deep: true });
+  table.mass(ellipse(18.5, 10.2, 6.4, 1.1), 'wd', { outline: false });
+  table.fill([[14, 10], [15, 10]], 'wd3');
+  // A heart on the mug.
+  table.fill(grid(['##.##', '#####', '.###.', '..#..'], 16, 12), 'pp3');
+  const wisp = (x: number, y: number) => new Sprite().fill([[x, y], [x + 1, y + 1], [x + 1, y + 2], [x, y + 3], [x, y + 4], [x + 1, y + 5]], 'fn');
+  return {
+    w: W, h: H,
+    layers: [
+      layer('table', table),
+      layer('steam-1', wisp(14, 1), ['px-z', 'px-z-1']),
+      layer('steam-2', wisp(20, 0), ['px-z', 'px-z-2']),
     ],
   };
 }
@@ -425,7 +585,7 @@ function bell(): Scene {
   };
 }
 
-const BUILDERS: Record<PixelSprite, () => Scene> = { unplugged, search, lock, empty, holiday, sun, cancelled, event, swap, chat, mail, excused, bell };
+const BUILDERS: Record<PixelSprite, () => Scene> = { unplugged, search, lock, empty, holiday, sun, cancelled, event, swap, chat, mail, excused, bell, winter, spring, autumn, coffee };
 const built: Partial<Record<PixelSprite, Scene>> = {};
 
 export function stateScene(sprite: PixelSprite): Scene {

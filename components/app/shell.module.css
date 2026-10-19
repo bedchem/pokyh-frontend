@@ -285,7 +285,7 @@
 .edge:active { transform: scale(0.92); }
 
 /* The account at the bottom, one block a step off the sidebar: the profile
-   with the settings beside it, and a row of three equal buttons under it.
+   with the settings beside it, and a row of four equal buttons under it.
    Folded, only the picture, without the block around it. */
 .dock {
   display: flex;
@@ -323,7 +323,7 @@
 }
 .tools {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 4px;
   padding-top: 4px;
   border-top: 1px solid color-mix(in srgb, var(--ink) 7%, transparent);
@@ -390,11 +390,47 @@
   border-radius: 14px;
   background: var(--periwinkle);
 }
-/* The three buttons under the profile share the row equally. */
+/* The four buttons under the profile share the row equally. */
 .toolFill {
   width: 100%;
   height: 40px;
   border-radius: 13px;
+}
+/* Signing out: red on hover; the first tap turns the row into the question. */
+.toolOut:hover {
+  color: var(--danger-ink);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+.confirm {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+  gap: 4px;
+  animation: confirm-in 0.22s var(--ease-out) both;
+}
+.confirm .tool {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding-inline: 8px;
+  font-size: 13.5px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.confirm .toolDanger,
+.confirm .toolDanger:hover {
+  color: var(--danger-ink);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+.confirm .toolDanger:hover {
+  background: color-mix(in srgb, var(--danger) 21%, transparent);
+}
+@keyframes confirm-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .confirm { animation: none; }
 }
 .shell[data-collapsed='true'] .tool {
   width: 100%;

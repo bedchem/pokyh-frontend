@@ -252,6 +252,7 @@ function DayColumn({
       {kind === 'weekend' ? null : kind !== 'normal' ? (
         <SpecialDayCard
           kind={kind}
+          month={Math.floor(dayNum / 100) % 100}
           compact
           style={{ top: 2, height: height - 4 }}
           // A day that is cancelled outright opens nothing: the card already says everything the

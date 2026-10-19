@@ -1,5 +1,5 @@
 import { FEET, MW } from './mascot';
-import { Sprite, dither, disc, line, minus, rect, rounded, soft, textPixels, type Pt } from './sprite';
+import { Sprite, dither, disc, grid, line, minus, rect, rounded, soft, textPixels, type Pt } from './sprite';
 
 // The school hallway beside the sign-in form (app/[lang]/login): a row of
 // lockers in the tones of the site's tiles, one of them open, a window
@@ -375,6 +375,16 @@ export function mark(kind: '!' | '?', x: number, y: number): Sprite {
   const pts: Pt[] = [];
   rows.forEach((r, j) => [...r].forEach((c, i) => { if (c === '#') pts.push([x + i, y + j]); }));
   return new Sprite().mass(pts, 'gd');
+}
+
+/** The anger sign of comics (a throbbing vein) beside the head. */
+export function anger(x: number, y: number): Sprite {
+  return new Sprite().mass(grid(['..#.#..', '.##.##.', '##...##', '.......', '##...##', '.##.##.', '..#.#..'], x, y), 'rd');
+}
+
+/** A puff of steam rising off the head: a bigger cloud and a small one above it. */
+export function steam(x: number, y: number): Sprite {
+  return new Sprite().mass([...disc(x + 2.5, y + 4, 2.6), ...disc(x + 5, y + 3.2, 2), ...disc(x + 1.2, y + 0.4, 1.3)], 'pp');
 }
 
 /** A drop of sweat beside the head. */

@@ -12,6 +12,7 @@ import ForgotPasswordForm from '@/components/account/ForgotPasswordForm';
 import { COOKIE_SETTINGS_EVENT } from '@/components/CookieSettingsButton';
 import { Page, PageHeader, Segmented, Switch } from '@/components/app/Page';
 import { Group, Item, LinkItem } from '@/components/app/SettingsRows';
+import SupportBanner from '@/components/app/SupportBanner';
 import { Bone } from '@/components/app/Skeleton';
 import { useSidebarCollapsed } from '@/components/app/sidebar-state';
 import { useSession } from '@/providers/SessionProvider';
@@ -229,6 +230,8 @@ function SettingsContent() {
             )}
           </Item>
         </Group>
+
+        <SupportBanner />
 
         <Group id="about" title={t('about')}>
           <Item title={t('version')}><span className="mono text-[15px] text-ink-2">1.0.0</span></Item>

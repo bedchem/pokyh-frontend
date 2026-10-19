@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 import SceneSvg from '@/components/pixel/SceneSvg';
 import { stateScene, type PixelSprite } from '@/components/pixel/states';
 
+export { holidaySprite } from '@/components/pixel/states';
+
 // Small pixel scenes for states where something went wrong or there is
 // nothing to show, drawn as sprites in the manner of the Mensa plate (square
 // pixels, outlines, light from the top left, dithered shadows; the drawings
@@ -15,6 +17,9 @@ import { stateScene, type PixelSprite } from '@/components/pixel/states';
 //   empty      a tumbleweed rolling past a cactus — nothing here yet
 //   holiday    sun, a beach umbrella and waves rolling in — a week without school
 //   sun        the sun in sunglasses, a cloud drifting by — a day without school
+//   winter     a snowman and a fir, snow falling   ┐ the holidays through the
+//   spring     tulips, a butterfly fluttering      │ year (holidaySprite picks
+//   autumn     a tree in orange, leaves falling    ┘ one for the month)
 //   cancelled  a calendar page with a blinking cross — every lesson cancelled
 //   event      a flag in the wind — a day-long event
 //   swap       two arrows trading places — every lesson substituted

@@ -49,8 +49,8 @@ export function isMensaRoute(pathname: string): boolean {
 }
 
 // The signed-in Mensa (ratings, comments, inside the app frame). Guests are
-// sent to the public /mensa page instead, and signed-in users from there to
-// this one (proxy.ts).
+// sent to the public /mensa page instead (proxy.ts); signed-in accounts may
+// use both.
 export function isCanteenRoute(pathname: string): boolean {
   return matchesRoute(pathname, '/canteen');
 }

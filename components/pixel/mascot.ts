@@ -12,9 +12,9 @@ export const MH = 37;
 /** The row the feet stand on. */
 export const FEET = 33;
 
-export type Eyes = 'open' | 'blink' | 'happy' | 'wide' | 'closed';
-export type Mouth = 'smile' | 'grin' | 'o' | 'wobble' | 'flat';
-export type Arms = 'down' | 'wave' | 'wave2' | 'wave3' | 'cover' | 'peek' | 'thumb' | 'lens' | 'cheer';
+export type Eyes = 'open' | 'blink' | 'happy' | 'wide' | 'closed' | 'angry';
+export type Mouth = 'smile' | 'grin' | 'o' | 'wobble' | 'flat' | 'frown';
+export type Arms = 'down' | 'wave' | 'wave2' | 'wave3' | 'cover' | 'peek' | 'thumb' | 'lens' | 'cheer' | 'fists';
 
 export interface Pose {
   eyes: Eyes;
@@ -73,6 +73,9 @@ const RAISED_R2 = hand(32.2, 13.4, 35.8, 6.2);
 const RAISED_R3 = hand(32.2, 13.4, 33.8, 4.2);
 const CHEER_L = hand(9, 15.5, 4.2, 8.6);
 const CHEER_R = hand(31, 14, 35.8, 7);
+// Angry: both fists up beside the body, lower than a cheer.
+const FIST_L = hand(8.6, 19, 4.4, 14.4);
+const FIST_R = hand(31.6, 17.4, 35.8, 12.8);
 
 function legs(s: Sprite) {
   // Short legs, the feet turned a little outwards.
@@ -98,6 +101,22 @@ function eye(s: Sprite, [cx, cy]: Pt, kind: Eyes, [lx, ly]: [number, number], ri
     s.fill([[x - 2, y], [x - 1, y + 1], [x, y + 1], [x + 1, y + 1], [x + 2, y]], 'pu0');
     return;
   }
+  if (kind === 'angry') {
+    // Open, but a brow pushed down towards the middle cuts the top off.
+    eye(s, [cx, cy], 'open', [lx, ly], right, big);
+    const inward = right ? -1 : 1;
+    for (let i = -4; i <= 4; i++) {
+      const bx = x + i;
+      const by = Math.round(y - 4 + (i * inward + 4) * 0.42);
+      for (let yy = by - 1; yy >= y - 6; yy--) {
+        const tone = s.get(bx, yy);
+        if (tone?.startsWith('pp') || tone?.startsWith('pu')) s.set(bx, yy, 'ac2');
+      }
+      s.set(bx, by, 'pu0');
+      s.set(bx, by - 1, 'pu0');
+    }
+    return;
+  }
   if (kind === 'happy') {
     // Smiling eyes: ^, two pixels thick in the middle.
     s.fill([[x - 2, y + 1], [x - 1, y], [x, y - 1], [x + 1, y], [x + 2, y + 1], [x, y]], 'pu0');
@@ -119,6 +138,7 @@ function mouth(s: Sprite, kind: Mouth) {
     flat: () => s.fill(rect(19, 18, 3, 1), 'ac0'),
     wobble: () => s.fill([[18, 18], [19, 17], [20, 18], [21, 17], [22, 18]], 'ac0'),
     o: () => s.fill([[20, 17], [21, 17], [20, 18], [21, 18]], 'pu0'),
+    frown: () => s.fill([[18, 19], [19, 18], [20, 17], [21, 17], [22, 18], [23, 19]], 'pu0'),
     grin: () => {
       s.fill([...rect(18, 17, 5, 1), ...rect(19, 18, 3, 1)], 'pu0');
       s.set(20, 18, 'pk1');
@@ -127,10 +147,11 @@ function mouth(s: Sprite, kind: Mouth) {
   m[kind]();
 }
 
-function cheeks(s: Sprite) {
+function cheeks(s: Sprite, flushed = false) {
   for (const [cx, cy] of [[11.3, 18.6], [28.6, 17]] as Pt[]) {
-    s.fill(ellipse(cx, cy, 2.4, 1.2), 'pk2');
-    s.set(Math.floor(cx) - 1, Math.floor(cy), 'pk3');
+    // Angry: red right across.
+    s.fill(ellipse(cx, cy, flushed ? 3 : 2.4, flushed ? 1.5 : 1.2), flushed ? 'rd2' : 'pk2');
+    s.set(Math.floor(cx) - 1, Math.floor(cy), flushed ? 'rd3' : 'pk3');
   }
 }
 
@@ -151,7 +172,7 @@ export function mascot(pose: Pose): Sprite {
   const a = pose.arms;
   // Hanging arms go behind the body's outline (only what reaches out shows);
   // raised ones in front of its edge, so the waving hand is always seen.
-  const raised = a === 'wave' ? [RAISED_R] : a === 'wave2' ? [RAISED_R2] : a === 'wave3' ? [RAISED_R3] : a === 'cheer' ? [CHEER_L, CHEER_R] : [];
+  const raised = a === 'wave' ? [RAISED_R] : a === 'wave2' ? [RAISED_R2] : a === 'wave3' ? [RAISED_R3] : a === 'cheer' ? [CHEER_L, CHEER_R] : a === 'fists' ? [FIST_L, FIST_R] : [];
   const hanging = a === 'down' ? [ARM_L, ARM_R] : a === 'lens' || a === 'thumb' || a.startsWith('wave') ? [ARM_L] : [];
   for (const arm of hanging) mitt(s, arm);
   body(s);
@@ -159,7 +180,7 @@ export function mascot(pose: Pose): Sprite {
   const lens = a === 'lens';
   eye(s, EYE_L, pose.eyes, pose.look, false);
   eye(s, EYE_R, pose.eyes, pose.look, true, lens && (pose.eyes === 'open' || pose.eyes === 'wide'));
-  cheeks(s);
+  cheeks(s, pose.eyes === 'angry');
   mouth(s, pose.mouth);
 
   // Hands in front of the face or the body.
@@ -202,6 +223,7 @@ export function mascotSheet() {
     { eyes: 'happy', look: [0, 0], mouth: 'grin', arms: 'thumb' },
     { eyes: 'open', look: [-1, 0], mouth: 'wobble', arms: 'down' },
     { eyes: 'happy', look: [0, 0], mouth: 'grin', arms: 'cheer' },
+    { eyes: 'angry', look: [0, 0], mouth: 'frown', arms: 'fists' },
   ];
   return {
     w: MW * poses.length, h: MH,

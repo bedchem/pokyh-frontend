@@ -305,17 +305,31 @@ export function fetchHomeworkRange(startDate: string, endDate: string) {
   return apiFetch(`/api/webuntis/homework?startDate=${startDate}&endDate=${endDate}`);
 }
 
-/** The public menu (default school), or with `account` the menu of the signed-in account's school. */
-const mensaUrl = (scope: 'public' | 'account') => (scope === 'account' ? '/api/mensa/mine' : '/api/mensa');
+/**
+ * The public menu (the default school's, or with `school` the one chosen on
+ * the public Mensa page), or with `account` the menu of the signed-in
+ * account's own school.
+ */
+const mensaUrl = (scope: 'public' | 'account', school?: string | null) =>
+  scope === 'account' ? '/api/mensa/mine' : school ? `/api/mensa?school=${encodeURIComponent(school)}` : '/api/mensa';
 
 /** The menu, from memory when it is fresh; stored on the device for an instant next visit. */
-export function fetchMensa(scope: 'public' | 'account' = 'public') {
-  return apiFetchCached(mensaUrl(scope));
+export function fetchMensa(scope: 'public' | 'account' = 'public', school?: string | null) {
+  return apiFetchCached(mensaUrl(scope, school));
 }
 
 /** The menu this device stored last time, to show while the fresh one loads. */
-export function getMensaStale(scope: 'public' | 'account' = 'public'): unknown | undefined {
-  return cacheGet<unknown>(mensaUrl(scope)) ?? pcGetStale(mensaUrl(scope));
+export function getMensaStale(scope: 'public' | 'account' = 'public', school?: string | null): unknown | undefined {
+  return cacheGet<unknown>(mensaUrl(scope, school)) ?? pcGetStale(mensaUrl(scope, school));
+}
+
+/** The canteens to choose from on the public Mensa page (lib/mensa.ts canteensFrom). */
+export function fetchCanteens() {
+  return apiFetchCached('/api/mensa/canteens');
+}
+
+export function getCanteensStale(): unknown | undefined {
+  return cacheGet<unknown>('/api/mensa/canteens') ?? pcGetStale('/api/mensa/canteens');
 }
 
 export function getAttachmentUrl(messageId: number, storageId: string, name: string, attachmentId?: number): string {

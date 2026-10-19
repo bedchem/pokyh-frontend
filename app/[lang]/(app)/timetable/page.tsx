@@ -36,7 +36,7 @@ import { useDateLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider
 import { timetableDict } from '@/lib/i18n/dictionaries/timetable';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
 import { shellDict } from '@/lib/i18n/dictionaries/shell';
-import PixelState, { PixelSpriteArt } from '@/components/app/PixelState';
+import PixelState, { PixelSpriteArt, holidaySprite } from '@/components/app/PixelState';
 import { Button } from '@/components/ui/Button';
 import { formatDate, formatTime } from '@/lib/i18n/dateLocale';
 
@@ -438,7 +438,8 @@ function TimetableContent() {
           onTap={setActiveSlot}
           empty={
             <div className="rise flex flex-col items-center px-6 py-10 text-center">
-              <PixelSpriteArt sprite="holiday" width="min(280px, 60vw)" />
+              {/* The holidays look like the time of year of the week shown. */}
+              <PixelSpriteArt sprite={holidaySprite(dates[0].getMonth() + 1)} width="min(280px, 60vw)" />
               <p className="mt-7 text-[28px] font-extrabold tracking-[-0.045em] md:text-[34px]">{t('holiday')}</p>
               <p className="mt-1 text-[15px] font-semibold opacity-75">{t('noLessons')}</p>
             </div>

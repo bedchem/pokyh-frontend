@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { ArrowClockwise, ArrowRight, Check, Copy } from '@phosphor-icons/react';
 import AuthGuard from '@/components/AuthGuard';
@@ -12,6 +11,7 @@ import PixelState from '@/components/app/PixelState';
 import { Line } from '@/components/app/Skeleton';
 import { useUntisPermissions } from '@/components/app/hooks';
 import LogoutButton from '@/components/app/LogoutButton';
+import StatsOffNotice from '@/components/app/StatsOffNotice';
 import { Group, Item, LinkItem } from '@/components/app/SettingsRows';
 import { useSession } from '@/providers/SessionProvider';
 import { useApp } from '@/providers/AppProvider';
@@ -155,6 +155,7 @@ function ProfileContent() {
             </div>
           ) : (
             <>
+              {activity && !activity.usageConsent && <StatsOffNotice className="mb-3" />}
               <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                 <Figure label={t('daysOnline')} value={activity ? String(activity.totals.activeDays) : '–'} loading={loading} />
                 <Figure label={t('logins')} value={activity ? String(activity.totals.logins) : '–'} loading={loading} />
@@ -172,13 +173,6 @@ function ProfileContent() {
                   <GridLegend />
                 </div>
               </div>
-
-              {activity && !activity.usageConsent && (
-                <p className="mt-4 text-[14.5px] text-ink-2">
-                  {t('consentHint')}{' '}
-                  <Link href={localize('/settings#privacy')} className="font-semibold text-accent-ink underline-offset-4 hover:underline">{t('consentLink')}</Link>
-                </p>
-              )}
 
               {activity && <div className="mt-6 lg:hidden">{statsLink}</div>}
             </>

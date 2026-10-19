@@ -74,3 +74,84 @@ export function dietOf(d: MenuDish): 'vegan' | 'vegetarian' | null {
   if (d.isVegetarian || tags.some((t) => t.includes('vegetar'))) return 'vegetarian';
   return null;
 }
+
+// ─── Canteens ────────────────────────────────────────────────────────────────
+// pokyh-backend lists the canteens of the public Mensa page (GET
+// /dishes/canteens), each with the schools it serves, and names the canteen
+// and school of every menu it sends (GET /dishes). A menu of a school is asked
+// for with that school's slug (?school=).
+
+export interface CanteenSchool {
+  slug: string;
+  name: string;
+  shortName: string;
+}
+
+export interface Canteen {
+  id: string;
+  name: string;
+  schools: CanteenSchool[];
+}
+
+function schoolFrom(raw: unknown): CanteenSchool | null {
+  const s = raw as Partial<CanteenSchool> | null;
+  return s && typeof s.slug === 'string' && typeof s.name === 'string'
+    ? { slug: s.slug, name: s.name, shortName: typeof s.shortName === 'string' ? s.shortName : '' }
+    : null;
+}
+
+/** The canteens of a /api/mensa/canteens answer; none for anything else (an older backend has no list). */
+export function canteensFrom(raw: unknown): Canteen[] {
+  const list = (raw as { canteens?: unknown } | null)?.canteens;
+  if (!Array.isArray(list)) return [];
+  return list.flatMap((c) => {
+    const schools = Array.isArray(c?.schools) ? c.schools.map(schoolFrom).filter((s: CanteenSchool | null): s is CanteenSchool => !!s) : [];
+    return typeof c?.id === 'string' && typeof c?.name === 'string' && schools.length ? [{ id: c.id, name: c.name, schools }] : [];
+  });
+}
+
+/** Whose menu an answer is: its canteen and the school asked about, when the backend names them. */
+export function menuOwner(raw: unknown): { canteen: { id: string; name: string } | null; school: CanteenSchool | null } {
+  const r = (raw ?? {}) as { canteen?: { id?: unknown; name?: unknown }; school?: unknown };
+  const canteen = typeof r.canteen?.id === 'string' && typeof r.canteen?.name === 'string' ? { id: r.canteen.id, name: r.canteen.name } : null;
+  return { canteen, school: schoolFrom(r.school) };
+}
+
+/** A school as people call it: its short name when it has one. */
+export const schoolLabel = (s: CanteenSchool) => s.shortName || s.name;
+
+/** The canteen that serves a school (by slug). */
+export const canteenOf = (canteens: Canteen[], slug: string | null) =>
+  slug ? canteens.find((c) => c.schools.some((s) => s.slug === slug)) ?? null : null;
+
+const fold = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+/** A search over the canteens: every word must be in the canteen's name or one of its schools' names. */
+export function canteenMatches(c: Canteen, query: string): boolean {
+  const words = fold(query).split(/\s+/).filter(Boolean);
+  if (!words.length) return true;
+  const text = fold([c.name, ...c.schools.flatMap((s) => [s.name, s.shortName, s.slug])].join(' '));
+  return words.every((w) => text.includes(w));
+}
+
+// The canteen chosen on the public Mensa page, kept on this device; a link
+// can name one instead (?mensa=<school slug>).
+const CHOICE_KEY = 'pokyh_mensa_choice';
+export const CHOICE_PARAM = 'mensa';
+
+export function rememberedCanteen(): string | null {
+  try {
+    return localStorage.getItem(CHOICE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function rememberCanteen(slug: string | null): void {
+  try {
+    if (slug) localStorage.setItem(CHOICE_KEY, slug);
+    else localStorage.removeItem(CHOICE_KEY);
+  } catch {
+    // Storage blocked: the choice lasts as long as the page.
+  }
+}

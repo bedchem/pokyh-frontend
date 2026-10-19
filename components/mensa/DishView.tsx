@@ -7,9 +7,8 @@ import CommentSection from '@/components/ui/CommentSection';
 import GuestCommentsLock from '@/components/ui/GuestCommentsLock';
 import PixelState from '@/components/app/PixelState';
 import ExternalMediaNotice from '@/components/ExternalMediaNotice';
-import { fetchMensa, getMensaStale } from '@/lib/api';
 import { api, type ApiComment, type DishRatingsData } from '@/lib/api-client';
-import { daysFromToday, dishesFrom, localized, upcomingDays, type MenuDay, type MenuDish } from '@/lib/mensa';
+import { CHOICE_PARAM, daysFromToday, dishesFrom, localized, upcomingDays, type MenuDay, type MenuDish } from '@/lib/mensa';
 import { useExternalMedia } from '@/lib/external-media';
 import { formatDate } from '@/lib/i18n/dateLocale';
 import { mensaDict } from '@/lib/i18n/dictionaries/mensa';
@@ -17,12 +16,14 @@ import { useApp } from '@/providers/AppProvider';
 import { useSession } from '@/providers/SessionProvider';
 import { useDateLocale, useLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import PixelPlate from './PixelPlate';
+import { useMenu } from './useMenu';
 import { Food, LoginRequired, STAR, Stars, Tag, average, comma, foodStyleOf, loginHref, prioritizedTags } from './parts';
 
 // One dish on its own page (the Mensa plan links here instead of opening a
 // sheet): the photo large, what it is, how the school rated it and the own
 // rating, nutrition, allergens and the comments. Guests read everything but
-// the comments; rating and commenting need an account.
+// the comments; rating and commenting need an account of the canteen's
+// school (useMenu: another school's canteen is seen as a guest sees it).
 
 function find(raw: unknown, id: string): { dish: MenuDish; day: MenuDay } | null {
   for (const day of upcomingDays(dishesFrom(raw))) {
@@ -55,12 +56,14 @@ export default function DishView({ id, inApp = false }: { id: string; inApp?: bo
   const { stableUid } = useApp();
   const { user, isLoading: sessionLoading } = useSession();
   const isGuest = !sessionLoading && !user;
-  const scope = inApp ? 'account' : 'public';
+  // Reached without a canteen named (an old link), the default one.
+  const menu = useMenu({ inApp, ask: false });
+  // Signed in, but this is another school's canteen: read as a guest.
+  const visitor = !!user && menu.settled && !menu.own;
+  const school = menu.readSchool;
+  const choice = !inApp && menu.chosen ? `?${CHOICE_PARAM}=${encodeURIComponent(menu.chosen)}` : '';
   const planHref = inApp ? '/canteen' : '/mensa';
-  const selfHref = `${planHref}/dish/${encodeURIComponent(id)}`;
-
-  const [found, setFound] = useState<{ dish: MenuDish; day: MenuDay } | null | undefined>(undefined);
-  const [error, setError] = useState('');
+  const selfHref = `${planHref}/dish/${encodeURIComponent(id)}${choice}`;
   const [ratingsData, setRatingsData] = useState<DishRatingsData>({ ratings: {}, myRating: null });
   const [comments, setComments] = useState<ApiComment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(true);
@@ -70,34 +73,29 @@ export default function DishView({ id, inApp = false }: { id: string; inApp?: bo
   const [loginRequired, setLoginRequired] = useState(false);
   const requireLogin = useCallback(() => setLoginRequired(true), []);
 
-  useEffect(() => {
-    if (sessionLoading) return;
-    let alive = true;
-    const timer = window.setTimeout(() => {
-      // What this device stored last time shows at once; the fresh menu follows.
-      const stale = getMensaStale(scope);
-      const early = stale ? find(stale, id) : null;
-      if (early) setFound(early);
-      fetchMensa(scope)
-        .then((raw) => { if (alive) setFound(find(raw, id)); })
-        .catch((e: unknown) => { if (alive) setError(e instanceof Error ? e.message : t('loadError')); });
-    }, 0);
-    return () => { alive = false; window.clearTimeout(timer); };
-  }, [id, scope, sessionLoading, t]);
+  // The dish in its canteen's menu (useMenu shows the stored menu at once).
+  const found = useMemo(() => (menu.raw === undefined ? undefined : find(menu.raw, id)), [menu.raw, id]);
+  const error = menu.error;
 
   useEffect(() => {
     if (!stableUid) return;
     api.auth.me().then((u) => setIsAdmin(u.isAdmin)).catch(() => {});
   }, [stableUid]);
 
-  // Ratings (guests get them anonymised) and comments, then live updates.
+  // Ratings (guests get them anonymised) and comments once it is known whose
+  // canteen this is, then live updates of the account's own.
+  const settled = menu.settled;
+  const own = menu.own;
   useEffect(() => {
-    api.dishRatings.get(id).then(setRatingsData).catch(() => {});
+    if (!settled) return;
+    let alive = true;
+    api.dishRatings.get(id, school).then((r) => { if (alive) setRatingsData(r); }).catch(() => {});
+    api.dishComments.list(id, school).then((c) => { if (alive) setComments(c); }).catch(() => {}).finally(() => { if (alive) setCommentsLoading(false); });
+    if (!own) return () => { alive = false; };
     const offRatings = api.dishRatings.subscribe(id, setRatingsData);
-    api.dishComments.list(id).then(setComments).catch(() => {}).finally(() => setCommentsLoading(false));
     const offComments = api.dishComments.subscribe(id, (c) => { setComments(c); setCommentsLoading(false); });
-    return () => { offRatings(); offComments(); };
-  }, [id]);
+    return () => { alive = false; offRatings(); offComments(); };
+  }, [id, settled, own, school]);
 
   const name = found ? localized(found.dish.name, locale) : '';
   useEffect(() => {
@@ -105,7 +103,7 @@ export default function DishView({ id, inApp = false }: { id: string; inApp?: bo
     if (name && !inApp) document.title = `${name} | ${t('title')} | POKYH`;
   }, [name, t, inApp]);
 
-  const refreshComments = () => api.dishComments.list(id).then(setComments).catch(() => {});
+  const refreshComments = () => api.dishComments.list(id, school).then(setComments).catch(() => {});
   const myRating = ratingsData.myRating ?? 0;
   const labels = t('rateLabels').split('|');
   const values = Object.values(ratingsData.ratings);
@@ -117,7 +115,7 @@ export default function DishView({ id, inApp = false }: { id: string; inApp?: bo
 
   async function rate(stars: number) {
     if (isGuest) { requireLogin(); return; }
-    if (!stableUid || saving) return;
+    if (!stableUid || saving || visitor) return;
     setSaving(true);
     try {
       setRatingsData(await api.dishRatings.rate(id, stars));
@@ -148,7 +146,7 @@ export default function DishView({ id, inApp = false }: { id: string; inApp?: bo
   // the picture (the column is sticky), above it while loading or on errors.
   const back = (
     <Link
-      href={localize(planHref)}
+      href={localize(planHref + choice)}
       className="-ml-1 mb-6 inline-flex h-9 items-center gap-1.5 rounded-full pl-1 pr-3 text-[15px] font-semibold text-ink-2 transition-colors hover:bg-inset hover:text-ink"
     >
       <ArrowLeft size={17} weight="bold" aria-hidden="true" />
@@ -175,7 +173,7 @@ export default function DishView({ id, inApp = false }: { id: string; inApp?: bo
           <PixelState
             sprite={error ? 'unplugged' : 'search'}
             title={error ? t('loadError') : t('dishGone')}
-            action={<Link href={localize(planHref)} className="key">{t('backToPlan')}</Link>}
+            action={<Link href={localize(planHref + choice)} className="key">{t('backToPlan')}</Link>}
           />
         </div>
       ) : (
@@ -234,9 +232,9 @@ export default function DishView({ id, inApp = false }: { id: string; inApp?: bo
                 <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-inset px-4 py-3">
                   <div className="min-w-0">
                     <p className="text-[14px] font-semibold text-ink">{t('yourRating')}</p>
-                    <p className="h-5 text-[13px] text-ink-2" aria-live="polite">{shown ? labels[shown - 1] : ' '}</p>
+                    <p className="min-h-5 text-[13px] text-ink-2" aria-live="polite">{visitor ? t('otherSchoolRating') : shown ? labels[shown - 1] : ' '}</p>
                   </div>
-                  <div className="flex" onMouseLeave={() => setHover(0)}>
+                  <div className={`flex ${visitor ? 'hidden' : ''}`} onMouseLeave={() => setHover(0)}>
                     {[1, 2, 3, 4, 5].map((s) => {
                       const active = s <= shown;
                       return (
@@ -295,8 +293,8 @@ export default function DishView({ id, inApp = false }: { id: string; inApp?: bo
               )}
 
               <Block title={t('comments')}>
-                {isGuest ? (
-                  <GuestCommentsLock loginHref={loginHref(selfHref)}>
+                {isGuest || visitor ? (
+                  <GuestCommentsLock loginHref={visitor ? undefined : loginHref(selfHref)} message={visitor ? t('otherSchoolComments') : undefined}>
                     <CommentSection
                       comments={comments}
                       stableUid={null}

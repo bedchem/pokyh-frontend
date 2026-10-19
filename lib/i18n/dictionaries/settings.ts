@@ -48,6 +48,10 @@ export type SettingsKey =
   | 'logout'
   | 'logoutHint'
   | 'logoutConfirm'
+  | 'supportTitle'
+  | 'supportText'
+  | 'supportAction'
+  | 'supportNewTab'
   | 'saveError'
   | 'onThisPage';
 
@@ -99,6 +103,10 @@ export const settingsDict: Dictionary<SettingsKey> = {
     logout: 'Abmelden',
     logoutHint: 'Meldet dich auf diesem Gerät ab.',
     logoutConfirm: 'Wirklich abmelden?',
+    supportTitle: 'POKYH unterstützen',
+    supportText: 'POKYH ist kostenlos, ohne Werbung und entsteht in unserer Freizeit. Wenn dir die App hilft und du magst, kannst du uns einen Kaffee spendieren. Ganz freiwillig: alles bleibt für alle gleich.',
+    supportAction: 'Buy me a coffee',
+    supportNewTab: '(öffnet in einem neuen Tab)',
     saveError: 'Konnte nicht gespeichert werden. Versuch es nochmal.',
     onThisPage: 'Auf dieser Seite',
   },
@@ -149,6 +157,10 @@ export const settingsDict: Dictionary<SettingsKey> = {
     logout: 'Esci',
     logoutHint: 'Esci su questo dispositivo.',
     logoutConfirm: 'Vuoi davvero uscire?',
+    supportTitle: 'Sostieni POKYH',
+    supportText: 'POKYH è gratuito, senza pubblicità e nasce nel nostro tempo libero. Se l’app ti è utile e ti va, puoi offrirci un caffè. Del tutto facoltativo: tutto resta uguale per tutti.',
+    supportAction: 'Buy me a coffee',
+    supportNewTab: '(si apre in una nuova scheda)',
     saveError: 'Impossibile salvare. Riprova.',
     onThisPage: 'In questa pagina',
   },
@@ -199,6 +211,10 @@ export const settingsDict: Dictionary<SettingsKey> = {
     logout: 'Log out',
     logoutHint: 'Signs you out on this device.',
     logoutConfirm: 'Really log out?',
+    supportTitle: 'Support POKYH',
+    supportText: 'POKYH is free, has no ads and is built in our spare time. If the app helps you and you feel like it, you can buy us a coffee. Entirely optional: everything stays the same for everyone.',
+    supportAction: 'Buy me a coffee',
+    supportNewTab: '(opens in a new tab)',
     saveError: 'Could not be saved. Please try again.',
     onThisPage: 'On this page',
   },

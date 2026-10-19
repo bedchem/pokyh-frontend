@@ -2,13 +2,16 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useRef, useState, type ReactNode, type SyntheticEvent } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type RefObject, type SyntheticEvent } from 'react';
 import { LayoutGroup, motion } from 'framer-motion';
-import { CaretLeft, EnvelopeSimple, GearSix, Globe, MagnifyingGlass, Moon, Sun, UserCircle } from '@phosphor-icons/react';
+import { CaretLeft, EnvelopeSimple, GearSix, Globe, MagnifyingGlass, Moon, SignOut, Sun, UserCircle } from '@phosphor-icons/react';
 import { useLocale, useLocalizeHref, useRoutePath, useT } from '@/providers/LocaleProvider';
 import { useSession } from '@/providers/SessionProvider';
 import { useTheme } from '@/providers/ThemeProvider';
 import { shellDict } from '@/lib/i18n/dictionaries/shell';
+import { settingsDict } from '@/lib/i18n/dictionaries/settings';
+import { commonDict } from '@/lib/i18n/dictionaries/common';
+import Spinner from '@/components/ui/Spinner';
 import LanguageButton, { RoundFlag } from '@/components/site/LanguageButton';
 import { ACTIVE_LOCALES, LOCALE_LABELS, LOCALE_NAMES } from '@/lib/i18n/locale';
 import Avatar from './Avatar';
@@ -138,6 +141,9 @@ function Sidebar({ collapsed }: { collapsed: boolean }) {
   const profileActive = isActive(path, '/profile');
   const [tip, setTip] = useState<{ text: string; top: number } | null>(null);
   const nav = useRef<HTMLElement>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const leave = useLogout(confirmRef, triggerRef);
 
   // Which way the list of places goes on beyond its edges (the fades in CSS).
   useEffect(() => {
@@ -223,9 +229,10 @@ function Sidebar({ collapsed }: { collapsed: boolean }) {
         </nav>
 
         {/* The account at the bottom. Open: the profile with the settings
-            beside it, and under it language, light or dark and the public
-            start page as three equal buttons. Folded: only the picture, which
-            opens all of these in a small menu, so the places keep the room. */}
+            beside it, and under it language, light or dark, the public start
+            page and signing out as four equal buttons. Folded: only the
+            picture, which opens all of these in a small menu, so the places
+            keep the room. */}
         <div className={s.dock}>
           {collapsed ? (
             <AccountMenu name={name} detail={detail} picture={untis} active={profileActive || settingsActive} onOpen={hideTip} />
@@ -257,6 +264,19 @@ function Sidebar({ collapsed }: { collapsed: boolean }) {
               </div>
 
               <div className={s.tools}>
+                {leave.asking ? (
+                  // Signing out asks once, in place of the row: "Abbrechen" or "Abmelden".
+                  <div role="group" aria-label={leave.question} className={s.confirm} onKeyDown={(e) => { if (e.key === 'Escape') leave.cancel(); }}>
+                    <button type="button" onClick={leave.cancel} disabled={leave.busy} className={`${s.tool} ${s.toolFill}`}>
+                      {leave.cancelLabel}
+                    </button>
+                    <button ref={confirmRef} type="button" onClick={leave.press} disabled={leave.busy} title={leave.question} className={`${s.tool} ${s.toolFill} ${s.toolDanger}`}>
+                      {leave.busy ? <Spinner size={16} /> : <SignOut size={18} weight="bold" aria-hidden="true" />}
+                      {leave.label}
+                    </button>
+                  </div>
+                ) : (
+                <>
                 <LanguageButton
                   placement="above"
                   align="left"
@@ -281,6 +301,18 @@ function Sidebar({ collapsed }: { collapsed: boolean }) {
                 >
                   <Globe size={20} aria-hidden="true" />
                 </Link>
+                <button
+                  ref={triggerRef}
+                  type="button"
+                  onClick={leave.press}
+                  aria-label={leave.label}
+                  title={leave.label}
+                  className={`${s.tool} ${s.toolFill} ${s.toolOut}`}
+                >
+                  <SignOut size={20} aria-hidden="true" />
+                </button>
+                </>
+                )}
               </div>
             </>
           )}
@@ -292,6 +324,52 @@ function Sidebar({ collapsed }: { collapsed: boolean }) {
       )}
     </aside>
   );
+}
+
+/**
+ * Signing out from the sidebar takes two presses: the first asks, the second
+ * signs out. The question goes away on its own after a while, or with
+ * "Abbrechen" / Escape; asking puts the focus on the confirming button
+ * (`confirm`), and coming back from it on the button it came from (`trigger`).
+ */
+function useLogout(confirm?: RefObject<HTMLButtonElement | null>, trigger?: RefObject<HTMLButtonElement | null>) {
+  const ts = useT(settingsDict);
+  const tc = useT(commonDict);
+  const { logout } = useSession();
+  const [asking, setAsking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const wasAsking = useRef(false);
+
+  // Back from the question, the focus returns to the button it came from
+  // (unless it has moved on elsewhere meanwhile).
+  useEffect(() => {
+    if (wasAsking.current && !asking && document.activeElement === document.body) trigger?.current?.focus({ preventScroll: true });
+    wasAsking.current = asking;
+  }, [asking, trigger]);
+
+  useEffect(() => {
+    if (!asking || busy) return;
+    confirm?.current?.focus({ preventScroll: true });
+    const id = window.setTimeout(() => setAsking(false), 6000);
+    return () => window.clearTimeout(id);
+  }, [asking, busy, confirm]);
+
+  const press = async () => {
+    if (busy) return;
+    if (!asking) { setAsking(true); return; }
+    setBusy(true);
+    await logout();
+  };
+
+  return {
+    asking,
+    busy,
+    press,
+    cancel: () => setAsking(false),
+    label: ts('logout'),
+    question: ts('logoutConfirm'),
+    cancelLabel: tc('cancel'),
+  };
 }
 
 /**
@@ -319,6 +397,7 @@ function AccountMenu({
   const { locale, setLocale } = useLocale();
   const { resolved, toggleWithRipple } = useTheme();
   const [open, setOpen] = useState(false);
+  const leave = useLogout();
   const root = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
@@ -402,6 +481,17 @@ function AccountMenu({
             <Globe size={19} aria-hidden="true" className="text-ink-2" />
             {t('website')}
           </Link>
+          {/* The first choice asks, the second signs out. */}
+          <button
+            role="menuitem"
+            type="button"
+            onClick={leave.press}
+            disabled={leave.busy}
+            className={`${row} ${leave.asking ? 'bg-[color-mix(in_srgb,var(--danger)_13%,transparent)] text-danger-ink hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] focus-visible:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]' : 'hover:text-danger-ink'}`}
+          >
+            {leave.busy ? <Spinner size={17} /> : <SignOut size={19} aria-hidden="true" className={leave.asking ? '' : 'text-ink-2'} />}
+            {leave.asking ? leave.question : leave.label}
+          </button>
           <div className={s.menuRule} />
           <div role="group" aria-label={t('language')} className="grid grid-cols-3 gap-1 p-1">
             {ACTIVE_LOCALES.map((l) => (

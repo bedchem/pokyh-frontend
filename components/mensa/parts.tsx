@@ -18,8 +18,8 @@ export const STAR = '#F5B301';
 /** Where a guest signs in to rate and comment, and comes back to. */
 export const loginHref = (back: string) => `/login?next=${encodeURIComponent(back)}`;
 
-/** A dish's own page: in the app for accounts, on the public site for guests. */
-export const dishHref = (id: string, signedIn: boolean) => `${signedIn ? '/canteen' : '/mensa'}/dish/${encodeURIComponent(id)}`;
+/** A dish's own page: inside the app (/canteen) or on the public site (/mensa). */
+export const dishHref = (id: string, inApp: boolean) => `${inApp ? '/canteen' : '/mensa'}/dish/${encodeURIComponent(id)}`;
 
 export function prioritizedTags(tags?: string[]): string[] {
   if (!tags?.length) return [];

@@ -49,7 +49,8 @@ export type LoginKey =
   | 'mascotHello'
   | 'mascotHelloName'
   | 'mascotGo'
-  | 'mascotOops';
+  | 'mascotOops'
+  | 'mascotAngry';
 
 export const loginDict: Dictionary<LoginKey> = {
   de: {
@@ -93,6 +94,7 @@ export const loginDict: Dictionary<LoginKey> = {
     mascotHelloName: 'Hallo, {name}!',
     mascotGo: "Los geht's!",
     mascotOops: 'Hoppla!',
+    mascotAngry: 'Hey! So nicht!',
     errBadCredentials: 'Benutzername oder Passwort ist falsch.',
     errRefused: 'WebUntis hat die Anmeldung abgelehnt. Melde dich einmal direkt bei WebUntis an, um den Grund zu sehen.',
     errUnavailable: 'WebUntis ist gerade nicht erreichbar. Versuch es später noch einmal.',
@@ -143,6 +145,7 @@ export const loginDict: Dictionary<LoginKey> = {
     mascotHelloName: 'Ciao, {name}!',
     mascotGo: 'Si parte!',
     mascotOops: 'Ops!',
+    mascotAngry: 'Ehi! Così no!',
     errBadCredentials: 'Nome utente o password errati.',
     errRefused: 'WebUntis ha rifiutato l’accesso. Accedi una volta direttamente a WebUntis per vedere il motivo.',
     errUnavailable: 'WebUntis non è raggiungibile al momento. Riprova più tardi.',
@@ -193,6 +196,7 @@ export const loginDict: Dictionary<LoginKey> = {
     mascotHelloName: 'Hi, {name}!',
     mascotGo: "Let's go!",
     mascotOops: 'Oops!',
+    mascotAngry: 'Hey! Not cool!',
     errBadCredentials: 'Wrong username or password.',
     errRefused: 'WebUntis refused the sign-in. Sign in to WebUntis directly once to see why.',
     errUnavailable: 'WebUntis is not reachable right now. Try again later.',

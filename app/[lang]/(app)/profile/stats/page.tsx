@@ -10,6 +10,7 @@ import { profileDict } from '@/lib/i18n/dictionaries/profile';
 import { shellDict } from '@/lib/i18n/dictionaries/shell';
 import { fetchAccountActivity, type ActivityResult } from '@/lib/account-activity';
 import PixelState from '@/components/app/PixelState';
+import StatsOffNotice from '@/components/app/StatsOffNotice';
 import { Button } from '@/components/ui/Button';
 import { ArrowClockwise } from '@phosphor-icons/react';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
@@ -175,6 +176,7 @@ function StatsContent() {
   return (
     <Page>
       {header}
+      {!consent && <StatsOffNotice className="mb-3 md:mb-4" />}
       <div className="grid gap-3 md:grid-cols-2 md:gap-4 xl:grid-cols-4">
         <Figure label={t('daysOnline')} value={String(a.totals.activeDays)} sub={`${t('currentStreak')}: ${a.totals.currentStreak === 1 ? t('dayOne') : t('days', { n: a.totals.currentStreak })}`} />
         <Figure label={t('logins')} value={String(a.totals.logins)} sub={`${t('longestStreak')}: ${a.totals.longestStreak === 1 ? t('dayOne') : t('days', { n: a.totals.longestStreak })}`} />

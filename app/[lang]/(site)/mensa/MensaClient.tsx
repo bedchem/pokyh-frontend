@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import PageIntro from '@/components/site/PageIntro';
 import ExternalMediaNotice from '@/components/ExternalMediaNotice';
@@ -8,20 +8,23 @@ import PixelPlate from '@/components/mensa/PixelPlate';
 import PixelState from '@/components/app/PixelState';
 import { mensaAvailableIn } from '@/components/app/hooks';
 import { Plate, RatingLine, Tag, dishHref, foodStyleOf, prioritizedTags } from '@/components/mensa/parts';
-import { fetchMensa, getMensaStale } from '@/lib/api';
+import { CanteenLine, CanteenPicker } from '@/components/mensa/CanteenPicker';
+import { useMenu } from '@/components/mensa/useMenu';
 import { api } from '@/lib/api-client';
 import { useApp } from '@/providers/AppProvider';
-import { useSession } from '@/providers/SessionProvider';
 import { useDateLocale, useLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { mensaDict } from '@/lib/i18n/dictionaries/mensa';
-import { daysFromToday, dishesFrom, localized, upcomingDays, type MenuDay, type MenuDish } from '@/lib/mensa';
+import { CHOICE_PARAM, canteenOf, daysFromToday, dishesFrom, localized, menuOwner, upcomingDays, type Canteen, type CanteenSchool, type MenuDay, type MenuDish } from '@/lib/mensa';
 import { formatDate } from '@/lib/i18n/dateLocale';
 import { useExternalMedia } from '@/lib/external-media';
 
-// The Mensa plan, on the public site for guests and inside the app (/canteen)
-// for accounts: the next dish served as pixel art between fork and knife, the
-// whole plan below by week, each dish on a small pixel plate. Every dish opens its own page (components/mensa/
-// DishView.tsx) with the ratings, nutrition, allergens and comments.
+// The Mensa plan, on the public site for everyone and inside the app
+// (/canteen) for accounts: the next dish served as pixel art between fork and
+// knife, the whole plan below by week, each dish on a small pixel plate.
+// Every dish opens its own page (components/mensa/DishView.tsx) with the
+// ratings, nutrition, allergens and comments. On the public page, which
+// canteen is shown and how its ratings are read is up to useMenu: with
+// several canteens it asks first, and it always says whose menu it is.
 
 /** Monday of the week `d` is in, as a week count, to group days by week. */
 function weekIndex(d: Date): number {
@@ -39,10 +42,17 @@ function dayFromKey({ key, dishes }: { key: string; dishes: MenuDish[] }): MenuD
   return { key, date: new Date(y, m - 1, d), dishes };
 }
 
-export default function MensaClient({ inApp = false, initialDays }: {
+// Stands for the prerendered menu until the browser has its own answer.
+const PRERENDERED = { prerendered: true };
+
+export default function MensaClient({ inApp = false, initialDays, initialCanteens, initialOwner }: {
   inApp?: boolean;
   /** The public menu the server prerendered the page with (the public /mensa only). */
   initialDays?: Array<{ key: string; dishes: MenuDish[] }>;
+  /** The canteens known when the page was prerendered. */
+  initialCanteens?: Canteen[];
+  /** Whose the prerendered menu is. */
+  initialOwner?: ReturnType<typeof menuOwner>;
 }) {
   const t = useT(mensaDict);
   const { locale } = useLocale();
@@ -50,73 +60,57 @@ export default function MensaClient({ inApp = false, initialDays }: {
   const localize = useLocalizeHref();
   const external = useExternalMedia();
   const { stableUid } = useApp();
-  const { user, isLoading: sessionLoading } = useSession();
-  const isGuest = !sessionLoading && !user;
+  const menu = useMenu({ inApp, initialRaw: initialDays ? PRERENDERED : undefined, initialCanteens });
+  const prerendered = menu.raw === PRERENDERED;
 
-  const [days, setDays] = useState<MenuDay[] | null>(() => initialDays?.map(dayFromKey) ?? null);
+  const days = useMemo<MenuDay[] | null>(() => {
+    if (menu.raw === undefined) return null;
+    if (menu.raw === PRERENDERED) return initialDays?.map(dayFromKey) ?? null;
+    return upcomingDays(dishesFrom(menu.raw));
+  }, [menu.raw, initialDays]);
+  // False: the account's school has no menu (pokyh-backend `available: false`).
+  const available = prerendered || menu.raw === undefined || mensaAvailableIn(menu.raw);
+  const owner = prerendered ? initialOwner : menuOwner(menu.raw);
   // "Heute", "Morgen", "Diese Woche" depend on the visitor's clock: shown once
   // the page runs in the browser; the prerendered page names the dates.
   const live = useSyncExternalStore(noop, () => true, () => false);
-  // False: the account's school has no menu (pokyh-backend `available: false`).
-  const [available, setAvailable] = useState(true);
-  const [error, setError] = useState('');
-  const [request, setRequest] = useState(0);
   const [ratings, setRatings] = useState<Record<string, Record<string, number>>>({});
-  // Prevents a double fetch when both stableUid and the menu arrive together.
-  const ratingsFetched = useRef(false);
 
-  // Guests see the public menu; a signed-in account (the app's /canteen) its own school's.
-  const scope = user ? 'account' : 'public';
+  // Ratings for every dish at once once the menu and whose it is are known
+  // (the account's own need its stableUid; a guest's view is anonymised).
+  const ratingsKey = menu.settled && days?.length && (!menu.own || stableUid)
+    ? `${menu.readSchool ?? ''}|${days.flatMap((d) => d.dishes.map((dish) => dish.id)).join(',')}`
+    : '';
   useEffect(() => {
-    if (sessionLoading) return;
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      // The menu this device stored shows at once; the fresh one replaces it.
-      const stale = getMensaStale(scope);
-      const show = (raw: unknown) => {
-        setAvailable(mensaAvailableIn(raw));
-        setDays(upcomingDays(dishesFrom(raw)));
-      };
-      if (stale) show(stale);
-      fetchMensa(scope)
-        .then((raw) => { if (!cancelled) show(raw); })
-        .catch((e: unknown) => { if (!cancelled && !stale) setError(e instanceof Error ? e.message : t('loadError')); });
-    }, 0);
-    return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [request, t, scope, sessionLoading]);
-
-  const retry = () => {
-    setDays(null);
-    setError('');
-    ratingsFetched.current = false;
-    setRequest((n) => n + 1);
-  };
-
-  // Ratings for every dish at once once the menu is there (guests get the
-  // anonymised ones without waiting for a stableUid).
-  useEffect(() => {
-    if ((!stableUid && !isGuest) || !days?.length || ratingsFetched.current) return;
-    ratingsFetched.current = true;
-    api.dishRatings.getBatch(days.flatMap((d) => d.dishes.map((dish) => dish.id)))
+    if (!ratingsKey) return;
+    let alive = true;
+    const [school, ids] = ratingsKey.split('|');
+    api.dishRatings.getBatch(ids.split(','), school || null)
       .then((batch) => {
         const next: Record<string, Record<string, number>> = {};
         for (const [id, data] of Object.entries(batch)) if (Object.keys(data.ratings).length) next[id] = data.ratings;
-        setRatings(next);
+        if (alive) setRatings(next);
       })
       // Ratings are extra: without them the plan still shows (e.g. locally,
       // where the backend refuses the dev origin), so only a warning.
       .catch((e) => console.warn('[mensa] ratings could not be loaded:', e));
-  }, [stableUid, isGuest, days]);
+    return () => { alive = false; };
+  }, [ratingsKey]);
 
   const handleRated = useCallback((dishId: string, r: Record<string, number>) => {
     setRatings((prev) => ({ ...prev, [dishId]: r }));
   }, []);
 
-  // Votes from anyone, also from the Android app, show up live.
+  // Votes from anyone at the account's own school, also from the Android app, show up live.
   useEffect(() => {
-    if (!stableUid) return;
+    if (!stableUid || !menu.own) return;
     return api.dishRatings.subscribeAll((dishId, data) => handleRated(dishId, data.ratings));
-  }, [stableUid, handleRated]);
+  }, [stableUid, menu.own, handleRated]);
+
+  const retry = () => {
+    setRatings({});
+    menu.retry();
+  };
 
   const dayLabel = useCallback((day: MenuDay) => {
     const n = live ? daysFromToday(day.date) : NaN;
@@ -145,17 +139,29 @@ export default function MensaClient({ inApp = false, initialDays }: {
   // the current language. Inside the app the tab keeps its plain name.
   useEffect(() => { if (!inApp) document.title = `${t('title')} | POKYH`; }, [t, inApp]);
 
+  const choosing = menu.target.kind === 'choose';
+  const several = (menu.canteens?.length ?? 0) > 1;
   const next = days?.[0] ?? null;
   const served = next ? leadDish(next) : null;
-  const signedIn = !!user;
-  const href = (id: string) => localize(dishHref(id, signedIn));
+  // A dish keeps the canteen it belongs to.
+  const href = (id: string) => localize(inApp ? dishHref(id, true) : `${dishHref(id, false)}${menu.chosen ? `?${CHOICE_PARAM}=${encodeURIComponent(menu.chosen)}` : ''}`);
+
+  // Whose menu this is: the canteen and the schools it serves, as the backend
+  // names them (an older one names none: then the line is left out).
+  const canteen = owner?.canteen ? (menu.canteens?.find((c) => c.id === owner.canteen?.id) ?? null) : canteenOf(menu.canteens ?? [], menu.chosen);
+  const schools: CanteenSchool[] = canteen?.schools ?? (owner?.school ? [owner.school] : []);
+  const line = !inApp && (
+    <CanteenLine name={owner?.canteen?.name ?? canteen?.name ?? null} schools={schools} onChange={several ? () => menu.choose(null) : undefined} />
+  );
 
   return (
     <>
-      <PageIntro title={t('pageTitle')} lead={available ? t('pageLead') : undefined} />
+      <PageIntro title={t('pageTitle')} lead={choosing ? t('chooseLead') : available ? t('pageLead') : undefined} />
 
       <section className="wrap pb-24 md:pb-32">
-        {error ? (
+        {choosing && menu.canteens ? (
+          <CanteenPicker canteens={menu.canteens} ownCanteen={menu.ownCanteen} onChoose={menu.choose} />
+        ) : menu.error ? (
           <div className="card">
             <PixelState
               sprite="unplugged"
@@ -175,12 +181,17 @@ export default function MensaClient({ inApp = false, initialDays }: {
             />
           </div>
         ) : !next || !served ? (
-          <div className="card p-8 md:p-12">
-            <p className="text-[clamp(26px,3vw,36px)] font-extrabold tracking-[-0.035em] text-ink">{t('emptyTitle')}</p>
-            <p className="mt-2 text-[17px] text-ink-2">{t('emptySubtitle')}</p>
-          </div>
+          <>
+            {line}
+            <div className="card p-8 md:p-12">
+              <p className="text-[clamp(26px,3vw,36px)] font-extrabold tracking-[-0.035em] text-ink">{t('emptyTitle')}</p>
+              <p className="mt-2 text-[17px] text-ink-2">{t('emptySubtitle')}</p>
+            </div>
+          </>
         ) : (
           <>
+            {line}
+
             {/* The next dish, served */}
             <div className="grid items-center gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-14">
               <Link href={href(served.id)} aria-label={localized(served.name, locale)} className="rise mx-auto block w-full max-w-[640px]">
@@ -230,7 +241,8 @@ export default function MensaClient({ inApp = false, initialDays }: {
                 <h3 className="text-[15px] font-semibold text-ink-3">{w.title}</h3>
                 <ul className="mt-4 grid gap-3 md:grid-cols-2">
                   {w.days.flatMap((day) => day.dishes.map((dish) => (
-                    <li key={dish.id}>
+                    // A dish served on several days keeps its id, so the day is in the key.
+                    <li key={`${day.key}:${dish.id}`}>
                       <Link href={href(dish.id)} className="card flex w-full items-center gap-4 p-3 pr-5 text-left transition-colors hover:bg-inset">
                         <Plate dish={dish} className="w-[72px] shrink-0 md:w-[90px]" />
                         <span className="min-w-0 flex-1">

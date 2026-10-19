@@ -1,17 +1,20 @@
 'use client';
 
 import { useRef } from 'react';
-import PokyhMark from '@/components/brand/PokyhMark';
+import Image from 'next/image';
 import { useGsap } from '@/lib/motion';
 import { SCROLL, sceneHeight } from '@/lib/scroll-pace';
 
 // The hand-over to "Hol dir POKYH": the app icon turns up in the middle of
 // the paper and, as you keep scrolling, is pressed and opens like an app on
 // a phone until its indigo fills the screen. Icon and indigo are one element
-// (a clipped layer), the mark on it is vector, so nothing swaps or blurs on
-// the way. The next section starts in that same indigo (#534AB7, Android
-// colors.xml). Without motion it is left out: it is only the way between
-// the Mensa and the next section, and a still icon on paper says nothing.
+// (a clipped layer); on it lies the real logo's mark: public/POKYH_Logo.png
+// without its tile (POKYH_Logo_mark.webp, colour-to-alpha against the tile's
+// #534AB7), so over the indigo it is the logo pixel for pixel, and 512 px
+// stay sharp as far as it grows before it fades. The next section starts in
+// that same indigo (#534AB7, Android colors.xml). Without motion it is left
+// out: it is only the way between the Mensa and the next section, and a
+// still icon on paper says nothing.
 
 const RADIUS = 0.225; // corner radius of the app icon relative to its size
 
@@ -88,9 +91,7 @@ export default function AppOpen() {
           className="absolute left-[calc(50%-var(--s)/2)] top-[calc(50%-var(--s)/2)] grid size-[var(--s)] place-items-center text-white will-change-transform [--s:clamp(112px,11vw,168px)]"
           style={{ opacity: 0 }}
         >
-          {/* The plate of the logo, a shade deeper than the icon */}
-          <span className="absolute size-[41%] rounded-full bg-[var(--indigo-deep)]" />
-          <PokyhMark size={160} className="relative h-[86%] w-[86%]" />
+          <Image src="/POKYH_Logo_mark.webp" alt="" width={512} height={512} unoptimized draggable={false} className="size-full select-none" />
         </div>
       </div>
     </section>

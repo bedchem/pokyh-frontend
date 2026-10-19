@@ -195,12 +195,10 @@ async function handlePage(request: NextRequest, path: string, locale: Locale): P
     return NextResponse.next();
   }
 
-  // The Mensa exists twice: the public page for guests (/mensa) and the one
-  // inside the app for signed-in accounts (/canteen). Each is sent to its own.
-  // A dish page keeps its dish: /mensa/dish/x ↔ /canteen/dish/x.
-  if (isMensaRoute(path) && authenticated) {
-    return redirectTo(request, `/${locale}/canteen${path.slice('/mensa'.length)}/`);
-  }
+  // The Mensa exists twice: the public page (/mensa), open to everyone and
+  // signed-in accounts too (they see their comments there as well), and the
+  // one inside the app (/canteen). Guests are sent from the app's to the
+  // public one; a dish page keeps its dish: /canteen/dish/x → /mensa/dish/x.
   if (isCanteenRoute(path) && !authenticated) {
     return redirectTo(request, `/${locale}/mensa${path.slice('/canteen'.length)}/`);
   }

@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Paths, SpritePalette } from '@/components/pixel/SceneSvg';
-import { CLOUD_LOOP, bubble, buildHallway, clockHands, mark, sweat, thinking, topOf } from '@/components/pixel/hallway';
+import { CLOUD_LOOP, anger, bubble, buildHallway, clockHands, mark, steam, sweat, thinking, topOf } from '@/components/pixel/hallway';
 import { MASCOT_SHADOW, MH, MW, mascot, type Pose } from '@/components/pixel/mascot';
 import { isOffensive } from '@/lib/mascot-filter';
 import { loginDict } from '@/lib/i18n/dictionaries/login';
@@ -16,6 +16,8 @@ import { prefersReducedMotion } from '@/lib/motion';
 // typed, both hands over its eyes for the password (peeking when the password
 // is shown), wide eyes and then a thumb up when the browser fills the form,
 // a wobble and a drop of sweat at an error, a cheer when signing in works.
+// A word it must not say (lib/mascot-filter.ts) in the name or the school
+// search makes it angry: brows down, fists up, red in the face, fuming.
 // Otherwise it blinks, breathes and follows the pointer with its eyes. The
 // open locker shuts while the password is typed. `HallwayScene` fills the
 // panel beside the form on desktops; `MascotBadge` is the small one above it
@@ -46,9 +48,10 @@ interface Look {
   mark?: '!' | '?';
   sweat?: boolean;
   think?: boolean;
+  anger?: boolean;
   /** What it says; `name` is fitted to the room there is. */
-  say?: { key: 'mascotHello' | 'mascotGo' | 'mascotOops' } | { key: 'mascotHelloName'; name: string };
-  motion: 'bob' | 'hop' | 'jump' | 'shake';
+  say?: { key: 'mascotHello' | 'mascotGo' | 'mascotOops' | 'mascotAngry' } | { key: 'mascotHelloName'; name: string };
+  motion: 'bob' | 'hop' | 'jump' | 'shake' | 'fume';
   locker: 'open' | 'shut';
 }
 
@@ -70,6 +73,7 @@ function usePhase(event: MascotEvent): Phase {
 
 function lookFor(s: MascotState, phase: Phase, eyes: [number, number]): Look {
   const base = { motion: 'bob', locker: 'open' } as const;
+  const angry: Look = { ...base, pose: { eyes: 'angry', look: [0, 0], mouth: 'frown', arms: 'fists' }, anger: true, say: { key: 'mascotAngry' }, motion: 'fume' };
   if (phase === 'success') return { ...base, pose: { eyes: 'happy', look: [0, 0], mouth: 'grin', arms: 'cheer' }, say: { key: 'mascotGo' }, motion: 'jump' };
   if (phase === 'error') return { ...base, pose: { eyes: 'open', look: [0, 1], mouth: 'wobble', arms: 'down' }, sweat: true, say: { key: 'mascotOops' }, motion: 'shake' };
   if (phase === 'surprise') return { ...base, pose: { eyes: 'wide', look: [0, 0], mouth: 'o', arms: 'down' }, mark: '!', motion: 'jump' };
@@ -84,11 +88,13 @@ function lookFor(s: MascotState, phase: Phase, eyes: [number, number]): Look {
   }
   if (s.step === 'account' && s.focus === 'user') {
     const name = s.username.trim();
+    if (name && isOffensive(name)) return angry;
     return name
       ? { ...base, pose: { eyes: 'happy', look: [0, 0], mouth: 'grin', arms: 'wave' }, wave: true, say: { key: 'mascotHelloName', name }, motion: typing }
       : { ...base, pose: { eyes: 'open', look: [1, 0], mouth: 'smile', arms: 'wave' }, wave: true, say: { key: 'mascotHello' } };
   }
   if (s.step === 'school' && (s.focus === 'school' || s.query.trim())) {
+    if (s.query.trim() && isOffensive(s.query)) return angry;
     if (s.search === 'done' && s.results > 0) return { ...base, pose: { eyes: 'open', look: [1, 0], mouth: 'grin', arms: 'lens' }, mark: '!', motion: typing };
     if ((s.search === 'done' && !s.results) || s.search === 'error') return { ...base, pose: { eyes: 'open', look: [0, 0], mouth: 'wobble', arms: 'lens' }, mark: '?', motion: typing };
     return { ...base, pose: { eyes: 'open', look: [1, 0], mouth: 'o', arms: 'lens' }, motion: typing };
@@ -108,6 +114,11 @@ function useSay() {
     return isOffensive(say.name) ? t('mascotHello') : t('mascotHelloName', { name: say.name });
   };
 }
+
+// Angry: steam off the left of the head, the sign above it (the speech
+// bubble has the right).
+const STEAM = steam(1, -6);
+const ANGER = anger(22, -9);
 
 /** The mascot at (0, 0): its shadow, the body with its frames, and what's above its head. */
 function Mascot({ look, motionKey, marks = 'above' }: { look: Look; motionKey: string; marks?: 'above' | 'beside' }) {
@@ -130,6 +141,12 @@ function Mascot({ look, motionKey, marks = 'above' }: { look: Look; motionKey: s
         </g>
         {look.mark && <g className="ms-pop"><Paths sprite={mark(look.mark, mx, my)} /></g>}
         {look.think && <g className="ms-pop"><Paths sprite={thinking(marks === 'above' ? 24 : MW - 2, marks === 'above' ? -9 : 1)} /></g>}
+        {look.anger && (
+          <g className="ms-pop">
+            <g className="ms-steam"><Paths sprite={STEAM} /></g>
+            <g className="ms-throb"><Paths sprite={ANGER} /></g>
+          </g>
+        )}
       </g>
     </>
   );
@@ -267,7 +284,7 @@ export function MascotBadge({ state }: { state: MascotState }) {
   const W = 120;
   const speech = look.say ? bubble(say(look.say), MW - 2, 17, W - MW - 8) : null;
   // A bubble on more lines grows upwards: the drawing makes room for it.
-  const top = Math.min(-2, speech ? topOf(speech) - 1 : -2);
+  const top = Math.min(look.anger ? -10 : -2, speech ? topOf(speech) - 1 : -2);
   return (
     <>
       <SpritePalette />

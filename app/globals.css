@@ -932,10 +932,46 @@ html.lenis body {
   0%, 30% { opacity: 1; }
   31%, 100% { opacity: 0; }
 }
+/* The holidays through the year: snow falling, a butterfly fluttering, leaves coming down. */
+.px-snow { animation: px-snow 2.4s steps(1, end) infinite; }
+.px-snow-late { animation-delay: -1.2s; }
+@keyframes px-snow {
+  0% { transform: translateY(-2px); opacity: 0; }
+  12% { transform: translateY(-1px); opacity: 1; }
+  25% { transform: none; }
+  37% { transform: translate(1px, 1px); }
+  50% { transform: translate(1px, 2px); }
+  62% { transform: translate(0, 3px); }
+  75% { transform: translate(0, 4px); }
+  88% { transform: translate(-1px, 5px); opacity: 1; }
+  100% { transform: translate(-1px, 6px); opacity: 0; }
+}
+.px-flutter { animation: px-flutter 2.8s steps(1, end) infinite; }
+@keyframes px-flutter {
+  0%, 100% { transform: none; }
+  20% { transform: translate(-1px, -1px); }
+  40% { transform: translate(-2px, 0); }
+  60% { transform: translate(-1px, 1px); }
+  80% { transform: translate(1px, 0); }
+}
+.px-fall { opacity: 0; animation: px-fall 3.3s steps(1, end) infinite; }
+.px-fall-2 { animation-delay: -1.1s; }
+.px-fall-3 { animation-delay: -2.2s; }
+@keyframes px-fall {
+  0% { transform: none; opacity: 0; }
+  8% { opacity: 1; }
+  20% { transform: translate(1px, 1px); }
+  35% { transform: translate(2px, 3px); }
+  50% { transform: translate(1px, 4px); }
+  65% { transform: translate(0, 5px); }
+  80% { transform: translate(1px, 6px); opacity: 1; }
+  100% { transform: translate(2px, 7px); opacity: 0; }
+}
 @media (prefers-reduced-motion: reduce) {
   .px-plug, .px-lens, .px-question, .px-shackle, .px-tumble, .px-hop, .px-turn, .px-blink,
   .px-ray, .px-waves, .px-cloud, .px-flag, .px-arrow-r, .px-arrow-l, .px-type, .px-reply, .px-z,
-  .px-swing, .px-clapper, .px-wave { animation: none; }
+  .px-swing, .px-clapper, .px-wave, .px-snow, .px-flutter, .px-fall { animation: none; }
+  .px-fall { opacity: 1; }
   .px-type, .px-reply, .px-z, .px-wave { opacity: 1; }
   .px-spark { animation: none; opacity: 1; }
   .px-lens { transform: translate(5px, 4px); }
@@ -1070,6 +1106,23 @@ html.lenis body {
   50%, 74% { opacity: 1; }
   75%, 100% { opacity: 0; }
 }
+/* Angry: shaking on the spot, the sign throbbing, steam rising off the head. */
+.ms-fume { animation: ms-fume 0.4s steps(1, end) infinite; }
+@keyframes ms-fume {
+  0%, 100% { transform: none; }
+  25% { transform: translateX(-1px); }
+  75% { transform: translateX(1px); }
+}
+.ms-throb { animation: ms-throb 0.6s steps(1, end) infinite; }
+@keyframes ms-throb {
+  0%, 49% { transform: none; }
+  50%, 100% { transform: translate(1px, -1px); }
+}
+.ms-steam { animation: ms-steam 1.2s steps(4, end) infinite; }
+@keyframes ms-steam {
+  from { transform: none; opacity: 1; }
+  to { transform: translateY(-4px); opacity: 0; }
+}
 /* Signs and bubbles pop up; a drop of sweat runs down. */
 .ms-pop { animation: ms-pop 0.24s steps(3, end) both; }
 @keyframes ms-pop {
@@ -1086,7 +1139,7 @@ html.lenis body {
 @media (prefers-reduced-motion: reduce) {
   .login-step, .login-results [role='option'] { animation: none; }
   .login-hall-in, .hw-clouds, .hw-stars, .hw-locker, .ms-breathe, .ms-hop, .ms-jump, .ms-shake,
-  .ms-open, .ms-frame-a, .ms-pop, .ms-drip { animation: none; }
+  .ms-open, .ms-frame-a, .ms-pop, .ms-drip, .ms-fume, .ms-throb, .ms-steam { animation: none; }
   .ms-blink, .ms-frame-b, .ms-frame-c { animation: none; opacity: 0; }
 }
 
@@ -1243,7 +1296,7 @@ html.theme-switching::view-transition-new(root) {
 /* ─── Announcement popup content ──────────────────────────────────────────
    Backend-rendered Markdown/HTML (components/AnnouncementPopup.tsx). Mirrored
    by the admin preview in pokyh-backend/admin/src/components/popups/PopupPreview.tsx. */
-.popup-content { font-size: 14.5px; line-height: 1.6; color: var(--ink); overflow-wrap: anywhere; }
+.popup-content { font-size: 15px; line-height: 1.6; color: var(--ink); overflow-wrap: anywhere; }
 .popup-content > :first-child { margin-top: 0; }
 .popup-content > :last-child { margin-bottom: 0; }
 .popup-content h1 { font-size: 22px; line-height: 1.3; font-weight: 700; letter-spacing: -0.02em; margin: 18px 0 8px; }
@@ -1252,10 +1305,10 @@ html.theme-switching::view-transition-new(root) {
 .popup-content p { margin: 0 0 10px; }
 .popup-content a { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 2px; }
 .popup-content img { max-width: 100%; height: auto; border-radius: 16px; display: block; margin: 10px 0; }
-.popup-content blockquote { margin: 10px 0; padding: 8px 14px; border-left: 3px solid var(--accent); background: var(--surface); border-radius: 0 12px 12px 0; color: var(--ink-2); }
+.popup-content blockquote { margin: 10px 0; padding: 10px 14px; border-left: 3px solid var(--accent); background: var(--inset); border-radius: 0 14px 14px 0; color: var(--ink-2); }
 .popup-content blockquote p { margin: 0; }
 .popup-content code { background: var(--inset); padding: 1px 6px; border-radius: 6px; font-size: 0.88em; }
-.popup-content pre { background: var(--surface); padding: 12px 14px; border-radius: 14px; overflow-x: auto; }
+.popup-content pre { background: var(--inset); padding: 12px 14px; border-radius: 14px; overflow-x: auto; }
 .popup-content pre code { background: none; padding: 0; }
 .popup-content ul, .popup-content ol { padding-left: 22px; margin: 0 0 10px; }
 .popup-content ul { list-style: disc; }
@@ -1264,30 +1317,21 @@ html.theme-switching::view-transition-new(root) {
 .popup-content li:has(> input[type=checkbox]) { list-style: none; margin-left: -20px; }
 .popup-content input[type=checkbox] { accent-color: var(--accent); margin: 0 6px 0 0; vertical-align: -2px; }
 .popup-content hr { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
-.popup-content table { border-collapse: separate; border-spacing: 0; width: 100%; margin: 10px 0; font-size: 13.5px; border-radius: 14px; overflow: hidden; background: var(--surface); }
+.popup-content table { border-collapse: separate; border-spacing: 0; width: 100%; margin: 10px 0; font-size: 13.5px; border-radius: 14px; overflow: hidden; box-shadow: inset 0 0 0 1px var(--line); }
 .popup-content th, .popup-content td { padding: 7px 12px; text-align: left; }
 .popup-content th { background: var(--inset); font-weight: 600; }
 .popup-content tr + tr td { border-top: 1px solid var(--line); }
 .popup-content mark { color: #1C1A17; border-radius: 4px; padding: 0 3px; }
-.popup-content details { background: var(--surface); border-radius: 14px; padding: 10px 14px; margin: 10px 0; }
+.popup-content details { background: var(--inset); border-radius: 14px; padding: 10px 14px; margin: 10px 0; }
 .popup-content summary { font-weight: 600; cursor: pointer; }
 
 /* ─── Announcement popup stack (components/AnnouncementPopup.tsx) ─────── */
-.popup-layer { background: var(--inset); pointer-events: none; transition: opacity 0.25s ease; }
+.popup-layer { background: var(--surface); pointer-events: none; transition: opacity 0.25s ease; }
 .popup-dot { display: block; width: 7px; height: 7px; border-radius: 999px; background: var(--ink-3); transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease; }
 .popup-dot-hit:hover:not(:disabled) .popup-dot { background: var(--ink-2); }
 .popup-dot-hit:disabled { cursor: default; }
 .popup-dot[data-active='true'] { width: 22px; background: var(--accent); }
-.popup-primary-btn { background: var(--accent); color: #fff; transition: background-color 0.15s ease, opacity 0.25s ease; }
-.popup-primary-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 85%, #000); }
-.popup-primary-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.popup-ghost-btn { color: var(--ink-2); transition: background-color 0.15s ease, color 0.15s ease; }
-.popup-ghost-btn:hover { background: var(--surface); color: var(--ink); }
-.popup-icon-btn { background: var(--surface); color: var(--ink-2); transition: background-color 0.15s ease, color 0.15s ease; }
-.popup-icon-btn:hover { background: var(--inset); color: var(--ink); }
-.popup-primary-btn:focus-visible, .popup-ghost-btn:focus-visible, .popup-icon-btn:focus-visible, .popup-dot-hit:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 2px;
-}
+.popup-dot-hit:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 2px; }
 @keyframes popupStepNext { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
 @keyframes popupStepBack { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
 @keyframes popupFade { from { opacity: 0; } to { opacity: 1; } }
