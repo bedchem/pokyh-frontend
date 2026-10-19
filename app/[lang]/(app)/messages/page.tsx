@@ -20,7 +20,7 @@ import type { MessagePreview } from '@/lib/types';
 import { useDateLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { messagesDict, type MessagesKey } from '@/lib/i18n/dictionaries/messages';
 import { formatDate, formatTime } from '@/lib/i18n/dateLocale';
-import { messageIsRead } from '@/lib/untis-parse';
+import { messageIsRead, messageRecipientNames } from '@/lib/untis-parse';
 
 type TFn = (key: MessagesKey, vars?: Record<string, string | number>) => string;
 
@@ -31,7 +31,7 @@ const FOLDERS: { key: MessageFolder; label: MessagesKey }[] = [
 ];
 
 
-function parseMessages(json: unknown, t: TFn): MessagePreview[] {
+function parseMessages(json: unknown, t: TFn, folder: MessageFolder): MessagePreview[] {
   try {
     const root = json as Record<string, unknown>;
     const data = (root?.data as Record<string, unknown>) ?? {};
@@ -52,17 +52,11 @@ function parseMessages(json: unknown, t: TFn): MessagePreview[] {
         typeof m.sender === 'object' && m.sender !== null
           ? (m.sender as Record<string, unknown>)
           : null;
-      // For sent/draft messages there's no sender, show the recipients instead.
-      const recipients = Array.isArray(m.recipients) ? (m.recipients as Record<string, unknown>[]) : [];
-      const recipientLabel = recipients
-        .map((r) => (r.displayName as string) ?? (r.name as string) ?? '')
-        .filter(Boolean)
-        .join(', ');
+      // Sent and draft messages show who they went to; drafts may have nobody yet.
       const senderName =
-        (sender?.displayName as string) ??
-        (sender?.name as string) ??
-        (m.senderName as string) ??
-        (recipientLabel ? t('to', { names: recipientLabel }) : t('unknown'));
+        folder === 'inbox'
+          ? (sender?.displayName as string) ?? (sender?.name as string) ?? (m.senderName as string) ?? t('unknown')
+          : messageRecipientNames(m).join(', ');
       const sentDate =
         (m.sentDateTime as string) ??
         (m.sentDate as string) ??
@@ -123,13 +117,13 @@ export default function MessagesPage() {
     // What this device stored last time shows at once; the fresh list follows.
     const stale = getMessagesStale(folder);
     if (stale !== undefined) {
-      setMessages(parseMessages(stale, t));
+      setMessages(parseMessages(stale, t, folder));
       setLoadedAt(Date.now());
       setLoading(false);
     }
     try {
       const res = await fetchMessages(folder);
-      setMessages(parseMessages(res, t));
+      setMessages(parseMessages(res, t, folder));
       setLoadedAt(Date.now());
       setError('');
     } catch (e: unknown) {
@@ -230,13 +224,15 @@ export default function MessagesPage() {
 
   const row = (msg: MessagePreview) => {
     const isDraft = folder === 'drafts';
+    // Inbox rows name the sender; sent and draft rows name the recipients.
+    const who = folder === 'inbox' ? msg.senderName : msg.senderName ? t('to', { names: msg.senderName }) : '';
     const inner = (
       <span className="flex items-center gap-3.5 px-3 py-3">
         <span
           aria-hidden="true"
           className={`relative grid size-11 shrink-0 place-items-center rounded-full text-[14px] font-bold ${msg.isRead ? 'bg-inset text-ink-2' : 'bg-periwinkle text-periwinkle-ink'}`}
         >
-          {initialsOf(msg.senderName)}
+          {msg.senderName ? initialsOf(msg.senderName) : <PencilSimple size={18} weight="bold" />}
           {!msg.isRead && <span className="absolute -right-0.5 -top-0.5 size-3 rounded-full bg-accent shadow-[0_0_0_2px_var(--surface)]" />}
         </span>
         <span className="min-w-0 flex-1">
@@ -246,8 +242,8 @@ export default function MessagesPage() {
           </span>
           <span className="mt-0.5 flex items-center gap-1.5">
             <span className="min-w-0 truncate text-[13.5px] text-ink-2">
-              <span className={msg.isRead ? '' : 'font-semibold text-ink'}>{msg.senderName}</span>
-              {msg.contentPreview ? ` · ${msg.contentPreview}` : ''}
+              {who && <span className={msg.isRead ? '' : 'font-semibold text-ink'}>{who}</span>}
+              {msg.contentPreview ? `${who ? ' · ' : ''}${msg.contentPreview}` : ''}
             </span>
             {msg.hasAttachments && <Paperclip size={14} weight="bold" className="shrink-0 text-ink-3" aria-hidden="true" />}
           </span>
@@ -256,7 +252,7 @@ export default function MessagesPage() {
     );
     const cls = 'block rounded-[18px] transition-colors duration-200 hover:bg-[color-mix(in_srgb,var(--surface)_92%,var(--ink))]';
     if (!isDraft) {
-      return <li key={msg.id} className="relative before:pointer-events-none before:absolute before:inset-x-3.5 before:top-0 before:h-px before:bg-line before:transition-opacity first:before:hidden hover:before:opacity-0 [&:hover+li]:before:opacity-0"><Link href={localize(`/messages/${msg.id}`)} className={cls}>{inner}</Link></li>;
+      return <li key={msg.id} className="relative before:pointer-events-none before:absolute before:inset-x-3.5 before:top-0 before:h-px before:bg-line before:transition-opacity first:before:hidden hover:before:opacity-0 [&:hover+li]:before:opacity-0"><Link href={localize(folder === 'sent' ? `/messages/${msg.id}?folder=sent` : `/messages/${msg.id}`)} className={cls}>{inner}</Link></li>;
     }
     return (
       <li key={msg.id} className="flex items-center relative before:pointer-events-none before:absolute before:inset-x-3.5 before:top-0 before:h-px before:bg-line before:transition-opacity first:before:hidden hover:before:opacity-0 [&:hover+li]:before:opacity-0">

@@ -149,3 +149,26 @@ Nothing was committed or pushed.
 ## Open
 
 - Owner to try the scroll feel and the opening on real devices.
+
+## 2026-10-19 · Messages: sent recipients and compose popup
+
+- Bug: rows in "Gesendet" showed "Unbekannt". The list parser read only
+  `recipients`; WebUntis names the field `recipientPersons` /
+  `recipientGroups` (as drafts already did). New shared helper
+  `messageRecipientNames` in `lib/untis-parse.ts`; sent and draft rows now show
+  "An: <name>", drafts without a recipient show a pencil avatar and no name.
+- Sent message detail: opened with `?folder=sent`, shows "An: <name>" (falls
+  back to the stored sent list when the detail response has no recipients),
+  hides "Antworten" and no longer calls mark-as-read.
+- Compose popup ("Mitteilung an Lehrkraft") and the reply popup rebuilt on the
+  shared `Sheet`, `Button` and `Field` components: labelled fields with inline
+  errors, recipient field with avatars, recipient choice as a second step
+  inside the same sheet (back arrow, search, skeleton while loading, "no
+  match" state), pinned footer with Senden / Entwurf, success view after
+  sending. `Sheet` gained optional `onBack` and `footer` props; existing
+  sheets unchanged. New strings `chooseTeacher`, `noMatches` (de/it/en/lld).
+- Verification: `tsc --noEmit` passes; ESLint clean on changed files;
+  `npm test` 41/41; dev server on :3011 compiles the pages. Not checked in a
+  browser (extension not connected) and the live sent-list field names were
+  not inspected; no WebUntis writes were made.
+- Release state: uncommitted

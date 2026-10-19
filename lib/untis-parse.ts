@@ -139,3 +139,22 @@ export function messageIsRead(m: Record<string, unknown>): boolean {
   if (typeof raw === 'string') return raw.toLowerCase() === 'true' || raw === '1';
   return true;
 }
+
+/**
+ * Names of the people and groups a sent message went to. WebUntis lists them
+ * as `recipientPersons` / `recipientGroups` (as in drafts); the other names
+ * cover older response shapes.
+ */
+export function messageRecipientNames(m: Record<string, unknown>): string[] {
+  const lists = [m.recipientPersons, m.recipientGroups, m.recipients, m.recipient ? [m.recipient] : null];
+  const names: string[] = [];
+  for (const list of lists) {
+    if (!Array.isArray(list)) continue;
+    for (const r of list as unknown[]) {
+      const o = r && typeof r === 'object' ? (r as Record<string, unknown>) : null;
+      const name = typeof r === 'string' ? r : o?.displayName ?? o?.name ?? o?.longName ?? o?.fullName;
+      if (typeof name === 'string' && name.trim() && !names.includes(name.trim())) names.push(name.trim());
+    }
+  }
+  return names;
+}

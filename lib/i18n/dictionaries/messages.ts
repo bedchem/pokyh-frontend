@@ -40,6 +40,7 @@ export type MessagesKey =
   | 'errDraftEmpty'
   | 'errDraftSave'
   | 'choose'
+  | 'chooseTeacher'
   | 'unavailable'
   | 'nRecipients'
   | 'editDraft'
@@ -59,6 +60,7 @@ export type MessagesKey =
   | 'done'
   | 'recipients'
   | 'searchTeacher'
+  | 'noMatches'
   | 'recipientsLoading'
   | 'classTeacher'
   | 'others'
@@ -107,6 +109,7 @@ export const messagesDict: Dictionary<MessagesKey> = {
     errDraftEmpty: 'Bitte gib einen Betreff, Text, Empfänger oder Anhang an.',
     errDraftSave: 'Der Entwurf konnte nicht gespeichert werden. Bitte versuche es später erneut.',
     choose: 'Wählen',
+    chooseTeacher: 'Lehrkraft wählen',
     unavailable: 'Nicht verfügbar',
     nRecipients: '{n} Empfänger',
     editDraft: 'Entwurf bearbeiten',
@@ -125,6 +128,7 @@ export const messagesDict: Dictionary<MessagesKey> = {
     done: 'Fertig',
     recipients: 'Empfänger',
     searchTeacher: 'Lehrkraft suchen…',
+    noMatches: 'Keine Lehrkraft gefunden.',
     recipientsLoading: 'Empfänger werden geladen … falls dauerhaft leer, sind für dieses Konto keine Empfänger verfügbar.',
     classTeacher: 'Klassenlehrkraft',
     others: 'Andere',
@@ -169,6 +173,7 @@ export const messagesDict: Dictionary<MessagesKey> = {
     errDraftEmpty: 'Inserisci un oggetto, un testo, un destinatario o un allegato.',
     errDraftSave: 'Impossibile salvare la bozza. Riprova più tardi.',
     choose: 'Scegli',
+    chooseTeacher: 'Scegli un docente',
     unavailable: 'Non disponibile',
     nRecipients: '{n} destinatari',
     editDraft: 'Modifica bozza',
@@ -187,6 +192,7 @@ export const messagesDict: Dictionary<MessagesKey> = {
     done: 'Fatto',
     recipients: 'Destinatari',
     searchTeacher: 'Cerca docente…',
+    noMatches: 'Nessun docente trovato.',
     recipientsLoading: 'Caricamento destinatari… se resta vuoto, per questo account non ci sono destinatari disponibili.',
     classTeacher: 'Coordinatore di classe',
     others: 'Altri',
@@ -231,6 +237,7 @@ export const messagesDict: Dictionary<MessagesKey> = {
     errDraftEmpty: 'Please add a subject, text, recipient or attachment.',
     errDraftSave: 'The draft couldn’t be saved. Please try again later.',
     choose: 'Choose',
+    chooseTeacher: 'Choose a teacher',
     unavailable: 'Not available',
     nRecipients: '{n} recipients',
     editDraft: 'Edit draft',
@@ -249,6 +256,7 @@ export const messagesDict: Dictionary<MessagesKey> = {
     done: 'Done',
     recipients: 'Recipients',
     searchTeacher: 'Search teacher…',
+    noMatches: 'No teacher found.',
     recipientsLoading: 'Loading recipients… if this stays empty, no recipients are available for this account.',
     classTeacher: 'Class teacher',
     others: 'Others',
@@ -290,6 +298,7 @@ export const messagesDict: Dictionary<MessagesKey> = {
     errDraftEmpty: "Scrij n argumënt, n test, n destinatar o n alegat.",
     errDraftSave: "La sboza ne n’à nia pudù vester salveda. Prova plu tert mo n iede.",
     choose: "Cerni",
+    chooseTeacher: "Cerni n nseniant",
     unavailable: "Nia a dispuzion",
     nRecipients: "{n} destinatars",
     editDraft: "Mudé la sboza",
@@ -308,6 +317,7 @@ export const messagesDict: Dictionary<MessagesKey> = {
     done: "Fat",
     recipients: "Destinatars",
     searchTeacher: "Crì n nseniant…",
+    noMatches: "Nia giapà",
     recipientsLoading: "I destinatars se cëria … sce la lista resta vuea, ne n’iel deguni destinatars per chësc account.",
     classTeacher: "Nseniant dla tlas",
     others: "Autri",

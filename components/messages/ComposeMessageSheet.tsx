@@ -1,8 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { X, Send, ChevronRight, Check, Loader2, Pencil, Paperclip, FileText } from 'lucide-react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { CaretRight, Check, FileText, FloppyDisk, Paperclip, PaperPlaneTilt, UserPlus, X } from '@phosphor-icons/react';
 import RecipientPicker from './RecipientPicker';
+import Sheet from '@/components/ui/Sheet';
+import { Button } from '@/components/ui/Button';
+import { TextArea, TextField, FormStatus } from '@/components/ui/Field';
 import { fetchRecipients, sendMessage, saveDraft, deleteDraft, sendReply } from '@/lib/api';
 import { untisActionsDict } from '@/lib/i18n/dictionaries/untisActions';
 import type { MessageRecipient } from '@/lib/types';
@@ -27,6 +30,7 @@ interface Props {
 }
 
 type View = 'form' | 'recipients';
+type FieldErrors = { to?: string; subject?: string; text?: string };
 
 // Prefer WebUntis' own German error text; fall back to a friendly default for
 // technical/opaque errors (network, HTTP codes, session handling).
@@ -43,19 +47,26 @@ function initialsOf(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+function fmtSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 // Compose a new message to teacher(s) (modelled on WebUntis "Mitteilung an Lehrkraft").
-// When `initial` carries a draftId the sheet opens in edit mode: saving/sending
-// creates a fresh message and removes the old draft (WebUntis mints a new draft
-// id on every save, so this mirrors its own behaviour).
+// The recipient choice is a second step inside the same sheet. When `initial`
+// carries a draftId the sheet opens in edit mode: saving updates the draft in
+// place, sending creates the message and removes the old draft.
 export default function ComposeMessageSheet({ onClose, onSent, initial, reply }: Props) {
   const t = useT(messagesDict);
   const ta = useT(untisActionsDict);
+  const tc = useT(commonDict);
+  const formId = useId();
   // WebUntis takes exactly one teacher per message for the TEACHER option.
   const [single, setSingle] = useState(true);
-  const tc = useT(commonDict);
   const [view, setView] = useState<View>('form');
-  const [recipients, setRecipients] = useState<MessageRecipient[]>([]);
-  const [recipientsErr, setRecipientsErr] = useState('');
+  const [recipients, setRecipients] = useState<MessageRecipient[] | null>(null);
+  const [recipientsFailed, setRecipientsFailed] = useState(false);
   const [selected, setSelected] = useState<MessageRecipient[]>(
     (initial?.recipients ?? []).map((r) => ({
       id: r.id,
@@ -71,15 +82,18 @@ export default function ComposeMessageSheet({ onClose, onSent, initial, reply }:
   // Attachments already stored on the draft (kept automatically when re-saving).
   const [existingAttachments] = useState(initial?.attachments ?? []);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const toButton = useRef<HTMLButtonElement>(null);
   const draftId = initial?.draftId;
 
   const [sending, setSending] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
+  const [errors, setErrors] = useState<FieldErrors>({});
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
-  const [draftSaved, setDraftSaved] = useState(false);
+  const [done, setDone] = useState<'sent' | 'draft' | null>(null);
+  const busy = sending || savingDraft || done !== null;
 
   useEffect(() => {
+    if (reply) return;
     let alive = true;
     fetchRecipients()
       .then((r) => {
@@ -89,14 +103,21 @@ export default function ComposeMessageSheet({ onClose, onSent, initial, reply }:
         setSingle(one);
         if (one) setSelected((prev) => prev.slice(0, 1));
       })
-      .catch((e) => { if (alive) setRecipientsErr(e instanceof Error ? e.message : 'error'); });
+      .catch(() => { if (alive) setRecipientsFailed(true); });
     return () => { alive = false; };
-  }, []);
+  }, [reply]);
+
+  // Back on the form, focus returns to the recipient field that opened the list.
+  const backToForm = () => {
+    setView('form');
+    requestAnimationFrame(() => toButton.current?.focus());
+  };
 
   function toggle(r: MessageRecipient) {
+    setErrors((e) => ({ ...e, to: undefined }));
     if (single) {
       setSelected((prev) => (prev.some((x) => x.id === r.id) ? [] : [r]));
-      setView('form');
+      backToForm();
       return;
     }
     setSelected((prev) =>
@@ -116,24 +137,24 @@ export default function ComposeMessageSheet({ onClose, onSent, initial, reply }:
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
-  function removeFile(idx: number) {
-    setFiles((prev) => prev.filter((_, i) => i !== idx));
+  function finish(kind: 'sent' | 'draft') {
+    setDone(kind);
+    setTimeout(() => { onSent?.(); onClose(); }, 1200);
   }
 
-  function fmtSize(bytes: number): string {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
-
-  async function send() {
-    if (sending) return;
-    if (!reply && selected.length === 0) { setError(t('errPickTeacher')); return; }
-    if (!subject.trim()) { setError(t('errSubject')); return; }
-    if (!content.trim()) { setError(t('errText')); return; }
+  async function send(e?: FormEvent) {
+    e?.preventDefault();
+    if (busy) return;
+    const next: FieldErrors = {
+      to: !reply && selected.length === 0 ? t('errPickTeacher') : undefined,
+      subject: !subject.trim() ? t('errSubject') : undefined,
+      text: !content.trim() ? t('errText') : undefined,
+    };
+    setErrors(next);
+    setError('');
+    if (next.to || next.subject || next.text) return;
 
     setSending(true);
-    setError('');
     try {
       if (reply) {
         await sendReply(reply.messageId, { subject: subject.trim(), content: content.trim(), files });
@@ -147,21 +168,22 @@ export default function ComposeMessageSheet({ onClose, onSent, initial, reply }:
       }
       // The message is sent: remove the source draft if we were editing one.
       if (draftId != null) { try { await deleteDraft(draftId); } catch { /* best-effort */ } }
-      setSuccess(true);
-      setTimeout(() => { onSent?.(); onClose(); }, 950);
-    } catch (e) {
-      setError(errMessage(e, t('errSend')));
+      finish('sent');
+    } catch (err) {
+      setError(errMessage(err, t('errSend')));
+    } finally {
       setSending(false);
     }
   }
 
   async function storeDraft() {
-    if (savingDraft || sending) return;
+    if (busy) return;
     if (!subject.trim() && !content.trim() && selected.length === 0 && files.length === 0 && existingAttachments.length === 0) {
       setError(t('errDraftEmpty'));
       return;
     }
     setSavingDraft(true);
+    setErrors({});
     setError('');
     try {
       await saveDraft({
@@ -171,228 +193,190 @@ export default function ComposeMessageSheet({ onClose, onSent, initial, reply }:
         files,
         draftId, // update in place when editing → keeps existing attachments
       });
-      setDraftSaved(true);
-      setTimeout(() => { onSent?.(); onClose(); }, 950);
-    } catch (e) {
-      setError(errMessage(e, t('errDraftSave')));
+      finish('draft');
+    } catch (err) {
+      setError(errMessage(err, t('errDraftSave')));
+    } finally {
       setSavingDraft(false);
     }
   }
 
-  if (view === 'recipients') {
-    return (
-      <RecipientPicker
-        recipients={recipients}
-        selectedIds={selected.map((r) => r.id)}
-        onToggle={toggle}
-        onBack={() => setView('form')}
-      />
-    );
-  }
+  const recipientNames = reply ? reply.recipientName : selected.map((r) => r.name).join(', ');
+  const title = view === 'recipients' ? t('recipients') : reply ? ta('reply') : draftId != null ? t('editDraft') : t('composeTitle');
 
-  const recipientLabel =
-    selected.length === 0
-      ? (recipientsErr ? t('unavailable') : t('choose'))
-      : selected.length === 1
-        ? selected[0].name
-        : t('nRecipients', { n: selected.length });
+  const footer =
+    done ? undefined : view === 'recipients' ? (
+      !single && (
+        <Button onClick={backToForm} className="w-full">
+          {t('done')}{selected.length ? ` (${selected.length})` : ''}
+        </Button>
+      )
+    ) : (
+      <div className="flex gap-2.5">
+        {!reply && (
+          <Button variant="quiet" onClick={storeDraft} disabled={busy} aria-label={t('saveDraft')} className="shrink-0">
+            {savingDraft
+              ? <span aria-hidden="true" className="size-[18px] animate-spin rounded-full border-2 border-current border-r-transparent" />
+              : <FloppyDisk size={18} weight="bold" aria-hidden="true" />}
+            <span className="hidden sm:inline">{t('saveDraft')}</span>
+          </Button>
+        )}
+        <Button type="submit" form={formId} disabled={busy} className="flex-1">
+          {sending
+            ? <span aria-hidden="true" className="size-[18px] animate-spin rounded-full border-2 border-current border-r-transparent" />
+            : <PaperPlaneTilt size={18} weight="bold" aria-hidden="true" />}
+          {t('send')}
+        </Button>
+      </div>
+    );
 
   return (
-    <div
-      className="fixed inset-0 z-[65] flex items-end sm:items-center justify-center sm:px-4 sm:py-8"
-      style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)' }}
-      onClick={onClose}
+    <Sheet
+      open
+      // On the recipient step, Escape and the backdrop lead back to the form.
+      onClose={view === 'recipients' ? backToForm : onClose}
+      onBack={view === 'recipients' ? backToForm : undefined}
+      backLabel={tc('back')}
+      title={title}
+      closeLabel={tc('close')}
+      footer={footer || undefined}
     >
-      <div
-        className="w-full sm:max-w-lg max-h-[94dvh] sm:max-h-[90dvh] overflow-hidden flex flex-col rounded-t-[28px] sm:rounded-[28px] slide-up"
-        style={{ background: 'var(--app-surface)' }}
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 pt-4 pb-3 flex-shrink-0">
-          <button
-            onClick={onClose}
-            className="w-9 h-9 flex items-center justify-center rounded-full press-scale"
-            style={{ background: 'var(--app-card)', color: 'var(--app-text-secondary)' }}
-            aria-label={tc('close')}
-          >
-            <X size={18} />
-          </button>
-          <h3 className="text-[16px] font-bold" style={{ color: 'var(--app-text-primary)' }}>
-            {reply ? ta('reply') : draftId != null ? t('editDraft') : t('composeTitle')}
-          </h3>
-          <button
-            onClick={send}
-            disabled={sending || success}
-            className="w-9 h-9 flex items-center justify-center rounded-full press-scale disabled:opacity-50"
-            style={{ background: success ? 'var(--tint)' : 'var(--accent)', color: '#fff' }}
-            aria-label={t('send')}
-          >
-            {sending ? <Loader2 size={18} className="animate-spin" /> : success ? <Check size={18} /> : <Send size={17} />}
-          </button>
+      {done ? (
+        <div role="status" className="rise flex flex-col items-center px-2 pb-6 pt-6 text-center">
+          <span className="grid size-16 place-items-center rounded-[20px] bg-sage text-sage-ink">
+            <Check size={30} weight="bold" aria-hidden="true" />
+          </span>
+          <p className="mt-5 text-[19px] font-extrabold tracking-[-0.02em]">{done === 'sent' ? t('messageSent') : t('draftSaved')}</p>
+          {recipientNames && <p className="mt-1 max-w-[36ch] text-[15px] text-ink-2">{t('to', { names: recipientNames })}</p>}
         </div>
-
-        <div className="flex-1 overflow-y-auto px-4 pb-6" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
-          {/* Recipients */}
-          {reply ? (
-            <div className="w-full flex items-center justify-between gap-3 px-4 py-3.5 rounded-2xl mb-3" style={{ background: 'var(--app-card)' }}>
-              <span className="text-[15px] font-medium" style={{ color: 'var(--app-text-primary)' }}>{t('toLabel')}</span>
-              <span className="text-[14px] truncate" style={{ color: 'var(--app-text-secondary)' }}>{reply.recipientName}</span>
-            </div>
-          ) : (
-          <button
-            onClick={() => setView('recipients')}
-            className="w-full flex items-center justify-between gap-3 px-4 py-3.5 rounded-2xl press-scale mb-3 text-left"
-            style={{ background: 'var(--app-card)' }}
-          >
-            <span className="text-[15px] font-medium flex-shrink-0" style={{ color: 'var(--app-text-primary)' }}>{t('toLabel')}</span>
-            <span className="flex items-center gap-1 min-w-0">
-              <span className="text-[14px] truncate" style={{ color: selected.length ? 'var(--app-text-secondary)' : 'var(--app-text-tertiary)' }}>
-                {recipientLabel}
-              </span>
-              <ChevronRight size={16} color="var(--app-text-tertiary)" className="flex-shrink-0" />
-            </span>
-          </button>
-          )}
-          {!reply && single && (
-            <p className="-mt-1 mb-3 px-1 text-[12px]" style={{ color: 'var(--app-text-tertiary)' }}>{ta('oneTeacher')}</p>
-          )}
-
-          {/* Subject */}
-          <div className="rounded-2xl px-4 py-3 mb-3" style={{ background: 'var(--app-card)' }}>
-            <input
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              placeholder={t('subject')}
-              maxLength={255}
-              className="w-full bg-transparent outline-none text-[15px] font-medium"
-              style={{ color: 'var(--app-text-primary)' }}
-            />
+      ) : view === 'recipients' ? (
+        <RecipientPicker
+          recipients={recipients}
+          failed={recipientsFailed}
+          selectedIds={selected.map((r) => r.id)}
+          single={single}
+          onToggle={toggle}
+        />
+      ) : (
+        <form id={formId} onSubmit={send} noValidate className="flex flex-col gap-5 pb-1">
+          {/* Recipient */}
+          <div className="flex flex-col gap-1.5">
+            <span id={`${formId}-to`} className="text-[14px] font-semibold text-ink">{t('toLabel')}</span>
+            {reply ? (
+              <div className="flex min-h-14 items-center gap-3 rounded-[14px] bg-inset px-3 py-2">
+                <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-periwinkle text-[12.5px] font-bold text-periwinkle-ink">
+                  {initialsOf(reply.recipientName)}
+                </span>
+                <span className="min-w-0 truncate text-[16px] font-medium text-ink">{reply.recipientName}</span>
+              </div>
+            ) : (
+              <button
+                ref={toButton}
+                type="button"
+                onClick={() => setView('recipients')}
+                disabled={busy}
+                aria-labelledby={`${formId}-to ${formId}-to-value`}
+                data-invalid={errors.to ? true : undefined}
+                aria-describedby={errors.to ? `${formId}-to-err` : undefined}
+                className="flex min-h-14 w-full items-center gap-3 rounded-[14px] bg-inset px-3 py-2 text-left outline-none transition-[box-shadow,background-color] hover:bg-[color-mix(in_srgb,var(--inset)_86%,var(--ink))] focus-visible:shadow-[0_0_0_2px_var(--accent)] data-[invalid=true]:shadow-[0_0_0_2px_var(--danger)] disabled:opacity-60"
+              >
+                {selected.length > 0 ? (
+                  <span aria-hidden="true" className="flex shrink-0 -space-x-2">
+                    {selected.slice(0, 3).map((r) => (
+                      <span key={`${r.type}-${r.id}`} className="grid size-9 place-items-center rounded-full bg-periwinkle text-[12.5px] font-bold text-periwinkle-ink shadow-[0_0_0_2px_var(--inset)]">
+                        {r.initials}
+                      </span>
+                    ))}
+                  </span>
+                ) : (
+                  <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-surface text-ink-2">
+                    <UserPlus size={18} weight="bold" />
+                  </span>
+                )}
+                <span id={`${formId}-to-value`} className={`min-w-0 flex-1 truncate text-[16px] ${selected.length ? 'font-medium text-ink' : 'text-ink-3'}`}>
+                  {selected.length === 0
+                    ? recipientsFailed ? t('unavailable') : t('chooseTeacher')
+                    : selected.length === 1 ? selected[0].name : t('nRecipients', { n: selected.length })}
+                </span>
+                <CaretRight size={18} weight="bold" aria-hidden="true" className="shrink-0 text-ink-3" />
+              </button>
+            )}
+            {errors.to ? (
+              <p id={`${formId}-to-err`} className="text-[13px] font-medium text-danger-ink">{errors.to}</p>
+            ) : recipientsFailed ? (
+              <p className="text-[13px] text-ink-2">{t('recipientsLoadFailed')}</p>
+            ) : !reply && single ? (
+              <p className="text-[13px] text-ink-2">{ta('oneTeacher')}</p>
+            ) : null}
           </div>
 
-          {/* Body */}
-          <div className="rounded-2xl px-4 py-3 mb-3" style={{ background: 'var(--app-card)' }}>
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder={t('textPlaceholder')}
-              rows={8}
-              maxLength={10000}
-              className="w-full bg-transparent outline-none resize-none text-[15px]"
-              style={{ color: 'var(--app-text-primary)' }}
-            />
-          </div>
+          <TextField
+            label={t('subject')}
+            value={subject}
+            onChange={(e) => { setSubject(e.target.value); if (errors.subject) setErrors((x) => ({ ...x, subject: undefined })); }}
+            maxLength={255}
+            disabled={busy}
+            error={errors.subject}
+          />
+
+          <TextArea
+            label={t('message')}
+            value={content}
+            onChange={(e) => { setContent(e.target.value); if (errors.text) setErrors((x) => ({ ...x, text: undefined })); }}
+            placeholder={t('textPlaceholder')}
+            rows={7}
+            maxLength={10000}
+            disabled={busy}
+            error={errors.text}
+          />
 
           {/* Attachments */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            className="hidden"
-            onChange={(e) => addFiles(e.target.files)}
-          />
-          {existingAttachments.length > 0 && (
-            <div className="flex flex-col gap-2 mb-3">
-              {existingAttachments.map((a) => (
-                <div
-                  key={a.id}
-                  className="flex items-center gap-3 px-4 py-2.5 rounded-2xl"
-                  style={{ background: 'var(--app-card)' }}
-                >
-                  <div
-                    className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: 'color-mix(in srgb, var(--accent) 14%, var(--app-card))' }}
-                  >
-                    <FileText size={17} color="var(--accent)" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[14px] truncate" style={{ color: 'var(--app-text-primary)' }}>{a.name}</p>
-                    <p className="text-[12px]" style={{ color: 'var(--app-text-tertiary)' }}>{t('savedInDraft')}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          {files.length > 0 && (
-            <div className="flex flex-col gap-2 mb-3">
-              {files.map((f, i) => (
-                <div
-                  key={`${f.name}-${i}`}
-                  className="flex items-center gap-3 px-4 py-2.5 rounded-2xl"
-                  style={{ background: 'var(--app-card)' }}
-                >
-                  <div
-                    className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: 'color-mix(in srgb, var(--accent) 14%, var(--app-card))' }}
-                  >
-                    <FileText size={17} color="var(--accent)" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[14px] truncate" style={{ color: 'var(--app-text-primary)' }}>{f.name}</p>
-                    <p className="text-[12px]" style={{ color: 'var(--app-text-tertiary)' }}>{fmtSize(f.size)}</p>
-                  </div>
-                  <button
-                    onClick={() => removeFile(i)}
-                    disabled={sending || savingDraft || success || draftSaved}
-                    className="w-7 h-7 flex items-center justify-center rounded-full press-scale flex-shrink-0 disabled:opacity-50"
-                    style={{ background: 'var(--app-surface)', color: 'var(--app-text-secondary)' }}
-                    aria-label={t('removeFile', { name: f.name })}
-                  >
-                    <X size={15} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="flex flex-col gap-2">
+            <input ref={fileInputRef} type="file" multiple className="hidden" onChange={(e) => addFiles(e.target.files)} />
+            {(existingAttachments.length > 0 || files.length > 0) && (
+              <ul className="flex flex-col gap-2">
+                {existingAttachments.map((a) => (
+                  <li key={a.id} className="flex items-center gap-3 rounded-[14px] bg-inset px-3 py-2.5">
+                    <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-[11px] bg-periwinkle text-periwinkle-ink">
+                      <FileText size={18} weight="bold" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[14.5px] font-medium text-ink">{a.name}</span>
+                      <span className="block text-[12.5px] text-ink-3">{t('savedInDraft')}</span>
+                    </span>
+                  </li>
+                ))}
+                {files.map((f, i) => (
+                  <li key={`${f.name}-${i}`} className="flex items-center gap-3 rounded-[14px] bg-inset px-3 py-2.5">
+                    <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-[11px] bg-periwinkle text-periwinkle-ink">
+                      <FileText size={18} weight="bold" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[14.5px] font-medium text-ink">{f.name}</span>
+                      <span className="block text-[12.5px] text-ink-3 tnum">{fmtSize(f.size)}</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}
+                      disabled={busy}
+                      aria-label={t('removeFile', { name: f.name })}
+                      className="grid size-9 shrink-0 place-items-center rounded-full text-ink-2 transition-colors hover:bg-surface hover:text-ink disabled:opacity-50"
+                    >
+                      <X size={16} weight="bold" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <Button variant="quiet" size="sm" onClick={() => fileInputRef.current?.click()} disabled={busy} className="self-start">
+              <Paperclip size={16} weight="bold" aria-hidden="true" />
+              {t('addAttachment')}
+            </Button>
+          </div>
 
-          {/* Attach file */}
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={sending || savingDraft || success || draftSaved}
-            className="w-full flex items-center justify-center gap-2 h-11 rounded-xl press-scale mb-3 text-[14px] font-medium disabled:opacity-50"
-            style={{ background: 'var(--app-card)', color: 'var(--app-text-secondary)' }}
-          >
-            <Paperclip size={15} />
-            {t('addAttachment')}
-          </button>
-
-          {/* Save as draft (not for replies: WebUntis keeps no reply drafts) */}
-          {!reply && (
-          <button
-            onClick={storeDraft}
-            disabled={sending || savingDraft || success || draftSaved}
-            className="w-full flex items-center justify-center gap-2 h-11 rounded-xl press-scale mb-3 text-[14px] font-medium disabled:opacity-50"
-            style={{ background: 'var(--app-card)', color: 'var(--app-text-secondary)' }}
-          >
-            {savingDraft ? <Loader2 size={16} className="animate-spin" /> : <Pencil size={15} />}
-            {t('saveDraft')}
-          </button>
-          )}
-
-          {recipientsErr && (
-            <p className="text-[12px] px-1 mb-2" style={{ color: 'var(--warning)' }}>
-              {t('recipientsLoadFailed')}
-            </p>
-          )}
-          {error && (
-            <div className="rounded-xl px-4 py-3 text-[13px]" style={{ background: 'color-mix(in srgb, var(--danger) 12%, var(--app-card))', color: 'var(--danger)' }}>
-              {error}
-            </div>
-          )}
-          {success && (
-            <div className="rounded-xl px-4 py-3 text-[13px] flex items-center gap-2" style={{ background: 'color-mix(in srgb, var(--tint) 14%, var(--app-card))', color: 'var(--tint)' }}>
-              <Check size={16} /> {t('messageSent')}
-            </div>
-          )}
-          {draftSaved && (
-            <div className="rounded-xl px-4 py-3 text-[13px] flex items-center gap-2" style={{ background: 'color-mix(in srgb, var(--tint) 14%, var(--app-card))', color: 'var(--tint)' }}>
-              <Check size={16} /> {t('draftSaved')}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+          {error && <FormStatus kind="error">{error}</FormStatus>}
+        </form>
+      )}
+    </Sheet>
   );
 }

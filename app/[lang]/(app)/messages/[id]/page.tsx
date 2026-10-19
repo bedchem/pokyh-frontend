@@ -19,6 +19,7 @@ import {
   FilePpt,
   FileVideo,
   FileXls,
+  PaperPlaneTilt,
   Paperclip,
   WarningCircle,
 } from '@phosphor-icons/react';
@@ -32,7 +33,8 @@ import { Page } from '@/components/app/Page';
 import { Bone, Line } from '@/components/app/Skeleton';
 import { initialsOf } from '@/components/app/hooks';
 import ErrorView from '@/components/ui/ErrorView';
-import { fetchMessageDetail, fetchMessageAttachments, markMessageRead, getAttachmentUrl } from '@/lib/api';
+import { fetchMessageDetail, fetchMessageAttachments, markMessageRead, getAttachmentUrl, getMessagesStale } from '@/lib/api';
+import { messageRecipientNames } from '@/lib/untis-parse';
 import type { MessageDetail, MessageAttachment } from '@/lib/types';
 import { useDateLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { messagesDict, type MessagesKey } from '@/lib/i18n/dictionaries/messages';
@@ -125,7 +127,17 @@ function parseStorageAttachment(a: Record<string, unknown>, fallbackName = 'file
   };
 }
 
-function parseMessageDetail(json: unknown, t: TFn): MessageDetail | null {
+// Recipients of a sent message as the stored "Gesendet" list has them, for when
+// the detail response leaves them out.
+function sentListRecipients(id: number): string {
+  const root = (getMessagesStale('sent') ?? {}) as Record<string, unknown>;
+  const data = (root.data as Record<string, unknown>) ?? {};
+  const list = (root.sentMessages ?? data.sentMessages ?? []) as Record<string, unknown>[];
+  const m = Array.isArray(list) ? list.find((x) => x.id === id) : undefined;
+  return m ? messageRecipientNames(m).join(', ') : '';
+}
+
+function parseMessageDetail(json: unknown, t: TFn, outgoing = false): MessageDetail | null {
   try {
     const root = json as Record<string, unknown>;
     const msg =
@@ -140,11 +152,13 @@ function parseMessageDetail(json: unknown, t: TFn): MessageDetail | null {
       typeof msg.sender === 'object' && msg.sender !== null
         ? (msg.sender as Record<string, unknown>)
         : null;
-    const senderName =
-      (sender?.displayName as string) ??
-      (sender?.name as string) ??
-      (msg.senderName as string) ??
-      t('unknown');
+    // A sent message names its recipients instead of a sender.
+    const senderName = outgoing
+      ? messageRecipientNames(msg).join(', ') || sentListRecipients(msg.id as number)
+      : (sender?.displayName as string) ??
+        (sender?.name as string) ??
+        (msg.senderName as string) ??
+        t('unknown');
     const sentDate =
       (msg.sentDateTime as string) ??
       (msg.sentDate as string) ??
@@ -321,6 +335,7 @@ export default function MessageDetailPage({
   const { tag } = useDateLocale();
   const localize = useLocalizeHref();
   const [msg, setMsg] = useState<MessageDetail | null>(null);
+  const [outgoing, setOutgoing] = useState(false);
   const [reply, setReply] = useState<{ messageId: number; subject: string; recipientName: string } | null>(null);
   const [replyBusy, setReplyBusy] = useState(false);
   const [replyError, setReplyError] = useState('');
@@ -353,10 +368,12 @@ export default function MessageDetailPage({
     setLoadedAttachments(null);
     setAttachmentsFetchFailed(false);
     try {
+      const sent = new URLSearchParams(window.location.search).get('folder') === 'sent';
       const data = await fetchMessageDetail(parseInt(id));
-      const parsed = parseMessageDetail(data, t);
+      const parsed = parseMessageDetail(data, t, sent);
+      setOutgoing(sent);
       setMsg(parsed);
-      markMessageRead(parseInt(id)).catch(() => {});
+      if (!sent) markMessageRead(parseInt(id)).catch(() => {});
       if (parsed && parsed.attachments.length === 0) fetchFallbackAttachments(parsed.id);
     } catch (e: unknown) {
       if (e instanceof Error && e.message === 'session_expired') router.replace('/login');
@@ -420,17 +437,21 @@ export default function MessageDetailPage({
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex min-w-0 items-center gap-3">
                   <span aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-full bg-periwinkle text-[14px] font-bold text-periwinkle-ink">
-                    {initialsOf(msg.senderName)}
+                    {msg.senderName ? initialsOf(msg.senderName) : <PaperPlaneTilt size={19} weight="bold" />}
                   </span>
                   <span className="min-w-0">
-                    <span className="block truncate text-[15.5px] font-bold">{msg.senderName}</span>
+                    <span className="block truncate text-[15.5px] font-bold">
+                      {!outgoing ? msg.senderName : msg.senderName ? t('to', { names: msg.senderName }) : t('sent')}
+                    </span>
                     <span className="block text-[13.5px] text-ink-2">{formatDate(msg.sentDate, tag)}</span>
                   </span>
                 </div>
-                <Button variant="tone" onClick={openReply} disabled={replyBusy} className="w-full sm:w-auto">
-                  {replyBusy ? <Spinner size={16} /> : <ArrowUUpLeft size={18} weight="bold" aria-hidden="true" />}
-                  {ta('reply')}
-                </Button>
+                {!outgoing && (
+                  <Button variant="tone" onClick={openReply} disabled={replyBusy} className="w-full sm:w-auto">
+                    {replyBusy ? <Spinner size={16} /> : <ArrowUUpLeft size={18} weight="bold" aria-hidden="true" />}
+                    {ta('reply')}
+                  </Button>
+                )}
               </div>
               {replyError && <p role="alert" className="-mt-3 text-[13.5px] font-semibold text-danger-ink">{replyError}</p>}
 
