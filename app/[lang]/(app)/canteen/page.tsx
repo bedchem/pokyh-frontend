@@ -9,7 +9,7 @@ export default function CanteenPage() {
   return (
     <AuthGuard>
       <div className={`site ${s.frame}`}>
-        <MensaClient />
+        <MensaClient inApp />
       </div>
     </AuthGuard>
   );

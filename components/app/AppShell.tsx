@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode, type SyntheticEvent } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type SyntheticEvent } from 'react';
 import { LayoutGroup, motion } from 'framer-motion';
 import { CaretLeft, EnvelopeSimple, GearSix, Globe, MagnifyingGlass, Moon, Sun, UserCircle } from '@phosphor-icons/react';
 import { useLocale, useLocalizeHref, useRoutePath, useT } from '@/providers/LocaleProvider';
@@ -25,8 +25,6 @@ import s from './shell.module.css';
 
 const GLIDE = { type: 'spring', stiffness: 520, damping: 42, mass: 0.9 } as const;
 
-const noopSubscribe = () => () => {};
-const isApplePlatform = () => /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const t = useT(shellDict);
@@ -42,11 +40,14 @@ export default function AppShell({ children }: { children: ReactNode }) {
     return () => cancelAnimationFrame(id);
   }, []);
 
-  // Ctrl/⌘ K and "/" open the search from anywhere.
+  // "/" (the hint in the top bar) and Ctrl/⌘ K open the search from anywhere;
+  // "/" only while nothing is being typed and no dialog is open.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const typing = e.target instanceof HTMLElement && (e.target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName));
-      if ((e.key === 'k' && (e.metaKey || e.ctrlKey)) || (e.key === '/' && !typing)) {
+      const slash = e.key === '/' && !e.metaKey && !e.ctrlKey && !e.altKey && !typing
+        && !document.querySelector('[role="dialog"][aria-modal="true"]');
+      if ((e.key === 'k' && (e.metaKey || e.ctrlKey)) || slash) {
         e.preventDefault();
         setSearching(true);
       }
@@ -87,16 +88,15 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
   const { user } = useSession();
   const perms = useUntisPermissions();
   const unread = useUnreadMessages();
-  const mac = useSyncExternalStore(noopSubscribe, isApplePlatform, () => false);
   const untis = user?.isUntisUser !== false;
 
   return (
     <header className={s.top}>
       <div className={s.topInner}>
-      <button type="button" onClick={onSearch} className={s.search} aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K">
+      <button type="button" onClick={onSearch} className={s.search} aria-haspopup="dialog" aria-keyshortcuts="/ Control+K Meta+K">
         <MagnifyingGlass size={19} weight="bold" aria-hidden="true" />
         <span className="truncate">{t('search')}</span>
-        <span className={`${s.kbd} hidden lg:inline`} aria-hidden="true">{mac ? '⌘ K' : 'Strg K'}</span>
+        <span className={`${s.kbd} hidden lg:inline`} aria-hidden="true">/</span>
       </button>
       <span className="hidden flex-1 lg:block" />
       {untis && (

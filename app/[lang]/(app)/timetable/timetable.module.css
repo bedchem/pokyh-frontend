@@ -1160,6 +1160,9 @@ button.special { border: 0; background: transparent; font: inherit; cursor: poin
   .absenceLabelFull { display: none; }
   .absenceLabelShort { display: block; }
 }
+/* A whole excused day: the scene of a day in bed above the label. */
+.absenceBandDay { flex-direction: column; gap: calc(8px * var(--s)); }
+.absenceSprite { width: min(120px, 78%); }
 
 /* A week without school: the day headers stay, and under the six days one
    sky-coloured panel holds the holiday scene. */

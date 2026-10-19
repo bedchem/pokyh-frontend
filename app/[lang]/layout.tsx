@@ -26,17 +26,22 @@ const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 const analyticsEnabled = /^G-[A-Z0-9]+$/i.test(GA_ID ?? '');
 
 // Plus Jakarta Sans is the Android app's typeface; DM Mono sets tabular data
-// (times, periods, rooms) only.
+// (times, periods, rooms) only. Preloaded is what every page uses at once:
+// Jakarta's latin subset (German, Italian and English need nothing else; the
+// other subsets still load when a page has such letters). DM Mono appears on
+// a few screens only and loads when one needs it; preloading files a page
+// doesn't use makes the browser warn about them.
 const jakarta = Plus_Jakarta_Sans({
-  subsets: ['latin', 'latin-ext'],
+  subsets: ['latin'],
   variable: '--font-jakarta',
   display: 'swap',
 });
 const dmMono = DM_Mono({
-  subsets: ['latin', 'latin-ext'],
+  subsets: ['latin'],
   weight: ['400', '500'],
   variable: '--font-dm-mono',
   display: 'swap',
+  preload: false,
 });
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com';

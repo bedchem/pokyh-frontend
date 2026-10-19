@@ -136,7 +136,9 @@ export default function FeatureCarousel() {
     const frame = () => {
       const p = pos.current;
       p.current += (p.target - p.current) * (reduced ? 1 : 0.085);
-      const s = stepped(p.current);
+      // Without motion the functions change in whole steps: nothing slides
+      // or turns while scrolling, the next one is simply there.
+      const s = reduced ? Math.round(p.current) : stepped(p.current);
       const near = Math.min(COUNT - 1, Math.max(0, Math.round(p.current)));
       if (near !== indexRef.current) {
         indexRef.current = near;
@@ -234,6 +236,9 @@ export default function FeatureCarousel() {
         const w = host.clientWidth;
         const h = host.clientHeight;
         const card = host.querySelector<HTMLElement>('[data-measure]')?.offsetWidth || w * 0.25;
+        // Not laid out yet (hidden, mid Fast Refresh): a zero width would bend
+        // the cards by 0/0 and fill them with NaN. The next resize lays them out.
+        if (!w || !h || !card) return;
         const radius = card * RADIUS;
         const ratio = Math.min(window.devicePixelRatio, 2);
         // A new size reallocates the drawing buffer (even the same one), so only when it changed.

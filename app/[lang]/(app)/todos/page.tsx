@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowClockwise, CalendarBlank, Check, CheckSquare, Plus, TextAlignLeft, Trash, X } from '@phosphor-icons/react';
+import { ArrowClockwise, CalendarBlank, Check, Plus, TextAlignLeft, Trash, X } from '@phosphor-icons/react';
 import DateTimePicker from '@/components/ui/DateTimePicker';
 import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
@@ -71,7 +71,7 @@ function TodoRow({ todo, now, onToggle, onDelete }: { todo: Todo; now: number; o
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.15 } }}
       transition={{ type: 'spring', stiffness: 500, damping: 40 }}
-      className="group relative before:pointer-events-none before:absolute before:inset-x-3.5 before:top-0 before:h-px before:bg-line before:transition-opacity first:before:hidden hover:before:opacity-0 [&:hover+li]:before:opacity-0 flex items-start gap-3.5 rounded-[18px] px-3 py-3.5 transition-colors duration-200 hover:bg-[color-mix(in_srgb,var(--surface)_92%,var(--ink))]"
+      className="group relative before:pointer-events-none before:absolute before:inset-x-3.5 before:top-0 before:h-px before:bg-line before:transition-opacity first:before:hidden hover:before:opacity-0 [&:hover+li]:before:opacity-0 flex items-start gap-3.5 rounded-[18px] px-3 py-3 transition-colors duration-200 hover:bg-[color-mix(in_srgb,var(--surface)_92%,var(--ink))]"
     >
       <button
         type="button"
@@ -108,7 +108,9 @@ function TodoRow({ todo, now, onToggle, onDelete }: { todo: Todo; now: number; o
         type="button"
         onClick={() => onDelete(todo)}
         aria-label={`${t('deleteItem')}: ${todo.title}`}
-        className="grid size-9 shrink-0 place-items-center rounded-full text-ink-3 opacity-100 transition-[opacity,background-color,color] duration-200 hover:bg-inset hover:text-danger-ink sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+        // Pulled into the row's padding: a full-size target that doesn't make
+        // a one-line to-do taller than its text.
+        className="-my-1.5 grid size-9 shrink-0 place-items-center rounded-full text-ink-3 opacity-100 transition-[opacity,background-color,color] duration-200 hover:bg-inset hover:text-danger-ink sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
       >
         <Trash size={17} weight="bold" />
       </button>
@@ -209,7 +211,8 @@ function TodosContent() {
     : null;
 
   return (
-    <Page width="narrow">
+    // No floating button here, so less room is kept under the last list.
+    <Page width="narrow" className="!pb-12 lg:!pb-16">
       <PageHeader title={t('todosTitle')} subtitle={!loading && !error ? t('todosLead', { n: open.length }) : undefined} />
 
       <form
@@ -283,10 +286,8 @@ function TodosContent() {
           />
         </div>
       ) : todos.length === 0 ? (
-        <div className="rise flex flex-col items-center py-12 text-center">
-          <span className="grid size-16 place-items-center rounded-[20px] bg-sage text-sage-ink"><CheckSquare size={30} weight="bold" aria-hidden="true" /></span>
-          <p className="mt-5 text-[18px] font-bold tracking-[-0.02em]">{t('todosEmptyTitle')}</p>
-          <p className="mt-1 text-[15px] text-ink-2">{t('todosEmptySubtitle')}</p>
+        <div className="squircle rounded-[26px] bg-surface">
+          <PixelState sprite="empty" title={t('todosEmptyTitle')} note={t('todosEmptySubtitle')} />
         </div>
       ) : (
         <div className="flex flex-col gap-10">

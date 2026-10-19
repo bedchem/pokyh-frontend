@@ -291,22 +291,80 @@ export function buildHallway(w: number, h: number): Hallway {
 
 // ── Speech bubbles and signs above the head ──────────────────────────────
 
-/** A speech bubble with text in capitals; the tail points down-left to (x, y). */
-export function bubble(text: string, x: number, y: number): Sprite {
-  const t = textPixels(text, 0, 0);
-  const bw = t.width + 8;
+/**
+ * Text broken into lines of at most `maxWidth` pixels of the 3 × 5 font, at
+ * the spaces; a word longer than a line (a long user name) is split over
+ * lines, and after `maxLines` the rest ends in "…".
+ */
+export function wrapText(text: string, maxWidth: number, maxLines = 3): string[] {
+  const width = (t: string) => textPixels(t).width;
+  const lines: string[] = [];
+  let line = '';
+  const flush = () => { if (line) lines.push(line); line = ''; };
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    // A word breaks after its own separators first ("anna-maria." → "anna-", "maria.").
+    word.split(/(?<=[-._/])/).forEach((part, i) => {
+      const joined = line ? `${line}${i === 0 ? ' ' : ''}${part}` : part;
+      if (width(joined) <= maxWidth) { line = joined; return; }
+      flush();
+      let rest = part;
+      while (width(rest) > maxWidth) {
+        let cut = rest.length - 1;
+        while (cut > 1 && width(rest.slice(0, cut)) > maxWidth) cut -= 1;
+        lines.push(rest.slice(0, cut));
+        rest = rest.slice(cut);
+      }
+      line = rest;
+    });
+  }
+  flush();
+  if (lines.length > maxLines) {
+    const kept = lines.slice(0, maxLines);
+    let last = kept[maxLines - 1].replace(/[-._/]$/, '');
+    while (last.length > 1 && width(`${last}…`) > maxWidth) last = last.slice(0, -1);
+    kept[maxLines - 1] = `${last}…`;
+    return kept;
+  }
+  return lines.length ? lines : [''];
+}
+
+/** Line pitch of the bubble text: the 5-pixel font and a pixel between lines. */
+const LINE = 6;
+
+/**
+ * A speech bubble with text in capitals; the tail points down-left to (x, y).
+ * Text wider than `maxWidth` pixels goes on more lines and the bubble grows
+ * upwards, the tail staying where it is.
+ */
+export function bubble(text: string, x: number, y: number, maxWidth = Infinity): Sprite {
+  const lines = wrapText(text, maxWidth);
+  const widths = lines.map((l) => textPixels(l).width);
+  const bw = Math.max(...widths) + 8;
+  const bh = lines.length * LINE + 5;
   const bx = x + 2;
-  const by = y - 13;
+  const by = y - 2 - bh;
   const s = new Sprite();
-  s.mass([...soft(bx, by, bw, 11, 3), [x + 3, y - 2], [x + 4, y - 2], [x + 2, y - 1], [x + 3, y - 1], [x + 1, y]], 'pp');
+  s.mass([...soft(bx, by, bw, bh, 3), [x + 3, y - 2], [x + 4, y - 2], [x + 2, y - 1], [x + 3, y - 1], [x + 1, y]], 'pp');
   // A firm outline, so it reads over the busy wall.
   for (const [k, tone] of s.cells) {
     if (tone !== 'pp0') continue;
     const [px, py] = k.split(',').map(Number);
     s.set(px, py, 'ik2');
   }
-  s.fill(t.points.map(([px, py]) => [px + bx + 4, py + by + 3] as Pt), 'ik2');
+  // Each line centred in the bubble.
+  lines.forEach((l, i) => {
+    const t = textPixels(l, 0, 0);
+    const lx = bx + 4 + Math.floor((bw - 8 - widths[i]) / 2);
+    s.fill(t.points.map(([px, py]) => [px + lx, py + by + 3 + i * LINE] as Pt), 'ik2');
+  });
   return s;
+}
+
+/** The topmost row a sprite reaches (for room above it). */
+export function topOf(s: Sprite): number {
+  let top = Infinity;
+  for (const k of s.cells.keys()) top = Math.min(top, Number(k.split(',')[1]));
+  return Number.isFinite(top) ? top : 0;
 }
 
 /** A sign above the head: '!' or '?'. */

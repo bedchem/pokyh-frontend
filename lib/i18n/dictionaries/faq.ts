@@ -113,7 +113,7 @@ export const faqDict: Dictionary<FaqKey> = {
     a13: 'POKYH è per persone dai 14 anni in su. Se sei più giovane, usa POKYH solo con il consenso dei tuoi genitori, per esempio insieme a loro tramite l’accesso per genitori. Le statistiche facoltative sono possibili solo dai 14 anni.',
   },
   en: {
-    metaTitle: 'FAQ: Frequently asked questions about POKYH, the app for WebUntis',
+    metaTitle: 'FAQ: Questions about POKYH, the app for WebUntis',
     metaDescription: 'Frequently asked questions about POKYH: which schools are included? How does sign-in with WebUntis work? Is POKYH safe and free? All answers at a glance.',
     ogDescription: 'All answers about POKYH: schools, sign-in, security and features.',
     title: 'Frequently asked questions',

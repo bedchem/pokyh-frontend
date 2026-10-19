@@ -28,6 +28,24 @@ export async function mensaFetch(path: string, init: { method?: 'GET' | 'POST'; 
   });
 }
 
+/**
+ * The public menu for the prerendered Mensa page: no account, kept for ten
+ * minutes (the page is regenerated as often). Null when the backend can't be
+ * reached; the page then loads the menu in the browser, as before.
+ */
+export async function publicMenu(): Promise<unknown | null> {
+  try {
+    const res = await fetch(`${MENSA_API_URL}/dishes`, {
+      headers: { Accept: 'application/json', ...(API_KEY ? { 'X-API-Key': API_KEY } : {}) },
+      next: { revalidate: 600 },
+      signal: AbortSignal.timeout(8000),
+    });
+    return res.ok ? await res.json() : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The backend's answer passed on as JSON, or a clean error. */
 export async function relay(res: Response, cache = 'private, no-store'): Promise<Response> {
   if (!res.ok) return Response.json({ error: 'unavailable' }, { status: res.status >= 500 ? 502 : res.status, headers: { 'Cache-Control': 'no-store' } });

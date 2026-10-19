@@ -40,6 +40,11 @@ export type TimetableKey =
   | 'allDay'
   // detail sheet
   | 'note'
+  | 'teachingContent'
+  | 'notesAll'
+  | 'info'
+  | 'classes'
+  | 'group'
   | 'lessonText'
   | 'substitutionText'
   | 'examContent'
@@ -99,6 +104,11 @@ export const timetableDict: Dictionary<TimetableKey> = {
     allReplaced: 'Tag durchgehend ersetzt',
     allDay: 'Ganztägig',
     note: 'Notiz',
+    teachingContent: 'Lehrstoff',
+    notesAll: 'Notiz der Lehrkraft',
+    info: 'Info',
+    classes: 'Klassen',
+    group: 'Gruppe',
     lessonText: 'Stundentext',
     substitutionText: 'Vertretungstext',
     examContent: 'Prüfungsinhalt',
@@ -156,6 +166,11 @@ export const timetableDict: Dictionary<TimetableKey> = {
     allReplaced: 'Giornata interamente sostituita',
     allDay: 'Tutto il giorno',
     note: 'Nota',
+    teachingContent: 'Contenuto della lezione',
+    notesAll: 'Nota del docente',
+    info: 'Info',
+    classes: 'Classi',
+    group: 'Gruppo',
     lessonText: 'Testo della lezione',
     substitutionText: 'Testo della supplenza',
     examContent: 'Contenuto della verifica',
@@ -213,6 +228,11 @@ export const timetableDict: Dictionary<TimetableKey> = {
     allReplaced: 'Whole day replaced',
     allDay: 'All day',
     note: 'Note',
+    teachingContent: 'Lesson content',
+    notesAll: 'Teacher’s note',
+    info: 'Info',
+    classes: 'Classes',
+    group: 'Group',
     lessonText: 'Lesson text',
     substitutionText: 'Substitution text',
     examContent: 'Exam content',

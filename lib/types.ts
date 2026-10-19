@@ -55,6 +55,8 @@ export interface TimetableEntry {
   icons?: string[];
   substitutionText?: string;
   lessonText?: string;
+  /** Every text WebUntis sends with the period (LESSON_INFO, LESSON_TEXT, SUBSTITUTION, …). */
+  texts?: Array<{ type: string; text: string }>;
 }
 
 export interface GradeEntry {

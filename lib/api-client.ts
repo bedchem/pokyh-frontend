@@ -54,12 +54,16 @@ export function forgetStoredTokens(): void {
  * client code which account it is acting for.
  */
 export function getSignedInUid(): string | null {
-  const part = getToken()?.split('.')[1];
+  const stableUid = tokenPayload(getToken())?.stableUid;
+  return typeof stableUid === 'string' && stableUid ? stableUid : null;
+}
+
+function tokenPayload(token: string | null): { stableUid?: unknown; exp?: unknown } | null {
+  const part = token?.split('.')[1];
   if (!part) return null;
   try {
     const base64 = part.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(part.length / 4) * 4, '=');
-    const payload = JSON.parse(atob(base64)) as { stableUid?: unknown };
-    return typeof payload.stableUid === 'string' && payload.stableUid ? payload.stableUid : null;
+    return JSON.parse(atob(base64)) as { stableUid?: unknown; exp?: unknown };
   } catch {
     return null;
   }
@@ -68,6 +72,38 @@ export function getSignedInUid(): string | null {
 // ─── Core fetch ───────────────────────────────────────────────────────────────
 
 let _refreshing: Promise<boolean> | null = null;
+
+/** One renewal at a time, shared by every request waiting for it. */
+function refreshOnce(): Promise<boolean> {
+  _refreshing ??= refreshAccessToken().finally(() => { _refreshing = null; });
+  return _refreshing;
+}
+
+// The access token lives an hour, its cookie longer. Routes that only *may*
+// know the account (the page views, the usage heartbeat) accept a request
+// with an expired token as anonymous instead of answering 401, so nothing
+// would renew it: a phone opened hours later and used only for the timetable
+// was never counted as the account's. Renewed before sending instead, also
+// when the cookie is gone while the account is still signed in. A failed
+// renewal is not tried again for a minute, so a signed-out device never
+// floods the refresh route.
+const EXPIRY_MARGIN_MS = 60_000;
+const RETRY_REFRESH_AFTER_MS = 60_000;
+let _refreshFailedAt = 0;
+
+function needsRenewal(token: string | null): boolean {
+  if (!token) return typeof document !== 'undefined' && /(?:^|;\s*)pokyh_user=/.test(document.cookie);
+  const exp = tokenPayload(token)?.exp;
+  return typeof exp === 'number' && exp * 1000 - Date.now() < EXPIRY_MARGIN_MS;
+}
+
+async function currentToken(): Promise<string | null> {
+  const token = getToken();
+  if (!needsRenewal(token) || Date.now() - _refreshFailedAt < RETRY_REFRESH_AFTER_MS) return token;
+  if (await refreshOnce()) return getToken();
+  _refreshFailedAt = Date.now();
+  return token;
+}
 
 async function refreshAccessToken(): Promise<boolean> {
   // Refresh via the same-origin Next.js route: the refresh token is stored in an
@@ -114,7 +150,7 @@ async function localJson<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
-  const token = getToken();
+  const token = await currentToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'X-API-Key': API_KEY,
@@ -139,10 +175,7 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
       !!token ||
       (typeof document !== 'undefined' && /(?:^|;\s*)pokyh_user=/.test(document.cookie));
 
-    if (!_refreshing) {
-      _refreshing = refreshAccessToken().finally(() => { _refreshing = null; });
-    }
-    const refreshed = await _refreshing;
+    const refreshed = await refreshOnce();
 
     if (refreshed) {
       const newToken = getToken();

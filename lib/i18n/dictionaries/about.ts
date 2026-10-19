@@ -52,8 +52,8 @@ export type AboutKey =
 
 export const aboutDict: Dictionary<AboutKey> = {
   de: {
-    metaTitle: 'Über POKYH: Wie eine Schul-App für WebUntis entstanden ist',
-    metaDescription: 'Wie POKYH entstanden ist: zwei Schüler einer Berufsschule in Südtirol haben sich ihre eigene App für WebUntis gebaut. Heute für jede Schule mit WebUntis, kostenlos und Open Source.',
+    metaTitle: 'Über POKYH: wie eine App für WebUntis entstand',
+    metaDescription: 'Wie POKYH entstand: zwei Schüler einer Berufsschule in Südtirol bauten sich ihre eigene App für WebUntis. Heute kostenlos und Open Source.',
     ogTitle: 'Über POKYH: die Geschichte dahinter',
     ogDescription: 'Von zwei Schülern selbst gebaut, heute für jede Schule mit WebUntis. Kostenlos, Open Source, ohne Werbung.',
     title: 'Wir wollten eine Schul-App, die passt. Also haben wir eine gebaut.',
@@ -101,7 +101,7 @@ export const aboutDict: Dictionary<AboutKey> = {
   },
   it: {
     metaTitle: 'Chi siamo: come è nata un’app scolastica per WebUntis',
-    metaDescription: 'Come è nato POKYH: due studenti di una scuola professionale dell’Alto Adige hanno costruito la propria app per WebUntis. Oggi per ogni scuola con WebUntis, gratuita e open source.',
+    metaDescription: 'Come è nato POKYH: due studenti di una scuola professionale dell’Alto Adige hanno creato la loro app per WebUntis. Oggi gratuita e open source.',
     ogTitle: 'Chi siamo: la storia di POKYH',
     ogDescription: 'Costruita da due studenti, oggi per ogni scuola con WebUntis. Gratuita, open source, senza pubblicità.',
     title: 'Volevamo un’app scolastica su misura. Così l’abbiamo costruita.',
@@ -149,7 +149,7 @@ export const aboutDict: Dictionary<AboutKey> = {
   },
   en: {
     metaTitle: 'About POKYH: how a school app for WebUntis came about',
-    metaDescription: 'How POKYH started: two students at a vocational school in South Tyrol built their own app for WebUntis. Today for every school on WebUntis, free and open source.',
+    metaDescription: 'How POKYH started: two students at a vocational school in South Tyrol built their own app for WebUntis. Today it is free and open source.',
     ogTitle: 'About POKYH: the story behind it',
     ogDescription: 'Built by two students, today for every school on WebUntis. Free, open source, no ads.',
     title: 'We wanted a school app that fits. So we built one.',

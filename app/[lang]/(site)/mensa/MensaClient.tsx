@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import PageIntro from '@/components/site/PageIntro';
 import ExternalMediaNotice from '@/components/ExternalMediaNotice';
@@ -14,7 +14,7 @@ import { useApp } from '@/providers/AppProvider';
 import { useSession } from '@/providers/SessionProvider';
 import { useDateLocale, useLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { mensaDict } from '@/lib/i18n/dictionaries/mensa';
-import { daysFromToday, dishesFrom, localized, upcomingDays, type MenuDay } from '@/lib/mensa';
+import { daysFromToday, dishesFrom, localized, upcomingDays, type MenuDay, type MenuDish } from '@/lib/mensa';
 import { formatDate } from '@/lib/i18n/dateLocale';
 import { useExternalMedia } from '@/lib/external-media';
 
@@ -31,7 +31,19 @@ function weekIndex(d: Date): number {
 
 const leadDish = (day: MenuDay) => day.dishes.find((d) => d.imageUrl) ?? day.dishes[0];
 
-export default function MensaClient() {
+const noop = () => () => {};
+
+/** A day of the prerendered menu: the date is rebuilt from its key, the same on the server and in the browser. */
+function dayFromKey({ key, dishes }: { key: string; dishes: MenuDish[] }): MenuDay {
+  const [y, m, d] = key.split('-').map(Number);
+  return { key, date: new Date(y, m - 1, d), dishes };
+}
+
+export default function MensaClient({ inApp = false, initialDays }: {
+  inApp?: boolean;
+  /** The public menu the server prerendered the page with (the public /mensa only). */
+  initialDays?: Array<{ key: string; dishes: MenuDish[] }>;
+}) {
   const t = useT(mensaDict);
   const { locale } = useLocale();
   const { tag } = useDateLocale();
@@ -41,7 +53,10 @@ export default function MensaClient() {
   const { user, isLoading: sessionLoading } = useSession();
   const isGuest = !sessionLoading && !user;
 
-  const [days, setDays] = useState<MenuDay[] | null>(null);
+  const [days, setDays] = useState<MenuDay[] | null>(() => initialDays?.map(dayFromKey) ?? null);
+  // "Heute", "Morgen", "Diese Woche" depend on the visitor's clock: shown once
+  // the page runs in the browser; the prerendered page names the dates.
+  const live = useSyncExternalStore(noop, () => true, () => false);
   // False: the account's school has no menu (pokyh-backend `available: false`).
   const [available, setAvailable] = useState(true);
   const [error, setError] = useState('');
@@ -104,15 +119,15 @@ export default function MensaClient() {
   }, [stableUid, handleRated]);
 
   const dayLabel = useCallback((day: MenuDay) => {
-    const n = daysFromToday(day.date);
+    const n = live ? daysFromToday(day.date) : NaN;
     if (n <= 0) return t('today');
     if (n === 1) return t('tomorrow');
     return formatDate(day.date, tag, { weekday: 'long', day: 'numeric', month: 'long' });
-  }, [t, tag]);
+  }, [t, tag, live]);
 
   const weeks = useMemo(() => {
     if (!days) return [];
-    const now = weekIndex(new Date());
+    const now = live ? weekIndex(new Date()) : NaN;
     const groups = new Map<number, MenuDay[]>();
     for (const d of days) {
       const w = weekIndex(d.date);
@@ -124,10 +139,11 @@ export default function MensaClient() {
       title: w === now ? t('thisWeek') : w === now + 1 ? t('nextWeek') : t('fromDate', { date: formatDate(list[0].date, tag, { day: 'numeric', month: 'long' }) }),
       days: list,
     }));
-  }, [days, t, tag]);
+  }, [days, t, tag, live]);
 
-  // Client page without its own metadata on navigation: keep the tab title in the current language.
-  useEffect(() => { document.title = `${t('title')} | POKYH`; }, [t]);
+  // Client page without its own metadata on navigation: keep the tab title in
+  // the current language. Inside the app the tab keeps its plain name.
+  useEffect(() => { if (!inApp) document.title = `${t('title')} | POKYH`; }, [t, inApp]);
 
   const next = days?.[0] ?? null;
   const served = next ? leadDish(next) : null;

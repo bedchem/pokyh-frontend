@@ -12,6 +12,8 @@ export type UiKey =
   | 'dtSelected'
   | 'dtConfirm'
   | 'dtPreview'
+  | 'dtPrevMonth'
+  | 'dtNextMonth'
   // CommentSection
   | 'justNow'
   | 'minutesAgo'
@@ -26,6 +28,21 @@ export type UiKey =
   | 'editComment'
   | 'deleteComment'
   | 'send'
+  | 'ratedStars'
+  | 'noCommentsHint'
+  | 'commentFailed'
+  | 'saveComment'
+  | 'cancelEdit'
+  // MediaViewer
+  | 'viewerDownload'
+  | 'viewerClose'
+  | 'viewerLoading'
+  | 'viewerFailed'
+  | 'viewerNoPreview'
+  | 'viewerRetry'
+  | 'viewerPages'
+  | 'viewerOpenPicture'
+  | 'viewerOpenFile'
   // AnnouncementPopup
   | 'popupLabel'
   | 'popupNext'
@@ -47,6 +64,8 @@ export const uiDict: Dictionary<UiKey> = {
     dtSelected: 'Ausgewählt',
     dtConfirm: 'Bestätigen',
     dtPreview: '{date}, {time} Uhr',
+    dtPrevMonth: 'Vorheriger Monat',
+    dtNextMonth: 'Nächster Monat',
     justNow: 'Gerade eben',
     minutesAgo: 'vor {n} Min.',
     hoursAgo: 'vor {n} Std.',
@@ -60,6 +79,20 @@ export const uiDict: Dictionary<UiKey> = {
     editComment: 'Bearbeiten',
     deleteComment: 'Löschen',
     send: 'Senden',
+    ratedStars: 'Bewertet mit {n} von 5 Sternen',
+    noCommentsHint: 'Schreib den ersten.',
+    commentFailed: 'Das hat nicht geklappt. Versuch es noch einmal.',
+    saveComment: 'Speichern',
+    cancelEdit: 'Abbrechen',
+    viewerDownload: 'Herunterladen',
+    viewerClose: 'Schließen',
+    viewerLoading: 'Wird geladen …',
+    viewerFailed: 'Die Datei konnte gerade nicht geladen werden.',
+    viewerNoPreview: 'Für diese Datei gibt es hier keine Vorschau. Du kannst sie herunterladen.',
+    viewerRetry: 'Nochmal versuchen',
+    viewerPages: '{n} Seiten',
+    viewerOpenPicture: 'Profilbild groß ansehen',
+    viewerOpenFile: '{name} ansehen',
     popupLabel: 'Mitteilung',
     popupNext: 'Weiter',
     popupDone: 'Fertig',
@@ -78,6 +111,8 @@ export const uiDict: Dictionary<UiKey> = {
     dtSelected: 'Selezionato',
     dtConfirm: 'Conferma',
     dtPreview: '{date}, ore {time}',
+    dtPrevMonth: 'Mese precedente',
+    dtNextMonth: 'Mese successivo',
     justNow: 'Proprio ora',
     minutesAgo: '{n} min fa',
     hoursAgo: '{n} h fa',
@@ -91,6 +126,20 @@ export const uiDict: Dictionary<UiKey> = {
     editComment: 'Modifica',
     deleteComment: 'Elimina',
     send: 'Invia',
+    ratedStars: 'Valutato con {n} stelle su 5',
+    noCommentsHint: 'Scrivi il primo.',
+    commentFailed: 'Non è andato a buon fine. Riprova.',
+    saveComment: 'Salva',
+    cancelEdit: 'Annulla',
+    viewerDownload: 'Scarica',
+    viewerClose: 'Chiudi',
+    viewerLoading: 'Caricamento …',
+    viewerFailed: 'Al momento il file non può essere caricato.',
+    viewerNoPreview: 'Per questo file non c’è un’anteprima. Puoi scaricarlo.',
+    viewerRetry: 'Riprova',
+    viewerPages: '{n} pagine',
+    viewerOpenPicture: 'Vedi la foto del profilo in grande',
+    viewerOpenFile: 'Apri {name}',
     popupLabel: 'Comunicazione',
     popupNext: 'Avanti',
     popupDone: 'Fatto',
@@ -109,6 +158,8 @@ export const uiDict: Dictionary<UiKey> = {
     dtSelected: 'Selected',
     dtConfirm: 'Confirm',
     dtPreview: '{date}, {time}',
+    dtPrevMonth: 'Previous month',
+    dtNextMonth: 'Next month',
     justNow: 'Just now',
     minutesAgo: '{n} min ago',
     hoursAgo: '{n} h ago',
@@ -122,6 +173,20 @@ export const uiDict: Dictionary<UiKey> = {
     editComment: 'Edit',
     deleteComment: 'Delete',
     send: 'Send',
+    ratedStars: 'Rated {n} out of 5 stars',
+    noCommentsHint: 'Write the first one.',
+    commentFailed: 'That didn’t work. Please try again.',
+    saveComment: 'Save',
+    cancelEdit: 'Cancel',
+    viewerDownload: 'Download',
+    viewerClose: 'Close',
+    viewerLoading: 'Loading …',
+    viewerFailed: 'The file couldn’t be loaded right now.',
+    viewerNoPreview: 'There’s no preview for this file here. You can download it.',
+    viewerRetry: 'Try again',
+    viewerPages: '{n} pages',
+    viewerOpenPicture: 'View profile picture full size',
+    viewerOpenFile: 'Open {name}',
     popupLabel: 'Announcement',
     popupNext: 'Next',
     popupDone: 'Done',

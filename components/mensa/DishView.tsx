@@ -101,8 +101,9 @@ export default function DishView({ id, inApp = false }: { id: string; inApp?: bo
 
   const name = found ? localized(found.dish.name, locale) : '';
   useEffect(() => {
-    if (name) document.title = `${name} | ${t('title')} | POKYH`;
-  }, [name, t]);
+    // Inside the app the tab keeps its plain name (app layout).
+    if (name && !inApp) document.title = `${name} | ${t('title')} | POKYH`;
+  }, [name, t, inApp]);
 
   const refreshComments = () => api.dishComments.list(id).then(setComments).catch(() => {});
   const myRating = ratingsData.myRating ?? 0;
@@ -313,6 +314,8 @@ export default function DishView({ id, inApp = false }: { id: string; inApp?: bo
                     stableUid={stableUid}
                     isAdmin={isAdmin}
                     loading={commentsLoading}
+                    // Signed in, the votes come keyed by account: each comment shows its author's stars.
+                    ratings={ratingsData.ratings}
                     onAdd={(body) => api.dishComments.create(id, body).then(refreshComments)}
                     onEdit={(commentId, body) => api.dishComments.update(id, commentId, body).then(refreshComments)}
                     onDelete={(commentId) => api.dishComments.delete(id, commentId).then(refreshComments)}

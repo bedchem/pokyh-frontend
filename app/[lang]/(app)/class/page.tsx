@@ -8,7 +8,7 @@ import AuthGuard from '@/components/AuthGuard';
 import UntisGuard from '@/components/UntisGuard';
 import { Page, PageHeader, Section, SectionLink } from '@/components/app/Page';
 import { RowsSkeleton } from '@/components/app/Skeleton';
-import PixelState from '@/components/app/PixelState';
+import PixelState, { PixelSpriteArt } from '@/components/app/PixelState';
 import { initialsOf } from '@/components/app/hooks';
 import { EntryRow, dateOf, parseClassregRows, type ClassregEvent } from '@/components/class/ClassregEntry';
 import {
@@ -246,7 +246,10 @@ function ClassContent() {
       {loading ? (
         <RowsSkeleton rows={2} lead="square" />
       ) : count === 0 ? (
-        <p className="squircle rounded-[20px] bg-surface px-4 py-4 text-[14px] text-ink-2">{failed ? tc('errGenericTitle') : emptyText}</p>
+        <div role="status" className="squircle flex items-center gap-4 rounded-[20px] bg-surface px-4 py-3">
+          <PixelSpriteArt sprite={failed ? 'unplugged' : 'sun'} className="w-[60px] shrink-0" />
+          <p className="text-[14px] text-ink-2">{failed ? tc('errGenericTitle') : emptyText}</p>
+        </div>
       ) : (
         <ul className="squircle flex flex-col rounded-[24px] bg-surface p-2">{rows}</ul>
       )}

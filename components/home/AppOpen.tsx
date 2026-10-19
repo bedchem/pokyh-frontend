@@ -10,7 +10,8 @@ import { SCROLL, sceneHeight } from '@/lib/scroll-pace';
 // a phone until its indigo fills the screen. Icon and indigo are one element
 // (a clipped layer), the mark on it is vector, so nothing swaps or blurs on
 // the way. The next section starts in that same indigo (#534AB7, Android
-// colors.xml).
+// colors.xml). Without motion it is left out: it is only the way between
+// the Mensa and the next section, and a still icon on paper says nothing.
 
 const RADIUS = 0.225; // corner radius of the app icon relative to its size
 
@@ -77,7 +78,7 @@ export default function AppOpen() {
       data-tone="light"
       data-scroll-pace="appOpen"
       aria-hidden="true"
-      className="relative bg-[var(--paper)] motion-reduce:!h-[calc(100*var(--lvh))]"
+      className="relative bg-[var(--paper)] motion-reduce:hidden"
       style={{ height: sceneHeight('appOpen', SCROLL.length.appOpen) }}
     >
       <div data-stage className="sticky top-0 h-[calc(100*var(--lvh))] overflow-hidden">

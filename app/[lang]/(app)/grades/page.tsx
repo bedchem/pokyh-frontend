@@ -665,7 +665,7 @@ export default function GradesPage() {
 
               <div className="timeline-list">
                 {filteredSubjects.length === 0 ? (
-                  <div className="timeline-empty">{t('noMatches')}</div>
+                  <PixelState compact sprite="search" title={t('noMatches')} />
                 ) : (
                   filteredSubjects.map((subject) => {
                     const isExpanded = expandedRows.has(subject.lessonId);

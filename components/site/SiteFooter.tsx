@@ -187,7 +187,8 @@ export default function SiteFooter() {
       {/* The floor: five tiles, one letter each. They drop in from just above
           it and stay inside it, so nothing falls across the text. */}
       <div data-floor className="relative mx-auto mt-6 max-w-[1600px] overflow-hidden px-3 pt-[clamp(56px,10vw,170px)] md:px-6 lg:px-[4vw]">
-        <p className="absolute right-5 top-4 text-[13px] text-[var(--mute)] md:right-10" aria-hidden="true">{t('tilesHint')}</p>
+        {/* The letters only jump with motion on, so the hint goes with it. */}
+        <p className="absolute right-5 top-4 text-[13px] text-[var(--mute)] motion-reduce:hidden md:right-10" aria-hidden="true">{t('tilesHint')}</p>
         <div className="grid grid-cols-5 items-end gap-[1.4vw]" aria-hidden="true">
           {TILES.map((tile) => (
             <button
@@ -197,7 +198,7 @@ export default function SiteFooter() {
               data-floor-tile
               data-tilt={tile.tilt}
               onClick={(e) => jump(e.currentTarget)}
-              className={`squircle font-display grid aspect-[1/1.08] cursor-pointer select-none place-items-center rounded-[clamp(16px,2.6vw,44px)] text-[min(15vw,250px)] font-extrabold leading-none tracking-[-0.06em] transition-[filter] duration-300 hover:brightness-105 ${tile.tone}`}
+              className={`squircle font-display grid aspect-[1/1.08] cursor-pointer select-none place-items-center rounded-[clamp(16px,2.6vw,44px)] text-[min(15vw,250px)] font-extrabold leading-none tracking-[-0.06em] transition-[filter] duration-300 hover:brightness-105 motion-reduce:cursor-default ${tile.tone}`}
               style={{ transform: `translateY(14%) rotate(${tile.tilt}deg)` }}
             >
               <span className="-mt-[0.08em]">{tile.letter}</span>

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LayoutGroup, motion } from 'framer-motion';
-import { Checks, Paperclip, PencilSimple, Trash, Tray } from '@phosphor-icons/react';
+import { Checks, Paperclip, PencilSimple, Trash } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AuthGuard from '@/components/AuthGuard';
@@ -12,6 +12,7 @@ import ErrorView from '@/components/ui/ErrorView';
 import { Button } from '@/components/ui/Button';
 import { Page, PageHeader, Section } from '@/components/app/Page';
 import { RowsSkeleton } from '@/components/app/Skeleton';
+import PixelState from '@/components/app/PixelState';
 import Fab from '@/components/app/Fab';
 import { initialsOf } from '@/components/app/hooks';
 import ComposeMessageSheet, { type ComposeInitial } from '@/components/messages/ComposeMessageSheet';
@@ -337,14 +338,12 @@ export default function MessagesPage() {
           ) : error ? (
             <div className="squircle rounded-[26px] bg-surface"><ErrorView message={error} onRetry={reload} /></div>
           ) : messages.length === 0 ? (
-            <div className="rise flex flex-col items-center py-14 text-center">
-              <span className="grid size-16 place-items-center rounded-[20px] bg-periwinkle text-periwinkle-ink"><Tray size={30} weight="bold" aria-hidden="true" /></span>
-              <p className="mt-5 text-[18px] font-bold tracking-[-0.02em]">
-                {folder === 'sent' ? t('emptySentTitle') : folder === 'drafts' ? t('emptyDraftsTitle') : t('emptyInboxTitle')}
-              </p>
-              <p className="mt-1 max-w-[40ch] text-[15px] text-ink-2">
-                {folder === 'sent' ? t('emptySentText') : folder === 'drafts' ? t('emptyDraftsText') : t('emptyInboxText')}
-              </p>
+            <div key={folder} className="squircle rounded-[26px] bg-surface">
+              <PixelState
+                sprite="mail"
+                title={folder === 'sent' ? t('emptySentTitle') : folder === 'drafts' ? t('emptyDraftsTitle') : t('emptyInboxTitle')}
+                note={folder === 'sent' ? t('emptySentText') : folder === 'drafts' ? t('emptyDraftsText') : t('emptyInboxText')}
+              />
             </div>
           ) : (
             <div key={folder} className="flex flex-col gap-10">

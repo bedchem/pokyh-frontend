@@ -30,6 +30,7 @@ import {
   type PartMark,
 } from '@/lib/timetable-logic';
 import { SpecialDayCard, lessonMarkIcon } from './parts';
+import { PixelSpriteArt } from '@/components/app/PixelState';
 import s from './timetable.module.css';
 
 const PER_MILLE = 1000;
@@ -225,18 +226,22 @@ function DayColumn({
   const markLabel = { preExcused: t('markPreExcused'), excused: t('markExcused'), absent: t('markAbsent') } as const;
   const markShort = { preExcused: t('markPreExcusedShort'), excused: t('markExcusedShort'), absent: t('markAbsentShort') } as const;
   const cells = useMemo(() => buildGridCells(slots), [slots]);
-  const bands = useMemo(
-    () => absenceBands(
-      absences,
-      dayNum,
-      cells
-        .filter(c => !(c.kind === 'cancelled' || c.entry.isCancelled))
-        .map(c => ({ startMinute: c.startMinute, endMinute: c.endMinute })),
-      todayNum,
-      minute,
-    ),
-    [absences, dayNum, cells, todayNum, minute],
+  const lessons = useMemo(
+    () => cells
+      .filter(c => !(c.kind === 'cancelled' || c.entry.isCancelled))
+      .map(c => ({ startMinute: c.startMinute, endMinute: c.endMinute })),
+    [cells],
   );
+  const bands = useMemo(
+    () => absenceBands(absences, dayNum, lessons, todayNum, minute),
+    [absences, dayNum, lessons, todayNum, minute],
+  );
+  // A whole day away and excused (or reported in advance): its band gets the
+  // pixel scene of a day in bed.
+  const dayStart = Math.min(...lessons.map(l => l.startMinute));
+  const dayEnd = Math.max(...lessons.map(l => l.endMinute));
+  const excusedDay = bands.length === 1 && bands[0].mark !== 'absent'
+    && bands[0].startMinute <= dayStart && bands[0].endMinute >= dayEnd;
 
   return (
     <div className={s.column} style={{ height }}>
@@ -280,10 +285,11 @@ function DayColumn({
         return (
           <div
             key={`abs-${band.startMinute}`}
-            className={`${s.absenceBand} ${band.mark === 'absent' ? s.absenceBandAbsent : ''}`}
+            className={`${s.absenceBand} ${band.mark === 'absent' ? s.absenceBandAbsent : ''} ${excusedDay ? s.absenceBandDay : ''}`}
             style={{ top, height: h }}
             aria-label={markLabel[band.mark]}
           >
+            {excusedDay && <PixelSpriteArt sprite="excused" className={s.absenceSprite} />}
             <span className={`${s.absenceLabel} ${s.absenceLabelFull}`}>{markLabel[band.mark]}</span>
             <span className={`${s.absenceLabel} ${s.absenceLabelShort}`} aria-hidden>{markShort[band.mark]}</span>
           </div>

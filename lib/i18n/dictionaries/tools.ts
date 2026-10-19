@@ -32,8 +32,8 @@ export const ABSENCE_FAQ_COUNT = 4;
 
 export const toolsDict: Dictionary<ToolsKey> = {
   de: {
-    hMetaTitle: 'Rechner für die Schule: Notenschnitt und Abwesenheiten in Prozent | POKYH',
-    hMetaDescription: 'Kostenlose Rechner für Schülerinnen, Schüler und Eltern: Notendurchschnitt mit Gewichtung und Wunschnote, Abwesenheiten in Prozent mit der Drei-Viertel-Regel. Ohne Anmeldung, direkt im Browser.',
+    hMetaTitle: 'Rechner für Notenschnitt und Fehlstunden | POKYH',
+    hMetaDescription: 'Kostenlose Rechner für Schüler und Eltern: Notenschnitt mit Gewichtung und Wunschnote, Fehlstunden in Prozent mit der Drei-Viertel-Regel. Ohne Anmeldung.',
     hBreadcrumb: 'Rechner',
     hTitle: 'Rechner für die Schule.',
     hLead: 'Zwei kleine Werkzeuge, die jeder braucht: deinen Notenschnitt und deine Abwesenheiten in Prozent. Kostenlos, ohne Anmeldung, gerechnet nur in deinem Browser.',
@@ -52,8 +52,8 @@ export const toolsDict: Dictionary<ToolsKey> = {
     faqTitle: 'Häufige Fragen',
     example: 'Beispiel',
 
-    gMetaTitle: 'Notenrechner: Notendurchschnitt berechnen, mit Gewichtung | POKYH',
-    gMetaDescription: 'Notenschnitt online berechnen: Noten eingeben, Gewichtung wählen, Durchschnitt sehen. Mit Wunschnote („welche Note brauche ich?“), für die Skalen 1-10, 1-6, 1-5 und 0-15 Punkte. Kostenlos, ohne Anmeldung.',
+    gMetaTitle: 'Notenrechner: Durchschnitt mit Gewichtung | POKYH',
+    gMetaDescription: 'Notenschnitt online berechnen: Noten eingeben, Gewichtung wählen, Wunschnote sehen. Für die Skalen 1-10, 1-6, 1-5 und 0-15 Punkte. Kostenlos, ohne Anmeldung.',
     gOgTitle: 'Notenrechner: dein Schnitt in Sekunden',
     gOgDescription: 'Noten eingeben, Schnitt sehen, Wunschnote ausrechnen. Für Italien, Deutschland, Österreich und die Schweiz.',
     gBreadcrumb: 'Notenschnitt berechnen',
@@ -106,8 +106,8 @@ export const toolsDict: Dictionary<ToolsKey> = {
     gq4: 'Ist der berechnete Schnitt meine Zeugnisnote?',
     ga4: 'Nicht unbedingt. In die Zeugnisnote fließen auch Mitarbeit, Entwicklung und die Einschätzung der Lehrperson ein. Der Schnitt ist eine gute Orientierung, entschieden wird in der Klassenkonferenz.',
 
-    aMetaTitle: 'Abwesenheiten in Prozent berechnen: Fehlstunden-Rechner | POKYH',
-    aMetaDescription: 'Fehlstunden in Prozent berechnen und sehen, wie viele Stunden bis zur Grenze bleiben. Mit der Drei-Viertel-Regel für Mittel- und Oberschulen in Italien und Südtirol. Kostenlos, ohne Anmeldung.',
+    aMetaTitle: 'Fehlstunden-Rechner: Abwesenheit in Prozent | POKYH',
+    aMetaDescription: 'Fehlstunden in Prozent berechnen und sehen, wie viele Stunden bis zur Grenze bleiben, mit der Drei-Viertel-Regel für Italien und Südtirol. Kostenlos.',
     aOgTitle: 'Abwesenheiten in Prozent, mit der Drei-Viertel-Regel',
     aOgDescription: 'Wie viel hast du gefehlt, und wie viel darfst du noch? Kostenloser Rechner für die Schule.',
     aBreadcrumb: 'Abwesenheiten in Prozent',
@@ -147,8 +147,8 @@ export const toolsDict: Dictionary<ToolsKey> = {
     aa4: 'Das steht im Stundenplan deiner Schule. Als Faustregel: Wochenstunden mal Schulwochen. In Italien sind das meist etwa 33 Wochen, an manchen Schulen weniger oder mehr.',
   },
   it: {
-    hMetaTitle: 'Calcolatori per la scuola: media dei voti e percentuale di assenze | POKYH',
-    hMetaDescription: 'Calcolatori gratuiti per studenti e genitori: media dei voti con pesi e voto necessario, percentuale di assenze con la regola dei tre quarti. Senza accesso, direttamente nel browser.',
+    hMetaTitle: 'Calcolatori: media dei voti e assenze | POKYH',
+    hMetaDescription: 'Calcolatori gratuiti per studenti e genitori: media dei voti con pesi e voto necessario, percentuale di assenze con la regola dei tre quarti. Senza accesso.',
     hBreadcrumb: 'Calcolatori',
     hTitle: 'Calcolatori per la scuola.',
     hLead: 'Due piccoli strumenti che servono a tutti: la media dei voti e la percentuale di assenze. Gratuiti, senza accesso, calcolati solo nel tuo browser.',
@@ -167,8 +167,8 @@ export const toolsDict: Dictionary<ToolsKey> = {
     faqTitle: 'Domande frequenti',
     example: 'Esempio',
 
-    gMetaTitle: 'Calcolo media voti: calcolatore con pesi e voto necessario | POKYH',
-    gMetaDescription: 'Calcola la media dei voti online: inserisci i voti, scegli i pesi, vedi la media. Con il voto necessario („che voto mi serve?“), per le scale 1-10, 1-6, 1-5 e 0-15 punti. Gratuito, senza accesso.',
+    gMetaTitle: 'Calcolo media voti con pesi e voto necessario | POKYH',
+    gMetaDescription: 'Calcola la media dei voti online: inserisci i voti, scegli i pesi, scopri il voto necessario. Scale 1-10, 1-6, 1-5 e 0-15 punti. Gratuito, senza accesso.',
     gOgTitle: 'Calcolo media voti: la tua media in pochi secondi',
     gOgDescription: 'Inserisci i voti, vedi la media, calcola il voto che ti serve. Per Italia, Germania, Austria e Svizzera.',
     gBreadcrumb: 'Calcolo media voti',
@@ -222,7 +222,7 @@ export const toolsDict: Dictionary<ToolsKey> = {
     ga4: 'Non per forza. Nel voto finale contano anche partecipazione, progressi e il giudizio del docente. La media è un buon riferimento, ma decide il consiglio di classe.',
 
     aMetaTitle: 'Calcolo percentuale assenze scuola: limite del 25% | POKYH',
-    aMetaDescription: 'Calcola la percentuale di assenze e quante ore ti restano prima del limite. Con la regola dei tre quarti del monte ore annuale per medie e superiori in Italia. Gratuito, senza accesso.',
+    aMetaDescription: 'Calcola la percentuale di assenze e quante ore ti restano prima del limite, con la regola dei tre quarti del monte ore. Gratuito, senza accesso.',
     aOgTitle: 'Percentuale di assenze, con la regola dei tre quarti',
     aOgDescription: 'Quante ore hai perso e quante ne puoi ancora perdere? Calcolatore gratuito per la scuola.',
     aBreadcrumb: 'Percentuale di assenze',
@@ -262,8 +262,8 @@ export const toolsDict: Dictionary<ToolsKey> = {
     aa4: 'Lo trovi nell’orario della tua scuola. In linea di massima: ore settimanali per settimane di scuola. In Italia di solito sono circa 33 settimane, in alcune scuole di più o di meno.',
   },
   en: {
-    hMetaTitle: 'School calculators: grade average and absence percentage | POKYH',
-    hMetaDescription: 'Free calculators for students and parents: grade average with weights and the grade you need, absences in percent with the three-quarter rule. No sign-in, right in your browser.',
+    hMetaTitle: 'School calculators: grades and absences | POKYH',
+    hMetaDescription: 'Free calculators for students and parents: grade average with weights and the grade you need, absences in percent with the three-quarter rule. No sign-in.',
     hBreadcrumb: 'Calculators',
     hTitle: 'Calculators for school.',
     hLead: 'Two small tools everyone needs: your grade average and your absences in percent. Free, no sign-in, calculated only in your browser.',
@@ -282,8 +282,8 @@ export const toolsDict: Dictionary<ToolsKey> = {
     faqTitle: 'Questions',
     example: 'Example',
 
-    gMetaTitle: 'Grade average calculator: weighted, with the grade you need | POKYH',
-    gMetaDescription: 'Calculate your grade average online: enter grades, choose weights, see the average. With the grade you need for a target average, for the 1-10, 1-6, 1-5 and 0-15 point scales. Free, no sign-in.',
+    gMetaTitle: 'Grade average calculator with weights | POKYH',
+    gMetaDescription: 'Calculate your grade average online: enter grades, choose weights, see the grade you need. For 1-10, 1-6, 1-5 and 0-15 point scales. Free, no sign-in.',
     gOgTitle: 'Grade average calculator: your average in seconds',
     gOgDescription: 'Enter grades, see the average, work out the grade you need. For Italy, Germany, Austria and Switzerland.',
     gBreadcrumb: 'Grade average calculator',
@@ -336,8 +336,8 @@ export const toolsDict: Dictionary<ToolsKey> = {
     gq4: 'Is the calculated average my report grade?',
     ga4: 'Not necessarily. Report grades also reflect participation, progress and the teacher’s judgement. The average is a good guide; the class conference decides.',
 
-    aMetaTitle: 'School absence percentage calculator: hours left before the limit | POKYH',
-    aMetaDescription: 'Work out your absences in percent and how many hours are left before the limit. With the three-quarter attendance rule for middle and upper secondary schools in Italy. Free, no sign-in.',
+    aMetaTitle: 'School absence percentage calculator | POKYH',
+    aMetaDescription: 'Work out your absences in percent and how many hours are left before the limit, with the three-quarter attendance rule in Italy. Free, no sign-in.',
     aOgTitle: 'Absences in percent, with the three-quarter rule',
     aOgDescription: 'How much have you missed, and how much can you still miss? Free school calculator.',
     aBreadcrumb: 'Absences in percent',

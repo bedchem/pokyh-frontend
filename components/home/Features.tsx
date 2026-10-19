@@ -7,7 +7,8 @@ import { useGsap } from '@/lib/motion';
 // The carousel rises over the night of the manifest in the colour of its
 // first function (the stage paints it; the dark behind shows when the stage
 // later sinks back). Its top edge starts as an arch and pulls flat as it reaches
-// the top, while the sentence underneath sinks back.
+// the top, while the sentence underneath sinks back. Without motion nothing
+// rises: it simply follows the sentence instead of covering it.
 
 export default function Features() {
   const root = useRef<HTMLDivElement>(null);
@@ -42,7 +43,7 @@ export default function Features() {
   }, root);
 
   return (
-    <div ref={root} data-features data-scroll-pace="features" className="relative z-10 -mt-[calc(100*var(--lvh))] overflow-clip bg-[var(--night)]">
+    <div ref={root} data-features data-scroll-pace="features" className="relative z-10 -mt-[calc(100*var(--lvh))] overflow-clip bg-[var(--night)] motion-reduce:mt-0">
       <FeatureCarousel />
     </div>
   );

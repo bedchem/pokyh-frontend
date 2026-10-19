@@ -240,6 +240,9 @@ export function parseTimetable(json: unknown): TimetableEntry[] {
           icons: (ge.icons ?? []).filter(Boolean),
           substitutionText,
           lessonText,
+          texts: (ge.texts ?? [])
+            .filter((x) => nonBlank(x.text))
+            .map((x) => ({ type: x.type ?? '', text: x.text!.trim() })),
         });
       }
     }

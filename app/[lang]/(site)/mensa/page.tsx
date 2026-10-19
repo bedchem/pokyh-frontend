@@ -6,10 +6,17 @@ import { localeAlternates, localizedUrl, ogLocale, pageKeywords, ogImage } from 
 import { mensaDict } from '@/lib/i18n/dictionaries/mensa';
 import { siteDict } from '@/lib/i18n/dictionaries/site';
 import PageJsonLd from '@/components/site/PageJsonLd';
+import { publicMenu } from '@/lib/server/mensa-api';
+import { dishesFrom, upcomingDays } from '@/lib/mensa';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com';
 
 type PageProps = { params: Promise<{ lang: string }> };
+
+// Prerendered with the menu in it (search engines and slow phones see the
+// dishes at once) and regenerated every ten minutes; the browser loads the
+// current menu on top, as before.
+export const revalidate = 600;
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const locale = await routeLocale(params);
@@ -36,10 +43,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function MensaPage({ params }: PageProps) {
   const locale = await routeLocale(params);
   const t = makeT(mensaDict, locale);
+  const menu = await publicMenu();
+  // Only the days still to come travel with the page, as plain day keys.
+  const initialDays = menu ? upcomingDays(dishesFrom(menu)).map(({ key, dishes }) => ({ key, dishes })) : undefined;
   return (
     <>
       <PageJsonLd locale={locale} path="/mensa" name={t('metaTitle')} description={t('metaDescription')} trail={[{ name: makeT(siteDict, locale)('navMensa'), path: '/mensa' }]} />
-      <MensaClient />
+      <MensaClient initialDays={initialDays} />
     </>
   );
 }

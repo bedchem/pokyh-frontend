@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowClockwise, BellRinging, CalendarBlank, Plus, SignIn, TextAlignLeft, Trash, UsersThree } from '@phosphor-icons/react';
+import { ArrowClockwise, CalendarBlank, Plus, SignIn, TextAlignLeft, Trash, UsersThree } from '@phosphor-icons/react';
 import DateTimePicker from '@/components/ui/DateTimePicker';
 import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
@@ -322,10 +322,8 @@ function RemindersContent() {
           />
         </div>
       ) : reminders.length === 0 ? (
-        <div className="rise flex flex-col items-center py-12 text-center">
-          <span className="grid size-16 place-items-center rounded-[20px] bg-blush text-blush-ink"><BellRinging size={30} weight="bold" aria-hidden="true" /></span>
-          <p className="mt-5 text-[18px] font-bold tracking-[-0.02em]">{t('remindersEmptyTitle')}</p>
-          <p className="mt-1 max-w-[40ch] text-[15px] text-ink-2">{t('remindersEmptySubtitle')}</p>
+        <div className="squircle rounded-[26px] bg-surface">
+          <PixelState sprite="bell" title={t('remindersEmptyTitle')} note={t('remindersEmptySubtitle')} />
         </div>
       ) : (
         <div className="flex flex-col gap-10">

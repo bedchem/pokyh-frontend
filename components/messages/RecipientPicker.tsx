@@ -6,6 +6,7 @@ import type { MessageRecipient } from '@/lib/types';
 import { useT } from '@/providers/LocaleProvider';
 import { messagesDict } from '@/lib/i18n/dictionaries/messages';
 import { Bone, Line } from '@/components/app/Skeleton';
+import PixelState from '@/components/app/PixelState';
 
 interface Props {
   /** null while the list is still loading. */
@@ -107,7 +108,7 @@ export default function RecipientPicker({ recipients, failed = false, selectedId
         ) : recipients.length === 0 ? (
           <p className="px-3 py-8 text-center text-[14.5px] text-ink-2">{t('recipientsLoading')}</p>
         ) : classTeachers.length + others.length === 0 ? (
-          <p className="px-3 py-8 text-center text-[14.5px] text-ink-2">{t('noMatches')}</p>
+          <PixelState compact sprite="search" title={t('noMatches')} />
         ) : (
           <>
             {group(t('classTeacher'), classTeachers)}

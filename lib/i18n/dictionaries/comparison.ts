@@ -53,8 +53,8 @@ export type ComparisonKey =
 
 export const comparisonDict: Dictionary<ComparisonKey> = {
   de: {
-    metaTitle: 'POKYH und WebUntis im Vergleich: Funktionen auf einen Blick',
-    metaDescription: 'POKYH und WebUntis im Vergleich: Was POKYH zusätzlich bietet, etwa Notenrechner, Klassen-Erinnerungen und To-dos, und wofür du weiterhin WebUntis brauchst. Für jede Schule mit WebUntis.',
+    metaTitle: 'POKYH und WebUntis im Vergleich',
+    metaDescription: 'Was POKYH zusätzlich bietet, etwa Notenrechner, Klassen-Erinnerungen und To-dos, und wofür du weiterhin WebUntis brauchst. Für jede Schule mit WebUntis.',
     ogTitle: 'POKYH und WebUntis im Vergleich',
     ogDescription: 'Was bietet POKYH zusätzlich zu WebUntis? Eine sachliche Gegenüberstellung für Schülerinnen, Schüler und Eltern.',
     title: 'POKYH und WebUntis, ehrlich verglichen.',
@@ -104,8 +104,8 @@ export const comparisonDict: Dictionary<ComparisonKey> = {
     asOf: 'Stand: Oktober 2026. Angaben zu WebUntis nach öffentlich zugänglichen Informationen der Untis GmbH; welche Funktionen eine Schule freischaltet, kann abweichen. WebUntis und Untis sind Marken der Untis GmbH.',
   },
   it: {
-    metaTitle: 'POKYH e WebUntis a confronto: le funzioni in sintesi',
-    metaDescription: 'POKYH e WebUntis a confronto: cosa offre in più POKYH, come calcolatore dei voti, promemoria di classe e to-do, e per cosa serve ancora WebUntis. Per ogni scuola con WebUntis.',
+    metaTitle: 'POKYH e WebUntis a confronto',
+    metaDescription: 'Cosa offre in più POKYH, come calcolatore dei voti, promemoria di classe e to-do, e per cosa serve ancora WebUntis. Per ogni scuola con WebUntis.',
     ogTitle: 'POKYH e WebUntis a confronto',
     ogDescription: 'Cosa offre POKYH in più rispetto a WebUntis? Un confronto oggettivo per studenti e genitori.',
     title: 'POKYH e WebUntis, confrontati onestamente.',
@@ -155,8 +155,8 @@ export const comparisonDict: Dictionary<ComparisonKey> = {
     asOf: 'Aggiornato a ottobre 2026. Dati su WebUntis secondo le informazioni pubbliche di Untis GmbH; le funzioni attivate da una scuola possono variare. WebUntis e Untis sono marchi di Untis GmbH.',
   },
   en: {
-    metaTitle: 'POKYH and WebUntis compared: features at a glance',
-    metaDescription: 'POKYH and WebUntis compared: what POKYH adds, such as a grade calculator, class reminders and to-dos, and what you still use WebUntis for. For every school on WebUntis.',
+    metaTitle: 'POKYH and WebUntis compared',
+    metaDescription: 'What POKYH adds, such as a grade calculator, class reminders and to-dos, and what you still use WebUntis for. For every school on WebUntis.',
     ogTitle: 'POKYH and WebUntis compared',
     ogDescription: 'What does POKYH add to WebUntis? A factual comparison for students and parents.',
     title: 'POKYH and WebUntis, compared honestly.',

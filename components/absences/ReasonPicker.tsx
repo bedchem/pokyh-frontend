@@ -6,6 +6,7 @@ import type { AbsenceReason } from '@/lib/types';
 import { useT } from '@/providers/LocaleProvider';
 import { absencesDict } from '@/lib/i18n/dictionaries/absences';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
+import PixelState from '@/components/app/PixelState';
 
 interface Props {
   reasons: AbsenceReason[];
@@ -75,9 +76,7 @@ export default function ReasonPicker({ reasons, value, onSelect, onBack }: Props
         {/* List */}
         <div className="flex-1 overflow-y-auto px-3 pb-6">
           {filtered.length === 0 ? (
-            <p className="text-center text-[13px] py-10" style={{ color: 'var(--app-text-tertiary)' }}>
-              {t('noReasons')}
-            </p>
+            <PixelState compact sprite="search" title={t('noReasons')} />
           ) : (
             filtered.map((r) => {
               const selected = r.id === value;

@@ -1,13 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
-import Spinner from '@/components/ui/Spinner';
+import { useEffect, useMemo, useState } from 'react';
+import { CaretLeft, CaretRight, Check } from '@phosphor-icons/react';
 import { fetchTimetable } from '@/lib/api';
+import { Line } from '@/components/app/Skeleton';
 import { useDateLocale, useT } from '@/providers/LocaleProvider';
 import { absencesDict } from '@/lib/i18n/dictionaries/absences';
-import { commonDict } from '@/lib/i18n/dictionaries/common';
 import { formatDate } from '@/lib/i18n/dateLocale';
+import PixelState from '@/components/app/PixelState';
 
 export interface PickedRange {
   startDate: string; // YYYYMMDD
@@ -16,21 +16,19 @@ export interface PickedRange {
   endTime: string; // HHMM
 }
 
-interface Lesson {
+export interface Lesson {
   startHHMM: string; // "07:50"
   endHHMM: string;
   label: string;
   cancelled: boolean;
 }
 
-interface Props {
-  initialDate?: Date;
-  onConfirm: (range: PickedRange) => void;
-  onBack: () => void;
-}
+// The lessons of one day to pick from, as a step inside the absence sheet:
+// the day can be moved back and forth, the chosen lessons become the range
+// (first start to last end), which the sheet takes over with its button.
 
 
-function dateToStr(d: Date): string {
+export function dateToStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 function timePart(iso?: string): string {
@@ -41,9 +39,16 @@ function timePart(iso?: string): string {
 
 // Extract the (deduplicated, time-sorted) lessons for one calendar day from the
 // timetable API response.
-function lessonsForDate(json: unknown, dateStr: string, fallbackLabel: string): Lesson[] {
+type Named = { shortName?: string; longName?: string; displayName?: string; name?: string };
+type GridEntry = {
+  duration?: { start?: string; end?: string };
+  status?: string;
+  position2?: Array<{ current?: Named | null; removed?: Named | null }> | null;
+};
+
+export function lessonsForDate(json: unknown, dateStr: string, fallbackLabel: string): Lesson[] {
   try {
-    const root = json as { days?: any[] };
+    const root = json as { days?: Array<{ date?: string; gridEntries?: GridEntry[] }> };
     const day = root.days?.find((d) => d.date === dateStr);
     if (!day?.gridEntries?.length) return [];
     const byStart = new Map<string, Lesson>();
@@ -51,8 +56,8 @@ function lessonsForDate(json: unknown, dateStr: string, fallbackLabel: string): 
       const start = timePart(ge.duration?.start);
       const end = timePart(ge.duration?.end);
       if (!start || !end) continue;
-      const pos2: any[] = ge.position2 ?? [];
-      const sub = pos2.map((p) => p.current ?? p.removed).filter(Boolean)[0];
+      const pos2 = ge.position2 ?? [];
+      const sub = pos2.map((p) => p.current ?? p.removed).find((x): x is Named => !!x);
       if (!sub) continue; // skip breaks / empty slots
       const label = sub.shortName ?? sub.longName ?? sub.displayName ?? sub.name ?? fallbackLabel;
       if (!byStart.has(start)) {
@@ -65,37 +70,44 @@ function lessonsForDate(json: unknown, dateStr: string, fallbackLabel: string): 
   }
 }
 
-export default function TimetableLessonPicker({ initialDate, onConfirm, onBack }: Props) {
+/** The range from the first chosen lesson's start to the last one's end. */
+function rangeOf(lessons: Lesson[], dateStr: string): PickedRange {
+  const start = lessons.reduce((m, l) => (l.startHHMM < m ? l.startHHMM : m), lessons[0].startHHMM);
+  const end = lessons.reduce((m, l) => (l.endHHMM > m ? l.endHHMM : m), lessons[0].endHHMM);
+  const ymd = dateStr.replace(/-/g, '');
+  return { startDate: ymd, endDate: ymd, startTime: start.replace(':', ''), endTime: end.replace(':', '') };
+}
+
+export default function TimetableLessonPicker({ initialDate, onChange }: {
+  initialDate?: Date;
+  /** The chosen range, or null while no lesson is chosen. */
+  onChange: (range: PickedRange | null, count: number) => void;
+}) {
   const t = useT(absencesDict);
-  const tc = useT(commonDict);
   const { tag } = useDateLocale();
   const [day, setDay] = useState(() => {
     const d = initialDate ? new Date(initialDate) : new Date();
     d.setHours(0, 0, 0, 0);
     return d;
   });
-  const [lessons, setLessons] = useState<Lesson[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<Set<number>>(new Set());
-
   const dateStr = useMemo(() => dateToStr(day), [day]);
+  // The lessons of the day shown, and which of them are chosen.
+  const [loaded, setLoaded] = useState<{ date: string; lessons: Lesson[] } | null>(null);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const lessons = loaded?.date === dateStr ? loaded.lessons : null;
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setSelected(new Set());
-    try {
-      const res = await fetchTimetable(dateStr);
-      setLessons(lessonsForDate(res, dateStr, t('lesson')));
-    } catch {
-      setLessons([]);
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    let alive = true;
+    fetchTimetable(dateStr)
+      .then((res) => { if (alive) setLoaded({ date: dateStr, lessons: lessonsForDate(res, dateStr, t('lesson')) }); })
+      .catch(() => { if (alive) setLoaded({ date: dateStr, lessons: [] }); });
+    return () => { alive = false; };
   }, [dateStr, t]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (!lessons || selected.size === 0) { onChange(null, 0); return; }
+    onChange(rangeOf([...selected].map((i) => lessons[i]), dateStr), selected.size);
+  }, [lessons, selected, dateStr, onChange]);
 
   function toggle(i: number) {
     setSelected((prev) => {
@@ -107,6 +119,7 @@ export default function TimetableLessonPicker({ initialDate, onConfirm, onBack }
   }
 
   function shiftDay(delta: number) {
+    setSelected(new Set());
     setDay((d) => {
       const n = new Date(d);
       n.setDate(d.getDate() + delta);
@@ -114,131 +127,57 @@ export default function TimetableLessonPicker({ initialDate, onConfirm, onBack }
     });
   }
 
-  const canConfirm = selected.size > 0;
-
-  function confirm() {
-    if (!canConfirm) return;
-    const picked = Array.from(selected).map((i) => lessons[i]);
-    const startHHMM = picked.reduce((m, l) => (l.startHHMM < m ? l.startHHMM : m), picked[0].startHHMM);
-    const endHHMM = picked.reduce((m, l) => (l.endHHMM > m ? l.endHHMM : m), picked[0].endHHMM);
-    const ymd = dateStr.replace(/-/g, '');
-    onConfirm({
-      startDate: ymd,
-      endDate: ymd,
-      startTime: startHHMM.replace(':', ''),
-      endTime: endHHMM.replace(':', ''),
-    });
-  }
+  const navButton = 'grid size-10 shrink-0 place-items-center rounded-full text-ink-2 transition-colors hover:bg-inset hover:text-ink';
 
   return (
-    <div
-      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center sm:px-4 sm:py-8"
-      style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)' }}
-      onClick={onBack}
-    >
-      <div
-        className="w-full sm:max-w-lg max-h-[92dvh] sm:max-h-[88dvh] overflow-hidden flex flex-col rounded-t-[28px] sm:rounded-[28px] slide-up"
-        style={{ background: 'var(--app-surface)' }}
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-      >
-        {/* Header */}
-        <div className="flex items-center gap-3 px-5 pt-5 pb-2 flex-shrink-0">
-          <button
-            onClick={onBack}
-            className="w-9 h-9 flex items-center justify-center rounded-full press-scale flex-shrink-0"
-            style={{ background: 'var(--app-card)', color: 'var(--app-text-primary)' }}
-            aria-label={tc('back')}
-          >
-            <ChevronLeft size={18} />
-          </button>
-          <h3 className="text-[17px] font-bold" style={{ color: 'var(--app-text-primary)' }}>
-            {t('fromTimetable')}
-          </h3>
-        </div>
+    <div className="flex flex-col gap-3 pb-2">
+      <div className="flex items-center justify-between gap-2 rounded-[16px] bg-inset p-1">
+        <button type="button" onClick={() => shiftDay(-1)} className={navButton} aria-label={t('prevDay')}>
+          <CaretLeft size={18} weight="bold" />
+        </button>
+        <span className="min-w-0 truncate text-center text-[15px] font-bold first-letter:uppercase" aria-live="polite">
+          {formatDate(day, tag, { weekday: 'long', day: 'numeric', month: 'long' })}
+        </span>
+        <button type="button" onClick={() => shiftDay(1)} className={navButton} aria-label={t('nextDay')}>
+          <CaretRight size={18} weight="bold" />
+        </button>
+      </div>
 
-        {/* Day nav */}
-        <div className="flex items-center justify-between px-5 py-2 flex-shrink-0">
-          <button
-            onClick={() => shiftDay(-1)}
-            className="w-9 h-9 rounded-full flex items-center justify-center press-scale"
-            style={{ background: 'var(--app-card)', color: 'var(--app-text-secondary)' }}
-          >
-            <ChevronLeft size={17} />
-          </button>
-          <span className="text-[14px] font-semibold" style={{ color: 'var(--app-text-primary)' }}>
-            {formatDate(day, tag, { weekday: 'long', day: 'numeric', month: 'long' })}
+      <div className="-mx-3">
+        {lessons === null ? (
+          <span aria-hidden="true" className="flex flex-col gap-0.5 text-ink">
+            {['44%', '58%', '40%', '52%', '47%'].map((w) => (
+              <span key={w} className="flex items-center gap-3.5 px-3 py-3"><Line w={24} h={24} /><span className="flex flex-1 flex-col gap-2"><Line w={w} h={14} /><Line w={90} h={11} /></span></span>
+            ))}
           </span>
-          <button
-            onClick={() => shiftDay(1)}
-            className="w-9 h-9 rounded-full flex items-center justify-center press-scale"
-            style={{ background: 'var(--app-card)', color: 'var(--app-text-secondary)' }}
-          >
-            <ChevronRight size={17} />
-          </button>
-        </div>
-
-        {/* Lessons */}
-        <div className="flex-1 overflow-y-auto px-4 py-3">
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <Spinner size={24} />
-            </div>
-          ) : lessons.length === 0 ? (
-            <p className="text-center text-[13px] py-10" style={{ color: 'var(--app-text-tertiary)' }}>
-              {t('noLessons')}
-            </p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {lessons.map((l, i) => {
-                const sel = selected.has(i);
-                return (
+        ) : lessons.length === 0 ? (
+          <PixelState compact sprite="sun" title={t('noLessons')} />
+        ) : (
+          <ul className="flex flex-col gap-0.5" aria-label={t('chooseLessons')}>
+            {lessons.map((l, i) => {
+              const sel = selected.has(i);
+              return (
+                <li key={`${l.startHHMM}-${i}`}>
                   <button
-                    key={`${l.startHHMM}-${i}`}
+                    type="button"
+                    role="checkbox"
+                    aria-checked={sel}
                     onClick={() => toggle(i)}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl press-scale text-left"
-                    style={{
-                      background: sel ? 'color-mix(in srgb, var(--accent) 14%, var(--app-card))' : 'var(--app-card)',
-                      border: `1.5px solid ${sel ? 'color-mix(in srgb, var(--accent) 45%, transparent)' : 'transparent'}`,
-                      opacity: l.cancelled ? 0.55 : 1,
-                    }}
+                    className={`flex w-full items-center gap-3.5 rounded-[16px] px-3 py-3 text-left transition-colors duration-200 ${sel ? 'bg-[color-mix(in_srgb,var(--accent)_11%,transparent)]' : 'hover:bg-inset'} ${l.cancelled ? 'opacity-55' : ''}`}
                   >
-                    <div
-                      className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0"
-                      style={{
-                        background: sel ? 'var(--accent)' : 'transparent',
-                        border: sel ? 'none' : '1.5px solid var(--app-text-tertiary)',
-                      }}
-                    >
-                      {sel && <Check size={13} color="#fff" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[15px] font-medium" style={{ color: 'var(--app-text-primary)' }}>
-                        {l.label}{l.cancelled ? t('cancelledSuffix') : ''}
-                      </p>
-                      <p className="text-[12px]" style={{ color: 'var(--app-text-secondary)' }}>
-                        {l.startHHMM} - {l.endHHMM}
-                      </p>
-                    </div>
+                    <span aria-hidden="true" className={`grid size-6 shrink-0 place-items-center rounded-[8px] transition-colors duration-200 ${sel ? 'bg-accent text-on-accent' : 'shadow-[inset_0_0_0_2px_var(--line)]'}`}>
+                      {sel && <Check size={14} weight="bold" />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className={`block truncate text-[15.5px] text-ink ${sel ? 'font-bold' : 'font-semibold'}`}>{l.label}{l.cancelled ? t('cancelledSuffix') : ''}</span>
+                      <span className="block text-[13px] text-ink-2 tnum">{l.startHHMM} – {l.endHHMM}</span>
+                    </span>
                   </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Confirm */}
-        <div className="px-5 pt-2 pb-6 flex-shrink-0" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
-          <button
-            onClick={confirm}
-            disabled={!canConfirm}
-            className="w-full h-12 rounded-xl font-semibold text-white press-scale disabled:opacity-40 text-[15px]"
-            style={{ background: 'var(--accent)' }}
-          >
-            {selected.size > 1 ? t('takeLessons', { n: selected.size }) : selected.size === 1 ? t('takeLesson') : t('chooseLessons')}
-          </button>
-        </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
     </div>
   );

@@ -85,6 +85,9 @@ export const MATERIALS: Record<string, Material> = {
   nt: { base: '#1d2652', hex: '#1d2652', shade: '#05081f', out: '#03040f', light: '#6d7fd0' },
   // Eyes and dark details.
   ik: { base: '#1d1730', hex: '#1d1730', fixed: { 3: '#3d3460', 4: '#ffffff' } },
+  // The mascot's pupils: indigo, from deep at the top to lighter low down
+  // (light caught in the eye), with a white catch-light. Never black.
+  pu: { base: '#3b3494', hex: '#3b3494', fixed: { 0: '#1f1a52', 1: '#2c2672', 3: '#5a52c4', 4: '#ffffff' } },
 };
 
 /** Shadows on the ground, and faint lines (not materials: one tone each). */

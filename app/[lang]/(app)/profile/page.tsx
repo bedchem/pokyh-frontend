@@ -21,6 +21,7 @@ import { commonDict } from '@/lib/i18n/dictionaries/common';
 import { shellDict } from '@/lib/i18n/dictionaries/shell';
 import { settingsDict } from '@/lib/i18n/dictionaries/settings';
 import { fetchAccountActivity, type ActivityResult } from '@/lib/account-activity';
+import { USAGE_CONSENT_EVENT } from '@/lib/privacy-consent';
 
 // The profile: who you are, when you used POKYH (a GitHub-style grid of days
 // from the backend) and your account details. Statistics in more depth are
@@ -96,7 +97,11 @@ function ProfileContent() {
   useEffect(() => {
     let stop = () => {};
     const timer = window.setTimeout(() => { stop = load(); }, 0);
-    return () => { window.clearTimeout(timer); stop(); };
+    // The statistics consent changed (cookie banner, settings): read again, so
+    // the hint and what is kept follow it.
+    const onConsent = () => { stop(); stop = load(true); };
+    window.addEventListener(USAGE_CONSENT_EVENT, onConsent);
+    return () => { window.clearTimeout(timer); stop(); window.removeEventListener(USAGE_CONSENT_EVENT, onConsent); };
   }, [load]);
 
   const loading = result === undefined;
@@ -123,7 +128,7 @@ function ProfileContent() {
     <Page>
       <header className="rise flex flex-col gap-6 pt-4 pb-10 sm:flex-row sm:items-center md:pt-8 md:pb-14">
         <div className="flex min-w-0 items-center gap-5">
-          <Avatar name={name || '?'} size={88} picture={untis} />
+          <Avatar name={name || '?'} size={88} picture={untis} expandable />
           <div className="min-w-0">
             <h1 className="truncate text-[32px] font-extrabold leading-[1.05] tracking-[-0.05em] md:text-[44px]">{name || '…'}</h1>
             <p className="mt-1.5 text-[15px] text-ink-2 md:text-[16px]">

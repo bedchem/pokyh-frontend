@@ -14,8 +14,9 @@ import { DEST, TONE_CLASS, type AppDestination, type AppTone } from './nav';
 import { useAppActions } from './actions';
 import { useMensaAvailable } from './hooks';
 import { loadSearchContent, searchSourceCount, type ContentDoc } from './searchContent';
+import PixelState from './PixelState';
 
-// The search behind the top bar (and Ctrl/⌘ K), in two parts: "Seiten" — the
+// The search behind the top bar ("/", or Ctrl/⌘ K), in two parts: "Seiten" — the
 // places and actions of the app — and "Inhalte" — what is on those pages
 // (class duties, class register entries, homework, grades, lessons, messages,
 // reminders, to-dos, dishes), each row naming the page it comes from.
@@ -333,7 +334,7 @@ export default function SearchPalette({ open, onClose: close }: { open: boolean;
                   </p>
                   {contentRows.map((row) => renderRow(row, rows.indexOf(row)))}
                   {contentRows.length === 0 && !stillLoading && pageRows.length === 0 && (
-                    <p className="px-3 py-8 text-center text-[15px] text-ink-2">{t('noResults', { q: query })}</p>
+                    <PixelState compact sprite="search" title={t('noResults', { q: query })} />
                   )}
                 </div>
               )}

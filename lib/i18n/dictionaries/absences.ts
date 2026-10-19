@@ -46,7 +46,14 @@ export type AbsencesKey =
   | 'cancelledSuffix'
   | 'takeLessons'
   | 'takeLesson'
-  | 'chooseLessons';
+  | 'chooseLessons'
+  | 'prevDay'
+  | 'nextDay'
+  | 'apply'
+  | 'chooseStart'
+  | 'chooseEnd'
+  | 'chooseReason'
+  | 'forLabel';
 
 export const absencesDict: Dictionary<AbsencesKey> = {
   de: {
@@ -92,6 +99,13 @@ export const absencesDict: Dictionary<AbsencesKey> = {
     takeLessons: '{n} Stunden übernehmen',
     takeLesson: '1 Stunde übernehmen',
     chooseLessons: 'Stunden auswählen',
+    prevDay: 'Vorheriger Tag',
+    nextDay: 'Nächster Tag',
+    apply: 'Übernehmen',
+    chooseStart: 'Start wählen',
+    chooseEnd: 'Ende wählen',
+    chooseReason: 'Grund wählen',
+    forLabel: 'Für',
   },
   it: {
     title: 'Assenze',
@@ -136,6 +150,13 @@ export const absencesDict: Dictionary<AbsencesKey> = {
     takeLessons: 'Usa {n} ore',
     takeLesson: 'Usa 1 ora',
     chooseLessons: 'Seleziona le ore',
+    prevDay: 'Giorno precedente',
+    nextDay: 'Giorno successivo',
+    apply: 'Applica',
+    chooseStart: 'Scegli l’inizio',
+    chooseEnd: 'Scegli la fine',
+    chooseReason: 'Scegli il motivo',
+    forLabel: 'Per',
   },
   en: {
     title: 'Absences',
@@ -180,6 +201,13 @@ export const absencesDict: Dictionary<AbsencesKey> = {
     takeLessons: 'Use {n} lessons',
     takeLesson: 'Use 1 lesson',
     chooseLessons: 'Select lessons',
+    prevDay: 'Previous day',
+    nextDay: 'Next day',
+    apply: 'Apply',
+    chooseStart: 'Choose the start',
+    chooseEnd: 'Choose the end',
+    chooseReason: 'Choose a reason',
+    forLabel: 'For',
   },
   lld: {
     title: "Assënzes",

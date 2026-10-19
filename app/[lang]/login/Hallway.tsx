@@ -2,8 +2,9 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Paths, SpritePalette } from '@/components/pixel/SceneSvg';
-import { CLOUD_LOOP, bubble, buildHallway, clockHands, mark, sweat, thinking } from '@/components/pixel/hallway';
+import { CLOUD_LOOP, bubble, buildHallway, clockHands, mark, sweat, thinking, topOf } from '@/components/pixel/hallway';
 import { MASCOT_SHADOW, MH, MW, mascot, type Pose } from '@/components/pixel/mascot';
+import { isOffensive } from '@/lib/mascot-filter';
 import { loginDict } from '@/lib/i18n/dictionaries/login';
 import { useT } from '@/providers/LocaleProvider';
 import { prefersReducedMotion } from '@/lib/motion';
@@ -95,22 +96,25 @@ function lookFor(s: MascotState, phase: Phase, eyes: [number, number]): Look {
   return { ...base, pose: { eyes: 'open', look: eyes, mouth: 'smile', arms: 'down' }, blink: true };
 }
 
-/** The text of a speech bubble, the name cut to `room` characters. */
+/**
+ * The text of a speech bubble; a long name goes on more lines
+ * (components/pixel/hallway.ts, bubble). A name the mascot shouldn't say
+ * (lib/mascot-filter.ts) gets a plain hello instead.
+ */
 function useSay() {
   const t = useT(loginDict);
-  return (say: NonNullable<Look['say']>, room: number) => {
+  return (say: NonNullable<Look['say']>) => {
     if (say.key !== 'mascotHelloName') return t(say.key);
-    const frame = t('mascotHelloName', { name: '' }).length;
-    const fit = Math.max(3, room - frame);
-    const name = say.name.length > fit ? `${say.name.slice(0, fit - 1)}…` : say.name;
-    return t('mascotHelloName', { name });
+    return isOffensive(say.name) ? t('mascotHello') : t('mascotHelloName', { name: say.name });
   };
 }
 
 /** The mascot at (0, 0): its shadow, the body with its frames, and what's above its head. */
 function Mascot({ look, motionKey, marks = 'above' }: { look: Look; motionKey: string; marks?: 'above' | 'beside' }) {
   const base = mascot(look.pose);
+  // Waving: the hand goes out, up, in towards the head and up again.
   const wave = look.wave ? mascot({ ...look.pose, arms: 'wave2' }) : null;
+  const wave3 = look.wave ? mascot({ ...look.pose, arms: 'wave3' }) : null;
   const blink = !wave && look.blink && look.pose.eyes === 'open' ? mascot({ ...look.pose, eyes: 'blink' }) : null;
   const [mx, my] = marks === 'above' ? [16, -10] : [MW, 2];
   return (
@@ -120,6 +124,7 @@ function Mascot({ look, motionKey, marks = 'above' }: { look: Look; motionKey: s
         <g className={look.motion === 'bob' ? 'ms-breathe' : undefined}>
           <g className={wave ? 'ms-frame-a' : blink ? 'ms-open' : undefined}><Paths sprite={base} /></g>
           {wave && <g className="ms-frame-b"><Paths sprite={wave} /></g>}
+          {wave3 && <g className="ms-frame-c"><Paths sprite={wave3} /></g>}
           {blink && <g className="ms-blink"><Paths sprite={blink} /></g>}
           {look.sweat && <g className="ms-drip"><Paths sprite={sweat(31, 3)} /></g>}
         </g>
@@ -211,8 +216,9 @@ export function HallwayScene({ state }: { state: MascotState }) {
   let speech = null;
   if (hall && look.say) {
     const [mx, my] = hall.mascot;
-    const room = Math.floor((hall.w - (mx + 32) - 10) / 4);
-    speech = bubble(say(look.say, room), mx + 30, my + 6);
+    // As wide as the hallway leaves beside the mascot, at most about 25 letters.
+    const room = Math.min(100, hall.w - (mx + 32) - 10);
+    speech = bubble(say(look.say), mx + 30, my + 6, room);
   }
 
   return (
@@ -259,11 +265,13 @@ export function MascotBadge({ state }: { state: MascotState }) {
   const say = useSay();
   const look = lookFor(state, phase, [1, 0]);
   const W = 120;
-  const speech = look.say ? bubble(say(look.say, Math.floor((W - MW - 12) / 4)), MW - 2, 17) : null;
+  const speech = look.say ? bubble(say(look.say), MW - 2, 17, W - MW - 8) : null;
+  // A bubble on more lines grows upwards: the drawing makes room for it.
+  const top = Math.min(-2, speech ? topOf(speech) - 1 : -2);
   return (
     <>
       <SpritePalette />
-      <svg viewBox={`0 -2 ${W} ${MH + 2}`} className="spr block w-[240px] max-w-full" shapeRendering="crispEdges" aria-hidden="true" overflow="visible">
+      <svg viewBox={`0 ${top} ${W} ${MH - top}`} className="spr block w-[240px] max-w-full" shapeRendering="crispEdges" aria-hidden="true" overflow="visible">
         <Mascot look={look} motionKey={motionKey(look, state)} marks="beside" />
         {speech && <g key={look.say?.key} className="ms-pop"><Paths sprite={speech} /></g>}
       </svg>

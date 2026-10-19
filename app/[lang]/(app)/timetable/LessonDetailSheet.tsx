@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
-import { ArrowLeftRight, CornerDownRight, Clock, MapPin, User, UserX, FileText, X } from 'lucide-react';
+import { ArrowLeftRight, CornerDownRight, Clock, MapPin, User, Users, UserX, FileText, X } from 'lucide-react';
 import type { AbsenceEntry, TimetableEntry } from '@/lib/types';
 import { absenceRangeText, lessonAbsence, type AbsenceMark } from '@/lib/absences';
 import { useT } from '@/providers/LocaleProvider';
@@ -13,6 +13,60 @@ import { resolveSubjectImageSrc, subjectImageKey } from '@/lib/subject-image-pre
 import s from './timetable.module.css';
 
 type HWItem = { id: number; text: string };
+
+/** What the lesson's detail (calendar-entry/detail) adds to the timetable's own fields. */
+interface DetailExtras {
+  texts: Array<{ label: TimetableKey; text: string }>;
+  classes: string[];
+  group: string;
+  examName: string;
+}
+
+const NO_EXTRAS: DetailExtras = { texts: [], classes: [], group: '', examName: '' };
+
+/** Plain text from WebUntis' rich text: line breaks kept, tags and entities resolved. */
+function plain(v: unknown): string {
+  if (typeof v !== 'string' || !v.trim()) return '';
+  if (!/[<&]/.test(v)) return v.trim();
+  const html = v.replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|li|h\d)>/gi, '\n');
+  const text = new DOMParser().parseFromString(html, 'text/html').body.textContent ?? '';
+  return text.replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function names(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  return v
+    .map((x) => (x && typeof x === 'object' ? plain((x as Record<string, unknown>).displayName ?? (x as Record<string, unknown>).name ?? (x as Record<string, unknown>).shortName) : ''))
+    .filter(Boolean);
+}
+
+/**
+ * The texts WebUntis keeps on a lesson besides the timetable's: lesson content,
+ * the teacher's note for everyone, the lesson info and the substitution text,
+ * plus the classes and the group. Every field is optional; whatever is missing
+ * is simply not shown.
+ */
+function detailExtras(entries: Array<Record<string, unknown>>): DetailExtras {
+  const texts: DetailExtras['texts'] = [];
+  const classes = new Set<string>();
+  let group = '';
+  let examName = '';
+  for (const e of entries) {
+    for (const [label, key] of [['teachingContent', 'teachingContent'], ['notesAll', 'notesAll'], ['note', 'lessonInfo'], ['substitutionText', 'substText']] as Array<[TimetableKey, string]>) {
+      const text = plain(e[key]);
+      if (text) texts.push({ label, text });
+    }
+    names(e.klasses).forEach((k) => classes.add(k));
+    const mainGroup = e.mainStudentGroup && typeof e.mainStudentGroup === 'object' ? e.mainStudentGroup as Record<string, unknown> : null;
+    group ||= plain(mainGroup?.name ?? mainGroup?.displayName);
+    const exam = e.exam && typeof e.exam === 'object' ? e.exam as Record<string, unknown> : null;
+    examName ||= plain(exam?.name);
+  }
+  return { texts, classes: [...classes], group, examName };
+}
+
+/** The same text once, whichever field it came from. */
+const sameText = (a: string, b: string) => a.replace(/\s+/g, ' ').trim().toLowerCase() === b.replace(/\s+/g, ' ').trim().toLowerCase();
 
 function tagsFor(slot: MergedSlot): Array<[TimetableKey, string]> {
   const d = slot.display;
@@ -69,6 +123,7 @@ export default function LessonDetailSheet({
   const [imageFailed, setImageFailed] = useState(false);
   const [examDescription, setExamDescription] = useState<string | null>(d.examDescription ?? null);
   const [homeworks, setHomeworks] = useState<HWItem[]>([]);
+  const [extras, setExtras] = useState<DetailExtras>(NO_EXTRAS);
 
   useEffect(() => {
     let alive = true;
@@ -97,6 +152,7 @@ export default function LessonDetailSheet({
         if (d.isExam && typeof desc === 'string' && desc.trim()) setExamDescription(prev => prev || desc.trim());
         const hw = calEntries.flatMap(e => (Array.isArray(e?.homeworks) ? (e.homeworks as HWItem[]) : []));
         setHomeworks(hw.filter(h => h?.text));
+        setExtras(detailExtras(calEntries.filter(e => e && typeof e === 'object')));
       })
       .catch(() => {});
     return () => { alive = false; };
@@ -114,6 +170,19 @@ export default function LessonDetailSheet({
   }, [onClose]);
 
   const showPhoto = !!imageUrl && !imageFailed;
+
+  // Every text of the lesson once: the timetable's own first, then what the
+  // detail adds, then any further text type WebUntis sent with the period.
+  const notes: Array<{ label: TimetableKey; text: string }> = [];
+  const addNote = (label: TimetableKey, text: string | undefined) => {
+    const v = text?.trim();
+    if (v && !notes.some(n => sameText(n.text, v))) notes.push({ label, text: v });
+  };
+  addNote('note', d.note);
+  addNote('lessonText', d.lessonText);
+  addNote('substitutionText', d.substitutionText);
+  extras.texts.forEach(x => addNote(x.label, x.text));
+  (d.texts ?? []).forEach(x => addNote(x.type === 'SUBSTITUTION' ? 'substitutionText' : x.type === 'LESSON_TEXT' ? 'lessonText' : x.type === 'LESSON_INFO' ? 'note' : 'info', x.text));
 
   return (
     <div className={s.backdrop} onClick={onClose}>
@@ -163,13 +232,15 @@ export default function LessonDetailSheet({
             </div>
           </div>
 
-          <DetailsCard d={d} />
+          <DetailsCard d={d} classes={extras.classes} group={extras.group} />
           {absence && <AbsenceCard mark={absence.mark} covering={absence.covering} />}
           {slot.replacement && <InsteadCard other={slot.replacement} />}
-          {d.note?.trim() && <SectionCard title={t('note')}>{d.note}</SectionCard>}
-          {d.lessonText?.trim() && d.lessonText !== d.note && <SectionCard title={t('lessonText')}>{d.lessonText}</SectionCard>}
-          {d.substitutionText?.trim() && <SectionCard title={t('substitutionText')}>{d.substitutionText}</SectionCard>}
-          {d.isExam && examDescription && <SectionCard title={t('examContent')}>{examDescription}</SectionCard>}
+          {notes.map((n, i) => <SectionCard key={`${n.label}-${i}`} title={t(n.label)}>{n.text}</SectionCard>)}
+          {d.isExam && (examDescription || extras.examName) && (
+            <SectionCard title={t('examContent')}>
+              {[extras.examName, examDescription].filter((x, i, all) => x && all.indexOf(x) === i).join('\n')}
+            </SectionCard>
+          )}
           {homeworks.length > 0 && (
             <div className={s.card}>
               <p className={s.label} style={{ marginBottom: 8 }}>{t('homework')}</p>
@@ -221,7 +292,7 @@ function AbsenceCard({ mark, covering }: { mark: AbsenceMark; covering: AbsenceE
   );
 }
 
-function DetailsCard({ d }: { d: TimetableEntry }) {
+function DetailsCard({ d, classes, group }: { d: TimetableEntry; classes: string[]; group: string }) {
   const t = useT(timetableDict);
   const teacher = d.teacherLongName || d.teacherName;
   const origTeacher = d.originalTeacherLong || d.originalTeacher || '';
@@ -229,7 +300,7 @@ function DetailsCard({ d }: { d: TimetableEntry }) {
   const origRoom = d.originalRoom || '';
   const hasTeacher = !!teacher || !!origTeacher;
   const hasRoom = !!room || !!origRoom;
-  if (!hasTeacher && !hasRoom) return null;
+  if (!hasTeacher && !hasRoom && classes.length === 0 && !group) return null;
 
   return (
     <div className={`${s.card} ${s.cardFlush}`}>
@@ -239,6 +310,8 @@ function DetailsCard({ d }: { d: TimetableEntry }) {
       {hasRoom && (origRoom && origRoom !== room
         ? <ChangeRow label={t('room')} from={origRoom} to={room} icon={<MapPin size={19} />} />
         : <DetailRow label={t('room')} value={room || origRoom} icon={<MapPin size={19} />} />)}
+      {classes.length > 0 && <DetailRow label={t('classes')} value={classes.join(', ')} icon={<Users size={19} />} />}
+      {group && <DetailRow label={t('group')} value={group} icon={<Users size={19} />} />}
     </div>
   );
 }

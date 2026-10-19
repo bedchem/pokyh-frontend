@@ -6,8 +6,14 @@ import type { Scene, SceneLayer, Sprite } from './sprite';
 // palette as CSS custom properties. The palette's style travels with the
 // drawing; React keeps one copy per page (same href) and puts it in the head.
 
+// Named by its content: React keeps one style per name, so a changed palette
+// (a new tone) must come with a new name or the page keeps the old one.
+let hash = 2166136261;
+for (let i = 0; i < SPRITE_CSS.length; i++) hash = Math.imul(hash ^ SPRITE_CSS.charCodeAt(i), 16777619);
+const PALETTE_ID = `pokyh-sprites-${(hash >>> 0).toString(36)}`;
+
 export function SpritePalette() {
-  return <style href="pokyh-sprites" precedence="low">{SPRITE_CSS}</style>;
+  return <style href={PALETTE_ID} precedence="low">{SPRITE_CSS}</style>;
 }
 
 export function Paths({ sprite }: { sprite: Sprite }) {

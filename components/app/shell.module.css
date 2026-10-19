@@ -88,6 +88,8 @@
 }
 .kbd {
   margin-left: auto;
+  min-width: 24px;
+  text-align: center;
   padding: 3px 8px;
   border-radius: 8px;
   background: var(--inset);

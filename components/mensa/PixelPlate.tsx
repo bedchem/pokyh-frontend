@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 // style stands in. Two sizes: 'table' for the next dish (between fork and
 // knife, steam rising in steps, rim and blade glinting now and then) and
 // 'plate' for the plan's rows (the plate alone, a glint on hover). Both build
-// themselves line by line when they arrive (CSS in globals.css, .pxp-*). Drawn
+// themselves from the middle outwards when they arrive (CSS in globals.css, .pxp-*). Drawn
 // on the spot: nothing to download but the photo.
 
 export type PlateSize = 'table' | 'plate';

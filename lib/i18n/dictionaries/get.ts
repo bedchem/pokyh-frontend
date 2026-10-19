@@ -75,7 +75,7 @@ export type GetKey =
 
 export const getDict: Dictionary<GetKey> = {
   de: {
-    metaTitle: 'POKYH holen: im Browser, als Web-App oder für iPhone und Android',
+    metaTitle: 'App holen: Browser, Web-App, iPhone und Android',
     metaDescription: 'POKYH nutzen: direkt im Browser anmelden, als App auf iPhone und Android installieren oder als Web-App auf den Homescreen legen.',
     ogDescription: 'POKYH im Browser nutzen oder als App auf iPhone und Android installieren.',
     twitterDescription: 'POKYH im Browser oder als App auf iPhone und Android.',
@@ -166,7 +166,7 @@ export const getDict: Dictionary<GetKey> = {
     pa4Body: 'POKYH liegt als Symbol auf deinem Startbildschirm und öffnet ohne Adressleiste. Updates kommen automatisch.',
   },
   it: {
-    metaTitle: 'Ottieni POKYH: nel browser, come web app o per iPhone e Android',
+    metaTitle: 'Ottieni l’app: browser, web app, iPhone e Android',
     metaDescription: 'Usare POKYH: accedi nel browser, installa l’app su iPhone e Android o aggiungi la web app alla schermata Home.',
     ogDescription: 'Usa POKYH nel browser o installa l’app su iPhone e Android.',
     twitterDescription: 'POKYH nel browser o come app su iPhone e Android.',
@@ -257,7 +257,7 @@ export const getDict: Dictionary<GetKey> = {
     pa4Body: 'POKYH è un’icona sulla schermata Home e si apre senza barra degli indirizzi. Gli aggiornamenti arrivano da soli.',
   },
   en: {
-    metaTitle: 'Get POKYH: in the browser, as a web app or for iPhone and Android',
+    metaTitle: 'Get the app: browser, web app, iPhone and Android',
     metaDescription: 'Use POKYH: sign in in the browser, install the app on iPhone and Android, or add the web app to your home screen.',
     ogDescription: 'Use POKYH in the browser or install the app on iPhone and Android.',
     twitterDescription: 'POKYH in the browser or as an app on iPhone and Android.',

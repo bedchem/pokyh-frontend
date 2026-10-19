@@ -21,7 +21,7 @@ import { ACTIVE_LOCALES, LOCALE_NAMES, type Locale } from '@/lib/i18n/locale';
 import { settingsDict } from '@/lib/i18n/dictionaries/settings';
 import { untisActionsDict } from '@/lib/i18n/dictionaries/untisActions';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
-import { fetchPrivacyStatus, setUsageStatsConsent, type PrivacyStatus } from '@/lib/privacy-consent';
+import { USAGE_CONSENT_EVENT, fetchPrivacyStatus, setUsageStatsConsent, type PrivacyStatus } from '@/lib/privacy-consent';
 import { requestPermissionAndSubscribe } from '@/lib/push';
 import { pcClear } from '@/lib/persist-cache';
 import { cacheClear } from '@/lib/cache';
@@ -38,7 +38,7 @@ const readPush = (): NotificationPermission | 'unsupported' =>
 
 /** A small drawing of the app in a theme, for the colour scheme choice. */
 function ThemePreview({ mode }: { mode: Theme }) {
-  const light = { bg: '#F5F2ED', nav: '#EBE7E0', card: '#FFFFFF', tone: '#DEDDFB', ink: '#1C1A17' };
+  const light = { bg: '#F2EEE7', nav: '#E9E4DB', card: '#FBF9F5', tone: '#DEDDFB', ink: '#1C1A17' };
   const dark = { bg: '#111114', nav: '#1E1E23', card: '#1B1B1F', tone: '#24244C', ink: '#F2F2F4' };
   const draw = (c: typeof light) => (
     <span className="absolute inset-0 flex" style={{ background: c.bg }}>
@@ -91,7 +91,14 @@ function SettingsContent() {
   useEffect(() => {
     let alive = true;
     fetchPrivacyStatus().then((s) => { if (alive) setPrivacy(s); });
-    return () => { alive = false; };
+    // "Alle akzeptieren" in the cookie banner (or its settings) reaches the
+    // account while this page is open: the switch follows at once.
+    const onConsent = (e: Event) => {
+      const usageStats = (e as CustomEvent<{ usageStats: boolean }>).detail?.usageStats;
+      if (typeof usageStats === 'boolean') setPrivacy((p) => (p ? { ...p, usageStats, usageStatsAt: new Date().toISOString() } : p));
+    };
+    window.addEventListener(USAGE_CONSENT_EVENT, onConsent);
+    return () => { alive = false; window.removeEventListener(USAGE_CONSENT_EVENT, onConsent); };
   }, []);
 
   async function toggleUsage(next: boolean) {

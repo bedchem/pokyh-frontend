@@ -204,15 +204,17 @@ export default function ComposeMessageSheet({ onClose, onSent, initial, reply }:
   const recipientNames = reply ? reply.recipientName : selected.map((r) => r.name).join(', ');
   const title = view === 'recipients' ? t('recipients') : reply ? ta('reply') : draftId != null ? t('editDraft') : t('composeTitle');
 
+  // Each view has its own button (key), so the button clicked in the
+  // recipient step can't become the send button while its click still runs.
   const footer =
     done ? undefined : view === 'recipients' ? (
       !single && (
-        <Button onClick={backToForm} className="w-full">
+        <Button key="done" onClick={backToForm} className="w-full">
           {t('done')}{selected.length ? ` (${selected.length})` : ''}
         </Button>
       )
     ) : (
-      <div className="flex gap-2.5">
+      <div key="form" className="flex gap-2.5">
         {!reply && (
           <Button variant="quiet" onClick={storeDraft} disabled={busy} aria-label={t('saveDraft')} className="shrink-0">
             {savingDraft

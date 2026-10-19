@@ -5,7 +5,7 @@ import { Sprite, disc, dither, ellipse, grid, line, minus, rect, rounded, shift,
 // rows 21–22. Layers that move are named after their animation (app CSS,
 // .px-*).
 
-export type PixelSprite = 'unplugged' | 'search' | 'lock' | 'empty' | 'holiday' | 'sun' | 'cancelled' | 'event' | 'swap';
+export type PixelSprite = 'unplugged' | 'search' | 'lock' | 'empty' | 'holiday' | 'sun' | 'cancelled' | 'event' | 'swap' | 'chat' | 'mail' | 'excused' | 'bell';
 
 export const W = 40;
 export const H = 25;
@@ -301,7 +301,131 @@ function swap(): Scene {
   };
 }
 
-const BUILDERS: Record<PixelSprite, () => Scene> = { unplugged, search, lock, empty, holiday, sun, cancelled, event, swap };
+// ── chat: a speech bubble, three dots typing in turn (no comments yet)
+
+function chat(): Scene {
+  const ground = shadow(new Sprite(), 20, 21.5, 11);
+  const bubble = new Sprite();
+  // The bubble with its tail down to the left.
+  bubble.mass([...rounded(8, 3, 25, 13, 3), [12, 16], [13, 16], [14, 16], [12, 17], [13, 17], [12, 18]], 'pp', { deep: true });
+  const dot = (x: number) => new Sprite().mass(rect(x, 9, 2, 2), 'ac');
+  // A second, smaller bubble answers from the right.
+  const reply = new Sprite().mass([...rounded(27, 13, 11, 7, 2), [34, 20], [35, 20], [35, 21]], 'ac', { deep: true });
+  reply.fill([[30, 16], [32, 16], [34, 16]], 'pp3');
+  return {
+    w: W, h: H,
+    layers: [
+      layer('ground', ground),
+      layer('bubble', bubble),
+      layer('dot-1', dot(13), ['px-type', 'px-type-1']),
+      layer('dot-2', dot(18), ['px-type', 'px-type-2']),
+      layer('dot-3', dot(23), ['px-type', 'px-type-3']),
+      layer('reply', reply, ['px-reply']),
+    ],
+  };
+}
+
+// ── mail: a mailbox on its post, the flag going up and down (no messages)
+
+function mail(): Scene {
+  const ground = new Sprite();
+  const grass = ellipse(20, 22.5, 12, 2.4).filter(([, y]) => y >= 20);
+  ground.mass(grass, 'gn', { outline: false });
+  ground.fill(dither(grass.filter(([, y]) => y >= 22)), 'gn1');
+  // The post.
+  ground.mass(rect(19, 12, 3, 9), 'wd');
+  // The box: a rounded top, its open mouth dark inside, nothing in it.
+  const box = new Sprite().mass([...rounded(10, 4, 20, 9, 1), ...rect(10, 8, 20, 5)], 'ac', { deep: true });
+  box.mass(rect(11, 7, 4, 5), 'ik', { outline: false });
+  box.fill([[11, 7], [12, 7]], 'ik3');
+  box.fill(rect(16, 6, 12, 1), 'ac3');
+  // The flag on its arm, in two positions.
+  const flag = (up: boolean) => new Sprite().mass(up ? [...rect(30, 2, 2, 8), ...rect(32, 2, 4, 3)] : [...rect(30, 8, 8, 2), ...rect(36, 8, 2, 4)], 'rd');
+  return {
+    w: W, h: H,
+    layers: [
+      layer('ground', ground),
+      layer('box', box),
+      layer('flag', flag(true), ['px-flag']),
+      layer('flag-alt', flag(false), ['px-flag', 'px-flag-alt'], true),
+    ],
+  };
+}
+
+// ── excused: a bed with someone asleep, z's rising (a day excused from school)
+
+function excused(): Scene {
+  const room = shadow(new Sprite(), 20, 21.5, 15);
+  // The frame: headboard on the left, a low footboard, short legs.
+  room.mass([...rect(5, 7, 3, 14), ...rect(33, 12, 3, 9)], 'wd', { deep: true });
+  room.mass(rect(8, 15, 25, 3), 'wd');
+  // Mattress, pillow and the blanket over a body.
+  room.mass(rect(8, 13, 25, 2), 'pp', { outline: false });
+  room.mass(rounded(8, 10, 7, 4, 1), 'pp');
+  room.mass([...rounded(14, 10, 19, 6, 2), ...rect(14, 13, 19, 3)], 'ac', { deep: true });
+  room.fill(dither(rect(16, 12, 15, 1), 1), 'ac3');
+  // The head on the pillow, eyes shut.
+  room.mass(disc(13, 10, 2.4), 'pk', { round: [13, 10] });
+  room.fill([[12, 10], [14, 10]], 'pk0');
+  // Hair over the top of the head.
+  room.fill([[11, 7], [12, 7], [13, 7], [14, 7], [10, 8], [11, 8], [12, 8], [13, 8], [15, 8], [10, 9], [11, 9]], 'wd1');
+  const z = (x: number, y: number) => new Sprite().mass(grid(['###', '..#', '.#.', '#..', '###'], x, y), 'gd');
+  return {
+    w: W, h: H,
+    layers: [
+      layer('room', room),
+      layer('z-1', z(17, 3), ['px-z', 'px-z-1']),
+      layer('z-2', z(22, 0), ['px-z', 'px-z-2']),
+    ],
+  };
+}
+
+// ── bell: a bell ringing, swinging a pixel each way (no reminders yet)
+
+function bell(): Scene {
+  const ground = shadow(new Sprite(), 20, 21.5, 9);
+  // A round top, straight sides, a flared rim.
+  const body = grid([
+    '......######......',
+    '....##########....',
+    '...############...',
+    '...############...',
+    '...############...',
+    '...############...',
+    '..##############..',
+    '..##############..',
+    '..##############..',
+    '.################.',
+    '##################',
+    '##################',
+  ], 11, 4);
+  const shell = new Sprite().mass(body, 'gd', { deep: true });
+  shell.mass(rect(19, 1, 2, 2), 'gd');
+  // Light down the left of the dome, a band near the rim.
+  shell.fill([[16, 6], [15, 7], [15, 8], [15, 9], [14, 10], [14, 11]], 'gd4');
+  shell.fill(rect(13, 12, 14, 1), 'gd1');
+  const clapper = new Sprite().mass(disc(20, 18.5, 1.6), 'st', { round: [20, 18.5] });
+  const arc = (x: number, y: number, flip: boolean, long: boolean) => {
+    const rows = long ? [0, 1, 1, 1, 0] : [0, 1, 1, 0];
+    return rows.map((d, i) => [flip ? x + d : x - d, y + i] as Pt);
+  };
+  const waves = (right: boolean) => new Sprite().fill(
+    right ? [...arc(32, 7, true, false), ...arc(35, 6, true, true)] : [...arc(7, 7, false, false), ...arc(4, 6, false, true)],
+    'gd2',
+  );
+  return {
+    w: W, h: H,
+    layers: [
+      layer('ground', ground),
+      layer('clapper', clapper, ['px-clapper']),
+      layer('shell', shell, ['px-swing']),
+      layer('waves-l', waves(false), ['px-wave', 'px-wave-l']),
+      layer('waves-r', waves(true), ['px-wave', 'px-wave-r']),
+    ],
+  };
+}
+
+const BUILDERS: Record<PixelSprite, () => Scene> = { unplugged, search, lock, empty, holiday, sun, cancelled, event, swap, chat, mail, excused, bell };
 const built: Partial<Record<PixelSprite, Scene>> = {};
 
 export function stateScene(sprite: PixelSprite): Scene {

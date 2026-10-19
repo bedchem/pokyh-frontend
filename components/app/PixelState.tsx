@@ -18,6 +18,10 @@ import { stateScene, type PixelSprite } from '@/components/pixel/states';
 //   cancelled  a calendar page with a blinking cross — every lesson cancelled
 //   event      a flag in the wind — a day-long event
 //   swap       two arrows trading places — every lesson substituted
+//   chat       a speech bubble typing, an answer popping up — no comments yet
+//   mail       a mailbox, its flag going up and down — no messages
+//   excused    someone asleep in bed, z's rising — a day excused from school
+//   bell       a bell ringing — no reminders yet
 
 export type { PixelSprite };
 

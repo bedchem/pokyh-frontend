@@ -42,12 +42,22 @@ const TONE: Record<LegalDocView, string> = {
 
 
 /** Title, description, canonical and preview of the overview or one text. */
+/** For the overview's tab title when it is named like one of its texts (Italian: "Note legali"). */
+const OVERVIEW: Record<LegalLocale, string> = { de: 'Übersicht', it: 'Panoramica', en: 'Overview' };
+/** Search results show about this many characters of a description. */
+const DESCRIPTION_MAX = 160;
+
 export function legalMetadata(locale: LegalLocale, view: LegalDocView | null): Metadata {
   const doc = view ? LEGAL_DOCS[view][locale] : null;
-  const title = doc ? doc.title : LEGAL_UI[locale].legal;
-  // The documents' leads are short; the line about POKYH tells search results what the site is.
+  const named = LEGAL_UI[locale].legal;
+  const clash = !doc && Object.values(LEGAL_DOCS).some((d) => d[locale].title === named);
+  const title = doc ? doc.title : clash ? `${named} · ${OVERVIEW[locale]}` : named;
+  // The documents' leads are short; the line about POKYH tells search results
+  // what the site is, when it still fits. The lead ends as a sentence.
   const about = makeT(metaDict, locale)('websiteDescription');
-  const description = `${doc ? doc.lead : LEGAL_UI[locale].lead} ${about}`;
+  const raw = (doc ? doc.lead : LEGAL_UI[locale].lead).trim();
+  const lead = /[.!?…]$/.test(raw) ? raw : `${raw}.`;
+  const description = `${lead} ${about}`.length <= DESCRIPTION_MAX ? `${lead} ${about}` : lead;
   return {
     title,
     description,

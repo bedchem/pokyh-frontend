@@ -21,8 +21,8 @@ export const WEBUNTIS_FAQ_COUNT = 6;
 
 export const webuntisPageDict: Dictionary<WebuntisPageKey> = {
   de: {
-    metaTitle: 'WebUntis-App: Stundenplan, Noten und Abwesenheiten übersichtlich | POKYH',
-    metaDescription: 'Mit deinem WebUntis-Konto in POKYH: Stundenplan mit Vertretungen, Prüfungen, Noten mit Schnitt, Abwesenheiten in Stunden und Prozent und Nachrichten. Kostenlos, für jede Schule mit WebUntis. Unabhängig von der Untis GmbH.',
+    metaTitle: 'WebUntis-App: Stundenplan, Noten, Abwesenheiten | POKYH',
+    metaDescription: 'Dein WebUntis-Konto in POKYH: Stundenplan, Vertretungen, Prüfungen, Noten mit Schnitt, Abwesenheiten und Nachrichten. Kostenlos, unabhängig von der Untis GmbH.',
     ogTitle: 'POKYH für WebUntis: deine Schule auf einen Blick',
     ogDescription: 'Stundenplan, Noten, Abwesenheiten und Nachrichten aus WebUntis in einer übersichtlichen App. Kostenlos, für jede Schule mit WebUntis.',
     breadcrumb: 'Für WebUntis',
@@ -76,8 +76,8 @@ export const webuntisPageDict: Dictionary<WebuntisPageKey> = {
     independence: 'POKYH ist ein unabhängiges Projekt und nicht mit der Untis GmbH verbunden. WebUntis, Untis und Untis Mobile sind Marken der Untis GmbH.',
   },
   it: {
-    metaTitle: 'App per WebUntis: orario, voti e assenze in modo chiaro | POKYH',
-    metaDescription: 'Con il tuo account WebUntis in POKYH: orario con supplenze, verifiche, voti con media, assenze in ore e percentuale e messaggi. Gratuita, per ogni scuola con WebUntis. Indipendente da Untis GmbH.',
+    metaTitle: 'App per WebUntis: orario, voti e assenze | POKYH',
+    metaDescription: 'Il tuo account WebUntis in POKYH: orario, supplenze, verifiche, voti con media, assenze e messaggi. Gratuita, indipendente da Untis GmbH.',
     ogTitle: 'POKYH per WebUntis: la tua scuola a colpo d’occhio',
     ogDescription: 'Orario, voti, assenze e messaggi da WebUntis in un’app chiara. Gratuita, per ogni scuola con WebUntis.',
     breadcrumb: 'Per WebUntis',
@@ -131,8 +131,8 @@ export const webuntisPageDict: Dictionary<WebuntisPageKey> = {
     independence: 'POKYH è un progetto indipendente e non è collegato a Untis GmbH. WebUntis, Untis e Untis Mobile sono marchi di Untis GmbH.',
   },
   en: {
-    metaTitle: 'App for WebUntis: timetable, grades and absences at a glance | POKYH',
-    metaDescription: 'Use your WebUntis account in POKYH: timetable with substitutions, exams, grades with averages, absences in hours and percent, and messages. Free, for every school on WebUntis. Independent of Untis GmbH.',
+    metaTitle: 'App for WebUntis: timetable, grades, absences | POKYH',
+    metaDescription: 'Your WebUntis account in POKYH: timetable, substitutions, exams, grades with averages, absences and messages. Free, independent of Untis GmbH.',
     ogTitle: 'POKYH for WebUntis: your school at a glance',
     ogDescription: 'Timetable, grades, absences and messages from WebUntis in one clear app. Free, for every school on WebUntis.',
     breadcrumb: 'For WebUntis',

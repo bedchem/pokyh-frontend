@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
 import { flushSync } from 'react-dom';
-import { useSearchParams } from 'next/navigation';
 import { ArrowRight, Eye, EyeSlash, LockSimple, MagnifyingGlass, X } from '@phosphor-icons/react';
 import Sheet from '@/components/ui/Sheet';
 import Spinner from '@/components/ui/Spinner';
@@ -144,7 +143,6 @@ function rememberedSnapshot(): SchoolChoice | null {
 }
 
 export default function LoginForm() {
-  const params = useSearchParams();
   const t = useT(loginDict);
   const ta = useT(untisActionsDict);
   const localize = useLocalizeHref();
@@ -270,7 +268,10 @@ export default function LoginForm() {
     setLoadingMsg(t('loggingIn'));
     setError('');
 
-    const raw = params.get('next') ?? '';
+    // Read at the moment of signing in (the address is final by then), not
+    // with useSearchParams: that would keep the whole form out of the page's
+    // prerendered HTML, which search engines and slow phones see first.
+    const raw = new URLSearchParams(window.location.search).get('next') ?? '';
     const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : localize('/home');
 
     try {

@@ -6,6 +6,7 @@ import { useT } from '@/providers/LocaleProvider';
 import { faqDict, FAQ_GROUPS, type FaqKey } from '@/lib/i18n/dictionaries/faq';
 import PageIntro from '@/components/site/PageIntro';
 import CtaBand from '@/components/site/CtaBand';
+import PixelState from '@/components/app/PixelState';
 
 // Questions as cards, grouped, with a search on top. Answers open in place
 // and are set for reading: one column, comfortable size and line height.
@@ -90,7 +91,7 @@ export default function FaqClient() {
       </PageIntro>
 
       <section className="wrap pb-20 md:pb-28">
-        {groups.length === 0 && <p className="text-[18px] text-ink-2" role="status">{t('noResults')}</p>}
+        {groups.length === 0 && <PixelState sprite="search" title={t('noResults')} />}
         <div className="flex flex-col gap-14 md:gap-20">
           {groups.map((g) => (
             <div key={g.key} className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,2.4fr)] lg:gap-12">

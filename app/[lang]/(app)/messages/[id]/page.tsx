@@ -24,7 +24,10 @@ import {
   WarningCircle,
 } from '@phosphor-icons/react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
+import type { MediaItem } from '@/components/ui/MediaViewer';
+import { uiDict } from '@/lib/i18n/dictionaries/ui';
 import AuthGuard from '@/components/AuthGuard';
 import Spinner from '@/components/ui/Spinner';
 import Sheet from '@/components/ui/Sheet';
@@ -40,6 +43,8 @@ import { useDateLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider
 import { messagesDict, type MessagesKey } from '@/lib/i18n/dictionaries/messages';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
 import { formatDateTime } from '@/lib/i18n/dateLocale';
+
+const MediaViewer = dynamic(() => import('@/components/ui/MediaViewer'), { ssr: false });
 
 type TFn = (key: MessagesKey, vars?: Record<string, string | number>) => string;
 
@@ -258,13 +263,22 @@ function formatFileSize(bytes: number): string {
 
 const rowLine = 'relative before:absolute before:inset-x-3.5 before:top-0 before:h-px before:bg-line before:transition-opacity first:before:hidden hover:before:opacity-0 [&:hover+li]:before:opacity-0';
 
-function AttachmentRow({ att, msgId }: { att: MessageAttachment; msgId: number }) {
+/** PDFs and pictures open in the viewer; anything else only downloads. */
+function viewerKind(name: string): 'pdf' | 'image' | null {
+  const n = name.toLowerCase();
+  if (n.endsWith('.pdf')) return 'pdf';
+  if (/\.(jpe?g|png|gif|webp)$/.test(n)) return 'image';
+  return null;
+}
+
+function AttachmentRow({ att, msgId, onOpen }: { att: MessageAttachment; msgId: number; onOpen: (item: MediaItem) => void }) {
+  const tu = useT(uiDict);
   const [downloading, setDownloading] = useState(false);
   const { Icon, tone } = fileKind(att.name);
   const url = getAttachmentUrl(msgId, att.storageId, att.name, att.id);
+  const kind = viewerKind(att.name);
 
-  async function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
-    e.preventDefault();
+  async function download() {
     if (downloading) return;
     setDownloading(true);
     try {
@@ -284,13 +298,20 @@ function AttachmentRow({ att, msgId }: { att: MessageAttachment; msgId: number }
     }
   }
 
+  const open = () => {
+    if (kind === 'pdf') onOpen({ kind: 'pdf', src: url, name: att.name });
+    else if (kind === 'image') onOpen({ kind: 'image', src: url, name: att.name, download: true });
+    else void download();
+  };
+
   return (
-    <li className={rowLine}>
-      <a
-        href={url}
-        onClick={handleClick}
-        aria-busy={downloading}
-        className="flex items-center gap-3.5 rounded-[18px] px-3 py-3 transition-colors duration-200 hover:bg-[color-mix(in_srgb,var(--surface)_92%,var(--ink))]"
+    <li className={`${rowLine} flex items-center gap-1 pr-2`}>
+      <button
+        type="button"
+        onClick={open}
+        aria-busy={!kind && downloading}
+        aria-label={kind ? tu('viewerOpenFile', { name: att.name }) : `${att.name}, ${tu('viewerDownload')}`}
+        className="flex min-w-0 flex-1 items-center gap-3.5 rounded-[18px] px-3 py-3 text-left transition-colors duration-200 hover:bg-[color-mix(in_srgb,var(--surface)_92%,var(--ink))]"
       >
         <span className={`grid size-11 shrink-0 place-items-center rounded-[13px] ${tone}`} aria-hidden="true">
           <Icon size={22} weight="bold" />
@@ -299,9 +320,16 @@ function AttachmentRow({ att, msgId }: { att: MessageAttachment; msgId: number }
           <span className="block truncate text-[15px] font-semibold">{att.name}</span>
           {att.size > 0 && <span className="mt-0.5 block text-[13px] text-ink-3 tnum">{formatFileSize(att.size)}</span>}
         </span>
-        <span className="grid size-10 shrink-0 place-items-center rounded-full bg-inset text-ink" aria-hidden="true">
-          {downloading ? <Spinner size={16} /> : <DownloadSimple size={18} weight="bold" />}
-        </span>
+      </button>
+      {/* Download right beside it, whatever the file is. */}
+      <a
+        href={url}
+        onClick={(e) => { e.preventDefault(); void download(); }}
+        aria-label={`${att.name}, ${tu('viewerDownload')}`}
+        aria-busy={downloading}
+        className="grid size-10 shrink-0 place-items-center rounded-full bg-inset text-ink transition-colors hover:bg-[color-mix(in_srgb,var(--inset)_86%,var(--ink))]"
+      >
+        {downloading ? <Spinner size={16} /> : <DownloadSimple size={18} weight="bold" aria-hidden="true" />}
       </a>
     </li>
   );
@@ -343,6 +371,7 @@ export default function MessageDetailPage({
   const [error, setError] = useState('');
 
   const [loadedAttachments, setLoadedAttachments] = useState<MessageAttachment[] | null>(null);
+  const [viewing, setViewing] = useState<MediaItem | null>(null);
   const [attachmentsLoading, setAttachmentsLoading] = useState(false);
   const [attachmentsFetchFailed, setAttachmentsFetchFailed] = useState(false);
 
@@ -484,7 +513,7 @@ export default function MessageDetailPage({
                     </span>
                   ) : attachments.length > 0 ? (
                     <ul className="squircle flex flex-col rounded-[24px] bg-surface p-2">
-                      {attachments.map((att) => <AttachmentRow key={att.id || att.storageId} att={att} msgId={msg.id} />)}
+                      {attachments.map((att) => <AttachmentRow key={att.id || att.storageId} att={att} msgId={msg.id} onOpen={setViewing} />)}
                     </ul>
                   ) : (
                     <div className="squircle flex flex-wrap items-center justify-between gap-3 rounded-[24px] bg-surface px-5 py-4">
@@ -503,6 +532,7 @@ export default function MessageDetailPage({
       </Page>
 
       {reply && <ComposeMessageSheet reply={reply} onClose={() => setReply(null)} onSent={() => setReply(null)} />}
+      {viewing && <MediaViewer item={viewing} onClose={() => setViewing(null)} />}
 
       <Sheet open={!!linkWarning} onClose={() => setLinkWarning(null)} title={t('externalLink')} description={t('leavingApp')} closeLabel={tc('close')}>
         <div className="flex flex-col gap-5 pb-2">

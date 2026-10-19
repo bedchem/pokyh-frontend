@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowUpRight, CalendarBlank, CaretDown, CheckCircle, Plus, XCircle } from '@phosphor-icons/react';
+import { CalendarBlank, CaretDown, CheckCircle, FilePdf, Plus, XCircle } from '@phosphor-icons/react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import AuthGuard from '@/components/AuthGuard';
 import UntisGuard from '@/components/UntisGuard';
 import { Button } from '@/components/ui/Button';
@@ -22,6 +23,8 @@ import { parseAbsences } from '@/lib/absences';
 import { useDateLocale, useLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { absencesDict } from '@/lib/i18n/dictionaries/absences';
 import { formatDate, monthShort } from '@/lib/i18n/dateLocale';
+
+const MediaViewer = dynamic(() => import('@/components/ui/MediaViewer'), { ssr: false });
 
 // ─── Time helpers ─────────────────────────────────────────────────────────────
 
@@ -251,7 +254,8 @@ export default function AbsencesPage() {
   const [canReport, setCanReport] = useState(false);
   const [personName, setPersonName] = useState<string | null>(null);
   const [showReport, setShowReport] = useState(false);
-  const [excuseIds, setExcuseIds] = useState<number[] | null>(null);
+  const [excuse, setExcuse] = useState<{ ids: number[]; summary: string } | null>(null);
+  const [letterOpen, setLetterOpen] = useState(false);
   const ta = useT(untisActionsDict);
 
   const fmt = (m: number) => exact ? formatMinutes(m) : roundHours(m);
@@ -524,18 +528,18 @@ export default function AbsencesPage() {
                 </div>
 
                 {unexcusedIds.length > 0 && (
-                  <a
-                    href={excuseLetterUrl(`${selectedYear}0901`, `${selectedYear + 1}0630`, unexcusedIds)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="squircle group flex items-center justify-between gap-4 rounded-[22px] bg-butter px-5 py-4 text-butter-ink transition-[filter] hover:brightness-[0.98] dark:hover:brightness-110"
+                  // Opens in the viewer, with its download button beside it.
+                  <button
+                    type="button"
+                    onClick={() => setLetterOpen(true)}
+                    className="squircle group flex items-center justify-between gap-4 rounded-[22px] bg-butter px-5 py-4 text-left text-butter-ink transition-[filter] hover:brightness-[0.98] dark:hover:brightness-110"
                   >
                     <span>
                       <span className="block text-[15.5px] font-bold">{ta('exLetter')}</span>
                       <span className="block text-[13.5px] font-semibold opacity-80">{ta('exLetterHint')}</span>
                     </span>
-                    <ArrowUpRight size={20} weight="bold" className="shrink-0 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" aria-hidden="true" />
-                  </a>
+                    <FilePdf size={22} weight="bold" className="shrink-0 transition-transform duration-300 group-hover:-translate-y-0.5" aria-hidden="true" />
+                  </button>
                 )}
               </div>
 
@@ -595,7 +599,7 @@ export default function AbsencesPage() {
                                     {!entry.isExcused && canReport && (
                                       <button
                                         type="button"
-                                        onClick={() => setExcuseIds([entry.id])}
+                                        onClick={() => setExcuse({ ids: [entry.id], summary: [title, entry.startTime || entry.endTime ? `${formatTime(entry.startTime)} – ${formatTime(entry.endTime)}` : ''].filter(Boolean).join(' · ') })}
                                         className="inline-flex h-8 items-center rounded-full bg-periwinkle px-3 text-[13px] font-semibold text-periwinkle-ink transition-[filter] hover:brightness-95 dark:hover:brightness-125"
                                       >
                                         {ta('exAction')}
@@ -630,8 +634,14 @@ export default function AbsencesPage() {
             onCreated={load}
           />
         )}
-        {excuseIds && (
-          <ExcuseSheet absenceIds={excuseIds} onClose={() => setExcuseIds(null)} onSaved={load} />
+        {excuse && (
+          <ExcuseSheet absenceIds={excuse.ids} summary={excuse.summary} onClose={() => setExcuse(null)} onSaved={load} />
+        )}
+        {letterOpen && (
+          <MediaViewer
+            item={{ kind: 'pdf', src: excuseLetterUrl(`${selectedYear}0901`, `${selectedYear + 1}0630`, unexcusedIds), name: `${ta('exLetter')} ${selectedYear}-${String(selectedYear + 1).slice(2)}.pdf` }}
+            onClose={() => setLetterOpen(false)}
+          />
         )}
       </UntisGuard>
     </AuthGuard>

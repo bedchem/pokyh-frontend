@@ -30,9 +30,13 @@ async function locale() {
   return isLocale(saved) && saved !== 'lld' ? saved : DEFAULT_LOCALE;
 }
 
+// The site's address, as in app/[lang]/layout.tsx: the social preview images
+// of this document resolve against it, not against the build machine.
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com';
+
 export async function generateMetadata(): Promise<Metadata> {
   const t = makeT(metaDict, await locale());
-  return { title: `${t('notFound')} | POKYH`, robots: { index: false, follow: true } };
+  return { metadataBase: new URL(SITE_URL), title: `${t('notFound')} | POKYH`, robots: { index: false, follow: true } };
 }
 
 export default async function GlobalNotFound() {

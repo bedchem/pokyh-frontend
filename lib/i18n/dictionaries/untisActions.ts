@@ -26,6 +26,8 @@ export type UntisActionKey =
   | 'exTitle'
   | 'exLead'
   | 'exReason'
+  | 'exChoose'
+  | 'exAbsence'
   | 'exNote'
   | 'exPick'
   | 'exSave'
@@ -69,6 +71,8 @@ export const untisActionsDict: Dictionary<UntisActionKey> = {
     exTitle: 'Grund für die Abwesenheit',
     exLead: 'Grund und Notiz gehen direkt an WebUntis. Ob die Abwesenheit als entschuldigt gilt, entscheidet die Schule.',
     exReason: 'Grund',
+    exChoose: 'Grund wählen',
+    exAbsence: 'Abwesenheit',
     exNote: 'Notiz (optional)',
     exPick: 'Bitte einen Grund wählen.',
     exSave: 'In WebUntis speichern',
@@ -111,6 +115,8 @@ export const untisActionsDict: Dictionary<UntisActionKey> = {
     exTitle: 'Motivo dell’assenza',
     exLead: 'Motivo e nota vanno direttamente a WebUntis. Se l’assenza è giustificata lo decide la scuola.',
     exReason: 'Motivo',
+    exChoose: 'Scegli il motivo',
+    exAbsence: 'Assenza',
     exNote: 'Nota (facoltativa)',
     exPick: 'Scegli un motivo.',
     exSave: 'Salva in WebUntis',
@@ -153,6 +159,8 @@ export const untisActionsDict: Dictionary<UntisActionKey> = {
     exTitle: 'Reason for the absence',
     exLead: 'Reason and note go straight to WebUntis. Whether the absence counts as excused is decided by the school.',
     exReason: 'Reason',
+    exChoose: 'Choose a reason',
+    exAbsence: 'Absence',
     exNote: 'Note (optional)',
     exPick: 'Please choose a reason.',
     exSave: 'Save in WebUntis',
