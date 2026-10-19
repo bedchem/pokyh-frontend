@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
 import { flushSync } from 'react-dom';
 import { ArrowRight, Eye, EyeSlash, LockSimple, MagnifyingGlass, X } from '@phosphor-icons/react';
@@ -21,7 +22,19 @@ import { readCookieChoice, COOKIE_CONSENT_EVENT } from '@/lib/cookie-consent';
 import { rememberPendingAck } from '@/lib/privacy-consent';
 import { forgetSchoolChoice, readSchoolChoice, saveSchoolChoice, type SchoolChoice } from '@/lib/school-choice';
 import { prefersReducedMotion } from '@/lib/motion';
+import { closeView, openView, useRoomView } from '@/components/room/route';
 import { HallwayScene, MascotBadge, type MascotEvent, type MascotState } from './Hallway';
+
+// Room 2B, behind the hallway's door: a little secret classroom, fetched only
+// when someone goes near the door (components/room). Its first frame is the
+// same warm wall the door opens onto.
+const loadRoom = () => import('@/components/room/Classroom');
+const Classroom = dynamic(loadRoom, { ssr: false, loading: RoomWait });
+
+function RoomWait() {
+  const t = useT(loginDict);
+  return <p className="visually-hidden" role="status">{t('roomLoading')}</p>;
+}
 
 // Initials and a tone per school, so results are told apart at a glance.
 const SCHOOL_TONES = [
@@ -67,6 +80,13 @@ function transition(update: () => void) {
   const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
   if (!doc.startViewTransition || prefersReducedMotion()) { update(); return; }
   doc.startViewTransition(() => { flushSync(update); });
+}
+
+/** The same, for a change that lands a moment later (the browser going back in its history). */
+function transitionUntil(update: () => Promise<void>) {
+  const doc = document as Document & { startViewTransition?: (cb: () => Promise<void>) => unknown };
+  if (!doc.startViewTransition || prefersReducedMotion()) { void update(); return; }
+  doc.startViewTransition(update);
 }
 
 // Sign-in in two steps, like WebUntis itself: first the school (any school on
@@ -182,6 +202,22 @@ export default function LoginForm() {
     onAnimationStart: (e: React.AnimationEvent<HTMLInputElement>) => { if (e.animationName === 'login-autofill') autofill(); },
   });
 
+  // Room 2B: open while the address says so (#2b…); the door shuts behind
+  // whoever comes back out.
+  const view = useRoomView();
+  const inRoom = view !== null;
+  const [returns, setReturns] = useState(0);
+  const [wasInRoom, setWasInRoom] = useState(inRoom);
+  if (wasInRoom !== inRoom) {
+    setWasInRoom(inRoom);
+    if (!inRoom) setReturns((n) => n + 1);
+  }
+  const fetchRoom = useCallback(() => { void loadRoom(); }, []);
+  const enterRoom = useCallback(() => {
+    void loadRoom().then(() => transition(() => openView('room')), () => openView('room'));
+  }, []);
+  const leaveRoom = useCallback(() => transitionUntil(() => closeView(null)), []);
+
   const searchInput = useRef<HTMLInputElement>(null);
   const userInput = useRef<HTMLInputElement>(null);
   const listId = useId();
@@ -207,11 +243,11 @@ export default function LoginForm() {
 
   // Focus follows the step.
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || inRoom) return;
     const el = school ? userInput.current : searchInput.current;
     // Not on touch screens: the keyboard would cover the page on arrival.
     if (el && window.matchMedia('(pointer: fine)').matches) el.focus({ preventScroll: true });
-  }, [ready, school]);
+  }, [ready, school, inRoom]);
 
   const results = search.kind === 'done' ? search.schools : [];
   const active = Math.min(activeRaw, Math.max(0, results.length - 1));
@@ -360,17 +396,26 @@ export default function LoginForm() {
       <SiteHeader />
       <div aria-hidden="true" className="h-[72px] shrink-0 md:h-[84px]" style={{ marginTop: 'var(--safe-top)' }} />
 
-      <div className="flex min-h-0 flex-1">
+      {/* Room 2B: the sign-in stays as it was beneath, hidden, until you come back. */}
+      {inRoom && (
+        <div className="flex min-h-0 flex-1 px-3 pb-3 lg:px-4 lg:pb-4">
+          <div className="room-stage relative min-w-0 flex-1 overflow-hidden rounded-[28px] lg:rounded-[36px]" style={{ viewTransitionName: 'login-stage' }}>
+            <Classroom view={view} onLeave={leaveRoom} />
+          </div>
+        </div>
+      )}
+
+      <div className="flex min-h-0 flex-1" hidden={inRoom}>
       {/* Desktops: the mascot in its hallway beside the form; phones get it small above the form. */}
-      <aside aria-hidden="true" className="hidden px-4 pb-4 lg:block lg:w-[54%] xl:w-[57%]">
-        <HallwayScene state={mascot} />
+      <aside className="hidden px-4 pb-4 lg:block lg:w-[54%] xl:w-[57%]">
+        <HallwayScene state={mascot} onDoor={enterRoom} onDoorIntent={fetchRoom} returns={returns} />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
 
       <main id="main" data-lenis-prevent className="login-scroll flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-5" style={{ paddingBottom: 'max(16px, var(--safe-bottom))' }}>
         <section aria-labelledby="login-title" className="mx-auto flex w-full max-w-[400px] flex-1 flex-col justify-center py-6">
-          <div className="mb-5 lg:hidden"><MascotBadge state={mascot} /></div>
+          <div className="mb-5 lg:hidden"><MascotBadge state={mascot} onDoor={enterRoom} onDoorIntent={fetchRoom} returns={returns} /></div>
           <h1 id="login-title" className="font-display text-[clamp(38px,5vw,52px)] leading-[0.95]">{t('title')}</h1>
           <p className="mt-2 text-[15px] text-ink-3">{t('subtitle')}</p>
 

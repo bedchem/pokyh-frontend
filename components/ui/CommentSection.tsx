@@ -1,19 +1,21 @@
 'use client';
 
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { Check, PaperPlaneRight, PencilSimple, Star, Trash, X } from '@phosphor-icons/react';
+import { Check, Flag, PaperPlaneRight, PencilSimple, Star, Trash, X } from '@phosphor-icons/react';
 import Spinner from './Spinner';
 import PixelState from '@/components/app/PixelState';
 import { TONE_CLASS, type AppTone } from '@/components/app/nav';
 import { initialsOf } from '@/components/app/hooks';
 import type { ApiComment } from '@/lib/api-client';
-import { useT } from '@/providers/LocaleProvider';
+import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
+import { openReport, reportAddress } from '@/lib/report';
 import { uiDict } from '@/lib/i18n/dictionaries/ui';
 import type { UiKey } from '@/lib/i18n/dictionaries/ui';
 
 // Comments under a dish or a class reminder: each with its author, when it
 // was written and, under a dish, the stars that person gave it; your own can
-// be edited, yours and (for admins) everyone's deleted. The field below grows
+// be edited, yours and (for admins) everyone's deleted, anyone else's reported
+// (an e-mail to POKYH's contact point, Digital Services Act Art. 16). The field below grows
 // with the text; Enter sends, Shift+Enter starts a new line.
 
 // As long as the backend takes (pokyh-backend comment routes: 2000 characters),
@@ -81,6 +83,20 @@ interface Props {
 
 export default function CommentSection({ comments, stableUid, isAdmin, loading, onAdd, onEdit, onDelete, onRequireLogin, ratings }: Props) {
   const t = useT(uiDict);
+  const localize = useLocalizeHref();
+
+  // A report: the mail program opens with the notice prepared; without the
+  // address (offline), the imprint's contact section instead.
+  const report = async (c: ApiComment) => {
+    const body = t('reportBody', {
+      url: window.location.href,
+      author: c.username,
+      date: new Date(c.createdAt).toLocaleString(),
+      id: c.id,
+      text: c.body.length > 400 ? `${c.body.slice(0, 400)}…` : c.body,
+    });
+    if (!(await openReport(t('reportSubject'), body))) window.location.assign(localize('/legal/impressum'));
+  };
   const guestPrompt = !stableUid && onRequireLogin ? onRequireLogin : null;
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
@@ -166,6 +182,7 @@ export default function CommentSection({ comments, stableUid, isAdmin, loading, 
           {comments.map((c) => {
             const isMine = stableUid != null && c.stableUid === stableUid;
             const canDelete = isMine || isAdmin;
+            const canReport = stableUid != null && !isMine;
             const isEditing = editingId === c.id;
             const stars = ratings?.[c.stableUid];
 
@@ -183,7 +200,7 @@ export default function CommentSection({ comments, stableUid, isAdmin, loading, 
                       {timeAgo(c.createdAt, t)}
                       {c.updatedAt !== c.createdAt && <> · {t('edited')}</>}
                     </span>
-                    {(isMine || canDelete) && !isEditing && (
+                    {(isMine || canDelete || canReport) && !isEditing && (
                       <span className="ml-auto flex items-center opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
                         {isMine && (
                           <button
@@ -193,6 +210,19 @@ export default function CommentSection({ comments, stableUid, isAdmin, loading, 
                             className="grid size-8 place-items-center rounded-full text-ink-3 transition-colors hover:bg-inset hover:text-ink"
                           >
                             <PencilSimple size={15} weight="bold" />
+                          </button>
+                        )}
+                        {canReport && (
+                          <button
+                            type="button"
+                            onClick={() => void report(c)}
+                            onPointerEnter={() => void reportAddress().catch(() => {})}
+                            onFocus={() => void reportAddress().catch(() => {})}
+                            aria-label={t('reportComment')}
+                            title={t('reportComment')}
+                            className="grid size-8 place-items-center rounded-full text-ink-3 transition-colors hover:bg-inset hover:text-ink"
+                          >
+                            <Flag size={15} weight="bold" aria-hidden="true" />
                           </button>
                         )}
                         {canDelete && (

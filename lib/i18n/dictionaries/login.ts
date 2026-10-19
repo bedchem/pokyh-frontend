@@ -50,7 +50,10 @@ export type LoginKey =
   | 'mascotHelloName'
   | 'mascotGo'
   | 'mascotOops'
-  | 'mascotAngry';
+  | 'mascotAngry'
+  | 'mascotBack'
+  | 'doorLabel'
+  | 'roomLoading';
 
 export const loginDict: Dictionary<LoginKey> = {
   de: {
@@ -95,6 +98,9 @@ export const loginDict: Dictionary<LoginKey> = {
     mascotGo: "Los geht's!",
     mascotOops: 'Hoppla!',
     mascotAngry: 'Hey! So nicht!',
+    mascotBack: 'Da bist du ja wieder!',
+    doorLabel: 'Tür zu Raum 2B',
+    roomLoading: 'Die Tür geht auf …',
     errBadCredentials: 'Benutzername oder Passwort ist falsch.',
     errRefused: 'WebUntis hat die Anmeldung abgelehnt. Melde dich einmal direkt bei WebUntis an, um den Grund zu sehen.',
     errUnavailable: 'WebUntis ist gerade nicht erreichbar. Versuch es später noch einmal.',
@@ -146,6 +152,9 @@ export const loginDict: Dictionary<LoginKey> = {
     mascotGo: 'Si parte!',
     mascotOops: 'Ops!',
     mascotAngry: 'Ehi! Così no!',
+    mascotBack: 'Eccoti di nuovo!',
+    doorLabel: 'Porta dell’aula 2B',
+    roomLoading: 'La porta si apre …',
     errBadCredentials: 'Nome utente o password errati.',
     errRefused: 'WebUntis ha rifiutato l’accesso. Accedi una volta direttamente a WebUntis per vedere il motivo.',
     errUnavailable: 'WebUntis non è raggiungibile al momento. Riprova più tardi.',
@@ -197,6 +206,9 @@ export const loginDict: Dictionary<LoginKey> = {
     mascotGo: "Let's go!",
     mascotOops: 'Oops!',
     mascotAngry: 'Hey! Not cool!',
+    mascotBack: 'There you are again!',
+    doorLabel: 'Door to room 2B',
+    roomLoading: 'The door opens …',
     errBadCredentials: 'Wrong username or password.',
     errRefused: 'WebUntis refused the sign-in. Sign in to WebUntis directly once to see why.',
     errUnavailable: 'WebUntis is not reachable right now. Try again later.',

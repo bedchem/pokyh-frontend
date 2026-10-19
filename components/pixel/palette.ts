@@ -82,6 +82,25 @@ export const MATERIALS: Record<string, Material> = {
   lc: { base: 'light-dark(#97c592, #2f5232)', hex: '#97c592', shade: '#0b3b4a', out: '#05202a' },
   ld: { base: 'light-dark(#eba092, #6e3530)', hex: '#eba092', shade: '#5a1236', out: '#2e0718' },
   tc: { base: '#c96f4a', hex: '#c96f4a', shade: '#5a1236', out: '#2e0718' },
+  // Room 2B behind the hallway's door (components/pixel/classroom.ts): a
+  // warm wall, a sage band below the rail, a parquet floor, the chalkboard.
+  // Dimmer in the evening (dark theme), the lamps on.
+  cw: {
+    base: 'light-dark(#f4ead8, #2a2531)', hex: '#f4ead8',
+    fixed: { 0: 'light-dark(#cdbb9c, #121016)', 1: 'light-dark(#e9dcc4, #221e28)', 3: 'light-dark(#faf3e7, #322c3a)', 4: 'light-dark(#ffffff, #3b3444)' },
+  },
+  cl: {
+    base: 'light-dark(#cfe0cb, #26332b)', hex: '#cfe0cb',
+    fixed: { 0: 'light-dark(#93b08e, #0f1611)', 1: 'light-dark(#bcd2b7, #1e2923)', 3: 'light-dark(#ddeada, #2f3e35)', 4: 'light-dark(#edf5eb, #38483e)' },
+  },
+  pq: {
+    base: 'light-dark(#d9ab78, #4a3426)', hex: '#d9ab78',
+    fixed: { 0: 'light-dark(#a8744a, #20150f)', 1: 'light-dark(#c8955f, #3b281d)', 3: 'light-dark(#e4bb8c, #563d2c)', 4: 'light-dark(#efd0a8, #644633)' },
+  },
+  cb: {
+    base: 'light-dark(#35604d, #27483a)', hex: '#35604d',
+    fixed: { 0: 'light-dark(#173126, #0c1913)', 1: 'light-dark(#2c5141, #203c30)', 3: 'light-dark(#43705b, #315646)', 4: 'light-dark(#5a8571, #3f6754)' },
+  },
   // The sky in the windows: by day and by night.
   sk: { base: '#8fcdf3', hex: '#8fcdf3', shade: '#1d2f73', out: '#0f1a45' },
   nt: { base: '#1d2652', hex: '#1d2652', shade: '#05081f', out: '#03040f', light: '#6d7fd0' },
@@ -99,6 +118,11 @@ export const EXTRA: Record<string, { css: string; hex: string }> = {
   fn: { css: 'color-mix(in srgb, var(--ink) 16%, transparent)', hex: '#dcd8d1' },
   // Glass: what lies behind it shows through.
   gl: { css: 'light-dark(rgb(140 190 250 / 0.38), rgb(140 190 250 / 0.22))', hex: '#d6e3f2' },
+  // Warm light falling out of an open door, off a lamp or a screen.
+  lit: { css: 'light-dark(rgb(255 226 150 / 0.42), rgb(255 205 120 / 0.3))', hex: '#f7e7b9' },
+  // The room with the light switched off, and the glow of what still shines.
+  dim: { css: 'light-dark(rgb(22 18 52 / 0.62), rgb(6 5 16 / 0.66))', hex: '#3a355a' },
+  glow: { css: 'rgb(255 214 140 / 0.22)', hex: '#e9dcc0' },
 };
 
 function recipe(m: Material, step: number): [string, number] | null {

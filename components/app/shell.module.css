@@ -343,6 +343,28 @@
   box-shadow: 0 18px 44px -16px rgb(0 0 0 / 0.35);
   transform-origin: bottom left;
 }
+/* The same menu on phones, dropping down from the picture in the top bar. */
+.meTop {
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  transition: scale 0.2s var(--ease-out);
+}
+.meTop:active { scale: 0.95; }
+.meTop[aria-current='page'] { box-shadow: 0 0 0 2px var(--canvas), 0 0 0 4px var(--accent-ink); }
+.accountMenuTop {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 60;
+  width: min(272px, calc(100vw - 32px));
+  padding: 6px;
+  border-radius: 18px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 18px 44px -16px rgb(0 0 0 / 0.35), 0 0 0 1px var(--line);
+  transform-origin: top right;
+}
 .menuRule {
   height: 1px;
   margin: 4px 6px;

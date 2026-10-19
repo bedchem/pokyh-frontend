@@ -7,6 +7,6 @@
 // and in the apps. A short tag after the date tells two versions of one day
 // apart ("2026-10-15b").
 
-export const PRIVACY_NOTICE_VERSION = '2026-10-18b';
+export const PRIVACY_NOTICE_VERSION = '2026-10-19';
 // The day shown with the notice ("Stand"), YYYY-MM-DD.
-export const PRIVACY_NOTICE_DAY = '2026-10-18';
+export const PRIVACY_NOTICE_DAY = '2026-10-19';

@@ -12,7 +12,7 @@ export const MH = 37;
 /** The row the feet stand on. */
 export const FEET = 33;
 
-export type Eyes = 'open' | 'blink' | 'happy' | 'wide' | 'closed' | 'angry';
+export type Eyes = 'open' | 'blink' | 'happy' | 'wide' | 'closed' | 'angry' | 'stars' | 'hearts';
 export type Mouth = 'smile' | 'grin' | 'o' | 'wobble' | 'flat' | 'frown';
 export type Arms = 'down' | 'wave' | 'wave2' | 'wave3' | 'cover' | 'peek' | 'thumb' | 'lens' | 'cheer' | 'fists';
 
@@ -115,6 +115,16 @@ function eye(s: Sprite, [cx, cy]: Pt, kind: Eyes, [lx, ly]: [number, number], ri
       s.set(bx, by, 'pu0');
       s.set(bx, by - 1, 'pu0');
     }
+    return;
+  }
+  if (kind === 'stars' || kind === 'hearts') {
+    // Room 2B's special looks (components/room): a gold star or a red heart for each eye.
+    const rows = kind === 'stars'
+      ? ['...#...', '..###..', '#######', '.#####.', '..###..', '.##.##.', '##...##']
+      : ['.##.##.', '#######', '#######', '.#####.', '..###..', '...#...'];
+    const pts = rows.flatMap((r, j) => [...r].flatMap((c, i) => (c === '#' ? [[x - 3 + i, y - 3 + j] as Pt] : [])));
+    s.mass(pts, kind === 'stars' ? 'gd' : 'rd');
+    s.set(x - 1, y - 1, kind === 'stars' ? 'gd4' : 'rd4');
     return;
   }
   if (kind === 'happy') {

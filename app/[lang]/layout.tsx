@@ -196,7 +196,9 @@ export default async function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData(lang)).replace(/</g, '\\u003c') }}
         />
-        {GA_ID && <link rel="preconnect" href="https://www.googletagmanager.com" />}
+        {/* No preconnect to Google here: even opening the connection would
+            hand the visitor's address to Google before any consent.
+            AnalyticsLoader loads Analytics only once it is accepted. */}
       </head>
       <body suppressHydrationWarning={true}>
         <LocaleProvider locale={lang}>

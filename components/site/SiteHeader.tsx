@@ -32,8 +32,9 @@ function toneAt(x: number, y: number, skip: Element | null): Tone {
 }
 
 // The bar has no background of its own. On wide screens the places sit in
-// the middle of the room the logo and the buttons leave (never under them). Its text takes the opposite colour of
-// the section beneath it (dark on paper and pastels, light on the night
+// the middle of the bar; where the buttons need the room (narrower desktops)
+// they move left just as far as needed, never under them. Its text takes the
+// opposite colour of the section beneath it (dark on paper and pastels, light on the night
 // sections and in the dark theme), and it gets out of the way while you read:
 // scrolling down slides it up, scrolling up or reaching the top brings it back.
 export default function SiteHeader() {
@@ -101,7 +102,7 @@ export default function SiteHeader() {
         {/* Away from the top, what scrolls beneath the bar is blurred, so the
             bar stays readable over text and photos in any section colour. */}
         <span aria-hidden="true" className="header-blur" data-on={scrolled && !away ? '' : undefined} />
-        <div className="mx-auto grid h-[72px] max-w-[1600px] grid-cols-[1fr_auto] items-center gap-x-6 px-5 md:h-[84px] md:px-10 lg:grid-cols-[auto_1fr_auto] lg:px-[6.5vw]">
+        <div className="mx-auto grid h-[72px] max-w-[1600px] grid-cols-[1fr_auto] items-center gap-x-6 px-5 md:h-[84px] md:px-10 lg:gap-x-8 lg:grid-cols-[minmax(max-content,1fr)_auto_minmax(max-content,1fr)] lg:px-[6.5vw]">
           <Link href={localize('/')} data-bar-item className="justify-self-start rounded-lg" aria-label={`POKYH, ${t('home')}`}>
             <Image src="/POKYH_Logo.png" alt="" width={44} height={44} loading="eager" fetchPriority="high" className="size-10 md:size-11" />
           </Link>

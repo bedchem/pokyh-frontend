@@ -88,10 +88,13 @@ function useVisibleDestinations() {
 function TopBar({ onSearch }: { onSearch: () => void }) {
   const t = useT(shellDict);
   const localize = useLocalizeHref();
+  const path = useRoutePath();
   const { user } = useSession();
   const perms = useUntisPermissions();
   const unread = useUnreadMessages();
   const untis = user?.isUntisUser !== false;
+  const name = perms?.personName || user?.username || '';
+  const detail = user?.klasseName || (user?.isParent ? t('guardian') : t('student'));
 
   return (
     <header className={s.top}>
@@ -116,9 +119,14 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
           )}
         </Link>
       )}
-      <Link href={localize('/profile')} aria-label={t('openProfile')} className="shrink-0 rounded-full lg:hidden">
-        <Avatar name={perms?.personName || user?.username || '?'} size={46} picture={untis} />
-      </Link>
+      {/* Phones: the picture opens the same menu as the folded sidebar's. */}
+      <AccountMenu
+        variant="top"
+        name={name}
+        detail={detail}
+        picture={untis}
+        active={isActive(path, '/profile') || isActive(path, '/settings')}
+      />
       </div>
     </header>
   );
@@ -373,23 +381,27 @@ function useLogout(confirm?: RefObject<HTMLButtonElement | null>, trigger?: RefO
 }
 
 /**
- * The folded sidebar's account: the picture, and on a click a small menu
- * beside it with the profile, the settings, the language, light or dark and
- * the public start page. Closes on a choice, a click elsewhere or Escape.
+ * The account as a picture that opens a small menu with the profile, the
+ * settings, light or dark, the public start page, signing out and the
+ * language: beside the picture in the folded sidebar (`side`), dropping
+ * down from it in the phone's top bar (`top`). Closes on a choice, a click
+ * elsewhere or Escape.
  */
 function AccountMenu({
+  variant = 'side',
   name,
   detail,
   picture,
   active,
   onOpen,
 }: {
+  variant?: 'side' | 'top';
   name: string;
   detail: string;
   picture: boolean;
   /** The profile or the settings is the page shown. */
   active: boolean;
-  onOpen: () => void;
+  onOpen?: () => void;
 }) {
   const t = useT(shellDict);
   const localize = useLocalizeHref();
@@ -436,27 +448,28 @@ function AccountMenu({
     items[(at + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus();
   };
 
+  const top = variant === 'top';
   const row = 'flex h-11 w-full items-center gap-3 rounded-[12px] px-3 text-left text-[14.5px] font-semibold text-ink outline-none transition-colors hover:bg-inset focus-visible:bg-inset';
 
   return (
-    <div ref={root} className="relative">
+    <div ref={root} className={top ? 'relative shrink-0 lg:hidden' : 'relative'}>
       <button
         ref={button}
         type="button"
-        onClick={() => { onOpen(); setOpen((o) => !o); }}
+        onClick={() => { onOpen?.(); setOpen((o) => !o); }}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={name ? `${name}, ${t('accountMenu')}` : t('accountMenu')}
-        data-tip={open ? undefined : name || t('openProfile')}
-        className={`${s.item} ${s.meFolded}`}
+        data-tip={top || open ? undefined : name || t('openProfile')}
+        className={top ? s.meTop : `${s.item} ${s.meFolded}`}
         aria-current={active ? 'page' : undefined}
       >
-        {active && <motion.span layoutId="side-active" className={s.itemBg} transition={GLIDE} aria-hidden="true" />}
-        <Avatar name={name || '?'} size={36} picture={picture} />
+        {active && !top && <motion.span layoutId="side-active" className={s.itemBg} transition={GLIDE} aria-hidden="true" />}
+        <Avatar name={name || '?'} size={top ? 46 : 36} picture={picture} />
       </button>
 
       {open && (
-        <div ref={menu} role="menu" aria-label={t('accountMenu')} onKeyDown={onMenuKey} className={`${s.accountMenu} lang-menu`}>
+        <div ref={menu} role="menu" aria-label={t('accountMenu')} onKeyDown={onMenuKey} className={`${top ? s.accountMenuTop : s.accountMenu} lang-menu`}>
           <div className="flex items-center gap-3 px-3 pb-2.5 pt-2">
             <Avatar name={name || '?'} size={40} picture={picture} />
             <span className="min-w-0 leading-tight">

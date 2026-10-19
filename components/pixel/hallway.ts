@@ -36,6 +36,23 @@ export interface Hallway {
   lockerOpen: Sprite;
   lockerShut: Sprite;
   clock: Pt;
+  /** The door of room 2B: it opens into the room (components/room). */
+  door: Doorway;
+}
+
+export interface Doorway {
+  /** The door with its frame: [x, y, w, h] (what is clicked). */
+  box: [number, number, number, number];
+  /** The middle of the doorway, where the view goes in. */
+  centre: Pt;
+  shut: Sprite;
+  /** Shut, the handle pressed and a line of light at its edge. */
+  hover: Sprite;
+  /** Opening: two steps, then open. */
+  ajar: [Sprite, Sprite];
+  open: Sprite;
+  /** Light falling from the open door onto the hallway's floor. */
+  spill: Sprite;
 }
 
 /** A small deterministic noise, so textures look the same every time. */
@@ -136,20 +153,126 @@ function board(s: Sprite, x: number, y: number) {
 
 // ── Door, sign, clock ───────────────────────────────────────────────
 
-function door(s: Sprite, x: number, floor: number) {
+/** The door's frame, and room 2B behind it (seen when the door is open). */
+function doorFrame(s: Sprite, x: number, floor: number) {
   const h = 60;
   const top = floor - h;
   s.mass(rect(x - 2, top - 2, 29, h + 2), 'st', { deep: true });
-  s.mass(rect(x, top, 25, h), 'dr', { deep: true });
-  // Frosted glass above, a raised panel below.
-  s.fill(rect(x + 5, top + 6, 15, 17), 'pp1');
-  s.fill([...rect(x + 5, top + 6, 15, 1), ...rect(x + 5, top + 6, 1, 17)], 'dr0');
-  for (let i = 0; i < 6; i++) s.fill([[x + 8 + i, top + 19 - i], [x + 9 + i, top + 19 - i]], 'pp3');
-  s.fill([...rect(x + 5, top + 29, 15, 1), ...rect(x + 5, top + 29, 1, 22)], 'dr1');
-  s.fill([...rect(x + 5, top + 51, 15, 1), ...rect(x + 20, top + 29, 1, 23)], 'dr3');
-  s.mass(rect(x + 20, top + 32, 3, 2), 'gd');
-  s.set(x + 21, top + 35, 'ik2');
-  s.mass(rect(x + 1, floor - 6, 23, 5), 'st');
+  // The room beyond: its warm wall, a lamp, a bit of the chalkboard, the
+  // rail, the sage band and the parquet (components/pixel/classroom.ts).
+  s.fill(rect(x, top, 25, h), 'cw2');
+  s.fill(dither(rect(x, top, 25, 2)), 'cw1');
+  s.fill(rect(x + 12, top, 1, 3), 'st1');
+  s.mass(rect(x + 9, top + 3, 7, 2), 'wf', { outline: false });
+  s.fill(rect(x + 10, top + 5, 5, 1), 'gd4');
+  s.fill(rect(x + 6, top + 13, 19, 18), 'wd1');
+  s.fill(rect(x + 7, top + 14, 18, 16), 'cb2');
+  s.fill([[x + 9, top + 17], [x + 10, top + 17], [x + 11, top + 17], [x + 13, top + 17], [x + 14, top + 17], [x + 9, top + 20], [x + 10, top + 20], [x + 12, top + 20], [x + 13, top + 20], [x + 14, top + 20], [x + 15, top + 20], [x + 16, top + 20]], 'pp3');
+  s.fill(rect(x + 6, top + 31, 19, 1), 'wd2');
+  s.fill(rect(x, floor - 31, 25, 1), 'wd3').fill(rect(x, floor - 30, 25, 1), 'wd1');
+  s.fill(rect(x, floor - 29, 25, 17), 'cl2');
+  for (let y = floor - 12; y < floor; y++) {
+    for (let i = 0; i < 25; i++) {
+      const joint = (y - floor) % 4 === 0 || (i + Math.floor((y - floor + 12) / 4) * 5) % 9 === 0;
+      s.set(x + i, y, joint ? 'pq1' : 'pq2');
+    }
+  }
+  // A desk in there, and its chair.
+  s.mass(rect(x + 1, floor - 17, 13, 2), 'wd', { outline: false });
+  s.fill([...rect(x + 2, floor - 15, 1, 8), ...rect(x + 12, floor - 15, 1, 8)], 'st1');
+  s.mass(soft(x + 15, floor - 19, 7, 5, 1.2), 'lb', { outline: false });
+  s.fill([...rect(x + 16, floor - 14, 1, 7), ...rect(x + 20, floor - 14, 1, 7)], 'st1');
+}
+
+/**
+ * The door itself, hinged on the left. Shut it is drawn in full; opening it
+ * turns away into the room, so it gets narrower and its far edge shorter.
+ */
+function doorLeaf(x: number, floor: number, width: number, pressed = false): Sprite {
+  const s = new Sprite();
+  const h = 60;
+  const top = floor - h;
+  if (width >= 25) {
+    s.mass(rect(x, top, 25, h), 'dr', { deep: true });
+    // Frosted glass above, a raised panel below.
+    s.fill(rect(x + 5, top + 6, 15, 17), 'pp1');
+    s.fill([...rect(x + 5, top + 6, 15, 1), ...rect(x + 5, top + 6, 1, 17)], 'dr0');
+    for (let i = 0; i < 6; i++) s.fill([[x + 8 + i, top + 19 - i], [x + 9 + i, top + 19 - i]], 'pp3');
+    s.fill([...rect(x + 5, top + 29, 15, 1), ...rect(x + 5, top + 29, 1, 22)], 'dr1');
+    s.fill([...rect(x + 5, top + 51, 15, 1), ...rect(x + 20, top + 29, 1, 23)], 'dr3');
+    if (pressed) s.mass([[x + 20, top + 32], [x + 21, top + 33], [x + 22, top + 34]], 'gd');
+    else s.mass(rect(x + 20, top + 32, 3, 2), 'gd');
+    s.set(x + 21, top + 36, 'ik2');
+    s.mass(rect(x + 1, floor - 6, 23, 5), 'st');
+    return pressed ? ajarCrack(s, x, top, floor) : s;
+  }
+  const inset = Math.round((25 - width) / 7);
+  const pts: Pt[] = [];
+  const glass: Pt[] = [];
+  for (let i = 0; i < width; i++) {
+    const d = Math.round((inset * i) / Math.max(1, width - 1));
+    for (let y = top + d; y < floor - d; y++) pts.push([x + i, y]);
+    if (width > 6 && i >= Math.round(width * 0.2) && i < Math.round(width * 0.8)) for (let y = top + 6 + d; y < top + 23 - d; y++) glass.push([x + i, y]);
+  }
+  s.mass(pts, 'dr', { deep: true });
+  s.fill(glass, 'pp1');
+  if (width > 9) s.mass(rect(x + Math.round(width * 0.8), top + 32, 2, 2), 'gd');
+  return s;
+}
+
+/**
+ * The shut door turned a crack into the room: its face three columns
+ * narrower, the far edge a pixel shorter at the top and the bottom (it is
+ * further away now), the edge of the door itself showing, and the lit room
+ * through the slit, its light on the hallway's floor.
+ */
+function ajarCrack(shut: Sprite, x: number, top: number, floor: number): Sprite {
+  const s = new Sprite();
+  // Three columns of the face drop out (between the details), the rest closes up.
+  const drop = [x + 3, x + 12, x + 24];
+  for (const [k, tone] of shut.cells) {
+    const [px, py] = k.split(',').map(Number);
+    if (drop.includes(px) || px > x + 24) continue;
+    s.set(px - drop.filter((d) => d < px).length, py, tone);
+  }
+  const edge = x + 22;
+  // Further away, the far end is shorter: a pixel off its top and its bottom.
+  for (let px = x + 17; px <= edge; px++) {
+    s.set(px, top - 1, null).set(px, top, 'dr0');
+    s.set(px, floor, null).set(px, floor - 1, 'dr0');
+  }
+  // The edge of the door itself, then the slit with the lit room behind it.
+  s.fill(rect(edge, top + 1, 1, floor - top - 2), 'dr1');
+  s.fill(rect(edge + 1, top + 1, 1, floor - top - 2), 'gd4');
+  s.fill(rect(edge + 2, top + 1, 1, floor - top - 2), 'gd3');
+  // Its light on the hallway's floor, widening towards us.
+  s.fill(rect(edge, floor, 4, 1), 'lit');
+  s.fill(dither(rect(edge - 1, floor + 1, 6, 1)), 'lit');
+  s.fill(dither(rect(edge - 2, floor + 2, 8, 1), 1), 'lit');
+  return s;
+}
+
+function lightSpill(x: number, floor: number, h: number): Sprite {
+  const s = new Sprite();
+  for (let y = floor; y < Math.min(h, floor + 14); y++) {
+    const grow = Math.floor((y - floor) / 1.6);
+    s.fill(dither(rect(x - grow, y, 25 + grow * 2, 1)), 'lit');
+  }
+  return s;
+}
+
+/** The door of room 2B with its frame drawn into `back`, its floor at row `floor`. */
+export function doorway(back: Sprite, x: number, floor: number, h: number): Doorway {
+  doorFrame(back, x, floor);
+  return {
+    box: [x - 2, floor - 62, 29, 62],
+    centre: [x + 12.5, floor - 30],
+    shut: doorLeaf(x, floor, 25),
+    hover: doorLeaf(x, floor, 25, true),
+    ajar: [doorLeaf(x, floor, 17), doorLeaf(x, floor, 9)],
+    open: doorLeaf(x, floor, 3),
+    spill: lightSpill(x, floor, h),
+  };
 }
 
 function sign(s: Sprite, x: number, y: number, text: string) {
@@ -158,7 +281,7 @@ function sign(s: Sprite, x: number, y: number, text: string) {
   s.fill(t.points, 'ac2');
 }
 
-function clockFace(s: Sprite, cx: number, cy: number) {
+export function clockFace(s: Sprite, cx: number, cy: number) {
   s.mass(minus(disc(cx, cy, 7), disc(cx, cy, 5.6)), 'ik', { round: [cx, cy] });
   s.fill(disc(cx, cy, 5.6), 'pp3');
   s.fill(minus(disc(cx, cy, 5.6), disc(cx - 0.6, cy - 0.6, 5.2)), 'pp1');
@@ -194,7 +317,8 @@ function panesOf(x: number, y: number): Array<[number, number, number, number]> 
 
 export function buildHallway(w: number, h: number): Hallway {
   const floor = h - FLOOR;
-  const cx = Math.round(w * 0.4);
+  // The door (from cx + 50 to cx + 80) always stays in view.
+  const cx = Math.max(24, Math.min(Math.round(w * 0.4), w - 84));
   const back = new Sprite();
 
   // The wall, the band below the rail, the skirting.
@@ -242,7 +366,7 @@ export function buildHallway(w: number, h: number): Hallway {
 
   board(back, cx + 8, floor - 66);
   const doorX = cx + 52;
-  door(back, doorX, floor);
+  const doorParts = doorway(back, doorX, floor, h);
   sign(back, doorX + 6, floor - 73, '2B');
   const clock: Pt = [cx + 26.5, floor - 76];
   clockFace(back, clock[0], clock[1]);
@@ -286,6 +410,7 @@ export function buildHallway(w: number, h: number): Hallway {
     w, h, floor, cx,
     mascot: [cx - Math.floor(MW / 2), floor + 12 - FEET],
     back, day, night, clouds, stars, panes, lockerOpen, lockerShut, clock,
+    door: doorParts,
   };
 }
 
@@ -411,6 +536,7 @@ export async function hallwayPreview(w: number, h: number, dark = false) {
       { name: dark ? 'night' : 'day', sprite: dark ? hw.night : hw.day },
       ...(dark ? [{ name: 'stars', sprite: hw.stars }] : []),
       { name: 'locker', sprite: hw.lockerOpen },
+      { name: 'door', sprite: hw.door.shut },
       { name: 'hands', sprite: clockHands(hw.clock[0], hw.clock[1], 10, 8) },
       { name: 'shadow', sprite: MASCOT_SHADOW, dx: mx, dy: my },
       { name: 'mascot', sprite: mascot({ eyes: 'happy', look: [0, 0], mouth: 'grin', arms: 'wave' }), dx: mx, dy: my },

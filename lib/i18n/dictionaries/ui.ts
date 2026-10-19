@@ -27,6 +27,9 @@ export type UiKey =
   | 'noComments'
   | 'editComment'
   | 'deleteComment'
+  | 'reportComment'
+  | 'reportSubject'
+  | 'reportBody'
   | 'send'
   | 'ratedStars'
   | 'noCommentsHint'
@@ -78,6 +81,9 @@ export const uiDict: Dictionary<UiKey> = {
     noComments: 'Noch keine Kommentare',
     editComment: 'Bearbeiten',
     deleteComment: 'Löschen',
+    reportComment: 'Kommentar melden',
+    reportSubject: 'Meldung eines Inhalts auf POKYH',
+    reportBody: 'Hallo POKYH-Team,\n\nich melde diesen Inhalt (Art. 16 Digital Services Act):\n\nWo: {url}\nKommentar von „{author}“ vom {date} (ID {id}):\n„{text}“\n\nWarum der Inhalt rechtswidrig ist oder gegen die Nutzungsbedingungen verstößt:\n\n\nMein Name und meine E-Mail-Adresse:\n\n\nIch bestätige, dass meine Angaben nach bestem Wissen richtig und vollständig sind.',
     send: 'Senden',
     ratedStars: 'Bewertet mit {n} von 5 Sternen',
     noCommentsHint: 'Schreib den ersten.',
@@ -125,6 +131,9 @@ export const uiDict: Dictionary<UiKey> = {
     noComments: 'Ancora nessun commento',
     editComment: 'Modifica',
     deleteComment: 'Elimina',
+    reportComment: 'Segnala commento',
+    reportSubject: 'Segnalazione di un contenuto su POKYH',
+    reportBody: 'Ciao team di POKYH,\n\nsegnalo questo contenuto (art. 16 Digital Services Act):\n\nDove: {url}\nCommento di «{author}» del {date} (ID {id}):\n«{text}»\n\nPerché il contenuto è illegale o viola le condizioni d’uso:\n\n\nIl mio nome e il mio indirizzo e-mail:\n\n\nConfermo che le mie indicazioni sono esatte e complete secondo scienza e coscienza.',
     send: 'Invia',
     ratedStars: 'Valutato con {n} stelle su 5',
     noCommentsHint: 'Scrivi il primo.',
@@ -172,6 +181,9 @@ export const uiDict: Dictionary<UiKey> = {
     noComments: 'No comments yet',
     editComment: 'Edit',
     deleteComment: 'Delete',
+    reportComment: 'Report comment',
+    reportSubject: 'Report of content on POKYH',
+    reportBody: 'Hello POKYH team,\n\nI am reporting this content (Art. 16 Digital Services Act):\n\nWhere: {url}\nComment by “{author}” on {date} (ID {id}):\n“{text}”\n\nWhy the content is illegal or breaks the terms of use:\n\n\nMy name and e-mail address:\n\n\nI confirm that my information is accurate and complete to the best of my knowledge.',
     send: 'Send',
     ratedStars: 'Rated {n} out of 5 stars',
     noCommentsHint: 'Write the first one.',

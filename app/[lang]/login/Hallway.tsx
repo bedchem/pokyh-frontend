@@ -2,8 +2,11 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Paths, SpritePalette } from '@/components/pixel/SceneSvg';
-import { CLOUD_LOOP, anger, bubble, buildHallway, clockHands, mark, steam, sweat, thinking, topOf } from '@/components/pixel/hallway';
-import { MASCOT_SHADOW, MH, MW, mascot, type Pose } from '@/components/pixel/mascot';
+import { CLOUD_LOOP, bubble, buildHallway, clockHands, doorway, topOf, type Doorway } from '@/components/pixel/hallway';
+import { FEET, MH, MW } from '@/components/pixel/mascot';
+import { Sprite } from '@/components/pixel/sprite';
+import MascotFigure, { usePointerLook, type Look as FigureLook } from '@/components/pixel/MascotFigure';
+import { useRoomSave } from '@/components/room/store';
 import { isOffensive } from '@/lib/mascot-filter';
 import { loginDict } from '@/lib/i18n/dictionaries/login';
 import { useT } from '@/providers/LocaleProvider';
@@ -41,17 +44,9 @@ export interface MascotState {
 
 type Phase = 'surprise' | 'thumb' | 'error' | 'picked' | 'success' | null;
 
-interface Look {
-  pose: Pose;
-  blink?: boolean;
-  wave?: boolean;
-  mark?: '!' | '?';
-  sweat?: boolean;
-  think?: boolean;
-  anger?: boolean;
+interface Look extends FigureLook {
   /** What it says; `name` is fitted to the room there is. */
-  say?: { key: 'mascotHello' | 'mascotGo' | 'mascotOops' | 'mascotAngry' } | { key: 'mascotHelloName'; name: string };
-  motion: 'bob' | 'hop' | 'jump' | 'shake' | 'fume';
+  say?: { key: 'mascotHello' | 'mascotGo' | 'mascotOops' | 'mascotAngry' | 'mascotBack' } | { key: 'mascotHelloName'; name: string };
   locker: 'open' | 'shut';
 }
 
@@ -115,71 +110,8 @@ function useSay() {
   };
 }
 
-// Angry: steam off the left of the head, the sign above it (the speech
-// bubble has the right).
-const STEAM = steam(1, -6);
-const ANGER = anger(22, -9);
-
-/** The mascot at (0, 0): its shadow, the body with its frames, and what's above its head. */
-function Mascot({ look, motionKey, marks = 'above' }: { look: Look; motionKey: string; marks?: 'above' | 'beside' }) {
-  const base = mascot(look.pose);
-  // Waving: the hand goes out, up, in towards the head and up again.
-  const wave = look.wave ? mascot({ ...look.pose, arms: 'wave2' }) : null;
-  const wave3 = look.wave ? mascot({ ...look.pose, arms: 'wave3' }) : null;
-  const blink = !wave && look.blink && look.pose.eyes === 'open' ? mascot({ ...look.pose, eyes: 'blink' }) : null;
-  const [mx, my] = marks === 'above' ? [16, -10] : [MW, 2];
-  return (
-    <>
-      <Paths sprite={MASCOT_SHADOW} />
-      <g key={motionKey} className={`ms-${look.motion}`}>
-        <g className={look.motion === 'bob' ? 'ms-breathe' : undefined}>
-          <g className={wave ? 'ms-frame-a' : blink ? 'ms-open' : undefined}><Paths sprite={base} /></g>
-          {wave && <g className="ms-frame-b"><Paths sprite={wave} /></g>}
-          {wave3 && <g className="ms-frame-c"><Paths sprite={wave3} /></g>}
-          {blink && <g className="ms-blink"><Paths sprite={blink} /></g>}
-          {look.sweat && <g className="ms-drip"><Paths sprite={sweat(31, 3)} /></g>}
-        </g>
-        {look.mark && <g className="ms-pop"><Paths sprite={mark(look.mark, mx, my)} /></g>}
-        {look.think && <g className="ms-pop"><Paths sprite={thinking(marks === 'above' ? 24 : MW - 2, marks === 'above' ? -9 : 1)} /></g>}
-        {look.anger && (
-          <g className="ms-pop">
-            <g className="ms-steam"><Paths sprite={STEAM} /></g>
-            <g className="ms-throb"><Paths sprite={ANGER} /></g>
-          </g>
-        )}
-      </g>
-    </>
-  );
-}
-
 function motionKey(look: Look, s: MascotState) {
   return look.motion === 'hop' ? `h${s.keys}` : look.motion === 'bob' ? 'bob' : `${look.motion}${s.event?.n ?? 0}`;
-}
-
-/** Where the pointer is, seen from the mascot: -1, 0 or 1 on each axis. */
-function usePointerLook(target: React.RefObject<Element | null>, centre: () => { x: number; y: number } | null) {
-  const [look, setLook] = useState<[number, number]>([1, 0]);
-  const centreRef = useRef(centre);
-  useEffect(() => { centreRef.current = centre; });
-  useEffect(() => {
-    if (prefersReducedMotion() || !window.matchMedia('(pointer: fine)').matches) return;
-    let frame = 0;
-    const onMove = (e: PointerEvent) => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        const c = centreRef.current();
-        if (!c) return;
-        const dx = e.clientX - c.x;
-        const dy = e.clientY - c.y;
-        const lx = dx < -60 ? -1 : dx > 60 ? 1 : 0;
-        const ly = dy < -90 ? -1 : dy > 90 ? 1 : 0;
-        setLook((old) => (old[0] === lx && old[1] === ly ? old : [lx, ly]));
-      });
-    };
-    window.addEventListener('pointermove', onMove, { passive: true });
-    return () => { window.removeEventListener('pointermove', onMove); cancelAnimationFrame(frame); };
-  }, [target]);
-  return look;
 }
 
 /** The time for the clock on the wall, once a minute. */
@@ -194,24 +126,150 @@ function useMinute() {
   return now;
 }
 
-export function HallwayScene({ state }: { state: MascotState }) {
+/**
+ * The door of room 2B, step by step: shut, opening in two steps, open, the
+ * view going in (`zoom`); coming back out it shuts behind you.
+ */
+type DoorStep = 'shut' | 'ajar0' | 'ajar1' | 'open' | 'zoom' | 'back' | 'out' | 'close1' | 'close0';
+const DOOR_NEXT: Partial<Record<DoorStep, [DoorStep, number]>> = {
+  ajar0: ['ajar1', 110],
+  ajar1: ['open', 120],
+  open: ['zoom', 240],
+  back: ['out', 60],
+  out: ['close1', 620],
+  close1: ['close0', 150],
+  close0: ['shut', 130],
+};
+const ZOOM_MS = 780;
+
+/**
+ * The drawing's transform: moved and grown towards the doorway at (x, y)
+ * while `zoomed` (fast at the end, like a step through it), easing back out
+ * otherwise. Only when it moves: a transform would blur nothing, but a
+ * standing one costs a layer.
+ */
+function zoomInto(x: number, y: number, dx: number, dy: number, k: number, zoomed: boolean, door: DoorStep): React.CSSProperties | undefined {
+  const origin = `${x}px ${y}px`;
+  if (zoomed) return { transformOrigin: origin, transform: `translate(${dx}px, ${dy}px) scale(${k})`, transition: door === 'zoom' ? `transform ${ZOOM_MS}ms cubic-bezier(0.6, 0, 0.85, 0.35)` : 'none' };
+  if (door === 'out') return { transformOrigin: origin, transition: 'transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)' };
+  return undefined;
+}
+
+interface DoorProps {
+  /** The door was opened and the view has gone through it (room 2B, components/room). */
+  onDoor?: () => void;
+  /** The pointer or the focus is on the door: time to fetch the room. */
+  onDoorIntent?: () => void;
+  /** Counts the times someone came back out of the room: the door shuts behind them. */
+  returns?: number;
+}
+
+/** The door's state: its steps, the pointer on it, the wave on coming back. */
+function useDoor({ onDoor, onDoorIntent, returns = 0, onKnock }: DoorProps & { onKnock?: () => void }) {
+  const button = useRef<HTMLButtonElement>(null);
+  const [door, setDoor] = useState<DoorStep>('shut');
+  const [hover, setHover] = useState(false);
+  const [welcome, setWelcome] = useState(false);
+  const [seenReturns, setSeenReturns] = useState(returns);
+  if (seenReturns !== returns) {
+    setSeenReturns(returns);
+    // Back out: first still at the doorway, then the view pulls back and the door shuts.
+    setDoor('back');
+    setWelcome(true);
+  }
+
+  useEffect(() => {
+    const step = DOOR_NEXT[door];
+    if (step) {
+      const id = window.setTimeout(() => setDoor(step[0]), prefersReducedMotion() ? Math.min(step[1], 60) : step[1]);
+      return () => window.clearTimeout(id);
+    }
+    if (door === 'zoom') {
+      const id = window.setTimeout(() => onDoor?.(), prefersReducedMotion() ? 0 : ZOOM_MS);
+      return () => window.clearTimeout(id);
+    }
+  }, [door, onDoor]);
+
+  useEffect(() => {
+    if (!welcome) return;
+    const id = window.setTimeout(() => setWelcome(false), 2800);
+    return () => window.clearTimeout(id);
+  }, [welcome]);
+
+  // Back out of the room with the keyboard: the focus returns to the door.
+  useEffect(() => {
+    if (!returns) return;
+    const id = window.setTimeout(() => {
+      if (!document.activeElement || document.activeElement === document.body) button.current?.focus({ preventScroll: true });
+    }, 80);
+    return () => window.clearTimeout(id);
+  }, [returns]);
+
+  const knock = () => {
+    if (door !== 'shut') return;
+    onDoorIntent?.();
+    onKnock?.();
+    setHover(false);
+    setDoor(prefersReducedMotion() ? 'open' : 'ajar0');
+  };
+
+  const opening = door === 'ajar0' || door === 'ajar1' || door === 'open' || door === 'zoom';
+  return {
+    door,
+    opening,
+    welcome,
+    /** Zoomed into the doorway (going in, and the moment of coming back). */
+    zoomed: (door === 'zoom' || door === 'back') && !prefersReducedMotion(),
+    lit: door === 'ajar1' || door === 'open' || door === 'zoom' || door === 'back' || door === 'out' || door === 'close1',
+    leaf: (d: Doorway) =>
+      door === 'shut' ? (hover ? d.hover : d.shut)
+      : door === 'ajar0' || door === 'close0' ? d.ajar[0]
+      : door === 'ajar1' || door === 'close1' ? d.ajar[1]
+      : d.open,
+    button: {
+      ref: button,
+      type: 'button' as const,
+      onClick: knock,
+      onPointerEnter: () => { setHover(true); onDoorIntent?.(); },
+      onPointerLeave: () => setHover(false),
+      onFocus: () => { setHover(true); onDoorIntent?.(); },
+      onBlur: () => setHover(false),
+      disabled: opening,
+      className: 'login-door',
+    },
+  };
+}
+
+/** The mascot's look while the door moves: wide eyes as it opens, a wave on coming back. */
+function doorLook(d: ReturnType<typeof useDoor>, state: MascotState, phase: Phase): Look | null {
+  if (d.opening) return { pose: { eyes: 'wide', look: [1, 0], mouth: 'o', arms: 'down' }, mark: '!', motion: 'jump', locker: 'open' };
+  if (d.welcome && !phase && !state.query.trim() && state.focus !== 'password') return { pose: { eyes: 'happy', look: [0, 0], mouth: 'grin', arms: 'wave' }, wave: true, say: { key: 'mascotBack' }, motion: 'bob', locker: 'open' };
+  return null;
+}
+
+export function HallwayScene({ state, ...doorProps }: { state: MascotState } & DoorProps) {
+  const t = useT(loginDict);
   const root = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+  const [size, setSize] = useState<{ w: number; h: number; W: number; H: number } | null>(null);
   const clipId = useId();
   const phase = usePhase(state.event);
   const now = useMinute();
   const say = useSay();
+  const d = useDoor(doorProps);
+  // What it got in room 2B (components/room), it wears out here too.
+  const { wear } = useRoomSave();
 
-  // The scene in pixels of the drawing: about 112 rows high, as wide as the panel allows.
+  // The scene in pixels of the drawing: about 112 rows high, as wide as the
+  // panel allows, and never so large that the door is cut off.
   useEffect(() => {
     const el = root.current;
     if (!el) return;
     const ro = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect;
       if (!width || !height) return;
-      const px = Math.min(9, Math.max(4, height / 112));
-      const next = { w: Math.ceil(width / px), h: Math.ceil(height / px) };
-      setSize((old) => (old && old.w === next.w && old.h === next.h ? old : next));
+      const px = Math.min(9, Math.max(4, height / 112), width / 106);
+      const next = { w: Math.ceil(width / px), h: Math.ceil(height / px), W: width, H: height };
+      setSize((old) => (old && old.w === next.w && old.h === next.h && old.W === next.W && old.H === next.H ? old : next));
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -228,7 +286,7 @@ export function HallwayScene({ state }: { state: MascotState }) {
       y: r.top + (r.height - hall.h * scale) + (hall.mascot[1] + MH / 2) * scale,
     };
   });
-  const look = lookFor(state, phase, eyes);
+  const look: Look = doorLook(d, state, phase) ?? lookFor(state, phase, eyes);
 
   let speech = null;
   if (hall && look.say) {
@@ -238,8 +296,26 @@ export function HallwayScene({ state }: { state: MascotState }) {
     speech = bubble(say(look.say), mx + 30, my + 6, room);
   }
 
+  // Where the drawing lies in the panel (it fills it, anchored at the bottom).
+  let place: { scale: number; x: number; y: number } | null = null;
+  if (hall && size) {
+    const scale = Math.max(size.W / hall.w, size.H / hall.h);
+    place = { scale, x: (size.W - hall.w * scale) / 2, y: size.H - hall.h * scale };
+  }
+  const leaf = hall ? d.leaf(hall.door) : null;
+
+  // Going in: the view moves to the doorway and grows until the room fills it.
+  let zoom: React.CSSProperties | undefined;
+  if (hall && place && size) {
+    const [cx, cy] = hall.door.centre;
+    const X = place.x + cx * place.scale;
+    const Y = place.y + cy * place.scale;
+    const k = Math.max(size.W / (25 * place.scale), size.H / (60 * place.scale)) * 1.3;
+    zoom = zoomInto(X, Y, size.W / 2 - X, size.H / 2 - Y, k, d.zoomed, d.door);
+  }
+
   return (
-    <div ref={root} className="login-hall relative h-full overflow-hidden rounded-[36px]" aria-hidden="true">
+    <div ref={root} className="login-hall relative h-full overflow-hidden rounded-[36px]" style={{ viewTransitionName: 'login-stage' }}>
       <SpritePalette />
       {hall && (
         <svg
@@ -247,6 +323,8 @@ export function HallwayScene({ state }: { state: MascotState }) {
           preserveAspectRatio="xMidYMax slice"
           className="spr login-hall-in absolute inset-0 h-full w-full"
           shapeRendering="crispEdges"
+          aria-hidden="true"
+          style={zoom}
         >
           <defs>
             <clipPath id={clipId}>
@@ -264,34 +342,103 @@ export function HallwayScene({ state }: { state: MascotState }) {
             <Paths sprite={hall.night} />
             <g className="hw-stars"><Paths sprite={hall.stars} /></g>
           </g>
+          {d.lit && <Paths sprite={hall.door.spill} />}
+          {leaf && <Paths sprite={leaf} />}
           <g key={look.locker} className="hw-locker"><Paths sprite={look.locker === 'open' ? hall.lockerOpen : hall.lockerShut} /></g>
           {now && <Paths sprite={clockHands(hall.clock[0], hall.clock[1], now.h, now.m)} />}
           <g transform={`translate(${hall.mascot[0]} ${hall.mascot[1]})`}>
-            <Mascot look={look} motionKey={motionKey(look, state)} />
+            <MascotFigure look={look} motionKey={d.opening ? 'door' : motionKey(look, state)} wear={wear} />
           </g>
           {speech && <g key={look.say?.key} className="ms-pop"><Paths sprite={speech} /></g>}
+          {/* At the end of the way in, the room's warm wall fills the view. */}
+          <rect x={0} y={0} width={hall.w} height={hall.h} className="hw-into" data-on={d.zoomed ? '' : undefined} />
         </svg>
+      )}
+      {hall && place && (
+        <button
+          {...d.button}
+          aria-label={t('doorLabel')}
+          style={{
+            left: place.x + hall.door.box[0] * place.scale,
+            top: place.y + hall.door.box[1] * place.scale,
+            width: hall.door.box[2] * place.scale,
+            height: hall.door.box[3] * place.scale,
+          }}
+        />
       )}
     </div>
   );
 }
 
-/** The small mascot above the form on phones, with its speech bubble beside it. */
-export function MascotBadge({ state }: { state: MascotState }) {
+// On phones the door of room 2B stands beside the small mascot, its floor
+// level with the mascot's feet; the speech bubble keeps between them.
+const BADGE_W = 126;
+const BADGE_DOOR_X = 97;
+let badgeDoor: { frame: Sprite; door: Doorway } | null = null;
+function badgeDoorParts() {
+  if (!badgeDoor) {
+    const frame = new Sprite();
+    badgeDoor = { frame, door: doorway(frame, BADGE_DOOR_X, FEET + 1, FEET + 12) };
+  }
+  return badgeDoor;
+}
+
+/** The small mascot above the form on phones, with its speech bubble and the door beside it. */
+export function MascotBadge({ state, ...doorProps }: { state: MascotState } & DoorProps) {
+  const t = useT(loginDict);
   const phase = usePhase(state.event);
   const say = useSay();
-  const look = lookFor(state, phase, [1, 0]);
-  const W = 120;
-  const speech = look.say ? bubble(say(look.say), MW - 2, 17, W - MW - 8) : null;
-  // A bubble on more lines grows upwards: the drawing makes room for it.
-  const top = Math.min(look.anger ? -10 : -2, speech ? topOf(speech) - 1 : -2);
+  const svg = useRef<SVGSVGElement>(null);
+  const [toward, setToward] = useState<{ x: number; y: number; dx: number; dy: number; k: number } | null>(null);
+  const d = useDoor({
+    ...doorProps,
+    // Where the doorway is on the screen, for the way in.
+    onKnock: () => {
+      const r = svg.current?.getBoundingClientRect();
+      if (!r) return;
+      const { centre } = badgeDoorParts().door;
+      const scale = r.width / BADGE_W;
+      const x = (centre[0] / BADGE_W) * r.width;
+      const y = r.height - (MH - centre[1]) * scale;
+      const k = Math.max(window.innerWidth / (25 * scale), window.innerHeight / (60 * scale)) * 1.3;
+      setToward({ x, y, dx: window.innerWidth / 2 - (r.left + x), dy: window.innerHeight / 2 - (r.top + y), k });
+    },
+  });
+  const { wear } = useRoomSave();
+  const look = doorLook(d, state, phase) ?? lookFor(state, phase, [1, 0]);
+  const { frame, door } = badgeDoorParts();
+  const speech = look.say ? bubble(say(look.say), MW - 2, 17, BADGE_DOOR_X - MW - 14) : null;
+  // A bubble on more lines grows upwards: the drawing makes room for it and the door.
+  const top = Math.min(door.box[1] - 2, look.anger ? -10 : -2, speech ? topOf(speech) - 1 : -2);
+  const H = MH - top;
+  const [bx, by, bw, bh] = door.box;
+  const zoom = toward ? zoomInto(toward.x, toward.y, toward.dx, toward.dy, toward.k, d.zoomed, d.door) : undefined;
   return (
     <>
       <SpritePalette />
-      <svg viewBox={`0 ${top} ${W} ${MH - top}`} className="spr block w-[240px] max-w-full" shapeRendering="crispEdges" aria-hidden="true" overflow="visible">
-        <Mascot look={look} motionKey={motionKey(look, state)} marks="beside" />
-        {speech && <g key={look.say?.key} className="ms-pop"><Paths sprite={speech} /></g>}
-      </svg>
+      <div className="relative w-[252px] max-w-full">
+        <svg
+          ref={svg}
+          viewBox={`0 ${top} ${BADGE_W} ${H}`}
+          className={`spr relative block w-full ${d.zoomed ? 'z-20' : ''}`}
+          shapeRendering="crispEdges"
+          aria-hidden="true"
+          overflow="visible"
+          style={zoom}
+        >
+          <Paths sprite={frame} />
+          {d.lit && <Paths sprite={door.spill} />}
+          <Paths sprite={d.leaf(door)} />
+          <MascotFigure look={look} motionKey={d.opening ? 'door' : motionKey(look, state)} marks="beside" wear={wear} />
+          {speech && <g key={look.say?.key} className="ms-pop"><Paths sprite={speech} /></g>}
+          <rect x={0} y={top} width={BADGE_W} height={H} className="hw-into" data-on={d.zoomed ? '' : undefined} />
+        </svg>
+        <button
+          {...d.button}
+          aria-label={t('doorLabel')}
+          style={{ left: `${(bx / BADGE_W) * 100}%`, top: `${((by - top) / H) * 100}%`, width: `${(bw / BADGE_W) * 100}%`, height: `${(bh / H) * 100}%` }}
+        />
+      </div>
     </>
   );
 }

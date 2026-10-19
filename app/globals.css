@@ -1134,6 +1134,22 @@ html.lenis body {
   from { transform: none; }
   to { transform: translateY(3px); opacity: 0.4; }
 }
+/* The door of room 2B (components/room): a button over the drawn door. The
+   door itself answers the pointer (handle down, light at its edge); the
+   keyboard's focus rings it. Going in, the room's warm wall fills the view,
+   and the hallway's panel grows into the room's (View Transition). */
+.login-door {
+  position: absolute;
+  border-radius: 3px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.login-door:focus-visible { outline: 3px solid var(--accent-ink); outline-offset: 4px; }
+.login-door:disabled { cursor: default; }
+.hw-into { fill: var(--s-cw2); opacity: 0; pointer-events: none; transition: opacity 0.35s ease; }
+.hw-into[data-on] { opacity: 1; transition: opacity 0.3s ease 0.5s; }
+.room-stage { background: light-dark(#f4ead8, #2a2531); }
+::view-transition-group(login-stage) { animation-duration: 0.5s; animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }
 ::view-transition-group(login-school) { animation-duration: 0.45s; animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.3s; }
 @media (prefers-reduced-motion: reduce) {

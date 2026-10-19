@@ -9,6 +9,7 @@ import PageIntro, { TONE, type SiteTone } from '@/components/site/PageIntro';
 import RevealScope from '@/components/site/RevealScope';
 import CtaBand from '@/components/site/CtaBand';
 import GithubCard from '@/components/site/GithubCard';
+import SupportBanner from '@/components/app/SupportBanner';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com';
 
@@ -149,6 +150,10 @@ export default async function AboutPage({ params }: PageProps) {
                 <GithubCard name={m.name} handle={m.handle} tone={m.tone} label={t('profile')} />
               </div>
             ))}
+          </div>
+          {/* The same "POKYH unterstützen" as in the settings. */}
+          <div data-reveal className="mt-4 md:mt-6">
+            <SupportBanner tone="blush" className="" />
           </div>
         </section>
       </RevealScope>
