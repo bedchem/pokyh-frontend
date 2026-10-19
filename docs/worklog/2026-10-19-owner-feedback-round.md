@@ -172,3 +172,28 @@ Nothing was committed or pushed.
   browser (extension not connected) and the live sent-list field names were
   not inspected; no WebUntis writes were made.
 - Release state: uncommitted
+
+## Sidebar without borders
+
+- Owner asked to remove the sidebar border, including the line shown around
+  the profile picture of the folded sidebar.
+- `components/app/shell.module.css`: dropped the sidebar's right edge line
+  (`.side`), the line above the folded profile picture (folded `.dock`) and
+  the 1px ring of the folded account menu (`.accountMenu`). Nothing else
+  changed.
+- Verification: CSS-only change; not checked in a browser.
+- Release state: uncommitted
+
+## Sidebar fold button one step off the sidebar
+
+- Owner asked to drop the ring on the round fold button as well and to give
+  it a colour that stands out; accent (indigo) and ink (black/white) fills
+  were rejected, then a clearly darker grey too; the owner asked for only a
+  minimal step off the sidebar (slightly darker in light mode, slightly
+  lighter in dark mode).
+- `components/app/shell.module.css` (`.edge`): ring removed; the button is
+  the sidebar colour with 7% ink mixed in (12% on hover), caret in the ink
+  colour, a soft shadow, and grows slightly on hover.
+  Keyboard focus keeps the global focus outline.
+- Verification: CSS-only change; not checked in a browser.
+- Release state: uncommitted

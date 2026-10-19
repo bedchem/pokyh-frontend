@@ -218,7 +218,6 @@
     height: 100%;
     padding: 20px 16px 16px;
     background: var(--nav);
-    box-shadow: inset -1px 0 0 color-mix(in srgb, var(--ink) 8%, transparent);
   }
   .shell[data-ready='true'] .side {
     transition: width 0.34s var(--ease-out);
@@ -271,16 +270,15 @@
   width: 28px;
   height: 28px;
   border-radius: 999px;
-  background: var(--nav);
-  color: var(--ink-2);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent), 0 2px 8px -2px rgb(0 0 0 / 0.18);
-  transition: color 0.2s ease, box-shadow 0.25s var(--ease-out), transform 0.25s var(--ease-out);
-}
-.edge:hover,
-.edge:focus-visible {
+  /* A step off the sidebar: a touch darker in light mode, lighter in dark. */
+  background: color-mix(in srgb, var(--ink) 7%, var(--nav));
   color: var(--ink);
-  outline: none;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent), 0 0 0 4px color-mix(in srgb, var(--accent) 55%, transparent), 0 2px 8px -2px rgb(0 0 0 / 0.18);
+  box-shadow: 0 2px 8px -3px rgb(0 0 0 / 0.25);
+  transition: background-color 0.2s ease, transform 0.25s var(--ease-out);
+}
+.edge:hover {
+  background: color-mix(in srgb, var(--ink) 12%, var(--nav));
+  transform: scale(1.08);
 }
 .edge:active { transform: scale(0.92); }
 
@@ -301,7 +299,6 @@
   padding: 10px 0 0;
   border-radius: 0;
   background: transparent;
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 8%, transparent);
 }
 .me {
   display: flex;
@@ -341,7 +338,7 @@
   border-radius: 18px;
   background: var(--surface);
   color: var(--ink);
-  box-shadow: 0 18px 44px -16px rgb(0 0 0 / 0.35), 0 0 0 1px var(--line);
+  box-shadow: 0 18px 44px -16px rgb(0 0 0 / 0.35);
   transform-origin: bottom left;
 }
 .menuRule {
