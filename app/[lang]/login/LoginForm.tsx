@@ -4,12 +4,11 @@ import Link from 'next/link';
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
 import { flushSync } from 'react-dom';
 import { useSearchParams } from 'next/navigation';
-import { ArrowLeft, ArrowRight, Eye, EyeSlash, LockSimple, MagnifyingGlass, X } from '@phosphor-icons/react';
+import { ArrowRight, Eye, EyeSlash, LockSimple, MagnifyingGlass, X } from '@phosphor-icons/react';
 import Sheet from '@/components/ui/Sheet';
 import Spinner from '@/components/ui/Spinner';
 import ForgotPasswordForm from '@/components/account/ForgotPasswordForm';
-import LanguageButton from '@/components/site/LanguageButton';
-import { ThemeButton } from '@/components/site/ThemeToggle';
+import SiteHeader from '@/components/site/SiteHeader';
 import { untisActionsDict } from '@/lib/i18n/dictionaries/untisActions';
 import { loginDict, type LoginKey } from '@/lib/i18n/dictionaries/login';
 import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
@@ -23,7 +22,7 @@ import { readCookieChoice, COOKIE_CONSENT_EVENT } from '@/lib/cookie-consent';
 import { rememberPendingAck } from '@/lib/privacy-consent';
 import { forgetSchoolChoice, readSchoolChoice, saveSchoolChoice, type SchoolChoice } from '@/lib/school-choice';
 import { prefersReducedMotion } from '@/lib/motion';
-import { NameStage, NameTiles, TILES, type TileMood } from './NameTiles';
+import { HallwayScene, MascotBadge, type MascotEvent, type MascotState } from './Hallway';
 
 // Initials and a tone per school, so results are told apart at a glance.
 const SCHOOL_TONES = [
@@ -122,6 +121,11 @@ function useSchoolSearch(query: string): SearchState {
   return answer?.q === q ? answer.state : { kind: 'loading' };
 }
 
+/** The browser filled the form: one event for both fields. */
+function autofilled(old: MascotEvent): MascotEvent {
+  return old?.kind === 'autofill' && Date.now() - old.n < 1500 ? old : { kind: 'autofill', n: Date.now() };
+}
+
 // Browser-only values read without an extra render pass.
 const noop = () => () => {};
 function subscribeConsent(fn: () => void) {
@@ -166,13 +170,19 @@ export default function LoginForm() {
   const [cookieError, setCookieError] = useState(false);
   const [autoFilling, setAutoFilling] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
-  const [mood, setMood] = useState<TileMood>(null);
-  const keystrokes = useRef(0);
-  // Each key makes the next tile hop.
-  const typed = () => {
-    keystrokes.current += 1;
-    setMood({ kind: 'hop', tile: keystrokes.current % TILES.length, n: keystrokes.current });
-  };
+  // What the mascot answers: the focused field, each key, and events.
+  const [focus, setFocus] = useState<MascotState['focus']>(null);
+  const [keys, setKeys] = useState(0);
+  const [event, setEvent] = useState<MascotEvent>(null);
+  const typed = () => setKeys((n) => n + 1);
+  const happen = (kind: NonNullable<MascotEvent>['kind']) => setEvent({ kind, n: Date.now() });
+  const autofill = () => setEvent(autofilled);
+  const focusOn = (field: NonNullable<MascotState['focus']>) => ({
+    onFocus: () => setFocus(field),
+    onBlur: () => setFocus((f) => (f === field ? null : f)),
+    // Autofill styles a field, which starts an animation (globals.css).
+    onAnimationStart: (e: React.AnimationEvent<HTMLInputElement>) => { if (e.animationName === 'login-autofill') autofill(); },
+  });
 
   const searchInput = useRef<HTMLInputElement>(null);
   const userInput = useRef<HTMLInputElement>(null);
@@ -185,7 +195,13 @@ export default function LoginForm() {
     let live = true;
     const started = setTimeout(() => { if (live) setAutoFilling(true); }, 0);
     getPasswordCredential()
-      .then((cred) => { if (live && cred) { setUsername(cred.username); setPassword(cred.password); } })
+      .then((cred) => {
+        if (!live || !cred) return;
+        setUsername(cred.username);
+        setPassword(cred.password);
+        // Saved credentials filled in count as autofill too.
+        setEvent(autofilled);
+      })
       .catch(() => {})
       .finally(() => { clearTimeout(started); if (live) setAutoFilling(false); });
     return () => { live = false; };
@@ -220,6 +236,7 @@ export default function LoginForm() {
   const choose = (s: SchoolChoice, row?: HTMLElement | null) => {
     if (row) row.style.viewTransitionName = 'login-school';
     transition(() => pick(s));
+    happen('picked');
   };
 
   const onSearchKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -271,7 +288,7 @@ export default function LoginForm() {
 
       if (untisRes.ok && untisData.ok) {
         setLoadingMsg(t('almostDone'));
-        setMood({ kind: 'wave', n: Date.now() });
+        happen('success');
         if (isPasswordCredentialSupported() && !hasDeclinedPasskey()) {
           storePasswordCredential(username.trim(), password).catch(() => {});
         }
@@ -296,7 +313,7 @@ export default function LoginForm() {
         const pokyhData = (await pokyhRes.json().catch(() => ({}))) as { ok?: boolean };
         if (pokyhRes.ok && pokyhData.ok) {
           setLoadingMsg(t('almostDone'));
-          setMood({ kind: 'wave', n: Date.now() });
+          happen('success');
           window.location.replace(next);
           return;
         }
@@ -304,10 +321,10 @@ export default function LoginForm() {
 
       const key = untisData.code ? ERROR_KEYS[untisData.code] : undefined;
       setError(t(key ?? 'errFailed'));
-      setMood({ kind: 'shake', n: Date.now() });
+      happen('error');
     } catch {
       setError(t('errNetwork'));
-      setMood({ kind: 'shake', n: Date.now() });
+      happen('error');
     }
     setLoading(false);
     setLoadingMsg('');
@@ -321,30 +338,38 @@ export default function LoginForm() {
     : '';
   const searchAnnouncement = search.kind === 'done' && results.length ? t('schoolResults', { n: results.length }) : searchMessage;
 
+  const mascot: MascotState = {
+    step: school ? 'account' : 'school',
+    focus,
+    query,
+    search: search.kind,
+    results: results.length,
+    username,
+    showPw,
+    loading,
+    keys,
+    event,
+  };
+
   return (
     // One quiet column on a fixed screen: the page itself never scrolls; on
     // very small screens or with the keyboard open only the column does.
-    <div className="site login-page fixed inset-0 flex overflow-hidden">
-      {/* Desktops: the name as a scene beside the form; phones keep the small row above it. */}
-      <aside aria-hidden="true" className="hidden p-4 pr-0 lg:block lg:w-[54%] xl:w-[57%]">
-        <NameStage mood={mood} onTap={(tile) => setMood({ kind: 'hop', tile, n: Date.now() })} />
+    <div className="site login-page fixed inset-0 flex flex-col overflow-hidden">
+      {/* The site's own bar on top, fixed; the room below keeps it clear. */}
+      <SiteHeader />
+      <div aria-hidden="true" className="h-[72px] shrink-0 md:h-[84px]" style={{ marginTop: 'var(--safe-top)' }} />
+
+      <div className="flex min-h-0 flex-1">
+      {/* Desktops: the mascot in its hallway beside the form; phones get it small above the form. */}
+      <aside aria-hidden="true" className="hidden px-4 pb-4 lg:block lg:w-[54%] xl:w-[57%]">
+        <HallwayScene state={mascot} />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-      <header className="flex h-16 shrink-0 items-center justify-between px-4 md:h-20 md:px-8" style={{ paddingTop: 'var(--safe-top)' }}>
-        <Link href={localize('/')} aria-label={`POKYH, ${t('home')}`} className="group flex items-center gap-2 rounded-full px-2 py-2 text-[14px] font-semibold text-ink-3 transition-colors hover:text-ink">
-          <ArrowLeft size={16} weight="bold" aria-hidden="true" className="transition-transform duration-300 group-hover:-translate-x-0.5" />
-          <span className="hidden sm:inline">{t('home')}</span>
-        </Link>
-        <div className="flex items-center gap-1">
-          <LanguageButton />
-          <ThemeButton className="size-10 rounded-full opacity-80 transition-opacity hover:opacity-100" />
-        </div>
-      </header>
 
       <main id="main" data-lenis-prevent className="login-scroll flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-5" style={{ paddingBottom: 'max(16px, var(--safe-bottom))' }}>
         <section aria-labelledby="login-title" className="mx-auto flex w-full max-w-[400px] flex-1 flex-col justify-center py-6">
-          <div className="mb-7 lg:hidden"><NameTiles mood={mood} /></div>
+          <div className="mb-5 lg:hidden"><MascotBadge state={mascot} /></div>
           <h1 id="login-title" className="font-display text-[clamp(38px,5vw,52px)] leading-[0.95]">{t('title')}</h1>
           <p className="mt-2 text-[15px] text-ink-3">{t('subtitle')}</p>
 
@@ -369,6 +394,7 @@ export default function LoginForm() {
                   value={query}
                   onChange={(e) => { setQuery(e.target.value); setActive(0); typed(); }}
                   onKeyDown={onSearchKey}
+                  {...focusOn('school')}
                   placeholder={t('schoolPlaceholder')}
                   autoComplete="off"
                   autoCorrect="off"
@@ -462,6 +488,7 @@ export default function LoginForm() {
                     placeholder={t('username')}
                     value={username}
                     onChange={(e) => { setUsername(e.target.value); typed(); }}
+                    {...focusOn('user')}
                     autoCapitalize="none"
                     autoComplete="username"
                     autoCorrect="off"
@@ -479,6 +506,7 @@ export default function LoginForm() {
                     placeholder={t('password')}
                     value={password}
                     onChange={(e) => { setPassword(e.target.value); typed(); }}
+                    {...focusOn('password')}
                     autoComplete="current-password"
                     maxLength={200}
                     suppressHydrationWarning
@@ -528,6 +556,7 @@ export default function LoginForm() {
           <Link href={localize('/legal/nutzungsbedingungen')} className="font-semibold hover:text-ink">{t('terms')}</Link>
         </footer>
       </main>
+      </div>
       </div>
     </div>
   );

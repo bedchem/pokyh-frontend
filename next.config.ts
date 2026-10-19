@@ -31,6 +31,9 @@ const envSeconds = (name: string, fallback: number) => {
 const nextConfig: NextConfig = {
   output: 'standalone',
 
+  // The development badge would sit on the sidebar's profile and settings.
+  devIndicators: { position: 'bottom-right' },
+
   // Pages always end with a slash (/de/about/). The proxy adds it, together
   // with the locale prefix: for pages only, so API calls aren't redirected.
   trailingSlash: true,

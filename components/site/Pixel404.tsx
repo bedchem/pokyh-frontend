@@ -1,144 +1,64 @@
-import type { CSSProperties } from 'react';
+import { Paths, SpritePalette } from '@/components/pixel/SceneSvg';
+import { DIGITS, EYES, EYES_SHUT, FACE, GHOST_A, GHOST_B, GROUND, H, SHADOW_NARROW, SHADOW_WIDE, W } from '@/components/pixel/notFound';
 
-// The 404 in pixel art, in the style of the app's pixel scenes (rounded
-// pixels, the app's own colours): three chunky digits that drop into place
-// one after the other, and next to them the missing page as a ghost: a sheet
-// of ruled school paper with a folded corner, two eyes and a fluttering hem.
-// It floats up and down, fades now and then, blinks; its shadow on the ground
-// shrinks as it rises. Plain SVG with CSS animation (globals.css, .nf-*), so
-// the standalone 404 document can use it too.
+// The 404 as sprites, in the manner of the Mensa plate (drawn in
+// components/pixel/notFound.ts): three chunky digits that drop into place
+// one after the other, and beside them the missing page as a little ghost.
+// It floats up and down, squints happily now and then, waves its stubs and
+// flutters its hem; its shadow on the ground shrinks as it rises. Plain SVG with CSS animation;
+// the styles travel with the drawing, so the site's 404 and the standalone
+// 404 document (app/global-not-found.tsx) share them.
 
-type Px = [number, number];
-
-function pixels(rows: string[], ox = 0, oy = 0): Px[] {
-  const out: Px[] = [];
-  rows.forEach((row, y) => [...row].forEach((c, x) => { if (c === '#') out.push([ox + x, oy + y]); }));
-  return out;
-}
-
-/** The pixels around a shape, for an outline that holds on a light background. */
-function outline(shape: Px[]): Px[] {
-  const on = new Set(shape.map(([x, y]) => `${x},${y}`));
-  const out = new Map<string, Px>();
-  for (const [x, y] of shape) {
-    for (const [nx, ny] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]] as Px[]) {
-      if (!on.has(`${nx},${ny}`)) out.set(`${nx},${ny}`, [nx, ny]);
-    }
-  }
-  return [...out.values()];
-}
-
-const FOUR = [
-  '....##.',
-  '...###.',
-  '..####.',
-  '.##.##.',
-  '##..##.',
-  '#######',
-  '#######',
-  '....##.',
-  '....##.',
-];
-const ZERO = [
-  '.#####.',
-  '##...##',
-  '##...##',
-  '##...##',
-  '##...##',
-  '##...##',
-  '##...##',
-  '##...##',
-  '.#####.',
-];
-
-const W = 60;
-const H = 20;
-const DIGITS_X = [5, 16, 27] as const;
-const DIGITS_Y = 1;
-
-const GROUND = pixels(['####.######.#####..#######.####.#####.####.#######.####.###'], 0, 17);
-
-// The ghost; (GX, GY) is the top left of the sheet.
-const GX = 41;
-const GY = 3;
-const SHEET = pixels([
-  '.#######...',
-  '#########..',
-  '##########.',
-  '###########',
-  '###########',
-  '###########',
-  '###########',
-  '###########',
-  '###########',
-  '###########',
-], GX, GY);
-// The hem flutters between two frames.
-const HEM_A = pixels(['#.##.##.##.'], GX, GY + 10);
-const HEM_B = pixels(['.##.##.##.#'], GX, GY + 10);
-const OUTLINE_A = outline([...SHEET, ...HEM_A]);
-const OUTLINE_B = outline([...SHEET, ...HEM_B]);
-// The top right corner is folded down.
-const FOLD = pixels(['#..', '##.'], GX + 8, GY + 1);
-const LINES = pixels([
-  '.######....',
-  '...........',
-  '...........',
-  '...........',
-  '...........',
-  '...........',
-  '.#########.',
-], GX, GY + 2);
-const EYES = pixels(['#...#', '#...#'], GX + 3, GY + 4);
-const EYES_SHUT = pixels(['#...#'], GX + 3, GY + 5);
-const CHEEKS = pixels(['#.....#'], GX + 2, GY + 6);
-const MOUTH = pixels(['#'], GX + 5, GY + 7);
-// Its shadow: wide while it hangs low, narrow when it rises.
-const SHADOW_WIDE = pixels(['#.#.#.#.#'], GX + 1, 16);
-const SHADOW_NARROW = pixels(['#.#.#'], GX + 3, 16);
-
-function Group({ list, className, fill, style }: { list: Px[]; className?: string; fill: string; style?: CSSProperties }) {
-  return (
-    <g className={className} fill={fill} style={style}>
-      {list.map(([x, y]) => <rect key={`${x}-${y}`} x={x + 0.06} y={y + 0.06} width={0.88} height={0.88} rx={0.2} />)}
-    </g>
-  );
-}
+const CSS = `
+.nf-art{overflow:visible}
+.nf-digit{animation:nf-drop .8s steps(8,end) both}
+@keyframes nf-drop{0%{opacity:0;transform:translateY(-14px)}12%{opacity:1}70%{transform:translateY(1px)}100%{opacity:1;transform:none}}
+.nf-ghost{animation:nf-float 2.4s steps(1,end) infinite}
+@keyframes nf-float{0%,24%{transform:none}25%,49%{transform:translateY(-1px)}50%,74%{transform:translateY(-2px)}75%,100%{transform:translateY(-1px)}}
+.nf-shadow{animation:nf-shadow 2.4s steps(1,end) infinite}
+.nf-shadow-high{animation-name:nf-shadow-high}
+@keyframes nf-shadow{0%,49%{opacity:1}50%,100%{opacity:0}}
+@keyframes nf-shadow-high{0%,49%{opacity:0}50%,100%{opacity:1}}
+.nf-hem{animation:nf-flip .6s steps(1,end) infinite}
+.nf-hem-alt{animation-direction:reverse}
+@keyframes nf-flip{0%,49%{opacity:1}50%,100%{opacity:0}}
+.nf-eyes{animation:nf-blink 4.2s steps(1,end) .8s infinite}
+.nf-eyes-shut{opacity:0;animation-name:nf-blink-shut}
+@keyframes nf-blink{0%,91%{opacity:1}92%,95%{opacity:0}96%,100%{opacity:1}}
+@keyframes nf-blink-shut{0%,91%{opacity:0}92%,95%{opacity:1}96%,100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.nf-digit,.nf-ghost,.nf-shadow,.nf-hem,.nf-eyes{animation:none;opacity:1}.nf-shadow-high,.nf-hem-alt,.nf-eyes-shut{opacity:0}}`;
 
 export default function Pixel404({ className = '', label }: { className?: string; label?: string }) {
-  const digits = [FOUR, ZERO, FOUR];
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className={`nf-art ${className}`} role={label ? 'img' : undefined} aria-label={label} aria-hidden={label ? undefined : true}>
-      <Group list={GROUND} fill="var(--nf-faint)" />
-      {digits.map((rows, i) => (
-        <g key={i} className="nf-digit" style={{ animationDelay: `${0.12 + i * 0.14}s` }}>
-          {/* A darker copy one pixel down and right: the digits stand out of the page */}
-          <Group list={pixels(rows, DIGITS_X[i] + 1, DIGITS_Y + 1)} fill="var(--nf-depth)" />
-          <Group list={pixels(rows, DIGITS_X[i], DIGITS_Y)} fill="var(--nf-ink)" />
-        </g>
-      ))}
-
-      <Group list={SHADOW_WIDE} className="nf-shadow" fill="var(--nf-faint)" />
-      <Group list={SHADOW_NARROW} className="nf-shadow nf-shadow-high" fill="var(--nf-faint)" />
-      <g className="nf-ghost">
-        <g className="nf-fade">
-          <g className="nf-hem">
-            <Group list={OUTLINE_A} fill="var(--nf-outline)" />
-            <Group list={HEM_A} fill="var(--nf-paper)" />
+    <>
+      <SpritePalette />
+      <style href="pokyh-404" precedence="low">{CSS}</style>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className={`spr nf-art ${className}`}
+        shapeRendering="crispEdges"
+        role={label ? 'img' : undefined}
+        aria-label={label}
+        aria-hidden={label ? undefined : true}
+      >
+        <Paths sprite={GROUND} />
+        {DIGITS.map((d, i) => (
+          <g key={i} className="nf-digit" style={{ animationDelay: `${0.12 + i * 0.14}s` }}>
+            <Paths sprite={d} />
           </g>
-          <g className="nf-hem nf-hem-alt">
-            <Group list={OUTLINE_B} fill="var(--nf-outline)" />
-            <Group list={HEM_B} fill="var(--nf-paper)" />
+        ))}
+        <g className="nf-shadow"><Paths sprite={SHADOW_WIDE} /></g>
+        <g className="nf-shadow nf-shadow-high"><Paths sprite={SHADOW_NARROW} /></g>
+        <g className="nf-ghost">
+          <g>
+            <g className="nf-hem"><Paths sprite={GHOST_A} /></g>
+            <g className="nf-hem nf-hem-alt"><Paths sprite={GHOST_B} /></g>
+            <Paths sprite={FACE} />
+            <g className="nf-eyes"><Paths sprite={EYES} /></g>
+            <g className="nf-eyes nf-eyes-shut"><Paths sprite={EYES_SHUT} /></g>
           </g>
-          <Group list={SHEET} fill="var(--nf-paper)" />
-          <Group list={FOLD} fill="var(--nf-fold)" />
-          <Group list={LINES} fill="var(--nf-line)" />
-          <Group list={CHEEKS} fill="var(--nf-cheek)" />
-          <Group list={EYES} className="nf-eyes" fill="var(--nf-eye)" />
-          <Group list={EYES_SHUT} className="nf-eyes nf-eyes-shut" fill="var(--nf-eye)" />
-          <Group list={MOUTH} fill="var(--nf-eye)" />
         </g>
-      </g>
-    </svg>
+      </svg>
+    </>
   );
 }

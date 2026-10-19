@@ -12,7 +12,8 @@ import { DEFAULT_LOCALE, LOCALE_COOKIE, htmlLang, isLocale } from '@/lib/i18n/lo
 // carries its own small styles on purpose: importing globals.css here as well
 // made it a second root stylesheet, and every style change in development
 // then failed to find that stylesheet on the open page. The pixel 404 is the
-// one of the site's 404 (components/site/Pixel404.tsx), animated the same way.
+// one of the site's 404 (components/site/Pixel404.tsx); it brings its own
+// styles and palette.
 
 const CSS = `
 :root{color-scheme:light dark;--paper:#F5F2ED;--ink:#1C1A17;--ink2:#625B52;--indigo:#534AB7;--lilac:#DEDDFB;--lilacInk:#4A46A6;--accent:#6366F1;--danger:#EF4444;--star:#F5B301}
@@ -22,16 +23,7 @@ main{padding:40px 20px;max-width:720px;display:flex;flex-direction:column;align-
 svg{display:block;width:min(640px,88vw);height:auto}
 h1{margin:40px 0 0;font-size:clamp(28px,5vw,44px);letter-spacing:-.04em;line-height:1.06}p{margin:14px 0 0;font-size:18px;line-height:1.6;color:var(--ink2)}
 nav{margin-top:32px;display:flex;flex-wrap:wrap;justify-content:center;gap:12px}a{display:inline-flex;align-items:center;height:52px;padding:0 24px;border-radius:16px;font-weight:650;text-decoration:none}
-a.p{background:var(--indigo);color:#fff}a.s{background:var(--lilac);color:var(--lilacInk)}
-.nf-art{--nf-ink:var(--accent);--nf-depth:color-mix(in srgb,var(--accent) 48%,#000);--nf-faint:color-mix(in srgb,var(--ink) 20%,transparent);--nf-paper:#FFFFFF;--nf-outline:#D9D3C8;--nf-fold:#DDD7CC;--nf-line:color-mix(in srgb,var(--accent) 45%,#FFFFFF);--nf-eye:#241C16;--nf-cheek:#F6A5A5;overflow:visible}
-@media (prefers-color-scheme:dark){.nf-art{--nf-paper:#ECE9E3;--nf-outline:transparent;--nf-fold:#B9B4AB}}
-.nf-digit{animation:d .8s steps(8,end) both}@keyframes d{0%{opacity:0;transform:translateY(-12px)}12%{opacity:1}70%{transform:translateY(1px)}100%{opacity:1;transform:none}}
-.nf-ghost{animation:g 2.4s steps(1,end) infinite}@keyframes g{0%,24%{transform:none}25%,49%{transform:translateY(-1px)}50%,74%{transform:translateY(-2px)}75%,100%{transform:translateY(-1px)}}
-.nf-shadow{animation:sw 2.4s steps(1,end) infinite}.nf-shadow-high{animation-name:sh}@keyframes sw{0%,49%{opacity:1}50%,100%{opacity:0}}@keyframes sh{0%,49%{opacity:0}50%,100%{opacity:1}}
-.nf-fade{animation:f 6s steps(1,end) 1.2s infinite}@keyframes f{0%,62%{opacity:1}64%{opacity:.7}66%,74%{opacity:.4}76%{opacity:.7}78%,100%{opacity:1}}
-.nf-hem{animation:h .6s steps(1,end) infinite}.nf-hem-alt{animation-direction:reverse}@keyframes h{0%,49%{opacity:1}50%,100%{opacity:0}}
-.nf-eyes{animation:e 4.2s steps(1,end) .8s infinite}.nf-eyes-shut{opacity:0;animation-name:es}@keyframes e{0%,91%{opacity:1}92%,95%{opacity:0}96%,100%{opacity:1}}@keyframes es{0%,91%{opacity:0}92%,95%{opacity:1}96%,100%{opacity:0}}
-@media (prefers-reduced-motion:reduce){.nf-digit,.nf-ghost,.nf-fade,.nf-shadow,.nf-hem,.nf-eyes{animation:none;opacity:1}.nf-shadow-high,.nf-hem-alt,.nf-eyes-shut{opacity:0}}`;
+a.p{background:var(--indigo);color:#fff}a.s{background:var(--lilac);color:var(--lilacInk)}`;
 
 async function locale() {
   const saved = (await cookies()).get(LOCALE_COOKIE)?.value;

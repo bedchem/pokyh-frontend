@@ -45,7 +45,11 @@ export type LoginKey =
   | 'errSchool'
   | 'imprint'
   | 'privacy'
-  | 'terms';
+  | 'terms'
+  | 'mascotHello'
+  | 'mascotHelloName'
+  | 'mascotGo'
+  | 'mascotOops';
 
 export const loginDict: Dictionary<LoginKey> = {
   de: {
@@ -85,6 +89,10 @@ export const loginDict: Dictionary<LoginKey> = {
     errMissing: 'Bitte Benutzername und Passwort eingeben.',
     errFailed: 'Die Anmeldung hat nicht geklappt.',
     errNetwork: 'Keine Verbindung. Prüf dein Internet und versuch es noch einmal.',
+    mascotHello: 'Hallo!',
+    mascotHelloName: 'Hallo, {name}!',
+    mascotGo: "Los geht's!",
+    mascotOops: 'Hoppla!',
     errBadCredentials: 'Benutzername oder Passwort ist falsch.',
     errRefused: 'WebUntis hat die Anmeldung abgelehnt. Melde dich einmal direkt bei WebUntis an, um den Grund zu sehen.',
     errUnavailable: 'WebUntis ist gerade nicht erreichbar. Versuch es später noch einmal.',
@@ -131,6 +139,10 @@ export const loginDict: Dictionary<LoginKey> = {
     errMissing: 'Inserisci nome utente e password.',
     errFailed: 'L’accesso non è riuscito.',
     errNetwork: 'Nessuna connessione. Controlla internet e riprova.',
+    mascotHello: 'Ciao!',
+    mascotHelloName: 'Ciao, {name}!',
+    mascotGo: 'Si parte!',
+    mascotOops: 'Ops!',
     errBadCredentials: 'Nome utente o password errati.',
     errRefused: 'WebUntis ha rifiutato l’accesso. Accedi una volta direttamente a WebUntis per vedere il motivo.',
     errUnavailable: 'WebUntis non è raggiungibile al momento. Riprova più tardi.',
@@ -177,6 +189,10 @@ export const loginDict: Dictionary<LoginKey> = {
     errMissing: 'Please enter your username and password.',
     errFailed: 'Signing in did not work.',
     errNetwork: 'No connection. Check your internet and try again.',
+    mascotHello: 'Hi!',
+    mascotHelloName: 'Hi, {name}!',
+    mascotGo: "Let's go!",
+    mascotOops: 'Oops!',
     errBadCredentials: 'Wrong username or password.',
     errRefused: 'WebUntis refused the sign-in. Sign in to WebUntis directly once to see why.',
     errUnavailable: 'WebUntis is not reachable right now. Try again later.',

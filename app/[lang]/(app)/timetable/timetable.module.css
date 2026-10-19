@@ -1143,4 +1143,4 @@ button.special { border: 0; background: transparent; font: inherit; cursor: poin
 
 /* Day cards without lessons (holiday, all cancelled, …): their pixel scene. */
 .specialSprite { width: min(120px, 80%); }
-.specialSpriteCompact { width: min(72px, 85%); }
+.specialSpriteCompact { width: min(80px, 85%); }

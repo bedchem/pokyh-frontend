@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode, type SyntheticEvent } from 'react';
 import { LayoutGroup, motion } from 'framer-motion';
-import { EnvelopeSimple, GearSix, Globe, MagnifyingGlass, Moon, SidebarSimple, Sun } from '@phosphor-icons/react';
+import { ArrowSquareUpLeft, EnvelopeSimple, GearSix, MagnifyingGlass, Moon, SidebarSimple, Sun } from '@phosphor-icons/react';
 import { useLocalizeHref, useRoutePath, useT } from '@/providers/LocaleProvider';
 import { useSession } from '@/providers/SessionProvider';
 import { useTheme } from '@/providers/ThemeProvider';
@@ -84,7 +84,6 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
   const { user } = useSession();
   const perms = useUntisPermissions();
   const unread = useUnreadMessages();
-  const { resolved, toggleWithRipple } = useTheme();
   const mac = useSyncExternalStore(noopSubscribe, isApplePlatform, () => false);
   const untis = user?.isUntisUser !== false;
 
@@ -97,15 +96,6 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
         <span className={`${s.kbd} hidden lg:inline`} aria-hidden="true">{mac ? '⌘ K' : 'Strg K'}</span>
       </button>
       <span className="hidden flex-1 lg:block" />
-      <button
-        type="button"
-        onClick={(e) => toggleWithRipple(e)}
-        className={`${s.iconBtn} ${s.wideOnly}`}
-        aria-label={t('actionTheme')}
-        title={t('actionTheme')}
-      >
-        {resolved === 'dark' ? <Sun size={20} weight="bold" aria-hidden="true" /> : <Moon size={20} weight="bold" aria-hidden="true" />}
-      </button>
       {untis && (
         <Link
           href={localize('/messages')}
@@ -136,6 +126,7 @@ function Sidebar({ collapsed }: { collapsed: boolean }) {
   const perms = useUntisPermissions();
   const unread = useUnreadMessages();
   const [, setCollapsed] = useSidebarCollapsed();
+  const { resolved, toggleWithRipple } = useTheme();
   const visible = useVisibleDestinations();
   const untis = user?.isUntisUser !== false;
   const name = perms?.personName || user?.username || '';
@@ -181,14 +172,26 @@ function Sidebar({ collapsed }: { collapsed: boolean }) {
       onBlur={hideTip}
       onScroll={hideTip}
     >
-      <Link
-        href={localize('/home')}
-        className="mb-7 flex h-11 shrink-0 items-center gap-3 overflow-hidden rounded-[14px] px-[9px]"
-        aria-label="POKYH, Home"
-      >
-        <Image src="/POKYH_Logo.png" alt="" width={34} height={34} priority className="size-[34px] shrink-0 rounded-[10px]" />
-        <span className={`${s.fold} text-[21px] font-extrabold tracking-[-0.045em]`}>POKYH</span>
-      </Link>
+      {/* The name, and beside it the way back to the public website */}
+      <div className={s.head}>
+        <Link
+          href={localize('/home')}
+          className="flex h-11 min-w-0 grow items-center gap-3 overflow-hidden rounded-[14px] px-[9px]"
+          aria-label="POKYH, Home"
+        >
+          <Image src="/POKYH_Logo.png" alt="" width={34} height={34} priority className="size-[34px] shrink-0 rounded-[10px]" />
+          <span className={`${s.fold} text-[21px] font-extrabold tracking-[-0.045em]`}>POKYH</span>
+        </Link>
+        <Link
+          href={localize('/')}
+          aria-label={t('website')}
+          data-tip={t('website')}
+          title={collapsed ? undefined : t('website')}
+          className={s.tool}
+        >
+          <ArrowSquareUpLeft size={21} aria-hidden="true" />
+        </Link>
+      </div>
 
       <LayoutGroup id="sidebar">
         <nav ref={nav} className={s.nav} aria-label={t('mainNav')} onScroll={hideTip}>
@@ -213,31 +216,21 @@ function Sidebar({ collapsed }: { collapsed: boolean }) {
           })}
         </nav>
 
-        {/* Settings, language, the public website and folding, in one row */}
+        {/* Language, light or dark, and folding, in one row */}
         <div className={s.tools}>
-          <Link
-            href={localize('/settings')}
-            aria-current={settingsActive ? 'page' : undefined}
-            aria-label={t('settings')}
-            data-tip={t('settings')}
-            title={collapsed ? undefined : t('settings')}
-            className={s.tool}
-          >
-            {settingsActive && <motion.span layoutId="side-active" className={s.itemBg} transition={GLIDE} aria-hidden="true" />}
-            <GearSix size={21} weight={settingsActive ? 'fill' : 'regular'} aria-hidden="true" />
-          </Link>
           <div data-tip={t('language')} className="flex">
-            <LanguageButton placement="above" align="left" compact={collapsed} buttonClassName={`${s.tool} ${collapsed ? '' : s.toolWide}`} />
+            <LanguageButton placement="above" align="left" compact={collapsed} className={collapsed ? 'w-full' : ''} buttonClassName={`${s.tool} ${collapsed ? '' : s.toolWide}`} />
           </div>
-          <Link
-            href={localize('/')}
-            aria-label={t('website')}
-            data-tip={t('website')}
-            title={collapsed ? undefined : t('website')}
+          <button
+            type="button"
+            onClick={(e) => toggleWithRipple(e)}
+            aria-label={t('actionTheme')}
+            data-tip={t('actionTheme')}
+            title={collapsed ? undefined : t('actionTheme')}
             className={s.tool}
           >
-            <Globe size={21} aria-hidden="true" />
-          </Link>
+            {resolved === 'dark' ? <Sun size={21} aria-hidden="true" /> : <Moon size={21} aria-hidden="true" />}
+          </button>
           <button
             type="button"
             onClick={() => { setTip(null); setCollapsed(!collapsed); }}
@@ -251,21 +244,35 @@ function Sidebar({ collapsed }: { collapsed: boolean }) {
           </button>
         </div>
 
-        <Link
-          href={localize('/profile')}
-          aria-current={profileActive ? 'page' : undefined}
-          data-tip={name || t('openProfile')}
-          className={`${s.item} mt-2 !h-[60px] shrink-0 overflow-hidden !px-2`}
-        >
-          {profileActive && <motion.span layoutId="side-active" className={s.itemBg} transition={GLIDE} aria-hidden="true" />}
-          <Avatar name={name || '?'} size={40} picture={untis} />
-          <span className={`${s.fold} min-w-0 leading-tight`}>
-            <span className="block truncate text-[15px] font-bold text-ink">{name || '…'}</span>
-            <span className="mt-0.5 block truncate text-[13px] font-medium text-ink-2">
-              {user?.klasseName || (user?.isParent ? t('guardian') : t('student'))}
+        {/* The profile, and beside it the settings */}
+        <div className={s.me}>
+          <Link
+            href={localize('/profile')}
+            aria-current={profileActive ? 'page' : undefined}
+            data-tip={name || t('openProfile')}
+            className={`${s.item} !h-[60px] min-w-0 grow overflow-hidden !px-2`}
+          >
+            {profileActive && <motion.span layoutId="side-active" className={s.itemBg} transition={GLIDE} aria-hidden="true" />}
+            <Avatar name={name || '?'} size={40} picture={untis} />
+            <span className={`${s.fold} min-w-0 leading-tight`}>
+              <span className="block truncate text-[15px] font-bold text-ink">{name || '…'}</span>
+              <span className="mt-0.5 block truncate text-[13px] font-medium text-ink-2">
+                {user?.klasseName || (user?.isParent ? t('guardian') : t('student'))}
+              </span>
             </span>
-          </span>
-        </Link>
+          </Link>
+          <Link
+            href={localize('/settings')}
+            aria-current={settingsActive ? 'page' : undefined}
+            aria-label={t('settings')}
+            data-tip={t('settings')}
+            title={collapsed ? undefined : t('settings')}
+            className={s.tool}
+          >
+            {settingsActive && <motion.span layoutId="side-active" className={s.itemBg} transition={GLIDE} aria-hidden="true" />}
+            <GearSix size={21} weight={settingsActive ? 'fill' : 'regular'} aria-hidden="true" />
+          </Link>
+        </div>
       </LayoutGroup>
 
       {collapsed && tip && (

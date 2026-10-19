@@ -756,81 +756,131 @@ html.lenis body {
   .pxp-fork, .pxp-knife, .pxp-photo, .pxp-spark-hover { transition: none; }
 }
 
-/* The 404 in pixel art (components/site/Pixel404.tsx): the digits drop in
-   one after the other in sprite steps; the missing page floats beside them
-   as a ghost, its hem fluttering, its shadow following below. */
-.nf-art {
-  --nf-ink: var(--accent);
-  --nf-depth: color-mix(in srgb, var(--accent) 48%, #000);
-  --nf-faint: color-mix(in srgb, var(--ink) 20%, transparent);
-  --nf-paper: #FFFFFF;
-  --nf-outline: #D9D3C8;
-  --nf-fold: #DDD7CC;
-  --nf-line: color-mix(in srgb, var(--accent) 45%, #FFFFFF);
-  --nf-eye: #241C16;
-  --nf-cheek: #F6A5A5;
-  overflow: visible;
+/* The pixel scenes for empty and failed states (components/app/PixelState.tsx,
+   drawn in components/pixel/states.ts), animated in sprite steps. Lengths
+   are pixels of the drawing (the SVG's own units). */
+.px-plug { animation: px-plug 2.4s steps(1, end) infinite; }
+@keyframes px-plug {
+  0%, 25% { transform: none; }
+  30% { transform: translateX(2px); }
+  36%, 62% { transform: translateX(4px); }
+  70% { transform: translateX(2px); }
+  78%, 100% { transform: none; }
 }
-.dark .nf-art {
-  --nf-paper: #ECE9E3;
-  --nf-outline: transparent;
-  --nf-fold: #B9B4AB;
+.px-spark { opacity: 0; animation: px-spark 2.4s steps(1, end) infinite; }
+.px-spark-late { animation-delay: 0.15s; }
+@keyframes px-spark {
+  0%, 38% { opacity: 0; }
+  40% { opacity: 1; }
+  46% { opacity: 0; }
+  50% { opacity: 1; }
+  56%, 100% { opacity: 0; }
 }
-.nf-digit { animation: nf-drop 0.8s steps(8, end) both; }
-@keyframes nf-drop {
-  0% { opacity: 0; transform: translateY(-12px); }
-  12% { opacity: 1; }
-  70% { transform: translateY(1px); }
-  100% { opacity: 1; transform: none; }
+/* The magnifier goes over the page in hops and comes back; the question mark blinks. */
+.px-lens { animation: px-lens 3.6s steps(1, end) infinite; }
+@keyframes px-lens {
+  0%, 12% { transform: translate(5px, 4px); }
+  18%, 30% { transform: translate(10px, 6px); }
+  36%, 48% { transform: translate(15px, 4px); }
+  54%, 66% { transform: translate(19px, 7px); }
+  72%, 84% { transform: translate(11px, 8px); }
+  90%, 100% { transform: translate(5px, 4px); }
 }
-/* Floating: up two pixels and back down, one pixel at a time. */
-.nf-ghost { animation: nf-float 2.4s steps(1, end) infinite; }
-@keyframes nf-float {
+.px-question { animation: px-question 3.6s steps(1, end) infinite; }
+@keyframes px-question {
+  0%, 60% { opacity: 0; }
+  62%, 74% { opacity: 1; }
+  76% { opacity: 0; }
+  78%, 90% { opacity: 1; }
+  92%, 100% { opacity: 0; }
+}
+.px-shackle { animation: px-shackle 1.8s steps(1, end) infinite; }
+@keyframes px-shackle {
+  0%, 40% { transform: none; }
+  45% { transform: translateY(-1px); }
+  50%, 62% { transform: translateY(-2px); }
+  67% { transform: translateY(-1px); }
+  72%, 100% { transform: none; }
+}
+/* The tumbleweed rolls across (outer group), hops (middle) and turns a
+   quarter per step about its own middle (inner); the dust behind it blinks. */
+.px-tumble { animation: px-tumble 4.6s steps(54, end) infinite; }
+@keyframes px-tumble {
+  0% { transform: translateX(-11px); }
+  86%, 100% { transform: translateX(43px); }
+}
+.px-hop { animation: px-hop 0.7s steps(1, end) infinite; }
+@keyframes px-hop {
   0%, 24% { transform: none; }
-  25%, 49% { transform: translateY(-1px); }
-  50%, 74% { transform: translateY(-2px); }
-  75%, 100% { transform: translateY(-1px); }
+  25%, 39% { transform: translateY(-1px); }
+  40%, 59% { transform: translateY(-2px); }
+  60%, 74% { transform: translateY(-1px); }
+  75%, 100% { transform: none; }
 }
-.nf-shadow { animation: nf-shadow 2.4s steps(1, end) infinite; }
-.nf-shadow-high { animation-name: nf-shadow-high; }
-@keyframes nf-shadow {
+.px-turn {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: px-turn 0.8s steps(4, end) infinite;
+}
+@keyframes px-turn { to { transform: rotate(360deg); } }
+.px-blink { animation: px-blink 1.2s steps(1, end) infinite; }
+@keyframes px-blink {
+  0%, 59% { opacity: 1; }
+  60%, 100% { opacity: 0.25; }
+}
+/* The sun's ray tips flicker; waves roll in one pixel at a time; a cloud drifts by. */
+.px-ray { animation: px-ray 1.4s steps(1, end) infinite; }
+@keyframes px-ray {
   0%, 49% { opacity: 1; }
   50%, 100% { opacity: 0; }
 }
-@keyframes nf-shadow-high {
+.px-waves { animation: px-waves 2.4s steps(1, end) infinite; }
+@keyframes px-waves {
+  0%, 16% { transform: none; }
+  17%, 33% { transform: translateX(1px); }
+  34%, 49% { transform: translateX(2px); }
+  50%, 66% { transform: translateX(3px); }
+  67%, 83% { transform: translateX(4px); }
+  84%, 100% { transform: translateX(5px); }
+}
+.px-cloud { animation: px-cloud 9s steps(60, end) infinite; }
+@keyframes px-cloud {
+  from { transform: translateX(-16px); }
+  to { transform: translateX(42px); }
+}
+/* The flag waves between two frames. */
+.px-flag { animation: px-flag-a 0.9s steps(1, end) infinite; }
+.px-flag-alt { animation-name: px-flag-b; }
+@keyframes px-flag-a {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+@keyframes px-flag-b {
   0%, 49% { opacity: 0; }
   50%, 100% { opacity: 1; }
 }
-/* Now and then it fades, as ghosts do. */
-.nf-fade { animation: nf-fade 6s steps(1, end) 1.2s infinite; }
-@keyframes nf-fade {
-  0%, 62% { opacity: 1; }
-  64% { opacity: 0.7; }
-  66%, 74% { opacity: 0.4; }
-  76% { opacity: 0.7; }
-  78%, 100% { opacity: 1; }
+.px-arrow-r { animation: px-arrow-r 1.6s steps(1, end) infinite; }
+.px-arrow-l { animation: px-arrow-l 1.6s steps(1, end) infinite; }
+@keyframes px-arrow-r {
+  0%, 24% { transform: translateX(-1px); }
+  25%, 49% { transform: none; }
+  50%, 74% { transform: translateX(1px); }
+  75%, 100% { transform: none; }
 }
-.nf-hem { animation: nf-flip 0.6s steps(1, end) infinite; }
-.nf-hem-alt { animation-direction: reverse; }
-@keyframes nf-flip {
-  0%, 49% { opacity: 1; }
-  50%, 100% { opacity: 0; }
-}
-.nf-eyes { animation: nf-blink 4.2s steps(1, end) 0.8s infinite; }
-.nf-eyes-shut { opacity: 0; animation-name: nf-blink-shut; }
-@keyframes nf-blink {
-  0%, 91% { opacity: 1; }
-  92%, 95% { opacity: 0; }
-  96%, 100% { opacity: 1; }
-}
-@keyframes nf-blink-shut {
-  0%, 91% { opacity: 0; }
-  92%, 95% { opacity: 1; }
-  96%, 100% { opacity: 0; }
+@keyframes px-arrow-l {
+  0%, 24% { transform: translateX(1px); }
+  25%, 49% { transform: none; }
+  50%, 74% { transform: translateX(-1px); }
+  75%, 100% { transform: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .nf-digit, .nf-ghost, .nf-fade, .nf-shadow, .nf-hem, .nf-eyes { animation: none; opacity: 1; }
-  .nf-shadow-high, .nf-hem-alt, .nf-eyes-shut { opacity: 0; }
+  .px-plug, .px-lens, .px-question, .px-shackle, .px-tumble, .px-hop, .px-turn, .px-blink,
+  .px-ray, .px-waves, .px-cloud, .px-flag, .px-arrow-r, .px-arrow-l { animation: none; }
+  .px-spark { animation: none; opacity: 1; }
+  .px-lens { transform: translate(5px, 4px); }
+  .px-tumble { transform: translateX(4px); }
+  .px-cloud { transform: translateX(2px); }
+  .px-flag-alt { opacity: 0; }
 }
 
 /* Sheets and menus rise in. */
@@ -863,7 +913,6 @@ html.lenis body {
 }
 
 /* Sign-in (app/[lang]/login): steps glide in, results follow one another,
-   the name tiles hop with the typing, shake at an error and wave at success,
    and the chosen school flies into place (View Transition). */
 .login-step { animation: login-step-in 0.5s var(--ease-out) both; }
 @keyframes login-step-in {
@@ -873,54 +922,103 @@ html.lenis body {
 .login-results [role='option'] { animation: login-step-in 0.35s var(--ease-out) both; }
 .login-scroll { scrollbar-width: none; }
 .login-scroll::-webkit-scrollbar { display: none; }
-.login-tile { box-shadow: 0 6px 14px -8px rgb(0 0 0 / 0.35); }
-.login-hop { animation: login-hop 0.42s cubic-bezier(0.3, 1.6, 0.5, 1) both; }
-@keyframes login-hop {
-  0% { transform: translateY(0) scale(1); }
-  40% { transform: translateY(var(--hop, -9px)) scale(1.06); }
-  100% { transform: translateY(0) scale(1); }
+/* The browser filling a field shows as an animation start (LoginForm). */
+.login-field input:-webkit-autofill { animation: login-autofill 0.01s both; }
+.login-field input:autofill { animation: login-autofill 0.01s both; }
+@keyframes login-autofill { from { opacity: 1; } to { opacity: 1; } }
+
+/* The hallway beside the form and its mascot (app/[lang]/login/Hallway.tsx),
+   in sprite steps. Lengths are pixels of the drawing. The windows show the
+   day in the light theme and the night in the dark one. */
+.login-hall { background: var(--surface); }
+.login-hall-in { animation: login-hall-in 0.5s steps(5, end) both; }
+@keyframes login-hall-in { from { opacity: 0; } }
+.hw-night { display: none; }
+.dark .hw-night { display: inline; }
+.dark .hw-day { display: none; }
+.hw-clouds { animation: hw-clouds 30s steps(148, end) infinite; }
+@keyframes hw-clouds { to { transform: translateX(var(--hw-loop)); } }
+.hw-stars { animation: hw-twinkle 2.6s steps(1, end) infinite; }
+@keyframes hw-twinkle {
+  0%, 60% { opacity: 1; }
+  62%, 70% { opacity: 0.2; }
+  72%, 100% { opacity: 1; }
 }
-/* Desktop scene: squared paper, large tiles that float, lean towards the
-   pointer (--mx/--my, NameTiles.tsx) and jump higher, with a floor shadow. */
-.login-stage {
-  container-type: inline-size;
-  perspective: 1400px;
-  background-color: var(--surface);
-  background-image: radial-gradient(color-mix(in srgb, var(--ink) 11%, transparent) 1.2px, transparent 1.7px);
-  background-size: 26px 26px;
-  --hop: -34px;
+/* The locker door swings: a short shudder each time it opens or shuts. */
+.hw-locker { animation: hw-slam 0.24s steps(3, end); }
+@keyframes hw-slam {
+  0% { transform: translateX(-1px); }
+  50% { transform: translateX(1px); }
+  100% { transform: none; }
 }
-.login-tile-big {
-  font-size: 8.4cqw;
-  letter-spacing: -0.03em;
-  cursor: pointer;
-  box-shadow: 0 34px 60px -30px rgb(0 0 0 / 0.45), inset 0 -0.6cqw 0 rgb(0 0 0 / 0.07);
+/* Breathing, hopping with each key, jumping, shaking the head. */
+.ms-breathe { animation: ms-breathe 1.8s steps(1, end) infinite; }
+@keyframes ms-breathe {
+  0%, 49% { transform: none; }
+  50%, 100% { transform: translateY(1px); }
 }
-.login-lean { transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1); transform-style: preserve-3d; }
-.login-float { animation: login-float 6.5s ease-in-out infinite; }
-@keyframes login-float {
-  0%, 100% { translate: 0 0; }
-  50% { translate: 0 -1.2cqw; }
+.ms-hop { animation: ms-hop 0.3s steps(3, end); }
+@keyframes ms-hop {
+  0% { transform: none; }
+  40% { transform: translateY(-3px); }
+  100% { transform: none; }
 }
-.login-floor { background: radial-gradient(closest-side, rgb(0 0 0 / 0.2), transparent); }
-.dark .login-floor { background: radial-gradient(closest-side, rgb(0 0 0 / 0.55), transparent); }
-.login-floor-hop { animation: login-floor-hop 0.42s cubic-bezier(0.3, 1.6, 0.5, 1) both; }
-@keyframes login-floor-hop {
-  40% { scale: 0.62; opacity: 0.5; }
+.ms-jump { animation: ms-jump 0.7s steps(7, end); }
+@keyframes ms-jump {
+  0%, 100% { transform: none; }
+  15% { transform: translateY(1px); }
+  45% { transform: translateY(-6px); }
+  70% { transform: translateY(-2px); }
 }
-.login-shake { animation: login-shake 0.45s ease-in-out; }
-@keyframes login-shake {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-7px); }
-  40% { transform: translateX(6px); }
-  60% { transform: translateX(-4px); }
-  80% { transform: translateX(2px); }
+.ms-shake { animation: ms-shake 0.5s steps(1, end); }
+@keyframes ms-shake {
+  0%, 100% { transform: none; }
+  15% { transform: translateX(-2px); }
+  35% { transform: translateX(2px); }
+  55% { transform: translateX(-1px); }
+  75% { transform: translateX(1px); }
+}
+/* Blinking now and then; waving in two frames. */
+.ms-open { animation: ms-open 4.4s steps(1, end) 1s infinite; }
+.ms-blink { opacity: 0; animation: ms-blink 4.4s steps(1, end) 1s infinite; }
+@keyframes ms-open {
+  0%, 92% { opacity: 1; }
+  93%, 96% { opacity: 0; }
+  97%, 100% { opacity: 1; }
+}
+@keyframes ms-blink {
+  0%, 92% { opacity: 0; }
+  93%, 96% { opacity: 1; }
+  97%, 100% { opacity: 0; }
+}
+.ms-frame-a { animation: ms-frame-a 0.7s steps(1, end) infinite; }
+.ms-frame-b { opacity: 0; animation: ms-frame-b 0.7s steps(1, end) infinite; }
+@keyframes ms-frame-a {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+@keyframes ms-frame-b {
+  0%, 49% { opacity: 0; }
+  50%, 100% { opacity: 1; }
+}
+/* Signs and bubbles pop up; a drop of sweat runs down. */
+.ms-pop { animation: ms-pop 0.24s steps(3, end) both; }
+@keyframes ms-pop {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: none; }
+}
+.ms-drip { animation: ms-drip 1.1s steps(3, end) infinite; }
+@keyframes ms-drip {
+  from { transform: none; }
+  to { transform: translateY(3px); opacity: 0.4; }
 }
 ::view-transition-group(login-school) { animation-duration: 0.45s; animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.3s; }
 @media (prefers-reduced-motion: reduce) {
-  .login-step, .login-results [role='option'], .login-hop, .login-shake, .login-float, .login-floor-hop { animation: none; }
-  .login-lean { transition: none; transform: none !important; }
+  .login-step, .login-results [role='option'] { animation: none; }
+  .login-hall-in, .hw-clouds, .hw-stars, .hw-locker, .ms-breathe, .ms-hop, .ms-jump, .ms-shake,
+  .ms-open, .ms-frame-a, .ms-pop, .ms-drip { animation: none; }
+  .ms-blink, .ms-frame-b { animation: none; opacity: 0; }
 }
 
 /* ═══ Homepage ═══════════════════════════════════════════════════════════ */
