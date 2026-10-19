@@ -67,6 +67,8 @@ export type GradesKey =
   | 'hintMany'
   | 'trend'
   | 'trendSub'
+  | 'trendGrades'
+  | 'trendPass'
   | 'reset'
   | 'noGradesYet'
   | 'gradeList'
@@ -150,6 +152,8 @@ export const gradesDict: Dictionary<GradesKey> = {
     hintMany: '{n}x {grade}, um den Schnitt zu erreichen',
     trend: 'Notentrend',
     trendSub: 'Verlauf vom Schuljahresbeginn bis heute',
+    trendGrades: 'Noten',
+    trendPass: 'Genügend ab 6',
     reset: 'Zurücksetzen',
     noGradesYet: 'Noch keine Noten',
     gradeList: 'Noten-Liste',
@@ -232,6 +236,8 @@ export const gradesDict: Dictionary<GradesKey> = {
     hintMany: '{n}x {grade} per raggiungere la media',
     trend: 'Andamento dei voti',
     trendSub: 'Dall’inizio dell’anno scolastico a oggi',
+    trendGrades: 'Voti',
+    trendPass: 'Sufficiente da 6',
     reset: 'Ripristina',
     noGradesYet: 'Ancora nessun voto',
     gradeList: 'Elenco voti',
@@ -314,6 +320,8 @@ export const gradesDict: Dictionary<GradesKey> = {
     hintMany: '{n}x {grade} to reach the average',
     trend: 'Grade trend',
     trendSub: 'From the start of the school year until today',
+    trendGrades: 'Grades',
+    trendPass: 'Pass mark 6',
     reset: 'Reset',
     noGradesYet: 'No grades yet',
     gradeList: 'Grade list',

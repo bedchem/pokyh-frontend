@@ -591,7 +591,8 @@ export default function AbsencesPage() {
                                       {entry.isExcused ? <CheckCircle size={15} weight="bold" aria-hidden="true" /> : <XCircle size={15} weight="bold" aria-hidden="true" />}
                                       {entry.isExcused ? t('statusExcused') : t('statusOpen')}
                                     </span>
-                                    {!entry.isExcused && (
+                                    {/* Like WebUntis: only who may report absences (guardians, students of age) excuses them. */}
+                                    {!entry.isExcused && canReport && (
                                       <button
                                         type="button"
                                         onClick={() => setExcuseIds([entry.id])}

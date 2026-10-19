@@ -1,13 +1,17 @@
 'use client';
 
-import { useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { fmtNum } from '@/lib/grades';
 
-// The grade trend of one subject. A smooth curve through the grades in the
-// order they were given (monotone, so it never swings past a grade), a soft
-// fill under it, and a thinner line for the running average. The pass mark
-// (6) is drawn across, the band below it faintly red. Points are green when
-// passing and red when not; simulated grades are hollow on a dashed stretch.
-// The curve draws itself in when the grades change; hovering shows a card.
+// The grade trend of one subject, read at a glance. A legend says what the
+// lines are: the grades in the order they were given (straight lines between
+// them, as each grade is a single event, with a faint wash under it), the
+// running average as a quieter line that ends in its current value, and the
+// pass mark (6) as a dashed threshold with the band below it barely tinted.
+// Only the latest grade carries its number; every other value is in the
+// list below and in the card that follows the pointer or the arrow keys.
+// Grades below the pass mark are red dots; simulated ones are hollow on a
+// dashed stretch. The lines draw themselves in when the grades change.
 
 export interface TrendPoint {
   value: number;
@@ -16,40 +20,10 @@ export interface TrendPoint {
   isCustom: boolean;
 }
 
-const H = 300;
-const PAD = { top: 34, right: 18, bottom: 34, left: 34 };
+const PAD = { top: 26, right: 58, bottom: 34, left: 30 };
 
-/** Monotone cubic (Fritsch–Carlson) through points, as an SVG path. */
-function smoothPath(pts: Array<{ x: number; y: number }>): string {
-  const n = pts.length;
-  if (n === 0) return '';
-  if (n === 1) return `M${pts[0].x},${pts[0].y}`;
-  const dx: number[] = [];
-  const m: number[] = [];
-  for (let i = 0; i < n - 1; i++) {
-    dx.push(pts[i + 1].x - pts[i].x);
-    m.push((pts[i + 1].y - pts[i].y) / (dx[i] || 1));
-  }
-  const t: number[] = [m[0]];
-  for (let i = 1; i < n - 1; i++) {
-    if (m[i - 1] * m[i] <= 0) t.push(0);
-    else {
-      const w1 = 2 * dx[i] + dx[i - 1];
-      const w2 = dx[i] + 2 * dx[i - 1];
-      t.push((w1 + w2) / (w1 / m[i - 1] + w2 / m[i]));
-    }
-  }
-  t.push(m[n - 2]);
-  let d = `M${pts[0].x},${pts[0].y}`;
-  for (let i = 0; i < n - 1; i++) {
-    const h = dx[i] / 3;
-    d += ` C${pts[i].x + h},${pts[i].y + t[i] * h} ${pts[i + 1].x - h},${pts[i + 1].y - t[i + 1] * h} ${pts[i + 1].x},${pts[i + 1].y}`;
-  }
-  return d;
-}
-
-function fmt(v: number): string {
-  return String(Math.round(v * 100) / 100);
+function linePath(pts: Array<{ x: number; y: number }>): string {
+  return pts.map((p, i) => `${i ? 'L' : 'M'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
 }
 
 export default function TrendChart({
@@ -57,18 +31,23 @@ export default function TrendChart({
   dateText,
   averageLabel,
   ownLabel,
+  gradesLabel,
   passLabel,
 }: {
   points: TrendPoint[];
   dateText: (d: number) => string;
   averageLabel: string;
   ownLabel: string;
+  /** Legend name of the grade line. */
+  gradesLabel: string;
+  /** Legend name of the pass mark, e.g. "Genügend ab 6". */
   passLabel: string;
 }) {
   const id = useId().replace(/:/g, '');
   const box = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(640);
   const [hover, setHover] = useState<number | null>(null);
+  const H = w < 480 ? 250 : 290;
 
   useLayoutEffect(() => {
     const el = box.current;
@@ -98,131 +77,213 @@ export default function TrendChart({
     const lastReal = points.reduce((last, p, i) => (!p.isCustom ? i : last), -1);
     const real = lastReal >= 0 ? pts.slice(0, lastReal + 1) : [];
     const sim = lastReal >= 0 && lastReal < pts.length - 1 ? pts.slice(lastReal) : lastReal < 0 ? pts : [];
-    const line = smoothPath(real);
-    const area = real.length > 1 ? `${line} L${real[real.length - 1].x},${PAD.top + innerH} L${real[0].x},${PAD.top + innerH} Z` : '';
-    return { pts, avg, line, area, simLine: smoothPath(sim), avgLine: smoothPath(avg) };
-    // x and y are derived from w, yMin and the point count only.
+    const line = linePath(real);
+    const base = PAD.top + innerH;
+    const area = real.length > 1 ? `${line} L${real[real.length - 1].x.toFixed(1)},${base} L${real[0].x.toFixed(1)},${base} Z` : '';
+    return { pts, avg, line, area, simLine: sim.length > 1 ? linePath(sim) : '', avgLine: linePath(avg) };
+    // x and y are derived from w, H, yMin and the point count only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [points, w, yMin]);
+  }, [points, w, H, yMin]);
 
   // Restart the drawing animation whenever the grades change.
   const drawKey = points.map((p) => `${p.value}${p.isCustom ? 'c' : ''}`).join('|') + `@${Math.round(w / 40)}`;
   const grid = Array.from({ length: yMax - yMin + 1 }, (_, i) => yMax - i);
   const passY = y(6);
+  const last = geo.pts[geo.pts.length - 1];
+  const lastAvg = geo.avg[geo.avg.length - 1];
   const hp = hover !== null ? geo.pts[hover] : null;
   const ha = hover !== null ? geo.avg[hover] : null;
-  const labelEvery = Math.max(1, Math.ceil(points.length / Math.max(2, Math.floor(innerW / 90))));
+  const hasCustom = points.some((p) => p.isCustom);
 
-  function onMove(e: React.PointerEvent<SVGSVGElement>) {
-    const r = e.currentTarget.getBoundingClientRect();
-    const px = e.clientX - r.left;
+  // Dates under the axis: as many as fit, the first and last always, set
+  // inward at the edges so they are never cut off.
+  const fit = Math.max(2, Math.floor(innerW / 84));
+  const labelEvery = Math.max(1, Math.ceil(points.length / fit));
+  const dateIdx = points.map((_, i) => i).filter((i) => i % labelEvery === 0);
+  if (points.length && dateIdx[dateIdx.length - 1] !== points.length - 1) {
+    if (dateIdx.length > 1 && x(points.length - 1) - x(dateIdx[dateIdx.length - 1]) < 70) dateIdx.pop();
+    dateIdx.push(points.length - 1);
+  }
+
+  function nearest(px: number) {
     let best = 0;
     let dist = Infinity;
     geo.pts.forEach((p, i) => {
       const d = Math.abs(p.x - px);
       if (d < dist) { dist = d; best = i; }
     });
-    setHover(best);
+    return best;
+  }
+  function onMove(e: PointerEvent<SVGSVGElement>) {
+    const r = e.currentTarget.getBoundingClientRect();
+    setHover(nearest(e.clientX - r.left));
+  }
+  function onKey(e: KeyboardEvent<SVGSVGElement>) {
+    const n = points.length;
+    if (!n) return;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'Home' || e.key === 'End') {
+      e.preventDefault();
+      setHover((h) => {
+        if (e.key === 'Home') return 0;
+        if (e.key === 'End') return n - 1;
+        const from = h ?? (e.key === 'ArrowRight' ? -1 : n);
+        return Math.min(n - 1, Math.max(0, from + (e.key === 'ArrowRight' ? 1 : -1)));
+      });
+    } else if (e.key === 'Escape') setHover(null);
   }
 
+  // The card sits above the point, or below it when there is no room above.
+  const cardW = 168;
+  const cardAbove = hp ? hp.y - 96 > 0 : true;
+
   return (
-    <div ref={box} className="relative w-full select-none">
-      <svg
-        width={w}
-        height={H}
-        viewBox={`0 0 ${w} ${H}`}
-        className="block touch-pan-y"
-        onPointerMove={onMove}
-        onPointerDown={onMove}
-        onPointerLeave={() => setHover(null)}
-        role="img"
-        aria-label={points.map((p) => `${p.label} ${fmt(p.value)}`).join(', ')}
-      >
-        <defs>
-          <linearGradient id={`fill-${id}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.28" />
-            <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
-          </linearGradient>
-          <clipPath id={`plot-${id}`}>
-            <rect x={PAD.left - 6} y={PAD.top - 20} width={innerW + 12} height={innerH + 40} />
-          </clipPath>
-        </defs>
+    <div className="w-full select-none">
+      {/* Legend: what each line is */}
+      <ul className="flex flex-wrap items-center gap-x-5 gap-y-1.5 px-1 pb-3 text-[13px] font-semibold text-ink-2">
+        <li className="flex items-center gap-2">
+          <svg width="22" height="10" aria-hidden="true"><line x1="1" x2="21" y1="5" y2="5" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" /><circle cx="11" cy="5" r="3.5" fill="var(--accent)" stroke="var(--surface)" strokeWidth="1.5" /></svg>
+          {gradesLabel}
+        </li>
+        {points.length > 1 && (
+          <li className="flex items-center gap-2">
+            <svg width="22" height="10" aria-hidden="true"><line x1="1" x2="21" y1="5" y2="5" stroke="var(--ink-3)" strokeWidth="2" strokeLinecap="round" /></svg>
+            {averageLabel}
+          </li>
+        )}
+        {hasCustom && (
+          <li className="flex items-center gap-2">
+            <svg width="22" height="10" aria-hidden="true"><line x1="1" x2="21" y1="5" y2="5" stroke="var(--accent)" strokeWidth="2" strokeDasharray="4 4" strokeLinecap="round" /><circle cx="11" cy="5" r="3.5" fill="var(--surface)" stroke="var(--accent)" strokeWidth="2" /></svg>
+            {ownLabel}
+          </li>
+        )}
+        <li className="flex items-center gap-2">
+          <svg width="22" height="10" aria-hidden="true"><line x1="1" x2="21" y1="5" y2="5" stroke="var(--danger)" strokeWidth="1.5" strokeDasharray="4 3" /></svg>
+          {passLabel}
+        </li>
+      </ul>
 
-        {/* Below the pass mark */}
-        <rect x={PAD.left} y={passY} width={innerW} height={PAD.top + innerH - passY} fill="var(--danger)" opacity="0.06" rx="10" />
+      <div ref={box} className="relative w-full">
+        <svg
+          width={w}
+          height={H}
+          viewBox={`0 0 ${w} ${H}`}
+          className="block touch-pan-y rounded-[14px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+          onPointerMove={onMove}
+          onPointerDown={onMove}
+          onPointerLeave={() => setHover(null)}
+          onKeyDown={onKey}
+          onBlur={() => setHover(null)}
+          tabIndex={0}
+          role="img"
+          aria-label={points.map((p) => `${p.isCustom ? ownLabel : dateText(p.date)}: ${p.label} ${fmtNum(p.value)}`).join(', ')}
+        >
+          <defs>
+            <linearGradient id={`fill-${id}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.16" />
+              <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
+            </linearGradient>
+          </defs>
 
-        {grid.map((g) => (
-          <g key={g}>
-            <line x1={PAD.left} x2={PAD.left + innerW} y1={y(g)} y2={y(g)} stroke="var(--line)" strokeWidth={g === 6 ? 0 : 1} strokeDasharray={g % 2 ? '2 5' : undefined} />
-            <text x={PAD.left - 12} y={y(g)} textAnchor="end" dominantBaseline="central" className="fill-[var(--ink-3)] text-[11.5px] font-semibold tnum">{g}</text>
-          </g>
-        ))}
-        <line x1={PAD.left} x2={PAD.left + innerW} y1={passY} y2={passY} stroke="var(--danger)" strokeWidth="1.5" strokeDasharray="6 5" opacity="0.6" />
-        <text x={PAD.left + innerW} y={passY - 8} textAnchor="end" className="fill-[var(--danger-ink)] text-[11px] font-bold">{passLabel}</text>
+          {/* Below the pass mark */}
+          <rect x={PAD.left} y={passY} width={innerW} height={PAD.top + innerH - passY} fill="var(--danger)" opacity="0.045" />
 
-        <g clipPath={`url(#plot-${id})`} key={drawKey}>
-          {geo.area && <path d={geo.area} fill={`url(#fill-${id})`} className="trend-area" />}
-          {points.length > 1 && (
-            <path d={geo.avgLine} fill="none" stroke="var(--ink-3)" strokeWidth="1.75" strokeLinecap="round" strokeDasharray="1 5" className="trend-fade" />
-          )}
-          {geo.line && (
-            <path d={geo.line} fill="none" stroke="var(--accent)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" pathLength={1} className="trend-draw" />
-          )}
-          {geo.simLine && points.some((p) => p.isCustom) && (
-            <path d={geo.simLine} fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="5 6" opacity="0.75" className="trend-fade" />
-          )}
+          {grid.map((g) => (
+            <g key={g}>
+              {g !== 6 && <line x1={PAD.left} x2={PAD.left + innerW} y1={y(g)} y2={y(g)} stroke="var(--line)" strokeWidth="1" />}
+              <text
+                x={PAD.left - 10}
+                y={y(g)}
+                textAnchor="end"
+                dominantBaseline="central"
+                className={`tnum text-[11.5px] ${g === 6 ? 'fill-[var(--danger-ink)] font-bold' : 'fill-[var(--ink-3)] font-semibold'}`}
+              >
+                {g}
+              </text>
+            </g>
+          ))}
+          <line x1={PAD.left} x2={PAD.left + innerW} y1={passY} y2={passY} stroke="var(--danger)" strokeWidth="1.5" strokeDasharray="5 4" opacity="0.7" />
 
-          {geo.pts.map(({ x: px, y: py, p }, i) => {
-            const pass = p.value >= 6;
-            const active = hover === i;
-            return (
-              <g key={i} className="trend-pop" style={{ animationDelay: `${0.25 + (i / Math.max(1, points.length)) * 0.6}s`, transformOrigin: `${px}px ${py}px` }}>
-                <circle cx={px} cy={py} r={active ? 9 : 7} fill="var(--surface)" style={{ transition: 'r 0.2s var(--ease-out)' }} />
-                <circle
-                  cx={px}
-                  cy={py}
-                  r={active ? 6 : 4.5}
-                  fill={p.isCustom ? 'var(--surface)' : pass ? 'var(--success)' : 'var(--danger)'}
-                  stroke={p.isCustom ? 'var(--accent)' : 'none'}
-                  strokeWidth={p.isCustom ? 2.5 : 0}
-                  style={{ transition: 'r 0.2s var(--ease-out)' }}
-                />
-                {(points.length <= 12 || active) && (
-                  <text x={px} y={py - 15} textAnchor="middle" className="fill-[var(--ink)] text-[12px] font-extrabold tnum">{fmt(p.value)}</text>
-                )}
+          <g key={drawKey}>
+            {geo.area && <path d={geo.area} fill={`url(#fill-${id})`} className="trend-area" />}
+            {points.length > 1 && (
+              <path d={geo.avgLine} fill="none" stroke="var(--ink-3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.75" className="trend-fade" />
+            )}
+            {geo.line && (
+              <path d={geo.line} fill="none" stroke="var(--accent)" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" pathLength={1} className="trend-draw" />
+            )}
+            {geo.simLine && (
+              <path d={geo.simLine} fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeDasharray="5 5" className="trend-fade" />
+            )}
+
+            {/* The running average's current value, at the end of its line */}
+            {points.length > 1 && lastAvg && (
+              <text x={lastAvg.x + 10} y={lastAvg.y} dominantBaseline="central" className="trend-fade tnum fill-[var(--ink-2)] text-[12px] font-bold">
+                Ø {fmtNum(lastAvg.v)}
+              </text>
+            )}
+
+            {hp && <line x1={hp.x} x2={hp.x} y1={PAD.top - 8} y2={PAD.top + innerH} stroke="var(--ink)" strokeOpacity="0.16" strokeWidth="1" />}
+
+            {geo.pts.map(({ x: px, y: py, p }, i) => {
+              const pass = p.value >= 6;
+              const active = hover === i;
+              return (
+                <g key={i} className="trend-pop" style={{ animationDelay: `${0.2 + (i / Math.max(1, points.length)) * 0.6}s`, transformOrigin: `${px}px ${py}px` }}>
+                  <circle
+                    cx={px}
+                    cy={py}
+                    r={active ? 6 : 4.5}
+                    fill={p.isCustom ? 'var(--surface)' : pass ? 'var(--accent)' : 'var(--danger)'}
+                    stroke={p.isCustom ? 'var(--accent)' : 'var(--surface)'}
+                    strokeWidth={2}
+                    style={{ transition: 'r 0.2s var(--ease-out)' }}
+                  />
+                </g>
+              );
+            })}
+
+            {/* The latest grade carries its number */}
+            {last && hover === null && (
+              <g className="trend-fade">
+                <rect x={last.x - 19} y={last.y - 30} width="38" height="20" rx="10" fill="var(--ink)" />
+                <text x={last.x} y={last.y - 20} textAnchor="middle" dominantBaseline="central" className="tnum fill-[var(--canvas)] text-[12px] font-extrabold">
+                  {fmtNum(last.p.value)}
+                </text>
               </g>
+            )}
+          </g>
+
+          {dateIdx.map((i) => {
+            const px = geo.pts[i].x;
+            const anchor = i === 0 && points.length > 1 ? 'start' : i === points.length - 1 && points.length > 1 ? 'end' : 'middle';
+            return (
+              <text key={`d${i}`} x={anchor === 'start' ? px - 4 : anchor === 'end' ? px + 4 : px} y={H - 10} textAnchor={anchor} className="fill-[var(--ink-3)] text-[11px] font-semibold">
+                {points[i].isCustom ? ownLabel : dateText(points[i].date)}
+              </text>
             );
           })}
-        </g>
+        </svg>
 
-        {geo.pts.map(({ x: px, p }, i) => (i % labelEvery === 0 || i === points.length - 1) && (
-          <text key={`d${i}`} x={px} y={H - 10} textAnchor="middle" className="fill-[var(--ink-3)] text-[11px] font-semibold">
-            {p.isCustom ? ownLabel : dateText(p.date)}
-          </text>
-        ))}
-
-        {hp && <line x1={hp.x} x2={hp.x} y1={PAD.top - 10} y2={PAD.top + innerH} stroke="var(--ink)" strokeOpacity="0.18" strokeWidth="1.5" />}
-      </svg>
-
-      {hp && ha && (
-        <div
-          className="pointer-events-none absolute z-10 min-w-[150px] rounded-[16px] bg-surface p-3 shadow-[var(--shadow-float)] [animation:rise_0.18s_var(--ease-out)_both]"
-          style={{
-            left: Math.min(Math.max(hp.x - 75, 0), w - 160),
-            top: Math.max(0, hp.y - 112),
-          }}
-        >
-          <p className="text-[12px] font-semibold text-ink-3">{hp.p.isCustom ? ownLabel : dateText(hp.p.date)}</p>
-          <p className="mt-0.5 truncate text-[13.5px] font-semibold">{hp.p.label}</p>
-          <div className="mt-2 flex items-end justify-between gap-4">
-            <span className={`text-[24px] font-extrabold leading-none tracking-[-0.04em] tnum ${hp.p.value >= 6 ? 'text-success-ink' : 'text-danger-ink'}`}>{fmt(hp.p.value)}</span>
-            <span className="text-right text-[12px] text-ink-2">
-              {averageLabel}
-              <span className="block text-[14px] font-bold text-ink tnum">{ha.v.toFixed(2)}</span>
-            </span>
+        {hp && ha && (
+          <div
+            className="pointer-events-none absolute z-10 rounded-[14px] bg-surface px-3 py-2.5 shadow-[var(--shadow-float)] [animation:rise_0.16s_var(--ease-out)_both]"
+            style={{
+              width: cardW,
+              left: Math.min(Math.max(hp.x - cardW / 2, 0), w - cardW),
+              top: cardAbove ? hp.y - 92 : hp.y + 16,
+            }}
+          >
+            <p className="truncate text-[12px] font-semibold text-ink-3">{hp.p.isCustom ? ownLabel : dateText(hp.p.date)} · {hp.p.label}</p>
+            <div className="mt-1.5 flex items-end justify-between gap-3">
+              <span className={`text-[24px] font-extrabold leading-none tracking-[-0.04em] ${hp.p.value >= 6 ? 'text-ink' : 'text-danger-ink'}`}>{fmtNum(hp.p.value)}</span>
+              <span className="text-right text-[11.5px] leading-tight text-ink-2">
+                {averageLabel}
+                <span className="block text-[14px] font-bold text-ink tnum">Ø {fmtNum(ha.v)}</span>
+              </span>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

@@ -1,6 +1,8 @@
 /* Timetable: design ported from the Android app (TimetableScreen / WeekGrid / LessonDetailSheet). */
 
 .wrap {
+  /* Height of the week switch that stays at the top while scrolling. */
+  --tt-bar: 60px;
   height: 100%;
   background: var(--app-bg);
   color: var(--app-text-primary);
@@ -283,21 +285,32 @@
 
 /* ── Week grid ─────────────────────────────────────────────── */
 
-/* The grid on the canvas, its edges lined up with the page. */
+/* The grid on the canvas, its edges lined up with the page. Clipped only
+   sideways (the weeks glide in and out), so the day names inside can stay
+   at the top while scrolling; older browsers clip both ways. */
 .pager {
   overflow: hidden;
   position: relative;
   margin: 0 14px;
 }
+@supports (overflow: clip) {
+  .pager { overflow: clip visible; }
+}
 @media (min-width: 640px) { .pager { margin: 0 26px; } }
 @media (min-width: 1024px) { .pager { margin: 0 42px; } }
 
-/* The week switch, joined to the grid below it. */
+/* The week switch, joined to the grid below it. It stays at the top while
+   the week scrolls, the day names right under it (.gridHeader). */
 .weekBar {
+  position: sticky;
+  top: 0;
+  z-index: 6;
   display: flex;
   align-items: center;
   gap: 10px;
+  height: var(--tt-bar);
   margin-bottom: -8px;
+  background: var(--app-bg);
 }
 .weekLabel { flex: 1; min-width: 0; }
 .weekArrow,
@@ -326,11 +339,27 @@
   --s: 1;
 }
 .gridHeader {
+  position: sticky;
+  top: var(--tt-bar);
+  z-index: 5;
   display: flex;
   gap: 3px;
   align-items: flex-end;
-  padding-bottom: 8px;
+  padding-top: 4px;
+  background: var(--app-bg);
 }
+/* Once the week scrolls under the day names, a soft edge marks where. */
+.gridHeader::after {
+  content: '';
+  position: absolute;
+  inset: 100% 0 auto;
+  height: 12px;
+  background: linear-gradient(var(--app-bg), transparent);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+.host[data-scrolled] .gridHeader::after { opacity: 1; }
 .gutterHead {
   display: flex;
   flex-direction: column;
@@ -384,10 +413,13 @@
   color: #fff;
 }
 
+/* The room above the first lesson sits in the body, not under the day names
+   (their fill would cover the first time on the axis). */
 .gridBody {
   position: relative;
   display: flex;
   gap: 3px;
+  margin-top: 8px;
 }
 .axis {
   position: relative;
@@ -1135,7 +1167,7 @@ button.special { border: 0; background: transparent; font: inherit; cursor: poin
   display: grid;
   place-items: center;
   min-height: 420px;
-  margin-top: 6px;
+  margin-top: 14px;
   border-radius: 24px;
   background: var(--periwinkle);
   color: var(--periwinkle-ink);

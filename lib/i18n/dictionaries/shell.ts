@@ -13,6 +13,7 @@ export type ShellKey =| 'mainNav'| 'skip'| 'home'| 'timetable'
   | 'reminders'
   | 'class'
   | 'profile'
+  | 'accountMenu'
   | 'settings'
   | 'collapse'
   | 'expand'
@@ -68,9 +69,10 @@ export const shellDict: Dictionary<ShellKey> = {
     reminders: 'Erinnerungen',
     class: 'Klasse',
     profile: 'Profil',
+    accountMenu: 'Konto-Menü',
     settings: 'Einstellungen',
     collapse: 'Seitenleiste einklappen',
-    website: 'Zur Website',
+    website: 'Startseite',
     language: 'Sprache',
     expand: 'Seitenleiste ausklappen',
     unread: '{n} ungelesen',
@@ -122,9 +124,10 @@ export const shellDict: Dictionary<ShellKey> = {
     reminders: 'Promemoria',
     class: 'Classe',
     profile: 'Profilo',
+    accountMenu: 'Menu dell’account',
     settings: 'Impostazioni',
     collapse: 'Comprimi la barra laterale',
-    website: 'Al sito',
+    website: 'Pagina iniziale',
     language: 'Lingua',
     expand: 'Espandi la barra laterale',
     unread: '{n} non letti',
@@ -176,9 +179,10 @@ export const shellDict: Dictionary<ShellKey> = {
     reminders: 'Reminders',
     class: 'Class',
     profile: 'Profile',
+    accountMenu: 'Account menu',
     settings: 'Settings',
     collapse: 'Collapse sidebar',
-    website: 'To the website',
+    website: 'Homepage',
     language: 'Language',
     expand: 'Expand sidebar',
     unread: '{n} unread',

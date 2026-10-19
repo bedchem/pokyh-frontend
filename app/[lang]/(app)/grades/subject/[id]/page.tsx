@@ -462,7 +462,7 @@ export default function SubjectDetailPage({
               </Button>
             )}
           >
-            <div className="squircle rounded-[26px] bg-surface px-3 pb-2 pt-4 md:px-5">
+            <div className="squircle rounded-[26px] bg-surface px-3 pb-2 pt-4 md:px-5 md:pt-5">
               {chronological.length === 0 ? (
                 <PixelState compact sprite="empty" title={t('noGradesYet')} />
               ) : (
@@ -470,8 +470,9 @@ export default function SubjectDetailPage({
                   points={chronological}
                   dateText={(d) => fmtDateShort(d)}
                   averageLabel={t('average')}
-                  ownLabel={t('own')}
-                  passLabel="6"
+                  ownLabel={t('ownGrade')}
+                  gradesLabel={t('trendGrades')}
+                  passLabel={t('trendPass')}
                 />
               )}
             </div>

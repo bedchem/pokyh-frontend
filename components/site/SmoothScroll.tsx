@@ -9,10 +9,10 @@ import { inputKind, isPace, SCROLL, type InputKind } from '@/lib/scroll-pace';
 // Smooth scrolling for the public pages. Lenis drives the native scroll
 // position (so anchors, find-in-page and assistive tech keep working) and is
 // ticked by GSAP so ScrollTrigger reads the same position every frame.
-// Mouse wheels glide briefly; trackpads (which bring their own momentum) are
-// followed almost directly, so the page never lags behind the fingers. The
-// same gesture moves the page equally far everywhere (values in
-// lib/scroll-pace.ts); the homepage scenes are calm because they are longer.
+// The page glides slowly after the wheel or trackpad; each homepage scene
+// sets its own pace (`data-scroll-pace`, values in lib/scroll-pace.ts): the
+// scene in the middle of the screen decides, and the speed eases over to it.
+// Wheels and trackpads are told apart, so each can be tuned on its own.
 // Off for reduced motion and for touch input, where the system's own momentum
 // is the natural feel. Nested scroll areas (sheets, menus, lists) keep
 // scrolling on their own.

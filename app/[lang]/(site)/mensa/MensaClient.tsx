@@ -5,6 +5,8 @@ import Link from 'next/link';
 import PageIntro from '@/components/site/PageIntro';
 import ExternalMediaNotice from '@/components/ExternalMediaNotice';
 import PixelPlate from '@/components/mensa/PixelPlate';
+import PixelState from '@/components/app/PixelState';
+import { mensaAvailableIn } from '@/components/app/hooks';
 import { Plate, RatingLine, Tag, dishHref, foodStyleOf, prioritizedTags } from '@/components/mensa/parts';
 import { fetchMensa, getMensaStale } from '@/lib/api';
 import { api } from '@/lib/api-client';
@@ -40,6 +42,8 @@ export default function MensaClient() {
   const isGuest = !sessionLoading && !user;
 
   const [days, setDays] = useState<MenuDay[] | null>(null);
+  // False: the account's school has no menu (pokyh-backend `available: false`).
+  const [available, setAvailable] = useState(true);
   const [error, setError] = useState('');
   const [request, setRequest] = useState(0);
   const [ratings, setRatings] = useState<Record<string, Record<string, number>>>({});
@@ -54,9 +58,13 @@ export default function MensaClient() {
     const timer = window.setTimeout(() => {
       // The menu this device stored shows at once; the fresh one replaces it.
       const stale = getMensaStale(scope);
-      if (stale) setDays(upcomingDays(dishesFrom(stale)));
+      const show = (raw: unknown) => {
+        setAvailable(mensaAvailableIn(raw));
+        setDays(upcomingDays(dishesFrom(raw)));
+      };
+      if (stale) show(stale);
       fetchMensa(scope)
-        .then((raw) => { if (!cancelled) setDays(upcomingDays(dishesFrom(raw))); })
+        .then((raw) => { if (!cancelled) show(raw); })
         .catch((e: unknown) => { if (!cancelled && !stale) setError(e instanceof Error ? e.message : t('loadError')); });
     }, 0);
     return () => { cancelled = true; window.clearTimeout(timer); };
@@ -128,22 +136,27 @@ export default function MensaClient() {
 
   return (
     <>
-      <PageIntro title={t('pageTitle')} lead={t('pageLead')} />
+      <PageIntro title={t('pageTitle')} lead={available ? t('pageLead') : undefined} />
 
       <section className="wrap pb-24 md:pb-32">
         {error ? (
-          <div className="card flex flex-col items-start gap-5 p-8">
-            <p className="text-[18px] text-ink-2">{t('loadError')}</p>
-            <button type="button" onClick={retry} className="key">{t('retry')}</button>
+          <div className="card">
+            <PixelState
+              sprite="unplugged"
+              title={t('loadError')}
+              action={<button type="button" onClick={retry} className="key">{t('retry')}</button>}
+            />
           </div>
         ) : days === null ? (
-          <div aria-hidden="true" className="grid items-center gap-10 md:grid-cols-[1fr_1fr]">
-            <div className="skeleton mx-auto aspect-[112/64] w-full max-w-[640px] rounded-[28px]" />
-            <div className="flex flex-col gap-4">
-              <div className="skeleton h-5 w-40 rounded-full" />
-              <div className="skeleton h-12 w-4/5 rounded-2xl" />
-              <div className="skeleton h-5 w-56 rounded-full" />
-            </div>
+          <MensaLoading label={t('loading')} />
+        ) : !available ? (
+          <div className="card">
+            <PixelState
+              sprite="empty"
+              title={t('noMensaTitle')}
+              note={t('noMensaText')}
+              action={<Link href={localize('/home')} className="key">{t('toHome')}</Link>}
+            />
           </div>
         ) : !next || !served ? (
           <div className="card p-8 md:p-12">
@@ -219,5 +232,48 @@ export default function MensaClient() {
         )}
       </section>
     </>
+  );
+}
+
+/**
+ * While the menu loads: the table is laid (the empty plate building itself,
+ * steam rising) where the next dish will be served, and the rows of the plan
+ * hold their place, so nothing jumps when the menu arrives.
+ */
+function MensaLoading({ label }: { label: string }) {
+  return (
+    <div role="status" aria-busy="true">
+      <span className="visually-hidden">{label}</span>
+      <div aria-hidden="true" className="grid items-center gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-14">
+        <div className="mensa-wait mx-auto w-full max-w-[640px]">
+          <PixelPlate style="pasta" seed="loading" empty />
+        </div>
+        <div className="flex min-w-0 flex-col items-start gap-4">
+          <span className="skeleton h-4 w-24 rounded-full" />
+          <span className="skeleton h-[clamp(34px,4.2vw,58px)] w-11/12 rounded-2xl" />
+          <span className="skeleton h-[clamp(34px,4.2vw,58px)] w-3/5 rounded-2xl" />
+          <span className="skeleton mt-1 h-5 w-44 rounded-full" />
+          <span className="skeleton mt-2 h-14 w-60 rounded-full" />
+        </div>
+      </div>
+      <div aria-hidden="true" className="mt-24 md:mt-32">
+        <span className="skeleton block h-[clamp(30px,3.6vw,48px)] w-72 max-w-full rounded-2xl" />
+        <span className="skeleton mt-10 block h-4 w-28 rounded-full" />
+        <ul className="mt-4 grid gap-3 md:grid-cols-2">
+          {[0, 1, 2, 3].map((i) => (
+            <li key={i} className="card flex items-center gap-4 p-3 pr-5">
+              <span className="block w-[72px] shrink-0 md:w-[90px]">
+                <PixelPlate size="plate" style="pasta" seed={`loading-${i}`} empty />
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col gap-2">
+                <span className="skeleton h-3 w-24 rounded-full" />
+                <span className="skeleton h-5 w-3/4 rounded-full" />
+                <span className="skeleton h-3 w-20 rounded-full" />
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
   );
 }

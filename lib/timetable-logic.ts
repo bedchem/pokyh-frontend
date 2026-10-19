@@ -116,10 +116,11 @@ export function isoWeekNumber(date: Date): number {
 }
 
 /** "3. Feb., 8. Feb. 2026" in the given Intl locale. */
-export function rangeText(offset: number, tag: string): string {
+/** The week's days as text; without the year where the room is short (phones). */
+export function rangeText(offset: number, tag: string, withYear = true): string {
   const start = mondayOf(offset);
   const end = dateOf(offset, 5);
-  return `${formatDate(start, tag, { day: 'numeric', month: 'short' })} - ${formatDate(end, tag, { day: 'numeric', month: 'short', year: 'numeric' })}`;
+  return `${formatDate(start, tag, { day: 'numeric', month: 'short' })} - ${formatDate(end, tag, { day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' as const } : {}) })}`;
 }
 
 /** Minutes since midnight on the school's clock. */

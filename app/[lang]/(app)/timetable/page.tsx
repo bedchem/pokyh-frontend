@@ -406,12 +406,18 @@ function TimetableContent() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
+  // A new week glides in a short way and fades up while the old one fades
+  // out quickly in the direction of travel: the grid never sweeps the whole
+  // screen, and the time axis barely moves.
   const swipeVariants = {
-    enter: (dir: number) => ({ x: dir > 0 ? '100%' : dir < 0 ? '-100%' : 0, opacity: 0.5 }),
-    center: { x: 0, opacity: 1 },
-    exit: (dir: number) => ({ x: dir < 0 ? '100%' : dir > 0 ? '-100%' : 0, opacity: 0.5 }),
+    enter: (dir: number) => ({ x: dir * 56, opacity: 0 }),
+    center: {
+      x: 0,
+      opacity: 1,
+      transition: { x: { type: 'spring' as const, stiffness: 420, damping: 40, mass: 0.8 }, opacity: { duration: 0.22, ease: 'easeOut' as const } },
+    },
+    exit: (dir: number) => ({ x: dir * -56, opacity: 0, transition: { duration: 0.12, ease: 'easeIn' as const } }),
   };
-  const swipeTransition = { x: { type: 'spring' as const, stiffness: 450, damping: 35 }, opacity: { duration: 0.2 } };
 
   const retry = () => ensureWeek(weekOffset, true);
 
@@ -459,7 +465,16 @@ function TimetableContent() {
     <AuthGuard>
       <UntisGuard>
         <div className={s.wrap}>
-          <div ref={hostRef} className={s.host}>
+          <div
+            ref={hostRef}
+            className={s.host}
+            onScroll={(e) => {
+              // Marks the edge under the day names once the week scrolls beneath them.
+              const el = e.currentTarget;
+              if (el.scrollTop > 4) el.dataset.scrolled = '';
+              else delete el.dataset.scrolled;
+            }}
+          >
             <main className={s.page}>
               {/* Header: title, the week, stepper and menus, then the week in figures */}
               <header className={`${s.inset} ${s.head}`}>
@@ -563,8 +578,11 @@ function TimetableContent() {
                       transition={{ duration: 0.18 }}
                       className="block"
                     >
-                      <span className="block text-[17px] font-bold tracking-[-0.02em] md:text-[19px]">{rangeText(weekOffset, tag)}</span>
-                      <span className="mt-0.5 block text-[13.5px] font-semibold text-ink-2">{t('cw')} {weekNumber}{weekOffset === 0 ? ` · ${weekRolledOver() ? t('nextWeek') : t('thisWeek')}` : ''}</span>
+                      <span className="block truncate text-[17px] font-bold tracking-[-0.02em] md:text-[19px]">
+                        <span className="sm:hidden">{rangeText(weekOffset, tag, false)}</span>
+                        <span className="max-sm:hidden">{rangeText(weekOffset, tag)}</span>
+                      </span>
+                      <span className="mt-0.5 block truncate text-[13.5px] font-semibold text-ink-2">{t('cw')} {weekNumber}{weekOffset === 0 ? ` · ${weekRolledOver() ? t('nextWeek') : t('thisWeek')}` : ''}</span>
                     </motion.span>
                   </AnimatePresence>
                 </div>
@@ -584,7 +602,6 @@ function TimetableContent() {
                     initial="enter"
                     animate="center"
                     exit="exit"
-                    transition={swipeTransition}
                     drag="x"
                     dragDirectionLock
                     dragConstraints={{ left: 0, right: 0 }}

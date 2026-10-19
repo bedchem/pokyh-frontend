@@ -1,17 +1,16 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { useT } from '@/providers/LocaleProvider';
 import { frontpageDict } from '@/lib/i18n/dictionaries/frontpage';
-import { homepageDict } from '@/lib/i18n/dictionaries/homepage';
 import { ensureGsap, prefersReducedMotion, ScrollTrigger, useGsap } from '@/lib/motion';
-import { resolveFonts, type TileText } from '@/lib/landing-art';
 import { onSiteThemeChange, siteColor } from '@/lib/site-theme';
 import { useLenis } from '@/components/site/SmoothScroll';
 import { ManifestScreen } from './Manifest';
 import { ARRIVE, HERO_LVH, lvh } from './scenes';
 import { SCROLL, sceneHeight } from '@/lib/scroll-pace';
 import type { HeroItem, HeroScene } from './heroScene';
+import { useTileText } from './useTileText';
 
 // The opening: on every visit the name, large, on clean paper, rises letter
 // by letter out of a mask and comes into focus, then the school-day tiles
@@ -54,9 +53,28 @@ function cameraZ(p: number): number {
   return PORTAL_Z + PORTAL_FILL / size;
 }
 
+// The opening is CSS (globals.css, .home-hero) and starts with the first
+// paint. On a first visit this small script, which runs before that paint,
+// holds it (html[data-hero-wait] pauses the animations at their start, the
+// name not yet visible) until the name's font is loaded and the tab is
+// actually shown, at most 1.2 s: so the letters never rise in a stand-in
+// font and the opening is not over before anyone sees it (a tab opened in
+// the background). Rendered with the server HTML only, like ThemeScript;
+// when the homepage is reached inside the site, the font is there already.
+const HERO_START_EVENT = 'pokyh-hero-start';
+const HERO_START = `(function(){var d=document.documentElement,done=0;d.setAttribute('data-hero-wait','');function go(){if(done)return;if(document.visibilityState==='hidden'){document.addEventListener('visibilitychange',go,{once:true});return}done=1;requestAnimationFrame(function(){d.removeAttribute('data-hero-wait');d.dispatchEvent(new Event('${HERO_START_EVENT}'))})}setTimeout(go,1200);try{var t=document.querySelector('.home-hero [data-title]'),s=getComputedStyle(t);document.fonts.load(s.fontWeight+' 100px '+s.fontFamily).then(go,go)}catch(e){go()}})()`;
+
+const noopSubscribe = () => () => {};
+
+function HeroStart() {
+  const fromServerHtml = useSyncExternalStore(noopSubscribe, () => false, () => true);
+  if (!fromServerHtml) return null;
+  return <script suppressHydrationWarning dangerouslySetInnerHTML={{ __html: HERO_START }} />;
+}
+
 export default function Hero() {
   const t = useT(frontpageDict);
-  const th = useT(homepageDict);
+  const tileText = useTileText();
   const lenis = useLenis();
   const lenisRef = useRef(lenis);
   useEffect(() => { lenisRef.current = lenis; }, [lenis]);
@@ -73,6 +91,7 @@ export default function Hero() {
   const items = useMemo<HeroItem[]>(() => [
     { type: 'tile', art: 'time', portrait: true, label: t('tileTimetable') },
     { type: 'poster', art: 'grades', label: t('tileGrades') },
+    { type: 'tile', art: 'plate', portrait: false, label: tileText.titles.mensa },
     { type: 'tile', art: 'message', portrait: false, label: t('tileMessages') },
     { type: 'tile', art: 'exam', portrait: true, label: t('tileExams') },
     { type: 'poster', art: 'absences', label: t('tileAbsences') },
@@ -91,16 +110,11 @@ export default function Hero() {
     { type: 'tile', art: 'exam', portrait: false, label: t('tileExams') },
     { type: 'tile', art: 'cancel', portrait: true, label: t('tileCancel') },
     { type: 'tile', art: 'week', portrait: false, label: t('tileWeek') },
-  ], [t]);
+    { type: 'tile', art: 'plate', portrait: true, label: tileText.titles.mensa },
+    { type: 'poster', art: 'mensa', label: tileText.titles.mensa },
+    { type: 'tile', art: 'plate', portrait: false, label: tileText.titles.mensa },
+  ], [t, tileText]);
 
-  const tileText = useMemo<TileText>(() => ({
-    period: th('tPeriod'), subject: th('tSubject'), room: th('tRoom'),
-    gradeSubject: th('tGradeSubject'), average: th('tAverage'),
-    cancel: th('tCancel'), cancelSub: th('tCancelSub'),
-    msgFrom: th('tMsgFrom'), msgText: th('tMsgText'),
-    examDay: th('tExamDay'), exam: th('tExam'),
-    weekdays: th('tWeekdays').split('|'),
-  }), [th]);
 
   // ── Scene, scroll and the frame loop ────────────────────────────────────
   useEffect(() => {
@@ -260,30 +274,38 @@ export default function Hero() {
     }
     canvas.addEventListener('click', onClick);
 
-    // The tiles come once the letters have closed up (see the opening below).
+    // The tiles come once the letters have closed up (see the opening below)
+    // and the tunnel is built, whichever is later.
     let arrived = reduced;
-    opened.current = () => {
-      if (arrived) return;
+    let wanted = false;
+    const arrive = () => {
+      if (arrived || !wanted || !scene) return;
       arrived = true;
       gsap.to(m, { arrive: 1, duration: 2.4, ease: 'power2.out' });
     };
+    opened.current = () => {
+      wanted = true;
+      arrive();
+    };
 
     (async () => {
+      const [{ createHeroScene }, { resolveFonts }] = await Promise.all([import('./heroScene'), import('@/lib/landing-art')]);
       const fonts = resolveFonts();
       await Promise.all([
         document.fonts.load(`400 64px ${fonts.display}`),
-        document.fonts.load(`700 64px ${fonts.sans}`),
+        document.fonts.load(`800 64px ${fonts.sans}`),
         document.fonts.load(`600 16px ${fonts.sans}`),
       ]).catch(() => undefined);
-      const { createHeroScene } = await import('./heroScene');
       if (disposed) return;
       const small = Math.min(window.innerWidth, window.innerHeight) < 700;
-      const list = small ? [...items.slice(0, 14), ...items.slice(4, 10)] : [...items, ...items.slice(0, 12)];
-      scene = createHeroScene(canvas, list, tileText, fonts, { textureSize: small ? 400 : 520 });
-      if (!scene) return;
+      const list = small ? [...items.slice(0, 15), ...items.slice(4, 10)] : [...items, ...items.slice(0, 12)];
+      const built = await createHeroScene(canvas, list, tileText, fonts, { textureSize: small ? 400 : 520, cancelled: () => disposed });
+      if (!built || disposed) return;
+      scene = built;
       scene.setTheme({ night: colours.night, dark: colours.dark });
       gsap.to(canvas, { opacity: 1, duration: 0.8, ease: 'power2.out' });
       if (reduced) tick(0);
+      arrive();
     })();
 
     return () => {
@@ -327,13 +349,24 @@ export default function Hero() {
       return;
     }
 
-    // How far the opening already is (the page may have been visible a while
-    // before the scripts arrived).
-    const elapsed = Number(letters[0]?.getAnimations?.()[0]?.currentTime ?? 0) || 0;
-    const start = window.setTimeout(() => opened.current?.(), Math.max(0, 600 - elapsed));
-    const introEnds = performance.now() + Math.max(0, 1900 - elapsed);
+    // The opening may still wait for the font (HeroStart below), or have run
+    // a while before the scripts arrived: the tiles follow its own clock.
+    const html = document.documentElement;
+    let start = 0;
+    let introEnds = Infinity;
+    const begin = () => {
+      const elapsed = Number(letters[0]?.getAnimations?.()[0]?.currentTime ?? 0) || 0;
+      start = window.setTimeout(() => opened.current?.(), Math.max(0, 600 - elapsed));
+      introEnds = performance.now() + Math.max(0, 1900 - elapsed);
+    };
+    if (html.hasAttribute('data-hero-wait')) html.addEventListener(HERO_START_EVENT, begin, { once: true });
+    else begin();
+    const stop = () => {
+      html.removeEventListener(HERO_START_EVENT, begin);
+      window.clearTimeout(start);
+    };
 
-    if (!window.matchMedia('(pointer: fine)').matches) return () => { window.clearTimeout(start); };
+    if (!window.matchMedia('(pointer: fine)').matches) return stop;
     const lift = letters.map((el) => gsap.quickTo(el, 'yPercent', { duration: 0.7, ease: 'power3' }));
     const tilt = letters.map((el) => gsap.quickTo(el, 'rotation', { duration: 0.7, ease: 'power3' }));
     const onMove = (e: PointerEvent) => {
@@ -351,7 +384,7 @@ export default function Hero() {
     window.addEventListener('pointermove', onMove, { passive: true });
     document.documentElement.addEventListener('pointerleave', onLeave);
     return () => {
-      window.clearTimeout(start);
+      stop();
       window.removeEventListener('pointermove', onMove);
       document.documentElement.removeEventListener('pointerleave', onLeave);
     };
@@ -381,6 +414,7 @@ export default function Hero() {
               </span>
             ))}
           </h1>
+          <HeroStart />
         </div>
 
         {/* Kept above a phone's browser bars (bottom: the large minus the small viewport) */}

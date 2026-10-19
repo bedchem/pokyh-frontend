@@ -133,14 +133,34 @@ interface Tile {
   flipTimer: ReturnType<typeof setTimeout> | null;
 }
 
-export function createHeroScene(
+/** Lets the browser draw a frame and handle input before the next piece of work. */
+function pause(): Promise<void> {
+  const scheduler = (globalThis as { scheduler?: { yield?: () => Promise<void> } }).scheduler;
+  if (scheduler?.yield) return scheduler.yield();
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+/**
+ * Builds the tunnel a few tiles at a time, pausing in between, so building
+ * it never holds up the page (the opening, scrolling, input). Tiles of the
+ * same size share their geometry, tiles of the same kind their face, and
+ * every texture goes to the GPU while it is built, not all in the first
+ * frame. Resolves to null without WebGL or when `cancelled()` turns true.
+ */
+export async function createHeroScene(
   canvas: HTMLCanvasElement,
   items: HeroItem[],
   text: TileText,
   fonts: ArtFonts,
-  /** Width in pixels the tile faces are drawn at (smaller on phones: less memory, faster start). */
-  { textureSize = 520 }: { textureSize?: number } = {},
-): HeroScene | null {
+  {
+    textureSize = 520,
+    cancelled = () => false,
+  }: {
+    /** Width in pixels the tile faces are drawn at (smaller on phones: less memory, faster start). */
+    textureSize?: number;
+    cancelled?: () => boolean;
+  } = {},
+): Promise<HeroScene | null> {
   let renderer: THREE.WebGLRenderer;
   try {
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
@@ -168,67 +188,100 @@ export function createHeroScene(
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = aniso;
     textures.push(tex);
+    // To the GPU now, while the tunnel is built piece by piece.
+    renderer.initTexture(tex);
     return tex;
   };
 
-  const faces: THREE.MeshBasicMaterial[] = [];
-  const tiles: Tile[] = items.map((item, i) => {
-    let w: number;
-    let h: number;
-    let radius: number;
-    let face: HTMLCanvasElement;
+  const depth = 0.07;
+  const bevel = 0.035;
+  const shapes = new Map<string, { w: number; h: number; body: THREE.ExtrudeGeometry; face: THREE.ShapeGeometry }>();
+  const shapeFor = (key: string, w: number, h: number, radius: number) => {
+    let found = shapes.get(key);
+    if (!found) {
+      const shape = roundedShape(w, h, radius);
+      const body = new THREE.ExtrudeGeometry(shape, {
+        depth,
+        bevelEnabled: true,
+        bevelThickness: bevel,
+        bevelSize: bevel * 0.7,
+        bevelSegments: 3,
+        curveSegments: 10,
+      });
+      body.translate(0, 0, -(depth + bevel));
+      found = { w, h, body, face: faceGeometry(shape, w, h) };
+      shapes.set(key, found);
+    }
+    return found;
+  };
+  const bodies = new Map<string, THREE.MeshStandardMaterial>();
+  const bodyMaterial = (bg: string) => {
+    let m = bodies.get(bg);
+    if (!m) {
+      m = new THREE.MeshStandardMaterial({ color: bg, roughness: 0.62, metalness: 0 });
+      bodies.set(bg, m);
+    }
+    return m;
+  };
+  const faceMaterials = new Map<string, THREE.MeshBasicMaterial>();
+  const faceMaterial = (key: string, draw: () => HTMLCanvasElement, alphaTest: boolean) => {
+    let m = faceMaterials.get(key);
+    if (!m) {
+      m = new THREE.MeshBasicMaterial({ map: texture(draw()), toneMapped: false, ...(alphaTest ? { alphaTest: 0.5 } : {}) });
+      faceMaterials.set(key, m);
+    }
+    return m;
+  };
+
+  const tiles: Tile[] = [];
+  const dispose = () => {
+    tiles.forEach((t) => { if (t.flipTimer) clearTimeout(t.flipTimer); });
+    shapes.forEach((g) => { g.body.dispose(); g.face.dispose(); });
+    bodies.forEach((m) => m.dispose());
+    faceMaterials.forEach((m) => m.dispose());
+    textures.forEach((t) => t.dispose());
+    renderer.dispose();
+  };
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const drawn = faceMaterials.size;
+    let geo: { w: number; h: number; body: THREE.ExtrudeGeometry; face: THREE.ShapeGeometry };
+    let front: THREE.MeshBasicMaterial;
     let bg: string;
     let ink: string;
     if (item.type === 'tile') {
-      w = item.portrait ? TILE_W.portrait : TILE_W.landscape;
-      h = (w * (item.portrait ? 256 : 164)) / 200;
-      radius = (22 / 200) * w;
-      face = drawTile(item.art, textureSize, item.portrait, text, fonts);
+      const w = item.portrait ? TILE_W.portrait : TILE_W.landscape;
+      geo = shapeFor(item.portrait ? 'portrait' : 'landscape', w, (w * (item.portrait ? 256 : 164)) / 200, (22 / 200) * w);
+      front = faceMaterial(`tile:${item.art}:${item.portrait}`, () => drawTile(item.art, textureSize, item.portrait, text, fonts), true);
       [bg, ink] = TILE_TONES[item.art];
     } else {
-      w = TILE_W.poster;
-      h = (w * 496) / 400;
-      radius = (30 / 400) * w;
-      face = drawPoster(item.art, Math.round(textureSize * 1.08), fonts);
+      const w = TILE_W.poster;
+      geo = shapeFor('poster', w, (w * 496) / 400, (30 / 400) * w);
+      front = faceMaterial(`poster:${item.art}`, () => drawPoster(item.art, Math.round(textureSize * 1.08), fonts, text), true);
       bg = POSTER_BG[item.art];
       ink = '#FFFFFF';
     }
+    const backMat = faceMaterial(`back:${item.label}:${bg}`, () => drawBack(item.label, bg, ink, geo.w, geo.h, fonts), false);
 
-    const shape = roundedShape(w, h, radius);
-    const depth = 0.07;
-    const bevel = 0.035;
-    const bodyGeo = new THREE.ExtrudeGeometry(shape, {
-      depth,
-      bevelEnabled: true,
-      bevelThickness: bevel,
-      bevelSize: bevel * 0.7,
-      bevelSegments: 3,
-      curveSegments: 10,
-    });
-    bodyGeo.translate(0, 0, -(depth + bevel));
-    const body = new THREE.Mesh(bodyGeo, new THREE.MeshStandardMaterial({ color: bg, roughness: 0.62, metalness: 0 }));
-
-    const frontMat = new THREE.MeshBasicMaterial({ map: texture(face), alphaTest: 0.5, toneMapped: false });
-    const front = new THREE.Mesh(faceGeometry(shape, w, h), frontMat);
-    front.position.z = 0.002;
-
-    const backMat = new THREE.MeshBasicMaterial({ map: texture(drawBack(item.label, bg, ink, w, h, fonts)), toneMapped: false });
-    const back = new THREE.Mesh(faceGeometry(shape, w, h), backMat);
-    faces.push(frontMat, backMat);
+    const body = new THREE.Mesh(geo.body, bodyMaterial(bg));
+    const frontMesh = new THREE.Mesh(geo.face, front);
+    frontMesh.position.z = 0.002;
+    const back = new THREE.Mesh(geo.face, backMat);
     back.rotation.y = Math.PI;
     back.position.z = -(depth + bevel * 2) - 0.002;
 
     const spin = new THREE.Group();
-    spin.add(body, front, back);
+    spin.add(body, frontMesh, back);
     const group = new THREE.Group();
     group.add(spin);
     scene.add(group);
-    [body, front, back].forEach((m) => { m.userData.tile = i; });
+    [body, frontMesh, back].forEach((m) => { m.userData.tile = i; });
 
-    return {
+    tiles.push({
       group,
       spin,
-      meshes: [body, front, back],
+      meshes: [body, frontMesh, back],
       base: new THREE.Vector3(),
       rot: new THREE.Euler(),
       phase: i * 1.7,
@@ -238,8 +291,18 @@ export function createHeroScene(
       flip: 0,
       flipTarget: 0,
       flipTimer: null,
-    };
-  });
+    });
+
+    // A new face costs a drawing and an upload: pause after each, else every few tiles.
+    if (faceMaterials.size > drawn || i % 4 === 3) {
+      await pause();
+      if (cancelled()) {
+        dispose();
+        return null;
+      }
+    }
+  }
+  const faces = [...faceMaterials.values()];
 
   const halfH = (d: number) => d * Math.tan(THREE.MathUtils.degToRad(FOV / 2));
 
@@ -281,17 +344,37 @@ export function createHeroScene(
     });
   };
 
+  let drawn = '';
   const resize = () => {
     const w = canvas.clientWidth || window.innerWidth;
     const h = canvas.clientHeight || window.innerHeight;
     const small = Math.min(w, h) < 700;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, small ? 1.5 : 1.75));
-    renderer.setSize(w, h, false);
+    const ratio = Math.min(window.devicePixelRatio, small ? 1.5 : 1.75);
+    // A new size reallocates the drawing buffer (even the same one), so only when it changed.
+    if (drawn !== `${w}x${h}@${ratio}`) {
+      drawn = `${w}x${h}@${ratio}`;
+      renderer.setPixelRatio(ratio);
+      renderer.setSize(w, h, false);
+    }
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     place();
   };
   resize();
+
+  // The shaders compile in the background (where the browser can), instead of
+  // holding up the first frame that shows the tunnel.
+  try {
+    await renderer.compileAsync(scene, camera);
+  } catch {
+    /* compiled on the first frame instead */
+  }
+  if (cancelled()) {
+    portal.geometry.dispose();
+    portalMat.dispose();
+    dispose();
+    return null;
+  }
 
   const bgColor = new THREE.Color();
   const raycaster = new THREE.Raycaster();
@@ -387,15 +470,9 @@ export function createHeroScene(
       faces.forEach((m) => m.color.set(dark ? 0xd2d2d8 : 0xffffff));
     },
     dispose: () => {
-      tiles.forEach((t) => { if (t.flipTimer) clearTimeout(t.flipTimer); });
-      scene.traverse((o) => {
-        if (o instanceof THREE.Mesh) {
-          o.geometry.dispose();
-          (o.material as THREE.Material).dispose();
-        }
-      });
-      textures.forEach((t) => t.dispose());
-      renderer.dispose();
+      portal.geometry.dispose();
+      portalMat.dispose();
+      dispose();
     },
   };
 }

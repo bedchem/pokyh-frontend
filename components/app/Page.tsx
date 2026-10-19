@@ -49,7 +49,8 @@ export function PageHeader({
 }) {
   const localize = useLocalizeHref();
   return (
-    <header className="rise pt-4 pb-7 md:pt-8 md:pb-9">
+    // Above the page's content, so its menus open over the cards below.
+    <header className="rise relative z-20 pt-4 pb-7 md:pt-8 md:pb-9">
       {back && (
         <Link
           href={localize(back.href)}

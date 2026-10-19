@@ -10,7 +10,9 @@ import { homepageDict, type HomepageKey } from '@/lib/i18n/dictionaries/homepage
 import { frontpageDict, type FrontpageKey } from '@/lib/i18n/dictionaries/frontpage';
 import { ensureGsap, prefersReducedMotion, ScrollTrigger, useGsap } from '@/lib/motion';
 import { SCROLL, sceneHeight } from '@/lib/scroll-pace';
-import { drawPoster, resolveFonts, type PosterKind } from '@/lib/landing-art';
+// Types only: the drawing loads with three.js.
+import type { PosterKind } from '@/lib/landing-art';
+import { useTileText } from '@/components/home/useTileText';
 import { useLenis } from '@/components/site/SmoothScroll';
 import { useSiteDark } from '@/lib/site-theme';
 
@@ -66,6 +68,9 @@ interface Scene {
 export default function FeatureCarousel() {
   const t = useT(homepageDict);
   const tf = useT(frontpageDict);
+  const tileText = useTileText();
+  const tileTextRef = useRef(tileText);
+  useEffect(() => { tileTextRef.current = tileText; }, [tileText]);
   const localize = useLocalizeHref();
   const lenis = useLenis();
   const root = useRef<HTMLElement>(null);
@@ -119,6 +124,7 @@ export default function FeatureCarousel() {
     let ring: THREE.Group | null = null;
     let swing: THREE.Group | null = null;
     let layout = () => {};
+    let sized = '';
 
     trigger.current = ScrollTrigger.create({
       trigger: section,
@@ -160,18 +166,27 @@ export default function FeatureCarousel() {
     ro.observe(host);
 
     (async () => {
-      const fonts = resolveFonts();
-      await Promise.all([
-        document.fonts.load(`400 64px ${fonts.display}`),
-        document.fonts.load(`600 16px ${fonts.sans}`),
-      ]).catch(() => undefined);
+      // Built when the browser is idle (the opening of the page comes first),
+      // card by card with pauses in between.
+      await new Promise<void>((resolve) => {
+        const idle = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+        if (idle) idle(() => resolve(), { timeout: 2500 });
+        else window.setTimeout(resolve, 1200);
+      });
       if (disposed) return;
       let T: Three;
+      let art: typeof import('@/lib/landing-art');
       try {
-        T = await import('three');
+        [T, art] = await Promise.all([import('three'), import('@/lib/landing-art')]);
       } catch {
         return; // Not loaded: names, colours and the link still work.
       }
+      const fonts = art.resolveFonts();
+      await Promise.all([
+        document.fonts.load(`400 64px ${fonts.display}`),
+        document.fonts.load(`800 64px ${fonts.sans}`),
+        document.fonts.load(`600 16px ${fonts.sans}`),
+      ]).catch(() => undefined);
       if (disposed) return;
 
       try {
@@ -191,12 +206,13 @@ export default function FeatureCarousel() {
       three.add(swing);
 
       const cards: THREE.Mesh[] = [];
-      FEATURES.forEach((f, i) => {
+      for (const [i, f] of FEATURES.entries()) {
         const pivot = new T.Group();
         pivot.rotation.y = i * STEP;
-        const tex = new T.CanvasTexture(drawPoster(f.poster, 1000, fonts));
+        const tex = new T.CanvasTexture(art.drawPoster(f.poster, 1000, fonts, tileTextRef.current));
         tex.colorSpace = T.SRGBColorSpace;
         tex.anisotropy = aniso;
+        renderer.initTexture(tex);
         const mesh = new T.Mesh(
           new T.BufferGeometry(),
           new T.MeshBasicMaterial({ map: tex, transparent: true, side: T.FrontSide, toneMapped: false }),
@@ -205,7 +221,12 @@ export default function FeatureCarousel() {
         pivot.add(mesh);
         turning.add(pivot);
         cards.push(mesh);
-      });
+        await new Promise((resolve) => window.setTimeout(resolve, 0));
+        if (disposed) {
+          tex.dispose();
+          return;
+        }
+      }
 
       // Geometry follows the item width set in CSS (--w).
       layout = () => {
@@ -214,8 +235,13 @@ export default function FeatureCarousel() {
         const h = host.clientHeight;
         const card = host.querySelector<HTMLElement>('[data-measure]')?.offsetWidth || w * 0.25;
         const radius = card * RADIUS;
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.setSize(w, h, false);
+        const ratio = Math.min(window.devicePixelRatio, 2);
+        // A new size reallocates the drawing buffer (even the same one), so only when it changed.
+        if (sized !== `${w}x${h}@${ratio}`) {
+          sized = `${w}x${h}@${ratio}`;
+          renderer.setPixelRatio(ratio);
+          renderer.setSize(w, h, false);
+        }
         camera.aspect = w / h;
         const distance = h * 2.15;
         camera.fov = (2 * Math.atan(h / 2 / distance) * 180) / Math.PI;

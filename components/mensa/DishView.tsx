@@ -143,15 +143,21 @@ export default function DishView({ id, inApp = false }: { id: string; inApp?: bo
   ].filter((m): m is { label: string; value: number; bar: string } => typeof m.value === 'number' && m.value > 0) : [];
   const macroTotal = macros.reduce((a, m) => a + m.value, 0);
 
+  // The way back stays beside the dish: on wide screens it travels down with
+  // the picture (the column is sticky), above it while loading or on errors.
+  const back = (
+    <Link
+      href={localize(planHref)}
+      className="-ml-1 mb-6 inline-flex h-9 items-center gap-1.5 rounded-full pl-1 pr-3 text-[15px] font-semibold text-ink-2 transition-colors hover:bg-inset hover:text-ink"
+    >
+      <ArrowLeft size={17} weight="bold" aria-hidden="true" />
+      {t('backToPlan')}
+    </Link>
+  );
+
   return (
     <section className={`wrap pb-24 md:pb-32 ${inApp ? 'pt-4 md:pt-8' : 'pt-28 md:pt-36'}`}>
-      <Link
-        href={localize(planHref)}
-        className="-ml-1 mb-6 inline-flex h-9 items-center gap-1.5 rounded-full pl-1 pr-3 text-[15px] font-semibold text-ink-2 transition-colors hover:bg-inset hover:text-ink"
-      >
-        <ArrowLeft size={17} weight="bold" aria-hidden="true" />
-        {t('backToPlan')}
-      </Link>
+      {(found === undefined || error || !found || !dish) && back}
 
       {found === undefined && !error ? (
         <div aria-hidden="true" className="grid gap-10 md:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] md:gap-14">
@@ -173,7 +179,8 @@ export default function DishView({ id, inApp = false }: { id: string; inApp?: bo
         </div>
       ) : (
         <article className="rise grid gap-10 md:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] md:gap-14">
-          <div className={`md:sticky md:self-start ${inApp ? 'md:top-6' : 'md:top-28'}`}>
+          <div className={`md:sticky md:self-start ${inApp ? 'md:top-4' : 'md:top-24'}`}>
+            {back}
             {dish.imageUrl && external ? (
               <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[28px] bg-inset md:rounded-[36px]">
                 <Food dish={dish} alt={name} eager />

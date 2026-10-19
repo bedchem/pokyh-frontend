@@ -24,6 +24,20 @@ export type HomepageKey =
   | 'tExam'
   | 'tWeekdays'
   | 'tNow'
+  | 'tExamIn'
+  | 'tDish'
+  | 'tMensa'
+  | 'tRate'
+  | 'tExcused'
+  | 'tOpen'
+  | 'tOverdue'
+  | 'tTodoList'
+  | 'tReminderList'
+  | 'tSubjectList'
+  | 'tSenders'
+  | 'tTopics'
+  | 'tExamList'
+  | 'tMonths'
   // Statement
   | 'missionTitle'
   | 'missionText'
@@ -80,6 +94,20 @@ export const homepageDict: Dictionary<HomepageKey> = {
     tExam: 'Schularbeit Englisch',
     tWeekdays: 'Mo|Di|Mi|Do|Fr',
     tNow: 'jetzt',
+    tExamIn: 'in 3 Tagen',
+    tDish: 'Pasta al ragù',
+    tMensa: 'Mensa',
+    tRate: 'Fehlquote im Schuljahr',
+    tExcused: 'Entschuldigt',
+    tOpen: 'Offen',
+    tOverdue: 'Überfällig',
+    tTodoList: 'Werkstattheft mitbringen|Referat vorbereiten|Formular abgeben|Vokabeln lernen',
+    tReminderList: 'Ausflug nach Bozen|Elternsprechtag|Bücher zurückgeben',
+    tSubjectList: 'Deutsch|Mathematik|Physik',
+    tSenders: 'Klassenvorstand|Sekretariat|Huber|Kofler',
+    tTopics: 'Werkstattheft mitbringen|Ausflug am Freitag|Elternsprechtag|Raumänderung Mittwoch',
+    tExamList: 'Mathematik · Test|Englisch · Vokabeltest',
+    tMonths: 'S|O|N|D|J|F|M|A|M|J',
     missionTitle: 'unsere idee',
     missionText:
       'Wir glauben, dass ein Schultag leichter sein kann. Du weißt *pünktlich*, welche Stunde als Nächstes kommt, siehst schon in der Pause, was die Mensa kocht und ob es *lecker* ist, und hast die nächste Schularbeit *gemeinsam* mit deiner Klasse im Blick. Dafür haben wir POKYH gebaut.',
@@ -154,6 +182,20 @@ export const homepageDict: Dictionary<HomepageKey> = {
     tExam: 'Verifica di inglese',
     tWeekdays: 'Lu|Ma|Me|Gi|Ve',
     tNow: 'ora',
+    tExamIn: 'tra 3 giorni',
+    tDish: 'Pasta al ragù',
+    tMensa: 'Mensa',
+    tRate: 'Tasso di assenza dell’anno',
+    tExcused: 'Giustificate',
+    tOpen: 'Aperte',
+    tOverdue: 'In ritardo',
+    tTodoList: 'Portare il quaderno|Preparare la relazione|Consegnare il modulo|Studiare i vocaboli',
+    tReminderList: 'Gita a Bolzano|Colloqui con i genitori|Restituire i libri',
+    tSubjectList: 'Tedesco|Matematica|Fisica',
+    tSenders: 'Coordinatore|Segreteria|Huber|Kofler',
+    tTopics: 'Portare il quaderno|Gita di venerdì|Colloqui con i genitori|Cambio aula mercoledì',
+    tExamList: 'Matematica · Verifica|Inglese · Vocaboli',
+    tMonths: 'S|O|N|D|G|F|M|A|M|G',
     missionTitle: 'la nostra idea',
     missionText:
       "Crediamo che una giornata di scuola possa essere più leggera. Sai in modo *puntuale* quale lezione arriva, vedi già durante l'intervallo cosa cucina la mensa e se è *gustoso*, e tieni d'occhio la prossima verifica *insieme* alla tua classe. Per questo abbiamo creato POKYH.",
@@ -228,6 +270,20 @@ export const homepageDict: Dictionary<HomepageKey> = {
     tExam: 'English test',
     tWeekdays: 'Mo|Tu|We|Th|Fr',
     tNow: 'now',
+    tExamIn: 'in 3 days',
+    tDish: 'Pasta al ragù',
+    tMensa: 'Cafeteria',
+    tRate: 'Absence rate this year',
+    tExcused: 'Excused',
+    tOpen: 'Open',
+    tOverdue: 'Overdue',
+    tTodoList: 'Bring the workshop notebook|Prepare the presentation|Hand in the form|Learn vocabulary',
+    tReminderList: 'Trip to Bolzano|Parents’ evening|Return the books',
+    tSubjectList: 'German|Maths|Physics',
+    tSenders: 'Class teacher|Office|Huber|Kofler',
+    tTopics: 'Bring the workshop notebook|Trip on Friday|Parents’ evening|Room change Wednesday',
+    tExamList: 'Maths · Test|English · Vocabulary',
+    tMonths: 'S|O|N|D|J|F|M|A|M|J',
     missionTitle: 'our idea',
     missionText:
       'We believe a school day can feel lighter. You know *on time* which lesson comes next, see during the break what the cafeteria is cooking and whether it’s *tasty*, and keep the next test in view *together* with your class. That’s why we built POKYH.',

@@ -27,6 +27,7 @@ export function PixelSpriteArt({ sprite = 'unplugged', className = '', width }: 
 
 export default function PixelState({
   title,
+  note,
   detail,
   action,
   sprite = 'unplugged',
@@ -34,6 +35,8 @@ export default function PixelState({
   className = '',
 }: {
   title: string;
+  /** A second sentence for people, under the title. */
+  note?: string;
   /** The technical reason, shown small under the sentence. */
   detail?: string;
   action?: ReactNode;
@@ -46,6 +49,7 @@ export default function PixelState({
     <div role="status" className={`rise flex flex-col items-center px-4 text-center ${compact ? 'py-6' : 'py-10'} ${className}`}>
       <PixelSpriteArt sprite={sprite} className={compact ? 'w-[120px]' : 'w-[160px]'} />
       <p className={`max-w-[36ch] font-bold tracking-[-0.015em] ${compact ? 'mt-4 text-[15px]' : 'mt-6 text-[16.5px]'}`}>{title}</p>
+      {note && <p className="mt-1.5 max-w-[44ch] text-[14.5px] leading-relaxed text-ink-2">{note}</p>}
       {detail && <p className="mono mt-1.5 max-w-[48ch] text-[12.5px] text-ink-3 [overflow-wrap:anywhere]">{detail}</p>}
       {action && <div className="mt-5">{action}</div>}
     </div>

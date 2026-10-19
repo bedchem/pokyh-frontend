@@ -36,7 +36,11 @@ export type MensaKey =
   | 'nutrition'
   | 'carbsLong'
   | 'backToPlan'
-  | 'dishGone';
+  | 'dishGone'
+  | 'loading'
+  | 'noMensaTitle'
+  | 'noMensaText'
+  | 'toHome';
 
 export const mensaDict: Dictionary<MensaKey> = {
   de: {
@@ -75,6 +79,10 @@ export const mensaDict: Dictionary<MensaKey> = {
     carbsLong: 'Kohlenhydrate',
     backToPlan: 'Zum Speiseplan',
     dishGone: 'Dieses Gericht steht nicht mehr auf dem Plan.',
+    loading: 'Der Speiseplan wird geladen …',
+    noMensaTitle: 'Deine Schule hat in POKYH keine Mensa.',
+    noMensaText: 'Sobald es für deine Schule einen Speiseplan gibt, steht er hier.',
+    toHome: 'Zu Home',
   },
   it: {
     title: 'Mensa',
@@ -112,6 +120,10 @@ export const mensaDict: Dictionary<MensaKey> = {
     carbsLong: 'Carboidrati',
     backToPlan: 'Al menù',
     dishGone: 'Questo piatto non è più nel menù.',
+    loading: 'Caricamento del menù …',
+    noMensaTitle: 'La tua scuola non ha una mensa su POKYH.',
+    noMensaText: 'Appena ci sarà un menù per la tua scuola, lo troverai qui.',
+    toHome: 'Alla home',
   },
   en: {
     title: 'Cafeteria',
@@ -149,6 +161,10 @@ export const mensaDict: Dictionary<MensaKey> = {
     carbsLong: 'Carbohydrates',
     backToPlan: 'Back to the menu',
     dishGone: 'This dish is no longer on the menu.',
+    loading: 'Loading the menu …',
+    noMensaTitle: 'Your school has no cafeteria on POKYH.',
+    noMensaText: 'As soon as there is a menu for your school, you will find it here.',
+    toHome: 'To Home',
   },
   lld: {
     title: "Mensa",

@@ -4,16 +4,17 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode, type SyntheticEvent } from 'react';
 import { LayoutGroup, motion } from 'framer-motion';
-import { ArrowSquareUpLeft, EnvelopeSimple, GearSix, MagnifyingGlass, Moon, SidebarSimple, Sun } from '@phosphor-icons/react';
-import { useLocalizeHref, useRoutePath, useT } from '@/providers/LocaleProvider';
+import { CaretLeft, EnvelopeSimple, GearSix, Globe, MagnifyingGlass, Moon, Sun, UserCircle } from '@phosphor-icons/react';
+import { useLocale, useLocalizeHref, useRoutePath, useT } from '@/providers/LocaleProvider';
 import { useSession } from '@/providers/SessionProvider';
 import { useTheme } from '@/providers/ThemeProvider';
 import { shellDict } from '@/lib/i18n/dictionaries/shell';
-import LanguageButton from '@/components/site/LanguageButton';
+import LanguageButton, { RoundFlag } from '@/components/site/LanguageButton';
+import { ACTIVE_LOCALES, LOCALE_LABELS, LOCALE_NAMES } from '@/lib/i18n/locale';
 import Avatar from './Avatar';
 import SearchPalette from './SearchPalette';
 import { AppActionsProvider } from './actions';
-import { useUnreadMessages, useUntisPermissions } from './hooks';
+import { useMensaAvailable, useUnreadMessages, useUntisPermissions } from './hooks';
 import { BOTTOM_TABS, DEST, SIDEBAR_GROUPS, isActive, tabFor, type AppDestination } from './nav';
 import { useSidebarCollapsed } from './sidebar-state';
 import s from './shell.module.css';
@@ -74,8 +75,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
 function useVisibleDestinations() {
   const { user } = useSession();
+  const mensa = useMensaAvailable();
   const untis = user?.isUntisUser !== false;
-  return (d: AppDestination) => untis || !d.untis;
+  // A school without a menu has no Mensa at all (switched off in the admin panel).
+  return (d: AppDestination) => (untis || !d.untis) && (d !== DEST.mensa || mensa !== false);
 }
 
 function TopBar({ onSearch }: { onSearch: () => void }) {
@@ -130,6 +133,7 @@ function Sidebar({ collapsed }: { collapsed: boolean }) {
   const visible = useVisibleDestinations();
   const untis = user?.isUntisUser !== false;
   const name = perms?.personName || user?.username || '';
+  const detail = user?.klasseName || (user?.isParent ? t('guardian') : t('student'));
   const settingsActive = isActive(path, '/settings');
   const profileActive = isActive(path, '/profile');
   const [tip, setTip] = useState<{ text: string; top: number } | null>(null);
@@ -172,7 +176,18 @@ function Sidebar({ collapsed }: { collapsed: boolean }) {
       onBlur={hideTip}
       onScroll={hideTip}
     >
-      {/* The name, and beside it the way back to the public website */}
+      {/* Folding: a round button on the sidebar's edge, level with the logo */}
+      <button
+        type="button"
+        onClick={() => { setTip(null); setCollapsed(!collapsed); }}
+        aria-label={collapsed ? t('expand') : t('collapse')}
+        aria-expanded={!collapsed}
+        title={collapsed ? t('expand') : t('collapse')}
+        className={s.edge}
+      >
+        <CaretLeft size={14} weight="bold" className={`transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} aria-hidden="true" />
+      </button>
+
       <div className={s.head}>
         <Link
           href={localize('/home')}
@@ -181,15 +196,6 @@ function Sidebar({ collapsed }: { collapsed: boolean }) {
         >
           <Image src="/POKYH_Logo.png" alt="" width={34} height={34} priority className="size-[34px] shrink-0 rounded-[10px]" />
           <span className={`${s.fold} text-[21px] font-extrabold tracking-[-0.045em]`}>POKYH</span>
-        </Link>
-        <Link
-          href={localize('/')}
-          aria-label={t('website')}
-          data-tip={t('website')}
-          title={collapsed ? undefined : t('website')}
-          className={s.tool}
-        >
-          <ArrowSquareUpLeft size={21} aria-hidden="true" />
         </Link>
       </div>
 
@@ -216,62 +222,68 @@ function Sidebar({ collapsed }: { collapsed: boolean }) {
           })}
         </nav>
 
-        {/* Language, light or dark, and folding, in one row */}
-        <div className={s.tools}>
-          <div data-tip={t('language')} className="flex">
-            <LanguageButton placement="above" align="left" compact={collapsed} className={collapsed ? 'w-full' : ''} buttonClassName={`${s.tool} ${collapsed ? '' : s.toolWide}`} />
-          </div>
-          <button
-            type="button"
-            onClick={(e) => toggleWithRipple(e)}
-            aria-label={t('actionTheme')}
-            data-tip={t('actionTheme')}
-            title={collapsed ? undefined : t('actionTheme')}
-            className={s.tool}
-          >
-            {resolved === 'dark' ? <Sun size={21} aria-hidden="true" /> : <Moon size={21} aria-hidden="true" />}
-          </button>
-          <button
-            type="button"
-            onClick={() => { setTip(null); setCollapsed(!collapsed); }}
-            aria-label={collapsed ? t('expand') : t('collapse')}
-            aria-expanded={!collapsed}
-            data-tip={t('expand')}
-            title={collapsed ? undefined : t('collapse')}
-            className={`${s.tool} ${s.fold2}`}
-          >
-            <SidebarSimple size={21} className={`transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} aria-hidden="true" />
-          </button>
-        </div>
+        {/* The account at the bottom. Open: the profile with the settings
+            beside it, and under it language, light or dark and the public
+            start page as three equal buttons. Folded: only the picture, which
+            opens all of these in a small menu, so the places keep the room. */}
+        <div className={s.dock}>
+          {collapsed ? (
+            <AccountMenu name={name} detail={detail} picture={untis} active={profileActive || settingsActive} onOpen={hideTip} />
+          ) : (
+            <>
+              <div className={s.me}>
+                <Link
+                  href={localize('/profile')}
+                  aria-current={profileActive ? 'page' : undefined}
+                  className={`${s.item} ${s.meLink}`}
+                >
+                  {profileActive && <motion.span layoutId="side-active" className={s.itemBg} transition={GLIDE} aria-hidden="true" />}
+                  <Avatar name={name || '?'} size={38} picture={untis} />
+                  <span className={`${s.fold} min-w-0 leading-tight`}>
+                    <span className="block truncate text-[14.5px] font-bold text-ink">{name || '…'}</span>
+                    <span className="mt-0.5 block truncate text-[12.5px] font-medium text-ink-2">{detail}</span>
+                  </span>
+                </Link>
+                <Link
+                  href={localize('/settings')}
+                  aria-current={settingsActive ? 'page' : undefined}
+                  aria-label={t('settings')}
+                  title={t('settings')}
+                  className={s.tool}
+                >
+                  {settingsActive && <motion.span layoutId="side-active" className={s.itemBg} transition={GLIDE} aria-hidden="true" />}
+                  <GearSix size={21} weight={settingsActive ? 'fill' : 'regular'} aria-hidden="true" />
+                </Link>
+              </div>
 
-        {/* The profile, and beside it the settings */}
-        <div className={s.me}>
-          <Link
-            href={localize('/profile')}
-            aria-current={profileActive ? 'page' : undefined}
-            data-tip={name || t('openProfile')}
-            className={`${s.item} !h-[60px] min-w-0 grow overflow-hidden !px-2`}
-          >
-            {profileActive && <motion.span layoutId="side-active" className={s.itemBg} transition={GLIDE} aria-hidden="true" />}
-            <Avatar name={name || '?'} size={40} picture={untis} />
-            <span className={`${s.fold} min-w-0 leading-tight`}>
-              <span className="block truncate text-[15px] font-bold text-ink">{name || '…'}</span>
-              <span className="mt-0.5 block truncate text-[13px] font-medium text-ink-2">
-                {user?.klasseName || (user?.isParent ? t('guardian') : t('student'))}
-              </span>
-            </span>
-          </Link>
-          <Link
-            href={localize('/settings')}
-            aria-current={settingsActive ? 'page' : undefined}
-            aria-label={t('settings')}
-            data-tip={t('settings')}
-            title={collapsed ? undefined : t('settings')}
-            className={s.tool}
-          >
-            {settingsActive && <motion.span layoutId="side-active" className={s.itemBg} transition={GLIDE} aria-hidden="true" />}
-            <GearSix size={21} weight={settingsActive ? 'fill' : 'regular'} aria-hidden="true" />
-          </Link>
+              <div className={s.tools}>
+                <LanguageButton
+                  placement="above"
+                  align="left"
+                  compact
+                  className="flex min-w-0"
+                  buttonClassName={`${s.tool} ${s.toolFill}`}
+                />
+                <button
+                  type="button"
+                  onClick={(e) => toggleWithRipple(e)}
+                  aria-label={t('actionTheme')}
+                  title={t('actionTheme')}
+                  className={`${s.tool} ${s.toolFill}`}
+                >
+                  {resolved === 'dark' ? <Sun size={20} aria-hidden="true" /> : <Moon size={20} aria-hidden="true" />}
+                </button>
+                <Link
+                  href={localize('/')}
+                  aria-label={t('website')}
+                  title={t('website')}
+                  className={`${s.tool} ${s.toolFill}`}
+                >
+                  <Globe size={20} aria-hidden="true" />
+                </Link>
+              </div>
+            </>
+          )}
         </div>
       </LayoutGroup>
 
@@ -279,6 +291,140 @@ function Sidebar({ collapsed }: { collapsed: boolean }) {
         <span role="tooltip" className={s.tip} style={{ top: tip.top }}>{tip.text}</span>
       )}
     </aside>
+  );
+}
+
+/**
+ * The folded sidebar's account: the picture, and on a click a small menu
+ * beside it with the profile, the settings, the language, light or dark and
+ * the public start page. Closes on a choice, a click elsewhere or Escape.
+ */
+function AccountMenu({
+  name,
+  detail,
+  picture,
+  active,
+  onOpen,
+}: {
+  name: string;
+  detail: string;
+  picture: boolean;
+  /** The profile or the settings is the page shown. */
+  active: boolean;
+  onOpen: () => void;
+}) {
+  const t = useT(shellDict);
+  const localize = useLocalizeHref();
+  const path = useRoutePath();
+  const { locale, setLocale } = useLocale();
+  const { resolved, toggleWithRipple } = useTheme();
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
+
+  // A new page closes it.
+  const [shownFor, setShownFor] = useState(path);
+  if (shownFor !== path) {
+    setShownFor(path);
+    setOpen(false);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    menu.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus({ preventScroll: true });
+    const onDown = (e: PointerEvent) => { if (!root.current?.contains(e.target as Node)) setOpen(false); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false);
+        button.current?.focus();
+      }
+    };
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  // Up and down move between the entries, as in a native menu.
+  const onMenuKey = (e: React.KeyboardEvent) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    e.preventDefault();
+    const items = Array.from(menu.current?.querySelectorAll<HTMLElement>('[role="menuitem"], [role="menuitemradio"]') ?? []);
+    const at = items.indexOf(document.activeElement as HTMLElement);
+    items[(at + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus();
+  };
+
+  const row = 'flex h-11 w-full items-center gap-3 rounded-[12px] px-3 text-left text-[14.5px] font-semibold text-ink outline-none transition-colors hover:bg-inset focus-visible:bg-inset';
+
+  return (
+    <div ref={root} className="relative">
+      <button
+        ref={button}
+        type="button"
+        onClick={() => { onOpen(); setOpen((o) => !o); }}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={name ? `${name}, ${t('accountMenu')}` : t('accountMenu')}
+        data-tip={open ? undefined : name || t('openProfile')}
+        className={`${s.item} ${s.meFolded}`}
+        aria-current={active ? 'page' : undefined}
+      >
+        {active && <motion.span layoutId="side-active" className={s.itemBg} transition={GLIDE} aria-hidden="true" />}
+        <Avatar name={name || '?'} size={36} picture={picture} />
+      </button>
+
+      {open && (
+        <div ref={menu} role="menu" aria-label={t('accountMenu')} onKeyDown={onMenuKey} className={`${s.accountMenu} lang-menu`}>
+          <div className="flex items-center gap-3 px-3 pb-2.5 pt-2">
+            <Avatar name={name || '?'} size={40} picture={picture} />
+            <span className="min-w-0 leading-tight">
+              <span className="block truncate text-[15px] font-bold text-ink">{name || '…'}</span>
+              <span className="mt-0.5 block truncate text-[12.5px] font-medium text-ink-2">{detail}</span>
+            </span>
+          </div>
+          <div className={s.menuRule} />
+          <Link role="menuitem" href={localize('/profile')} className={row}>
+            <UserCircle size={19} aria-hidden="true" className="text-ink-2" />
+            {t('profile')}
+          </Link>
+          <Link role="menuitem" href={localize('/settings')} className={row}>
+            <GearSix size={19} aria-hidden="true" className="text-ink-2" />
+            {t('settings')}
+          </Link>
+          <button role="menuitem" type="button" onClick={(e) => toggleWithRipple(e)} className={row}>
+            {resolved === 'dark' ? <Sun size={19} aria-hidden="true" className="text-ink-2" /> : <Moon size={19} aria-hidden="true" className="text-ink-2" />}
+            {t('actionTheme')}
+          </button>
+          <Link role="menuitem" href={localize('/')} className={row}>
+            <Globe size={19} aria-hidden="true" className="text-ink-2" />
+            {t('website')}
+          </Link>
+          <div className={s.menuRule} />
+          <div role="group" aria-label={t('language')} className="grid grid-cols-3 gap-1 p-1">
+            {ACTIVE_LOCALES.map((l) => (
+              <button
+                key={l}
+                type="button"
+                role="menuitemradio"
+                aria-checked={l === locale}
+                aria-label={LOCALE_NAMES[l]}
+                lang={l}
+                onClick={() => { if (l !== locale) setLocale(l); }}
+                className={`flex h-10 items-center justify-center gap-2 rounded-[11px] text-[13px] font-bold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--accent-ink)] ${
+                  l === locale ? 'bg-periwinkle text-periwinkle-ink' : 'text-ink-2 hover:bg-inset hover:text-ink'
+                }`}
+              >
+                <RoundFlag locale={l} size={18} />
+                {LOCALE_LABELS[l]}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

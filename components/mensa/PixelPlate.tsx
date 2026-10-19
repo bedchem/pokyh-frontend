@@ -42,10 +42,11 @@ function foodBox(g: Geometry) {
 const LX = -0.61;
 const LY = -0.79;
 
-type Layer = string[];
+/** The pixels of one tone, as x, y pairs. */
+type Layer = number[];
 
 function add(layer: Layer, x: number, y: number) {
-  layer.push(`M${x} ${y}h1v1h-1z`);
+  layer.push(x, y);
 }
 
 const dist = (x: number, y: number, cx: number, cy: number) => Math.hypot(x + 0.5 - cx, y + 0.5 - cy);
@@ -207,7 +208,12 @@ interface Built {
 }
 
 const built: Partial<Record<PlateSize, Built>> = {};
-const d = (layer: Layer) => layer.join('');
+/** A layer as one SVG path of unit squares. */
+function d(layer: Layer): string {
+  let out = '';
+  for (let i = 0; i < layer.length; i += 2) out += `M${layer[i]} ${layer[i + 1]}h1v1h-1z`;
+  return out;
+}
 
 function sceneFor(size: PlateSize): Built {
   const g = GEOMETRY[size];
@@ -296,6 +302,69 @@ function drawMeal(ctx: CanvasRenderingContext2D, g: Geometry, style: FoodStyle, 
   cutRound(ctx, g);
 }
 
+// ── On a canvas ───────────────────────────────────────────────────────────
+
+/** The scene's tones in the light theme (as .pxp in globals.css), for canvases. */
+const CANVAS_TONES = {
+  shadowSoft: 'rgb(60 40 20 / 0.1)', shadow: 'rgb(60 40 20 / 0.17)', edge: '#C2B8A9', rim: '#F4F1EB',
+  rimHi: '#FFFFFF', rimLo: '#DDD6CB', well: '#ECE7DF', wellLo: '#D6CEC1',
+  steel: '#C9CCD3', steelHi: '#F6F7F9', steelLo: '#8E939D', spark: '#FFD86B',
+};
+
+/**
+ * The same dish drawn on a canvas (the homepage's 3D tiles use it as a
+ * texture): `px` canvas pixels per scene pixel, top left at x, y. With
+ * `size: 'table'` fork and knife lie beside the plate.
+ */
+export function paintPixelPlate(
+  ctx: CanvasRenderingContext2D,
+  { x, y, px, size = 'table', style, seed }: { x: number; y: number; px: number; size?: PlateSize; style: FoodStyle; seed: string },
+): void {
+  const g = GEOMETRY[size];
+  const { scene: sc } = sceneFor(size);
+  const fill = (layer: Layer, color: string) => {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    for (let i = 0; i < layer.length; i += 2) ctx.rect(x + layer[i] * px, y + layer[i + 1] * px, px, px);
+    ctx.fill();
+  };
+  const c = CANVAS_TONES;
+  fill(sc.shadowSoft, c.shadowSoft);
+  fill(sc.shadow, c.shadow);
+  fill(sc.edge, c.edge);
+  fill(sc.rim, c.rim);
+  fill(sc.rimHi, c.rimHi);
+  fill(sc.rimLo, c.rimLo);
+  fill(sc.well, c.well);
+  fill(sc.wellLo, c.wellLo);
+  if (size === 'table') {
+    for (const steel of [sc.fork, sc.knife]) {
+      fill(steel.shadow, c.shadow);
+      fill(steel.base, c.steel);
+      fill(steel.hi, c.steelHi);
+      fill(steel.lo, c.steelLo);
+    }
+    fill([35, 9, 34, 10, 35, 10, 36, 10, 35, 11], c.spark);
+  }
+  // The meal at one pixel per pixel, then scaled up without smoothing.
+  const box = foodBox(g);
+  const meal = document.createElement('canvas');
+  meal.width = box.n;
+  meal.height = box.n;
+  const mctx = meal.getContext('2d');
+  if (!mctx) return;
+  drawMeal(mctx, g, style, seed);
+  const smooth = ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(meal, x + box.x * px, y + box.y * px, box.n * px, box.n * px);
+  ctx.imageSmoothingEnabled = smooth;
+}
+
+/** Width and height of a plate scene in scene pixels. */
+export function plateSceneSize(size: PlateSize): { w: number; h: number } {
+  return { w: GEOMETRY[size].w, h: GEOMETRY[size].h };
+}
+
 // ── The scene ─────────────────────────────────────────────────────────────
 
 export default function PixelPlate({
@@ -303,6 +372,7 @@ export default function PixelPlate({
   style,
   seed,
   size = 'table',
+  empty = false,
   className = '',
 }: {
   /** The dish photo, when there is one and the visitor allows outside pictures. */
@@ -311,6 +381,8 @@ export default function PixelPlate({
   /** Keeps the drawn meal the same for the same dish. */
   seed: string;
   size?: PlateSize;
+  /** The plate without a meal: the table being laid while the menu loads. */
+  empty?: boolean;
   className?: string;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -325,7 +397,7 @@ export default function PixelPlate({
   useEffect(() => {
     const ctx = canvas.current?.getContext('2d');
     if (ctx) drawMeal(ctx, GEOMETRY[size], style, seed);
-  }, [size, style, seed]);
+  }, [size, style, seed, empty]);
 
   return (
     <span className={`pxp relative block ${table ? 'w-full' : ''} ${className}`} style={{ aspectRatio: `${g.w} / ${g.h}` }}>
@@ -362,7 +434,7 @@ export default function PixelPlate({
           <path d="M8 4h1v1h-1zM7 5h3v1h-3zM8 6h1v1h-1z" className="pxp-spark-hover" />
         )}
       </svg>
-      <span
+      {!empty && <span
         className="pxp-food absolute"
         data-photo={photo && loaded === photo ? 'true' : undefined}
         style={{ left: `${(box.x / g.w) * 100}%`, top: `${(box.y / g.h) * 100}%`, width: `${(box.n / g.w) * 100}%`, height: `${(box.n / g.h) * 100}%` }}
@@ -383,7 +455,7 @@ export default function PixelPlate({
             style={{ clipPath: clip }}
           />
         )}
-      </span>
+      </span>}
       {table && (
         <svg viewBox={`0 0 ${g.w} ${g.h}`} className="pxp-steam pointer-events-none absolute inset-0 h-full w-full" shapeRendering="crispEdges" aria-hidden="true">
           <path d="M50 13h1v1h-1zM51 11h1v1h-1zM51 9h1v1h-1zM50 7h1v1h-1z" className="pxp-wisp" />

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { fetchMessages, fetchPermissions, getMessagesStale } from '@/lib/api';
+import { fetchMensa, fetchMessages, fetchPermissions, getMensaStale, getMessagesStale } from '@/lib/api';
 import { useSession } from '@/providers/SessionProvider';
 import type { UntisPermissions } from '@/lib/types';
 import { messageIsRead } from '@/lib/untis-parse';
@@ -86,6 +86,55 @@ export function useUnreadMessages(): number {
   }, [untis]);
 
   return untis ? unread : 0;
+}
+
+/**
+ * Whether a menu answer says the school has a Mensa: pokyh-backend sends
+ * `available: false` for a school without a menu (none assigned in the admin
+ * panel, or taken away there). Older answers without the flag count as one.
+ */
+export function mensaAvailableIn(raw: unknown): boolean {
+  return !(raw && typeof raw === 'object' && (raw as { available?: unknown }).available === false);
+}
+
+// Like the unread count: one value for the whole frame. The menu stored on
+// the device answers at once (no tab that pops in or out on later visits);
+// the menu is then read once per page load, which also has it ready for the
+// Mensa page. Unknown (first visit, still loading) shows the Mensa.
+let mensaValue: boolean | null = null;
+let mensaRequested = false;
+const mensaListeners = new Set<() => void>();
+
+function mensaSnapshot(): boolean | null {
+  if (mensaValue === null) {
+    const stale = getMensaStale('account');
+    if (stale !== undefined) mensaValue = mensaAvailableIn(stale);
+  }
+  return mensaValue;
+}
+
+function subscribeMensa(cb: () => void) {
+  mensaListeners.add(cb);
+  return () => { mensaListeners.delete(cb); };
+}
+
+/** The account's school has a Mensa: true, false, or null while not known yet. */
+export function useMensaAvailable(): boolean | null {
+  const { user } = useSession();
+  const value = useSyncExternalStore(subscribeMensa, mensaSnapshot, () => null);
+
+  useEffect(() => {
+    if (!user || mensaRequested) return;
+    mensaRequested = true;
+    fetchMensa('account')
+      .then((raw) => {
+        mensaValue = mensaAvailableIn(raw);
+        mensaListeners.forEach((l) => l());
+      })
+      .catch(() => { mensaRequested = false; });
+  }, [user]);
+
+  return user ? value : null;
 }
 
 /**

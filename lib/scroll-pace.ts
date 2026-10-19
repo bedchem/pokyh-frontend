@@ -1,17 +1,18 @@
 // How scrolling feels on the public pages, in one place.
 //
-// Natural first: the page moves by the same amount for the same gesture
-// everywhere, follows a trackpad almost directly (macOS already adds its own
-// momentum) and lets a mouse wheel glide briefly. The homepage scenes stay
-// calm by being longer, not by braking the wheel: on a desktop (mouse or
-// trackpad) each pinned scene is stretched by its factor below, so its
-// animation takes more scrolling while every notch still moves the page as
-// far as anywhere else. Phones and tablets keep their native scrolling and
-// the base lengths.
+// The slow, gliding feel of the redesign (owner's choice, again since
+// 2026-10-19): a wheel notch or a trackpad stroke moves the page about two
+// thirds of the browser's own distance and the page glides after it. The
+// homepage scenes set their own pace on top (`pace`): the flight at the start
+// is calmest, the carousel a little calmer than the rest. Phones and tablets
+// keep their native scrolling and the base lengths.
+//
+// Mouse wheels and trackpads are still told apart (`lerp`, `gear` per input),
+// so either can be tuned on its own; by default both feel the same.
 //
 // Every value can be tuned per deployment without a code change through
 // NEXT_PUBLIC_SCROLL_TUNING, a JSON object with any subset of these keys,
-// e.g. {"lerp":{"wheel":0.12},"stretch":{"hero":1.8}}.
+// e.g. {"lerp":{"precise":0.5},"stretch":{"hero":1.8}}.
 
 export type InputKind = 'wheel' | 'precise';
 
@@ -26,7 +27,7 @@ export interface ScrollTuning {
   gear: Record<InputKind, number>;
   /** How quickly the wheel speed follows when a new scene takes over (per second). */
   blend: number;
-  /** Optional extra speed per scene, relative to `gear`; 1 keeps the feel the same everywhere. */
+  /** Speed per homepage scene, relative to `gear` (below 1: calmer); eased between scenes. */
   pace: Record<'hero' | 'manifest' | 'features' | 'mensa' | 'appOpen' | 'getIn' | 'page', number>;
   /** Scene lengths in large-viewport units (--lvh), as on touch screens. */
   length: {
@@ -37,7 +38,7 @@ export interface ScrollTuning {
     featureExtra: number;
     appOpen: number;
   };
-  /** How much longer each pinned scene is with a mouse or trackpad (calmer animation per notch). */
+  /** How much longer each pinned scene is with a mouse or trackpad (1: as on touch screens). */
   stretch: Record<SceneStretch, number>;
   /** How quickly the hero's camera catches up with the scroll position (per second). */
   heroFollow: number;
@@ -47,13 +48,13 @@ export type ScrollPace = keyof ScrollTuning['pace'];
 export type SceneStretch = 'hero' | 'manifest' | 'features' | 'appOpen';
 
 const DEFAULTS: ScrollTuning = {
-  lerp: { wheel: 0.15, precise: 0.5 },
-  gear: { wheel: 0.85, precise: 0.9 },
+  lerp: { wheel: 0.068, precise: 0.068 },
+  gear: { wheel: 0.66, precise: 0.66 },
   blend: 5,
-  pace: { hero: 1, manifest: 1, features: 1, mensa: 1, appOpen: 1, getIn: 1, page: 1 },
+  pace: { hero: 0.45, manifest: 1, features: 0.82, mensa: 1, appOpen: 1, getIn: 1, page: 1 },
   length: { hero: 260, manifest: 215, featureEach: 68, featureExtra: 150, appOpen: 160 },
-  stretch: { hero: 2, manifest: 1.2, features: 1.45, appOpen: 1.4 },
-  heroFollow: 16,
+  stretch: { hero: 1, manifest: 1, features: 1, appOpen: 1 },
+  heroFollow: 7,
 };
 
 type Overrides = Partial<Omit<ScrollTuning, 'lerp' | 'gear'>> & {

@@ -12,6 +12,7 @@ import { useTheme } from '@/providers/ThemeProvider';
 import { shellDict, type ShellKey } from '@/lib/i18n/dictionaries/shell';
 import { DEST, TONE_CLASS, type AppDestination, type AppTone } from './nav';
 import { useAppActions } from './actions';
+import { useMensaAvailable } from './hooks';
 import { loadSearchContent, searchSourceCount, type ContentDoc } from './searchContent';
 
 // The search behind the top bar (and Ctrl/⌘ K), in two parts: "Seiten" — the
@@ -108,6 +109,7 @@ export default function SearchPalette({ open, onClose: close }: { open: boolean;
   const list = useRef<HTMLDivElement>(null);
   const listId = useId();
   const untis = user?.isUntisUser !== false;
+  const mensa = useMensaAvailable() !== false;
 
   const onClose = useCallback(() => {
     setQuery('');
@@ -150,7 +152,7 @@ export default function SearchPalette({ open, onClose: close }: { open: boolean;
     page(DEST.timetable, 'plan stunden lessons orario');
     page(DEST.grades, 'voti marks durchschnitt media');
     page(DEST.messages, 'mail post inbox messaggi');
-    page(DEST.mensa, 'essen menu speiseplan cafeteria');
+    if (mensa) page(DEST.mensa, 'essen menu speiseplan cafeteria');
     page(DEST.absences, 'fehlstunden assenze');
     page(DEST.classregevents, 'klassenbuch registro einträge vermerk');
     page(DEST.todos, 'aufgaben tasks');
@@ -169,7 +171,7 @@ export default function SearchPalette({ open, onClose: close }: { open: boolean;
     if (untis) action('act:password', t('actionPassword'), <Key size={18} weight="bold" />, () => go('/settings?open=password'), 'passwort password reset vergessen');
     action('act:language', t('actionLanguage'), <Translate size={18} weight="bold" />, () => go('/settings#appearance'), 'sprache lingua deutsch italiano english');
     return out;
-  }, [untis, t, go, onClose, openCompose, openReport, setTheme, resolved]);
+  }, [untis, mensa, t, go, onClose, openCompose, openReport, setTheme, resolved]);
 
   const words = useMemo(() => fold(query).split(/\s+/).filter(Boolean), [query]);
   const loadedSources = Object.keys(content).length;

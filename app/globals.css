@@ -351,8 +351,11 @@
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: none; }
 }
+/* Filled backwards only: once risen, the element holds no animation, so it
+   is no stacking context of its own and menus opened above it (school year,
+   sort) stay on top of the cards that follow. */
 .rise {
-  animation: rise 0.5s var(--ease-out) both;
+  animation: rise 0.5s var(--ease-out) backwards;
 }
 
 @keyframes pulse-dot {
@@ -705,6 +708,11 @@ html.lenis body {
 .pxp-food[data-photo] .pxp-meal { visibility: hidden; transition: visibility 0s 0.3s; }
 
 .pxp-art, .pxp-food { animation: pxp-build 0.55s steps(11, end) both; }
+/* The laid table while the menu loads (MensaClient): the plate breathes in
+   pixel steps until the dish arrives. */
+.mensa-wait .pxp { animation: mensa-wait 1.8s steps(4, end) 0.6s infinite alternate; }
+@keyframes mensa-wait { to { opacity: 0.55; } }
+@media (prefers-reduced-motion: reduce) { .mensa-wait .pxp { animation: none; } }
 .pxp-food { animation-delay: 0.12s; }
 @keyframes pxp-build {
   from { clip-path: inset(0 0 100% 0); }
@@ -1056,13 +1064,14 @@ html.lenis body {
   .home-scroll-word > span, .home-scroll-dot { animation: none; }
 }
 
-/* The opening: until the script takes over, the name waits invisible; if
-   scripts are late it shows by itself. */
 /* The opening (components/home/Hero.tsx): the letters rise out of the h1,
-   which masks them on the way up, sharpening from a blur; the name settles
-   from a slight zoom; then the row along the bottom comes in. Pure CSS, so it
-   starts with the first paint. Filled backwards only: once done, the letters
-   are free for the lean towards the pointer the script adds. */
+   which masks them on the way up, fading in; the name settles from a slight
+   zoom; then the row along the bottom comes in. Pure CSS, so it starts with
+   the first paint, and only transform and opacity move: the browser runs it
+   on the compositor, smooth even while the page's scripts start up. On a
+   first visit it waits (paused at its start, html[data-hero-wait]) for the
+   font and a visible tab, see HeroStart. Filled backwards only: once done,
+   the letters are free for the lean towards the pointer the script adds. */
 @media (prefers-reduced-motion: no-preference) {
   .home-hero [data-title] {
     transform-origin: 50% 60%;
@@ -1088,9 +1097,12 @@ html.lenis body {
   100% { clip-path: none; }
 }
 @keyframes home-letter-in {
-  0% { opacity: 0; transform: translateY(108%); filter: blur(18px); }
-  60% { filter: blur(1px); }
-  100% { opacity: 1; transform: none; filter: none; }
+  0% { opacity: 0; transform: translateY(108%) rotate(4deg); }
+  45% { opacity: 1; }
+  100% { opacity: 1; transform: none; }
+}
+html[data-hero-wait] .home-hero :is([data-title], [data-letter], [data-chrome] > *) {
+  animation-play-state: paused;
 }
 @keyframes home-chrome-in {
   from { opacity: 0; transform: translateY(24px); }

@@ -24,10 +24,11 @@ test('mouse wheels and trackpads are told apart', async () => {
   assert.equal(inputKind(wheel(100), 120), 'wheel', 'large step without legacy data');
 });
 
-test('the same gesture moves the page equally far in every scene by default', async () => {
+test('the default feel is the slow glide, calmest in the opening flight', async () => {
   const { SCROLL } = await load();
-  assert.ok(Object.values(SCROLL.pace).every((v) => v === 1));
-  assert.ok(SCROLL.lerp.precise > SCROLL.lerp.wheel, 'trackpads are followed more directly');
+  assert.ok(SCROLL.gear.wheel < 1 && SCROLL.gear.precise < 1, 'less than the browser moves');
+  assert.ok(SCROLL.lerp.wheel < 0.1 && SCROLL.lerp.precise < 0.1, 'the page glides after the input');
+  assert.ok(SCROLL.pace.hero < SCROLL.pace.features && SCROLL.pace.features < SCROLL.pace.page, 'hero calmest, carousel calmer than the rest');
 });
 
 test('tuning overrides single values and keeps the earlier lerp form working', async () => {
@@ -35,7 +36,7 @@ test('tuning overrides single values and keeps the earlier lerp form working', a
   assert.equal(SCROLL.lerp.wheel, 0.2);
   assert.equal(SCROLL.gear.precise, 1);
   assert.equal(SCROLL.stretch.hero, 3);
-  assert.equal(SCROLL.pace.hero, 1, 'invalid values fall back');
+  assert.equal(SCROLL.pace.hero, 0.45, 'invalid values fall back to the default');
   const bad = await load('not json');
   assert.equal(bad.SCROLL.lerp.wheel > 0, true);
   await load(undefined);

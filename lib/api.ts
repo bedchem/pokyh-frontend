@@ -132,6 +132,10 @@ async function apiFetch(url: string, opts?: RequestInit) {
   return json;
 }
 
+// Requests under way, by address: whoever asks for the same data meanwhile
+// (the app frame and a page, say) shares the one request.
+const inFlight = new Map<string, Promise<unknown>>();
+
 // In-memory + localStorage cache. Returns stale from memory, fetches fresh,
 // and persists to localStorage so subsequent page loads render without a spinner.
 async function apiFetchCached(url: string, opts?: RequestInit): Promise<unknown> {
@@ -140,10 +144,17 @@ async function apiFetchCached(url: string, opts?: RequestInit): Promise<unknown>
     log('mem-hit', url);
     return inMem;
   }
-  const data = await apiFetch(url, opts);
-  cacheSet(url, data);
-  pcSet(url, data);
-  return data;
+  const pending = inFlight.get(url);
+  if (pending) return pending;
+  const request = apiFetch(url, opts)
+    .then((data) => {
+      cacheSet(url, data);
+      pcSet(url, data);
+      return data;
+    })
+    .finally(() => inFlight.delete(url));
+  inFlight.set(url, request);
+  return request;
 }
 
 // ─── Stale-data getters (instant render from localStorage) ───────────────────

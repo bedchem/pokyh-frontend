@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { ArrowClockwise, ArrowRight, Check, Copy, GearSix, Globe } from '@phosphor-icons/react';
+import { ArrowClockwise, ArrowRight, Check, Copy } from '@phosphor-icons/react';
 import AuthGuard from '@/components/AuthGuard';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { Page } from '@/components/app/Page';
@@ -12,12 +12,14 @@ import PixelState from '@/components/app/PixelState';
 import { Line } from '@/components/app/Skeleton';
 import { useUntisPermissions } from '@/components/app/hooks';
 import LogoutButton from '@/components/app/LogoutButton';
+import { Group, Item, LinkItem } from '@/components/app/SettingsRows';
 import { useSession } from '@/providers/SessionProvider';
 import { useApp } from '@/providers/AppProvider';
 import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { profileDict } from '@/lib/i18n/dictionaries/profile';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
 import { shellDict } from '@/lib/i18n/dictionaries/shell';
+import { settingsDict } from '@/lib/i18n/dictionaries/settings';
 import { fetchAccountActivity, type ActivityResult } from '@/lib/account-activity';
 
 // The profile: who you are, when you used POKYH (a GitHub-style grid of days
@@ -75,6 +77,7 @@ function ProfileContent() {
   const t = useT(profileDict);
   const tc = useT(commonDict);
   const ts = useT(shellDict);
+  const tset = useT(settingsDict);
   const localize = useLocalizeHref();
   const { user } = useSession();
   const { stableUid, classId } = useApp();
@@ -118,7 +121,7 @@ function ProfileContent() {
 
   return (
     <Page>
-      <header className="rise flex flex-col gap-6 pt-4 pb-10 sm:flex-row sm:items-center sm:justify-between md:pt-8 md:pb-14">
+      <header className="rise flex flex-col gap-6 pt-4 pb-10 sm:flex-row sm:items-center md:pt-8 md:pb-14">
         <div className="flex min-w-0 items-center gap-5">
           <Avatar name={name || '?'} size={88} picture={untis} />
           <div className="min-w-0">
@@ -127,17 +130,6 @@ function ProfileContent() {
               {[user?.klasseName, t('school'), user?.isParent ? t('guardian') : t('student')].filter(Boolean).join(' · ')}
             </p>
           </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-          <ButtonLink href={localize('/settings')} variant="quiet">
-            <GearSix size={18} weight="bold" aria-hidden="true" />
-            {t('settings')}
-          </ButtonLink>
-          <ButtonLink href={localize('/')} variant="quiet">
-            <Globe size={18} weight="bold" aria-hidden="true" />
-            {ts('website')}
-          </ButtonLink>
-          <LogoutButton />
         </div>
       </header>
 
@@ -188,19 +180,23 @@ function ProfileContent() {
           )}
         </Block>
 
-        <Block title={t('account')}>
-          <dl className="squircle grid gap-x-8 gap-y-6 rounded-[26px] bg-surface p-6 sm:grid-cols-2 md:p-7">
-            {details.map((d) => (
-              <div key={d.label} className="min-w-0">
-                <dt className="text-[13px] font-semibold text-ink-3">{d.label}</dt>
-                <dd className="mt-1 flex items-center gap-1.5">
-                  <span className={`min-w-0 truncate text-[16px] font-semibold ${d.mono ? 'mono text-[14.5px]' : ''}`}>{d.value}</span>
-                  {d.copy && d.value && <CopyButton value={d.value} label={d.label} />}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </Block>
+        {/* Like the end of the settings: the account as rows under thin
+            rules, then the way to the settings, to the start page and out. */}
+        <Group id="account" title={t('account')}>
+          {details.map((d) => (
+            <Item key={d.label} title={d.label} inline>
+              <span className="flex min-w-0 items-center gap-1.5">
+                <span className={`min-w-0 truncate text-[15.5px] font-semibold text-ink-2 ${d.mono ? 'mono text-[14px]' : ''}`}>{d.value}</span>
+                {d.copy && d.value && <CopyButton value={d.value} label={d.label} />}
+              </span>
+            </Item>
+          ))}
+          <LinkItem href="/settings" title={t('settings')} hint={t('settingsHint')} />
+          <LinkItem href="/" title={ts('website')} hint={t('websiteHint')} />
+          <Item title={tset('logout')} hint={tset('logoutHint')} danger>
+            <LogoutButton />
+          </Item>
+        </Group>
       </div>
     </Page>
   );

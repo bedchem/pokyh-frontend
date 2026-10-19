@@ -69,7 +69,9 @@ export type ProfileKey =
   | 'source'
   | 'back'
   | 'minutes'
-  | 'hoursMinutes';
+  | 'hoursMinutes'
+  | 'settingsHint'
+  | 'websiteHint';
 
 export const profileDict: Dictionary<ProfileKey> = {
   de: {
@@ -87,6 +89,8 @@ export const profileDict: Dictionary<ProfileKey> = {
     student: 'Schüler/in',
     guardian: 'Erziehungsberechtigt',
     settings: 'Einstellungen',
+    settingsHint: 'Darstellung, Sprache, Benachrichtigungen und Datenschutz.',
+    websiteHint: 'Die öffentliche Seite von POKYH mit allen Infos.',
     activity: 'Aktivität',
     activityLead: 'An welchen Tagen du POKYH genutzt hast.',
     daysOnline: 'Tage online',
@@ -157,6 +161,8 @@ export const profileDict: Dictionary<ProfileKey> = {
     student: 'Studente/ssa',
     guardian: 'Genitore',
     settings: 'Impostazioni',
+    settingsHint: 'Aspetto, lingua, notifiche e privacy.',
+    websiteHint: 'Il sito pubblico di POKYH con tutte le informazioni.',
     activity: 'Attività',
     activityLead: 'In quali giorni hai usato POKYH.',
     daysOnline: 'Giorni online',
@@ -227,6 +233,8 @@ export const profileDict: Dictionary<ProfileKey> = {
     student: 'Student',
     guardian: 'Guardian',
     settings: 'Settings',
+    settingsHint: 'Appearance, language, notifications and privacy.',
+    websiteHint: 'The public POKYH site with all the details.',
     activity: 'Activity',
     activityLead: 'The days you used POKYH.',
     daysOnline: 'Days online',
