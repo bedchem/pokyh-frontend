@@ -517,6 +517,11 @@ export function sweat(x: number, y: number): Sprite {
   return new Sprite().mass([[x + 1, y], [x, y + 1], [x + 1, y + 1], [x, y + 2], [x + 1, y + 2], [x + 2, y + 2], [x + 1, y + 3]], 'wt').set(x, y + 1, 'wt4');
 }
 
+/** A little lightning bolt, its top at (x, y): the mascot fizzing with energy. */
+export function bolt(x: number, y: number): Sprite {
+  return new Sprite().mass(grid(['..##', '.##.', '####', '.##.', '##..', '#...'], x, y), 'gd').set(x + 2, y, 'gd4');
+}
+
 /** "…" in a small thought bubble. */
 export function thinking(x: number, y: number): Sprite {
   const s = new Sprite().mass(soft(x, y, 13, 7, 2.5), 'pp').mass(rounded(x - 2, y + 7, 2, 2, 0), 'pp');

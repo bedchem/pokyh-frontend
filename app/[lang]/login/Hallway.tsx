@@ -2,9 +2,8 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Paths, SpritePalette } from '@/components/pixel/SceneSvg';
-import { CLOUD_LOOP, bubble, buildHallway, clockHands, doorway, topOf, type Doorway } from '@/components/pixel/hallway';
-import { FEET, MH, MW } from '@/components/pixel/mascot';
-import { Sprite } from '@/components/pixel/sprite';
+import { CLOUD_LOOP, bubble, buildHallway, clockHands, topOf, type Doorway } from '@/components/pixel/hallway';
+import { MH, MW } from '@/components/pixel/mascot';
 import MascotFigure, { usePointerLook, type Look as FigureLook } from '@/components/pixel/MascotFigure';
 import { useRoomSave } from '@/components/room/store';
 import { isOffensive } from '@/lib/mascot-filter';
@@ -23,8 +22,9 @@ import { prefersReducedMotion } from '@/lib/motion';
 // search makes it angry: brows down, fists up, red in the face, fuming.
 // Otherwise it blinks, breathes and follows the pointer with its eyes. The
 // open locker shuts while the password is typed. `HallwayScene` fills the
-// panel beside the form on desktops; `MascotBadge` is the small one above it
-// on phones. Decorative only (aria-hidden).
+// panel beside the form on desktops, with the door of room 2B; `MascotBadge`
+// is the small one above it on phones, without the door. Decorative only
+// (aria-hidden), apart from the door.
 
 export type MascotEvent = { kind: 'autofill' | 'error' | 'success' | 'picked'; n: number } | null;
 
@@ -165,7 +165,7 @@ interface DoorProps {
 }
 
 /** The door's state: its steps, the pointer on it, the wave on coming back. */
-function useDoor({ onDoor, onDoorIntent, returns = 0, onKnock }: DoorProps & { onKnock?: () => void }) {
+function useDoor({ onDoor, onDoorIntent, returns = 0 }: DoorProps) {
   const button = useRef<HTMLButtonElement>(null);
   const [door, setDoor] = useState<DoorStep>('shut');
   const [hover, setHover] = useState(false);
@@ -208,7 +208,6 @@ function useDoor({ onDoor, onDoorIntent, returns = 0, onKnock }: DoorProps & { o
   const knock = () => {
     if (door !== 'shut') return;
     onDoorIntent?.();
-    onKnock?.();
     setHover(false);
     setDoor(prefersReducedMotion() ? 'open' : 'ajar0');
   };
@@ -370,75 +369,33 @@ export function HallwayScene({ state, ...doorProps }: { state: MascotState } & D
   );
 }
 
-// On phones the door of room 2B stands beside the small mascot, its floor
-// level with the mascot's feet; the speech bubble keeps between them.
-const BADGE_W = 126;
-const BADGE_DOOR_X = 97;
-let badgeDoor: { frame: Sprite; door: Doorway } | null = null;
-function badgeDoorParts() {
-  if (!badgeDoor) {
-    const frame = new Sprite();
-    badgeDoor = { frame, door: doorway(frame, BADGE_DOOR_X, FEET + 1, FEET + 12) };
-  }
-  return badgeDoor;
-}
+// On phones the mascot stands on its own above the form, its speech bubble
+// beside it; the door of room 2B is only in the hallway on desktops. The
+// drawing keeps room above the head for a bubble on two lines (or a hat), so
+// the form below doesn't move while it talks.
+const BADGE_W = 112;
 
-/** The small mascot above the form on phones, with its speech bubble and the door beside it. */
-export function MascotBadge({ state, ...doorProps }: { state: MascotState } & DoorProps) {
-  const t = useT(loginDict);
+/** The small mascot above the form on phones, with its speech bubble. */
+export function MascotBadge({ state }: { state: MascotState }) {
   const phase = usePhase(state.event);
   const say = useSay();
-  const svg = useRef<SVGSVGElement>(null);
-  const [toward, setToward] = useState<{ x: number; y: number; dx: number; dy: number; k: number } | null>(null);
-  const d = useDoor({
-    ...doorProps,
-    // Where the doorway is on the screen, for the way in.
-    onKnock: () => {
-      const r = svg.current?.getBoundingClientRect();
-      if (!r) return;
-      const { centre } = badgeDoorParts().door;
-      const scale = r.width / BADGE_W;
-      const x = (centre[0] / BADGE_W) * r.width;
-      const y = r.height - (MH - centre[1]) * scale;
-      const k = Math.max(window.innerWidth / (25 * scale), window.innerHeight / (60 * scale)) * 1.3;
-      setToward({ x, y, dx: window.innerWidth / 2 - (r.left + x), dy: window.innerHeight / 2 - (r.top + y), k });
-    },
-  });
   const { wear } = useRoomSave();
-  const look = doorLook(d, state, phase) ?? lookFor(state, phase, [1, 0]);
-  const { frame, door } = badgeDoorParts();
-  const speech = look.say ? bubble(say(look.say), MW - 2, 17, BADGE_DOOR_X - MW - 14) : null;
-  // A bubble on more lines grows upwards: the drawing makes room for it and the door.
-  const top = Math.min(door.box[1] - 2, look.anger ? -10 : -2, speech ? topOf(speech) - 1 : -2);
-  const H = MH - top;
-  const [bx, by, bw, bh] = door.box;
-  const zoom = toward ? zoomInto(toward.x, toward.y, toward.dx, toward.dy, toward.k, d.zoomed, d.door) : undefined;
+  const look = lookFor(state, phase, [1, 0]);
+  const speech = look.say ? bubble(say(look.say), MW - 2, 17, BADGE_W - MW - 4) : null;
+  const top = Math.min(wear.head ? -16 : -12, speech ? topOf(speech) - 1 : 0);
   return (
     <>
       <SpritePalette />
-      <div className="relative w-[252px] max-w-full">
-        <svg
-          ref={svg}
-          viewBox={`0 ${top} ${BADGE_W} ${H}`}
-          className={`spr relative block w-full ${d.zoomed ? 'z-20' : ''}`}
-          shapeRendering="crispEdges"
-          aria-hidden="true"
-          overflow="visible"
-          style={zoom}
-        >
-          <Paths sprite={frame} />
-          {d.lit && <Paths sprite={door.spill} />}
-          <Paths sprite={d.leaf(door)} />
-          <MascotFigure look={look} motionKey={d.opening ? 'door' : motionKey(look, state)} marks="beside" wear={wear} />
-          {speech && <g key={look.say?.key} className="ms-pop"><Paths sprite={speech} /></g>}
-          <rect x={0} y={top} width={BADGE_W} height={H} className="hw-into" data-on={d.zoomed ? '' : undefined} />
-        </svg>
-        <button
-          {...d.button}
-          aria-label={t('doorLabel')}
-          style={{ left: `${(bx / BADGE_W) * 100}%`, top: `${((by - top) / H) * 100}%`, width: `${(bw / BADGE_W) * 100}%`, height: `${(bh / H) * 100}%` }}
-        />
-      </div>
+      <svg
+        viewBox={`0 ${top} ${BADGE_W} ${MH - top}`}
+        className="spr block w-[252px] max-w-full"
+        shapeRendering="crispEdges"
+        aria-hidden="true"
+        overflow="visible"
+      >
+        <MascotFigure look={look} motionKey={motionKey(look, state)} marks="beside" wear={wear} />
+        {speech && <g key={look.say?.key} className="ms-pop"><Paths sprite={speech} /></g>}
+      </svg>
     </>
   );
 }

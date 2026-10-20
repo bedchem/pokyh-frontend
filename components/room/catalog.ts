@@ -7,7 +7,7 @@
 export type ItemKind = 'snack' | 'head' | 'face' | 'decor';
 
 export const ITEM_IDS = [
-  'pudding', 'gum', 'lemonade',
+  'pudding', 'gum', 'lemonade', 'chips', 'monster', 'cocoa',
   'partyhat', 'gradcap', 'headphones',
   'shades', 'stareyes', 'hearteyes',
   'plant', 'lavalamp', 'lights',
@@ -18,9 +18,11 @@ export type ItemId = (typeof ITEM_IDS)[number];
 export interface Item {
   id: ItemId;
   kind: ItemKind;
-  /** Its place in the machine (row A–D, column 1–3); rare things have none. */
+  /** Its place in the machine (row A–E, column 1–3); rare things have none. */
   code: string | null;
   price: number;
+  /** A snack that is drunk, not eaten (the bottom row of the machine). */
+  drink?: boolean;
   /** How a rare thing is found. */
   rare?: 'lucky' | 'code' | 'trophy' | 'bin';
 }
@@ -28,7 +30,7 @@ export interface Item {
 export const ITEMS: Item[] = [
   { id: 'pudding', kind: 'snack', code: 'A1', price: 1 },
   { id: 'gum', kind: 'snack', code: 'A2', price: 1 },
-  { id: 'lemonade', kind: 'snack', code: 'A3', price: 2 },
+  { id: 'chips', kind: 'snack', code: 'A3', price: 1 },
   { id: 'partyhat', kind: 'head', code: 'B1', price: 4 },
   { id: 'gradcap', kind: 'head', code: 'B2', price: 6 },
   { id: 'headphones', kind: 'head', code: 'B3', price: 6 },
@@ -38,6 +40,10 @@ export const ITEMS: Item[] = [
   { id: 'plant', kind: 'decor', code: 'D1', price: 4 },
   { id: 'lavalamp', kind: 'decor', code: 'D2', price: 6 },
   { id: 'lights', kind: 'decor', code: 'D3', price: 6 },
+  // The drinks, in the bottom row; the white energy can makes the mascot hyper.
+  { id: 'lemonade', kind: 'snack', code: 'E1', price: 2, drink: true },
+  { id: 'monster', kind: 'snack', code: 'E2', price: 3, drink: true },
+  { id: 'cocoa', kind: 'snack', code: 'E3', price: 2, drink: true },
   // Never in the window: a lucky extra now and then when buying, the room
   // number typed on the keypad, three stars in every game, the bin.
   { id: 'crown', kind: 'head', code: null, price: 0, rare: 'lucky' },

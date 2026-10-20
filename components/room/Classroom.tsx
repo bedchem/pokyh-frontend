@@ -7,11 +7,11 @@ import { ROOM_H, ROOM_W, SKY_LOOP, SPOTS, buildClassroom, chalk, wipe, type Box,
 import { bubble, clockHands } from '@/components/pixel/hallway';
 import { MH, MW } from '@/components/pixel/mascot';
 import MascotFigure, { usePointerLook, type Look } from '@/components/pixel/MascotFigure';
-import { discoAt, duckAt, lampAt, lightsAt, plantAt, trophyAt } from '@/components/pixel/collectibles';
+import { discoAt, duckAt, emptyCanAt, lampAt, lightsAt, plantAt, trophyAt } from '@/components/pixel/collectibles';
 import { useT } from '@/providers/LocaleProvider';
 import { roomDict, type RoomKey } from '@/lib/i18n/dictionaries/room';
 import { prefersReducedMotion } from '@/lib/motion';
-import { DISCOVERIES, DISCOVERY_STARS, DUCK_ODDS, GOLDEN_ODDS, GOLDEN_STARS, WELCOME_STARS, type Discovery } from './catalog';
+import { DISCOVERIES, DISCOVERY_STARS, DUCK_ODDS, GOLDEN_ODDS, GOLDEN_STARS, WELCOME_STARS, type Discovery, type Item } from './catalog';
 import { discover, grant, unlock, useRoomSave, welcome } from './store';
 import { closeView, openView, type RoomView } from './route';
 import Vending from './Vending';
@@ -66,6 +66,10 @@ const REACTIONS: Array<{ look: Look; say: RoomKey }> = [
 const ANGRY: Look = { pose: { eyes: 'angry', look: [0, 0], mouth: 'frown', arms: 'fists' }, anger: true, motion: 'fume' };
 const GOLDEN: Look = { pose: { eyes: 'stars', look: [0, 0], mouth: 'grin', arms: 'cheer' }, motion: 'jump' };
 const MUNCH: Look = { pose: { eyes: 'happy', look: [0, 0], mouth: 'o', arms: 'down' }, motion: 'hop' };
+const SLURP: Look = { pose: { eyes: 'closed', look: [0, 0], mouth: 'o', arms: 'down' }, motion: 'bob' };
+// The white energy can: wide awake and fizzing for a few seconds, then worn out.
+const HYPER: Look = { pose: { eyes: 'wide', look: [0, 0], mouth: 'grin', arms: 'cheer' }, mark: '!', zap: true, motion: 'buzz' };
+const CRASH: Look = { pose: { eyes: 'closed', look: [0, 1], mouth: 'wobble', arms: 'down' }, sweat: true, motion: 'bob' };
 
 /** One time in `odds`. */
 const lucky = (odds: number) => Math.random() < 1 / odds;
@@ -88,6 +92,14 @@ function layoutFor(W: number, H: number) {
 }
 
 const SUB_VIEWS: Partial<Record<RoomView, Spot>> = { snacks: 'vending', tablet: 'tablet', bag: 'backpack' };
+
+interface Reaction {
+  look: Look;
+  say?: string;
+  n: number;
+  ms: number;
+  next?: Omit<Reaction, 'n' | 'next'>;
+}
 
 export default function Classroom({ view, onLeave }: { view: RoomView; onLeave: () => void }) {
   const t = useT(roomDict);
@@ -114,7 +126,8 @@ export default function Classroom({ view, onLeave }: { view: RoomView; onLeave: 
   const [globeTurn, setGlobeTurn] = useState(0);
   const [clockSkip, setClockSkip] = useState(0);
   const [appleGone, setAppleGone] = useState(false);
-  const [reaction, setReaction] = useState<{ look: Look; say?: string; n: number; ms: number } | null>(null);
+  // What the mascot is doing; `next` follows on its own when it is over.
+  const [reaction, setReaction] = useState<Reaction | null>(null);
   const [line, setLine] = useState<Line | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const counts = useRef({ clock: [] as number[], mascot: [] as number[], mascotTotal: 0, bin: 0, apple: 0, book: 0, globe: 0, n: 0 });
@@ -174,7 +187,7 @@ export default function Classroom({ view, onLeave }: { view: RoomView; onLeave: 
 
   useEffect(() => {
     if (!reaction) return;
-    const id = window.setTimeout(() => setReaction(null), reaction.ms);
+    const id = window.setTimeout(() => setReaction(reaction.next ? { ...reaction.next, n: -reaction.n } : null), reaction.ms);
     return () => window.clearTimeout(id);
   }, [reaction]);
 
@@ -368,9 +381,11 @@ export default function Classroom({ view, onLeave }: { view: RoomView; onLeave: 
     return () => window.removeEventListener('keydown', onKey);
   }, [view]);
 
-  // A snack from the machine is eaten in the room; back in the room the view zooms out.
-  const [snack, setSnack] = useState<{ name: string; n: number } | null>(null);
-  const fed = useCallback((name: string) => setSnack({ name, n: Date.now() }), []);
+  // A snack or a drink from the machine is had in the room; back in the room the view zooms out.
+  const [snack, setSnack] = useState<{ item: Item; name: string; n: number } | null>(null);
+  const fed = useCallback((item: Item, name: string) => setSnack({ item, name, n: Date.now() }), []);
+  // The energy cans emptied this visit stay on the teacher's desk.
+  const [cans, setCans] = useState(0);
   const [seenView, setSeenView] = useState(view);
   if (seenView !== view) {
     setSeenView(view);
@@ -378,8 +393,15 @@ export default function Classroom({ view, onLeave }: { view: RoomView; onLeave: 
       setZoom(null);
       if (snack) {
         setSnack(null);
-        setReaction({ look: MUNCH, say: t('mascotMunch'), n: snack.n, ms: 2200 });
-        setLine({ text: t('snackEaten', { name: snack.name }), who: 'mascot', n: snack.n });
+        if (snack.item.id === 'monster') {
+          setCans((n) => n + 1);
+          setReaction({ look: HYPER, say: t('mascotHyper'), n: snack.n, ms: 4200, next: { look: CRASH, say: t('mascotCrash'), ms: 2000 } });
+          setLine({ text: t('monsterDrunk'), who: 'mascot', n: snack.n });
+        } else {
+          const drink = snack.item.drink;
+          setReaction({ look: drink ? SLURP : MUNCH, say: t(drink ? 'mascotSlurp' : 'mascotMunch'), n: snack.n, ms: 2200 });
+          setLine({ text: t(drink ? 'drinkDrunk' : 'snackEaten', { name: snack.name }), who: 'mascot', n: snack.n });
+        }
       }
     }
   }
@@ -473,6 +495,7 @@ export default function Classroom({ view, onLeave }: { view: RoomView; onLeave: 
             <Paths sprite={bookOut ? room.book.out : room.book.in} />
             {!appleGone && <Paths sprite={room.apple} />}
             <Decor room={room} decor={decor} lightsOn={lightsOn} layer="back" />
+            {cans > 0 && <Paths sprite={cached(`can${room.decor.can.join(',')}`, () => emptyCanAt(room.decor.can[0], room.decor.can[1]))} />}
             <g transform={`translate(${mx} ${my})`}>
               <MascotFigure look={look} motionKey={reaction ? `r${reaction.n}` : 'idle'} wear={save.wear} />
             </g>

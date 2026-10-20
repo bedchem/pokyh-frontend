@@ -28,7 +28,7 @@ export const SPOTS = ['window', 'poster', 'switch', 'board', 'clock', 'globe', '
 export type Spot = (typeof SPOTS)[number];
 
 /** Room decorations, each with its place (./collectibles.ts draws them). */
-export type DecorSpot = 'plant' | 'lamp' | 'lights' | 'disco' | 'trophy' | 'duck';
+export type DecorSpot = 'plant' | 'lamp' | 'lights' | 'disco' | 'trophy' | 'duck' | 'can';
 
 export interface Classroom {
   w: number;
@@ -356,27 +356,31 @@ function vendingMachine(s: Sprite, x: number, y: number) {
   s.fill(rect(x + 2, y + 2, w - 4, 8), 'nt0');
   const gx = x + 2;
   const gy = y + 12;
-  s.fill(rect(gx, gy, 16, 34), 'nt1');
+  s.fill(rect(gx, gy, 16, 37), 'nt1');
   s.fill(rect(gx, gy, 16, 1), 'nt0');
-  const tones = [['gd', 'ld', 'wt'], ['rd', 'lb', 'ac'], ['gn', 'pp', 'or'], ['lc', 'gd', 'la']];
+  // Five rows as in the machine up close (./vending.ts); the drinks at the
+  // bottom, the white energy can in the middle of them, in the cold.
+  const tones = [['gd', 'pk', 'rd'], ['ld', 'ik', 'ld'], ['ik', 'pp', 'rd'], ['gn', 'ld', 'lb'], ['lc', 'gh', 'ck']];
+  s.fill(rect(gx, gy + 29, 16, 8), 'nt2').fill(rect(gx, gy + 29, 16, 1), 'wt3');
   tones.forEach((row, r) => {
-    const sy = gy + 2 + r * 8;
+    const sy = gy + 1 + r * 7;
     row.forEach((m, c) => {
       const sx = gx + 1 + c * 5;
-      s.mass(rect(sx + 1, sy + 1, 3, 4), m === 'pp' ? 'pp' : m, { outline: false });
+      s.mass(rect(sx + 1, sy + 1, 3, 4), m, { outline: false });
       s.fill(rect(sx, sy + 6, 5, 1), 'st1');
     });
   });
+  s.set(gx + 8, gy + 31, 'st1').set(gx + 8, gy + 32, 'st1');
   // A sheen across the glass.
-  s.fill(dither([...line(gx + 2, gy + 33, gx + 15, gy + 6), ...line(gx + 3, gy + 33, gx + 15, gy + 8)]), 'gl');
+  s.fill(dither([...line(gx + 2, gy + 36, gx + 15, gy + 6), ...line(gx + 3, gy + 36, gx + 15, gy + 8)]), 'gl');
   // Controls: the display, the keypad, the slot for stars.
   s.fill(rect(x + 20, y + 13, 5, 3), 'gn3');
   for (let r = 0; r < 3; r++) for (let c = 0; c < 2; c++) s.set(x + 20 + c * 3, y + 19 + r * 2, 'st3');
   s.fill(rect(x + 21, y + 27, 3, 5), 'nt0').fill(rect(x + 22, y + 28, 1, 3), 'gd2');
   // The flap at the bottom.
-  s.fill(rect(x + 3, y + 49, w - 6, 8), 'nt0');
-  s.fill(rect(x + 4, y + 50, w - 8, 3), 'ac1');
-  s.fill(rect(x + 4, y + 50, w - 8, 1), 'ac3');
+  s.fill(rect(x + 3, y + 51, w - 6, 7), 'nt0');
+  s.fill(rect(x + 4, y + 52, w - 8, 3), 'ac1');
+  s.fill(rect(x + 4, y + 52, w - 8, 1), 'ac3');
 }
 
 function vendingSign(x: number, y: number, on: boolean): Sprite {
@@ -560,7 +564,7 @@ export function buildClassroom(w: number, h: number): Classroom {
 
   const [vx, vy] = at(211, 20);
   vendingMachine(back, vx, vy);
-  glow.fill(rect(vx + 2, vy + 12, 16, 34), 'glow').fill(rect(vx + 2, vy + 2, 23, 8), 'glow');
+  glow.fill(rect(vx + 2, vy + 12, 16, 37), 'glow').fill(rect(vx + 2, vy + 2, 23, 8), 'glow');
   glow.fill(dither(rect(vx - 2, floor, 31, 4)), 'lit');
 
   // Where the panel is wider than the core: more windows on the left, a
@@ -635,7 +639,7 @@ export function buildClassroom(w: number, h: number): Classroom {
     apple: appleAt(appleXY[0], appleXY[1]),
     mascot: mascotXY,
     glow, lampLight, spots,
-    bright: [...panes, [vx + 2, vy + 2, 23, 8], [vx + 2, vy + 12, 16, 34], [vx + 20, vy + 13, 5, 3], [tabXY[0] + 1, tabXY[1] + 1, 11, 7]],
+    bright: [...panes, [vx + 2, vy + 2, 23, 8], [vx + 2, vy + 12, 16, 37], [vx + 20, vy + 13, 5, 3], [tabXY[0] + 1, tabXY[1] + 1, 11, 7]],
     decor: {
       plant: at(37, 50),
       lamp: [tx + 27, deskFeet - 24],
@@ -643,6 +647,8 @@ export function buildClassroom(w: number, h: number): Classroom {
       disco: [ox + 152, Math.max(0, oy - 4)],
       trophy: [shx + 19, shy + 15],
       duck: [ox + 30, oy + 80],
+      // Where the emptied energy can is dropped: on the floor beside the mascot.
+      can: [ox + 97, oy + 99],
     },
   };
 }

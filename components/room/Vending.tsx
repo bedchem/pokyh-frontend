@@ -4,7 +4,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Paths, SpritePalette } from '@/components/pixel/SceneSvg';
 import { STAR, itemSprite } from '@/components/pixel/collectibles';
 import {
-  COIN, FLAP, GLASS_SHEEN, KEYS, KEY_BOXES, SIGN_BULBS, SLOTS, VM_H, VM_W,
+  COIN, FLAP, GLASS_BOX, GLASS_SHEEN, KEYS, KEY_BOXES, SIGN_BULBS, SLOTS, VM_H, VM_W,
   displayText, roomBackdrop, slotFrame, spiralTurn, vendingFront, vendingItems, type Key,
 } from '@/components/pixel/vending';
 import { useT } from '@/providers/LocaleProvider';
@@ -20,8 +20,8 @@ import s from './room.module.css';
 // gold stars, watch the spiral turn and the thing drop, take it out of the
 // flap. Now and then something gets stuck and wants a shake; now and then a
 // crown falls out as well. The room's number typed on the keypad does
-// something too. Snacks go to the mascot; hats, glasses and decorations are
-// kept (components/room/store.ts).
+// something too. Snacks and drinks go to the mascot; hats, glasses and
+// decorations are kept (components/room/store.ts).
 
 type Phase = 'idle' | 'paying' | 'turning' | 'stuck' | 'falling' | 'tray' | 'taken';
 
@@ -32,8 +32,8 @@ const TRAY: [number, number] = [FLAP[0] + 23, FLAP[1] - 1];
 
 export default function Vending({ onClose, onFed, onToast, onFound }: {
   onClose: () => void;
-  /** A snack bought: the mascot eats it back in the room. */
-  onFed: (name: string) => void;
+  /** A snack or a drink bought: the mascot has it back in the room. */
+  onFed: (item: Item, name: string) => void;
   onToast: (text: string, stars: number) => void;
   onFound: (id: 'code' | 'stuck') => void;
 }) {
@@ -117,7 +117,7 @@ export default function Vending({ onClose, onFed, onToast, onFound }: {
     if (phase !== 'tray' || !drop) return;
     setPhase('taken');
     const name = t(`item_${drop.item.id}` as RoomKey);
-    if (drop.item.kind === 'snack') onFed(name);
+    if (drop.item.kind === 'snack') onFed(drop.item, name);
     else onToast(t('toastItem', { name }), 0);
     if (drop.lucky) onToast(t('toastItem', { name: t('item_crown') }), 0);
   };
@@ -194,7 +194,7 @@ export default function Vending({ onClose, onFed, onToast, onFound }: {
     if (phase === 'stuck') return t('vmStuck');
     if (phase === 'tray') return t('vmTray');
     const name = t(`item_${drop.item.id}` as RoomKey);
-    const got = drop.item.kind === 'snack' ? t('vmGotSnack', { name }) : t(`vmGot_${drop.item.kind}` as RoomKey, { name });
+    const got = drop.item.kind === 'snack' ? t(drop.item.drink ? 'vmGotDrink' : 'vmGotSnack', { name }) : t(`vmGot_${drop.item.kind}` as RoomKey, { name });
     return drop.lucky ? `${got} ${t('vmLucky')}` : got;
   })();
 
@@ -275,7 +275,7 @@ export default function Vending({ onClose, onFed, onToast, onFound }: {
             <button type="button" className={s.vmFlap} onClick={take} aria-label={t('vmTake')} style={{ left: FLAP[0] * px, top: FLAP[1] * px, width: FLAP[2] * px, height: FLAP[3] * px }} />
           )}
           {phase === 'stuck' && (
-            <button type="button" className={s.vmGlass} onClick={doShake} aria-label={t('vmShake')} style={{ left: 8 * px, top: 28 * px, width: 58 * px, height: 92 * px }} />
+            <button type="button" className={s.vmGlass} onClick={doShake} aria-label={t('vmShake')} style={{ left: GLASS_BOX[0] * px, top: GLASS_BOX[1] * px, width: GLASS_BOX[2] * px, height: GLASS_BOX[3] * px }} />
           )}
         </div>
 
@@ -294,7 +294,7 @@ export default function Vending({ onClose, onFed, onToast, onFound }: {
                 <ItemIcon id={item.id} className={s.panelIcon} />
                 <div className="min-w-0">
                   <p className={s.panelTitle}>{t(`item_${item.id}` as RoomKey)}</p>
-                  <p className={s.panelKind}>{item.code} · {t(`kind_${item.kind}` as RoomKey)}</p>
+                  <p className={s.panelKind}>{item.code} · {t(item.drink ? 'kind_drink' : `kind_${item.kind}` as RoomKey)}</p>
                 </div>
               </div>
               <p className={s.panelText}>{message ?? t(`desc_${item.id}` as RoomKey)}</p>

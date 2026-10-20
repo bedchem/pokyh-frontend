@@ -3,15 +3,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { prefersReducedMotion } from '@/lib/motion';
 import { Paths } from './SceneSvg';
-import { anger, mark, steam, sweat, thinking } from './hallway';
+import { anger, bolt, mark, steam, sweat, thinking } from './hallway';
 import { MASCOT_SHADOW, MW, mascot, type Pose } from './mascot';
 import { wearSprite } from './collectibles';
 
 // The mascot as it moves in a scene (inside an <svg> with the sprite
 // palette): its shadow, the body with the frames of its animations
-// (breathing, blinking, waving, hopping, jumping, shaking, fuming; the
-// classes in app/globals.css), what it wears (room 2B, components/room) and
-// the signs above its head. Used by the sign-in hallway and room 2B.
+// (breathing, blinking, waving, hopping, jumping, shaking, fuming, buzzing;
+// the classes in app/globals.css), what it wears (room 2B, components/room)
+// and the signs above its head. Used by the sign-in hallway and room 2B.
 
 export interface Look {
   pose: Pose;
@@ -21,7 +21,9 @@ export interface Look {
   sweat?: boolean;
   think?: boolean;
   anger?: boolean;
-  motion: 'bob' | 'hop' | 'jump' | 'shake' | 'fume';
+  /** Fizzing with energy (room 2B's energy can): bolts flash around it. */
+  zap?: boolean;
+  motion: 'bob' | 'hop' | 'jump' | 'shake' | 'fume' | 'buzz';
 }
 
 /** What the mascot wears: a hat and something on its face (ids from components/room/catalog.ts). */
@@ -34,6 +36,8 @@ export interface Wear {
 // bubble has the right).
 const STEAM = steam(1, -6);
 const ANGER = anger(22, -9);
+// Energy: bolts on both sides of the body, flashing in turn.
+const BOLTS = [[bolt(-3, 2), bolt(37, 14)], [bolt(-2, 14), bolt(36, 0)]].map(([a, b]) => a.paste(b));
 
 /** The pose with the face it wears: star or heart eyes instead of open ones. */
 function worn(pose: Pose, wear?: Wear): Pose {
@@ -69,6 +73,12 @@ export default function MascotFigure({ look, motionKey, marks = 'above', wear }:
         </g>
         {look.mark && <g className="ms-pop"><Paths sprite={mark(look.mark, mx, my + Math.min(0, top))} /></g>}
         {look.think && <g className="ms-pop"><Paths sprite={thinking(marks === 'above' ? 24 : MW - 2, marks === 'above' ? -9 + Math.min(0, top) : 1)} /></g>}
+        {look.zap && (
+          <>
+            <g className="ms-zap-a"><Paths sprite={BOLTS[0]} /></g>
+            <g className="ms-zap-b"><Paths sprite={BOLTS[1]} /></g>
+          </>
+        )}
         {look.anger && (
           <g className="ms-pop">
             <g className="ms-steam"><Paths sprite={STEAM} /></g>

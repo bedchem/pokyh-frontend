@@ -2,13 +2,14 @@ import { itemSprite } from './collectibles';
 import { Sprite, dither, line, rect, soft, textPixels, type Pt } from './sprite';
 
 // Room 2B's vending machine up close (components/room/Vending.tsx): the lit
-// sign, twelve slots behind the glass (rows A–D, columns 1–3), each with its
-// item on a spiral and a price tag, the display, the keypad, the slot for
-// gold stars and the flap at the bottom where things come out. 96 × 142
-// pixels of the drawing; the parts that can be pressed come with their boxes.
+// sign, fifteen slots behind the glass (rows A–E, columns 1–3; the bottom row
+// is the cooled drinks), each with its item on a spiral and a price tag, the
+// display, the keypad, the slot for gold stars and the flap at the bottom
+// where things come out. 96 × 164 pixels of the drawing; the parts that can
+// be pressed come with their boxes.
 
 export const VM_W = 96;
-export const VM_H = 142;
+export const VM_H = 164;
 
 export type Box = [number, number, number, number];
 
@@ -19,24 +20,27 @@ export interface Slot {
   item: Pt;
 }
 
-export const KEYS = ['A', 'B', 'C', 'D', '1', '2', '3', 'X', 'OK'] as const;
+// Letters and the clear key, the numbers, a wide OK below.
+export const KEYS = ['A', 'B', 'C', 'D', 'E', 'X', '1', '2', '3', 'OK'] as const;
 export type Key = (typeof KEYS)[number];
 
-const GLASS: Box = [10, 30, 54, 88];
+const GLASS: Box = [10, 30, 54, 110];
 const SLOT_W = 18;
 const SLOT_H = 22;
+/** The row of drinks, behind its own cold glass. */
+const DRINKS_ROW = 4;
 
-export const SLOTS: Slot[] = ['A', 'B', 'C', 'D'].flatMap((row, r) => [1, 2, 3].map((col) => {
+export const SLOTS: Slot[] = ['A', 'B', 'C', 'D', 'E'].flatMap((row, r) => [1, 2, 3].map((col) => {
   const x = GLASS[0] + (col - 1) * SLOT_W;
   const y = GLASS[1] + r * SLOT_H;
   return { code: `${row}${col}`, box: [x, y, SLOT_W, SLOT_H] as Box, item: [x + 3, y + 1] as Pt };
 }));
 
-export const KEY_BOXES: Record<Key, Box> = Object.fromEntries(KEYS.map((k, i) => [k, [69 + (i % 3) * 6, 48 + Math.floor(i / 3) * 8, 5, 7]])) as Record<Key, Box>;
+export const KEY_BOXES: Record<Key, Box> = Object.fromEntries(KEYS.map((k, i) => [k, k === 'OK' ? [69, 72, 17, 7] : [69 + (i % 3) * 6, 48 + Math.floor(i / 3) * 8, 5, 7]])) as Record<Key, Box>;
 export const DISPLAY: Box = [69, 30, 17, 14];
-export const COIN: Box = [70, 74, 14, 18];
-export const FLAP: Box = [10, 122, 58, 12];
-export const GLASS_BOX: Box = [8, 28, 58, 92];
+export const COIN: Box = [70, 84, 14, 18];
+export const FLAP: Box = [10, 144, 58, 12];
+export const GLASS_BOX: Box = [8, 28, 58, 114];
 
 /** A price tag's little star. */
 const MINI_STAR = ['.#.', '###', '.#.'];
@@ -49,10 +53,10 @@ function text(s: Sprite, t: string, x: number, y: number, tone: string) {
 export function vendingFront(prices: Record<string, number>): Sprite {
   const s = new Sprite();
   // Shadow, feet, the body with its darker side.
-  s.fill(dither(rect(6, 139, 88, 2)), 'sh');
-  s.mass([...rect(8, 135, 10, 5), ...rect(78, 135, 10, 5)], 'st', { deep: true });
-  s.mass(soft(2, 2, 92, 134, 5), 'ac', { deep: true });
-  s.fill(rect(87, 8, 3, 124), 'ac1');
+  s.fill(dither(rect(6, 161, 88, 2)), 'sh');
+  s.mass([...rect(8, 157, 10, 5), ...rect(78, 157, 10, 5)], 'st', { deep: true });
+  s.mass(soft(2, 2, 92, 156, 5), 'ac', { deep: true });
+  s.fill(rect(87, 8, 3, 146), 'ac1');
   // The sign at the top, and the bulbs around it (lit apart, they blink).
   s.mass(rect(8, 7, 80, 18), 'nt', { outline: true });
   s.fill(rect(9, 8, 78, 16), 'nt0');
@@ -63,6 +67,10 @@ export function vendingFront(prices: Record<string, number>): Sprite {
   s.mass(rect(...GLASS_BOX), 'st', { deep: true });
   s.fill(rect(...GLASS), 'nt1');
   s.fill(dither(rect(GLASS[0], GLASS[1], GLASS[2], 3)), 'nt2');
+  // The drinks stand in the cold: a paler back, frost along its top.
+  const cold = GLASS[1] + DRINKS_ROW * SLOT_H;
+  s.fill(rect(GLASS[0], cold, GLASS[2], SLOT_H), 'nt2');
+  s.fill(rect(GLASS[0], cold, GLASS[2], 1), 'wt3').fill(dither(rect(GLASS[0], cold + 1, GLASS[2], 2)), 'wt2');
   for (const slot of SLOTS) {
     const [x, y] = slot.box;
     // The spiral: a zigzag of wire under the item.
@@ -82,22 +90,23 @@ export function vendingFront(prices: Record<string, number>): Sprite {
   s.fill(rect(DISPLAY[0] + 1, DISPLAY[1] + 1, DISPLAY[2] - 2, DISPLAY[3] - 2), 'nt0');
   for (const k of KEYS) {
     const [x, y, w, h] = KEY_BOXES[k];
-    const ok = k === 'OK';
-    s.mass(rect(x, y, w, h), ok ? 'lc' : k === 'X' ? 'ld' : 'st', { deep: true });
-    if (ok) s.fill([[x + 1, y + 3], [x + 2, y + 4], [x + 3, y + 3], [x + 3, y + 2]], 'lc0');
+    s.mass(rect(x, y, w, h), k === 'OK' ? 'lc' : k === 'X' ? 'ld' : 'st', { deep: true });
+    if (k === 'OK') text(s, 'OK', x + 5, y + 1, 'lc0');
     else text(s, k, x + 1, y + 1, k === 'X' ? 'ld0' : 'ik2');
   }
   s.mass(rect(...COIN), 'st', { deep: true });
   s.fill(rect(COIN[0] + 6, COIN[1] + 3, 2, 9), 'nt0');
   MINI_STAR.forEach((r, j) => [...r].forEach((c, i) => { if (c === '#') s.set(COIN[0] + 6 + i, COIN[1] + 13 + j, 'gd2'); }));
+  // A grille below it, where the cooling hums.
+  for (let i = 0; i < 4; i++) s.fill(rect(71, 110 + i * 3, 12, 1), 'ac0').fill(rect(71, 111 + i * 3, 12, 1), 'ac3');
   // The flap where things come out.
   s.fill(rect(FLAP[0] - 1, FLAP[1] - 1, FLAP[2] + 2, FLAP[3] + 2), 'ac0');
   s.fill(rect(...FLAP), 'nt0');
   s.mass(rect(FLAP[0] + 2, FLAP[1] + 1, FLAP[2] - 4, 6), 'ac', { deep: true });
   s.mass(rect(FLAP[0] + 24, FLAP[1] + 5, 10, 1), 'st');
   // A POKYH sticker on the side.
-  s.mass(soft(70, 112, 14, 12, 3), 'pp');
-  s.fill(rect(73, 115, 8, 6), 'ac2').fill(textPixels('P', 75, 115).points, 'pp4');
+  s.mass(soft(70, 132, 14, 12, 3), 'pp');
+  s.fill(rect(73, 135, 8, 6), 'ac2').fill(textPixels('P', 75, 135).points, 'pp4');
   return s;
 }
 
@@ -120,7 +129,7 @@ export function vendingItems(items: Record<string, string>, owned: Set<string>):
 /** The glass in front: light across it. */
 export const GLASS_SHEEN = (() => {
   const s = new Sprite();
-  for (const i of [0, 2]) s.fill(dither(line(12 + i * 14, 116, 40 + i * 14, 32).filter(([x]) => x < GLASS[0] + GLASS[2] && x >= GLASS[0])), 'gl');
+  for (const i of [0, 2]) s.fill(dither(line(12 + i * 14, 138, 47 + i * 14, 32).filter(([x]) => x < GLASS[0] + GLASS[2] && x >= GLASS[0])), 'gl');
   return s;
 })();
 

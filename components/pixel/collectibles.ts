@@ -22,11 +22,39 @@ const ITEM_ART: Record<string, (s: Sprite) => void> = {
     s.mass(disc(9, 3.5, 2.8), 'pk', { round: [9, 3] });
     s.set(8, 2, 'pk4');
   },
+  chips: (s) => {
+    // A pillow of a bag, crimped foil at both ends, a crisp on the front.
+    s.mass(soft(2, 2, 8, 9, 2), 'rd', { deep: true });
+    s.mass([...rect(2, 1, 8, 1), ...rect(2, 11, 8, 1)], 'st', { outline: false });
+    for (let x = 2; x < 10; x += 2) s.set(x, 1, 'st1').set(x + 1, 11, 'st1');
+    s.mass(ellipse(6, 6.5, 2.8, 2), 'gd', { round: [5, 5] });
+    s.set(5, 6, 'or2').set(7, 7, 'or2');
+    s.set(3, 3, 'rd4');
+  },
   lemonade: (s) => {
     s.mass([...rect(5, 1, 2, 3), ...soft(3, 3, 6, 9, 2)], 'lc', { deep: true });
     s.fill(rect(5, 0, 2, 1), 'rd2');
     s.fill(rect(3, 6, 6, 3), 'gd3').fill(rect(4, 7, 4, 1), 'rd2');
     s.set(4, 4, 'pp4').set(4, 10, 'lc4');
+  },
+  monster: (s) => {
+    // A tall white can, its silver lid and rim, three silver claw marks
+    // torn into the front (an M) and a line of print below.
+    s.mass(rect(2, 1, 9, 11), 'gh');
+    s.fill(rect(2, 1, 9, 1), 'st3').fill(rect(2, 2, 9, 1), 'st1').fill(rect(2, 11, 9, 1), 'st2');
+    s.set(6, 1, 'st4').set(7, 1, 'st1');
+    // Long, short, long, bending inwards; each tearing out thinner at its end.
+    s.fill(grid(['#..#..#', '#..#..#', '.#.#.#.', '.#...#.', '.#...#.'], 3, 3), 'st0');
+    s.fill([[6, 6], [4, 8], [8, 8]], 'st1');
+    s.fill([[3, 10], [4, 10], [5, 10], [7, 10], [8, 10]], 'st1');
+  },
+  cocoa: (s) => {
+    // A carton of school cocoa: a gable top with its seam, a label, a straw.
+    s.mass([...rect(4, 2, 4, 1), ...rect(3, 3, 6, 1), ...rect(3, 4, 6, 8)], 'ck', { deep: true });
+    s.fill(rect(5, 1, 2, 1), 'ck1').fill(rect(3, 4, 6, 1), 'ck1');
+    s.mass(rect(4, 6, 4, 4), 'pp', { outline: false });
+    s.fill([[5, 7], [6, 7], [5, 8], [6, 8]], 'wd1');
+    s.fill([[8, 0], [8, 1], [9, -1]], 'ld2');
   },
   partyhat: (s) => {
     const cone: Pt[] = [];
@@ -231,6 +259,16 @@ export function trophyAt(x: number, y: number): Sprite {
   s.fill([[x, y - 8], [x, y - 7], [x + 6, y - 8], [x + 6, y - 7]], 'gd1');
   s.mass(rect(x + 1, y - 3, 5, 3), 'wd', { deep: true });
   s.set(x + 2, y - 8, 'gd4');
+  return s;
+}
+
+/** The emptied white energy can, lying on the floor at (x, y), crushed in the middle. */
+export function emptyCanAt(x: number, y: number): Sprite {
+  const s = new Sprite();
+  s.fill(dither(rect(x - 1, y, 10, 1)), 'sh');
+  s.mass([...rect(x, y - 4, 8, 4)].filter(([px, py]) => !(py === y - 4 && (px === x + 3 || px === x + 4))), 'gh');
+  s.fill(rect(x + 7, y - 4, 1, 4), 'st2').fill(rect(x, y - 4, 1, 4), 'st1');
+  s.fill([[x + 2, y - 3], [x + 5, y - 3], [x + 2, y - 2], [x + 5, y - 2]], 'st0');
   return s;
 }
 

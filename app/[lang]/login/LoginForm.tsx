@@ -406,7 +406,7 @@ export default function LoginForm() {
       )}
 
       <div className="flex min-h-0 flex-1" hidden={inRoom}>
-      {/* Desktops: the mascot in its hallway beside the form; phones get it small above the form. */}
+      {/* Desktops: the mascot in its hallway (with the door of room 2B) beside the form; phones get it small above the form, without the door. */}
       <aside className="hidden px-4 pb-4 lg:block lg:w-[54%] xl:w-[57%]">
         <HallwayScene state={mascot} onDoor={enterRoom} onDoorIntent={fetchRoom} returns={returns} />
       </aside>
@@ -415,7 +415,7 @@ export default function LoginForm() {
 
       <main id="main" data-lenis-prevent className="login-scroll flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-5" style={{ paddingBottom: 'max(16px, var(--safe-bottom))' }}>
         <section aria-labelledby="login-title" className="mx-auto flex w-full max-w-[400px] flex-1 flex-col justify-center py-6">
-          <div className="mb-5 lg:hidden"><MascotBadge state={mascot} onDoor={enterRoom} onDoorIntent={fetchRoom} returns={returns} /></div>
+          <div className="mb-5 lg:hidden"><MascotBadge state={mascot} /></div>
           <h1 id="login-title" className="font-display text-[clamp(38px,5vw,52px)] leading-[0.95]">{t('title')}</h1>
           <p className="mt-2 text-[15px] text-ink-3">{t('subtitle')}</p>
 
