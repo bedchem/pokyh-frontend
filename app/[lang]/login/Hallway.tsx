@@ -22,9 +22,9 @@ import { prefersReducedMotion } from '@/lib/motion';
 // search makes it angry: brows down, fists up, red in the face, fuming.
 // Otherwise it blinks, breathes and follows the pointer with its eyes. The
 // open locker shuts while the password is typed. `HallwayScene` fills the
-// panel beside the form on desktops, with the door of room 2B; `MascotBadge`
-// is the small one above it on phones, without the door. Decorative only
-// (aria-hidden), apart from the door.
+// panel beside the form on desktops, with the door of room A+2/05;
+// `MascotBadge` is the small one above it on phones, without the door.
+// Decorative only (aria-hidden), apart from the door.
 
 export type MascotEvent = { kind: 'autofill' | 'error' | 'success' | 'picked'; n: number } | null;
 
@@ -127,45 +127,54 @@ function useMinute() {
 }
 
 /**
- * The door of room 2B, step by step: shut, opening in two steps, open, the
- * view going in (`zoom`); coming back out it shuts behind you.
+ * The door of room A+2/05, step by step: shut, opening in two steps, open,
+ * the view going in (`zoom`, which starts as the door swings); coming back
+ * out it shuts behind you.
  */
 type DoorStep = 'shut' | 'ajar0' | 'ajar1' | 'open' | 'zoom' | 'back' | 'out' | 'close1' | 'close0';
 const DOOR_NEXT: Partial<Record<DoorStep, [DoorStep, number]>> = {
-  ajar0: ['ajar1', 110],
-  ajar1: ['open', 120],
-  open: ['zoom', 240],
+  ajar0: ['ajar1', 90],
+  ajar1: ['open', 90],
+  open: ['zoom', 20],
   back: ['out', 60],
   out: ['close1', 620],
   close1: ['close0', 150],
   close0: ['shut', 130],
 };
-const ZOOM_MS = 780;
+/** The walk through the door (the hw-walk animation in app/globals.css). */
+const ZOOM_MS = 1000;
 
 /**
- * The drawing's transform: moved and grown towards the doorway at (x, y)
- * while `zoomed` (fast at the end, like a step through it), easing back out
- * otherwise. Only when it moves: a transform would blur nothing, but a
- * standing one costs a layer.
+ * The drawing's transform. Going in (`zoom`) the view turns to the doorway
+ * at (x, y) until it is in the middle (`dx`, `dy`), then goes through it,
+ * faster and faster, until it fills the panel (hw-walk); the hallway drawn
+ * on beyond the panel's edge fills what comes into view. Coming back it
+ * stands zoomed in for a moment, then eases back out. Only while it moves: a
+ * standing transform costs a layer.
  */
 function zoomInto(x: number, y: number, dx: number, dy: number, k: number, zoomed: boolean, door: DoorStep): React.CSSProperties | undefined {
   const origin = `${x}px ${y}px`;
-  if (zoomed) return { transformOrigin: origin, transform: `translate(${dx}px, ${dy}px) scale(${k})`, transition: door === 'zoom' ? `transform ${ZOOM_MS}ms cubic-bezier(0.6, 0, 0.85, 0.35)` : 'none' };
-  if (door === 'out') return { transformOrigin: origin, transition: 'transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)' };
+  if (zoomed && door === 'zoom') return { transformOrigin: origin, '--dx': `${dx}px`, '--dy': `${dy}px`, '--k': k } as React.CSSProperties;
+  if (zoomed) return { transformOrigin: origin, transform: `translate(${dx}px, ${dy}px) scale(${k})` };
+  if (door === 'out') return { transformOrigin: origin, transition: 'transform 0.7s cubic-bezier(0.22, 1, 0.36, 1)' };
   return undefined;
 }
 
 interface DoorProps {
-  /** The door was opened and the view has gone through it (room 2B, components/room). */
+  /** The door was opened and the view has gone through it (room A+2/05, components/room). */
   onDoor?: () => void;
   /** The pointer or the focus is on the door: time to fetch the room. */
   onDoorIntent?: () => void;
+  /** The door starts to open (the form beside it steps aside). */
+  onDoorOpen?: () => void;
+  /** The view starts to walk through the door (time to build the room underneath). */
+  onWalk?: () => void;
   /** Counts the times someone came back out of the room: the door shuts behind them. */
   returns?: number;
 }
 
 /** The door's state: its steps, the pointer on it, the wave on coming back. */
-function useDoor({ onDoor, onDoorIntent, returns = 0 }: DoorProps) {
+function useDoor({ onDoor, onDoorIntent, onDoorOpen, onWalk, returns = 0 }: DoorProps) {
   const button = useRef<HTMLButtonElement>(null);
   const [door, setDoor] = useState<DoorStep>('shut');
   const [hover, setHover] = useState(false);
@@ -185,10 +194,12 @@ function useDoor({ onDoor, onDoorIntent, returns = 0 }: DoorProps) {
       return () => window.clearTimeout(id);
     }
     if (door === 'zoom') {
-      const id = window.setTimeout(() => onDoor?.(), prefersReducedMotion() ? 0 : ZOOM_MS);
+      onWalk?.();
+      // The room takes over just before the walk ends, as its light fills the panel.
+      const id = window.setTimeout(() => onDoor?.(), prefersReducedMotion() ? 0 : ZOOM_MS - 50);
       return () => window.clearTimeout(id);
     }
-  }, [door, onDoor]);
+  }, [door, onDoor, onWalk]);
 
   useEffect(() => {
     if (!welcome) return;
@@ -208,6 +219,7 @@ function useDoor({ onDoor, onDoorIntent, returns = 0 }: DoorProps) {
   const knock = () => {
     if (door !== 'shut') return;
     onDoorIntent?.();
+    onDoorOpen?.();
     setHover(false);
     setDoor(prefersReducedMotion() ? 'open' : 'ajar0');
   };
@@ -242,7 +254,7 @@ function useDoor({ onDoor, onDoorIntent, returns = 0 }: DoorProps) {
 /** The mascot's look while the door moves: wide eyes as it opens, a wave on coming back. */
 function doorLook(d: ReturnType<typeof useDoor>, state: MascotState, phase: Phase): Look | null {
   if (d.opening) return { pose: { eyes: 'wide', look: [1, 0], mouth: 'o', arms: 'down' }, mark: '!', motion: 'jump', locker: 'open' };
-  if (d.welcome && !phase && !state.query.trim() && state.focus !== 'password') return { pose: { eyes: 'happy', look: [0, 0], mouth: 'grin', arms: 'wave' }, wave: true, say: { key: 'mascotBack' }, motion: 'bob', locker: 'open' };
+  if (d.welcome && !d.zoomed && d.door !== 'out' && !phase && !state.query.trim() && state.focus !== 'password') return { pose: { eyes: 'happy', look: [0, 0], mouth: 'grin', arms: 'wave' }, wave: true, say: { key: 'mascotBack' }, motion: 'bob', locker: 'open' };
   return null;
 }
 
@@ -274,14 +286,16 @@ export function HallwayScene({ state, ...doorProps }: { state: MascotState } & D
     return () => ro.disconnect();
   }, []);
 
-  const hall = useMemo(() => (size ? buildHallway(size.w, size.h) : null), [size]);
+  // Drawn on beyond the panel's right edge (half as wide again), so that
+  // turning to the door and going through it never runs out of hallway.
+  const hall = useMemo(() => (size ? buildHallway(Math.ceil(size.w * 1.5), size.h, size.w) : null), [size]);
   const eyes = usePointerLook(root, () => {
     const el = root.current;
-    if (!el || !hall) return null;
+    if (!el || !hall || !size) return null;
     const r = el.getBoundingClientRect();
-    const scale = Math.max(r.width / hall.w, r.height / hall.h);
+    const scale = Math.max(r.width / size.w, r.height / hall.h);
     return {
-      x: r.left + (r.width - hall.w * scale) / 2 + (hall.mascot[0] + MW / 2) * scale,
+      x: r.left + (r.width - size.w * scale) / 2 + (hall.mascot[0] + MW / 2) * scale,
       y: r.top + (r.height - hall.h * scale) + (hall.mascot[1] + MH / 2) * scale,
     };
   });
@@ -291,39 +305,43 @@ export function HallwayScene({ state, ...doorProps }: { state: MascotState } & D
   if (hall && look.say) {
     const [mx, my] = hall.mascot;
     // As wide as the hallway leaves beside the mascot, at most about 25 letters.
-    const room = Math.min(100, hall.w - (mx + 32) - 10);
+    const room = Math.min(100, (size?.w ?? hall.w) - (mx + 32) - 10);
     speech = bubble(say(look.say), mx + 30, my + 6, room);
   }
 
-  // Where the drawing lies in the panel (it fills it, anchored at the bottom).
+  // Where the drawing lies in the panel (its seen part fills it, anchored at the bottom).
   let place: { scale: number; x: number; y: number } | null = null;
   if (hall && size) {
-    const scale = Math.max(size.W / hall.w, size.H / hall.h);
-    place = { scale, x: (size.W - hall.w * scale) / 2, y: size.H - hall.h * scale };
+    const scale = Math.max(size.W / size.w, size.H / hall.h);
+    place = { scale, x: (size.W - size.w * scale) / 2, y: size.H - hall.h * scale };
   }
   const leaf = hall ? d.leaf(hall.door) : null;
 
-  // Going in: the view moves to the doorway and grows until the room fills it.
+  // Going in: the view turns to the doorway (it comes to the middle) and
+  // goes through it until it covers the panel.
   let zoom: React.CSSProperties | undefined;
   if (hall && place && size) {
     const [cx, cy] = hall.door.centre;
     const X = place.x + cx * place.scale;
     const Y = place.y + cy * place.scale;
-    const k = Math.max(size.W / (25 * place.scale), size.H / (60 * place.scale)) * 1.3;
+    const k = Math.max(size.W / (25 * place.scale), size.H / (60 * place.scale)) * 1.08;
     zoom = zoomInto(X, Y, size.W / 2 - X, size.H / 2 - Y, k, d.zoomed, d.door);
   }
 
   return (
-    <div ref={root} className="login-hall relative h-full overflow-hidden rounded-[36px]" style={{ viewTransitionName: 'login-stage' }}>
+    <div ref={root} className="login-hall relative h-full overflow-hidden rounded-[36px]">
       <SpritePalette />
+      {/* From the moment the door moves the drawing is a layer of its own;
+          while walking through, nothing in it moves (hw-walk), so the browser
+          only scales the picture it has. */}
       {hall && (
+        <div className={`absolute inset-0${d.opening || d.zoomed ? ' hw-moving' : ''}${d.door === 'zoom' && d.zoomed ? ' hw-walk' : ''}`} style={zoom}>
         <svg
           viewBox={`0 0 ${hall.w} ${hall.h}`}
-          preserveAspectRatio="xMidYMax slice"
-          className="spr login-hall-in absolute inset-0 h-full w-full"
+          className="spr login-hall-in absolute max-w-none"
+          style={place ? { left: place.x, top: place.y, width: hall.w * place.scale, height: hall.h * place.scale } : undefined}
           shapeRendering="crispEdges"
           aria-hidden="true"
-          style={zoom}
         >
           <defs>
             <clipPath id={clipId}>
@@ -349,10 +367,11 @@ export function HallwayScene({ state, ...doorProps }: { state: MascotState } & D
             <MascotFigure look={look} motionKey={d.opening ? 'door' : motionKey(look, state)} wear={wear} />
           </g>
           {speech && <g key={look.say?.key} className="ms-pop"><Paths sprite={speech} /></g>}
-          {/* At the end of the way in, the room's warm wall fills the view. */}
-          <rect x={0} y={0} width={hall.w} height={hall.h} className="hw-into" data-on={d.zoomed ? '' : undefined} />
         </svg>
+        </div>
       )}
+      {/* At the end of the way in, the room's warm wall fills the view (a layer over the drawing, not in it). */}
+      {hall && <div className="hw-into" data-on={d.zoomed ? '' : undefined} aria-hidden="true" />}
       {hall && place && (
         <button
           {...d.button}

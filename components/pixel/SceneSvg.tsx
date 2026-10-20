@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react';
+import { memo, type CSSProperties, type ReactNode } from 'react';
 import { SPRITE_CSS } from './palette';
 import type { Scene, SceneLayer, Sprite } from './sprite';
 
@@ -16,13 +16,18 @@ export function SpritePalette() {
   return <style href={PALETTE_ID} precedence="low">{SPRITE_CSS}</style>;
 }
 
-export function Paths({ sprite }: { sprite: Sprite }) {
+/**
+ * A sprite's paths. A sprite isn't changed once it is drawn, so the same
+ * sprite is never drawn again: a scene's state can change without its
+ * thousands of pixels being gone over.
+ */
+export const Paths = memo(function Paths({ sprite }: { sprite: Sprite }) {
   return (
     <>
       {sprite.paths().map(([tone, d]) => <path key={tone} d={d} fill={`var(--s-${tone})`} />)}
     </>
   );
-}
+});
 
 /** A layer inside the groups its animations need, outermost first. */
 export function Layer({ layer }: { layer: SceneLayer }) {

@@ -9,7 +9,7 @@ import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { homepageDict, type HomepageKey } from '@/lib/i18n/dictionaries/homepage';
 import { frontpageDict, type FrontpageKey } from '@/lib/i18n/dictionaries/frontpage';
 import { ensureGsap, prefersReducedMotion, ScrollTrigger, useGsap } from '@/lib/motion';
-import { SCROLL, sceneHeight } from '@/lib/scroll-pace';
+import { SCROLL, largeViewport, sceneHeight } from '@/lib/scroll-pace';
 // Types only: the drawing loads with three.js.
 import type { PosterKind } from '@/lib/landing-art';
 import { useTileText } from '@/components/home/useTileText';
@@ -347,7 +347,7 @@ export default function FeatureCarousel() {
     if (reduced) return;
     gsap.fromTo(
       swingRef.current,
-      { y: 1.1, x: 0.28, lift: () => window.innerHeight * 0.3 },
+      { y: 1.1, x: 0.28, lift: () => largeViewport() * 0.3 },
       {
         y: 0,
         x: 0,
@@ -385,7 +385,7 @@ export default function FeatureCarousel() {
       <div
         ref={sky}
         data-carousel-stage
-        className="sticky top-0 flex h-[calc(100*var(--lvh))] flex-col justify-center overflow-hidden pb-[calc(clamp(110px,16svh,150px)+var(--toolbar))] pt-[clamp(70px,11svh,104px)]"
+        className="sticky top-0 flex h-[calc(100*var(--lvh))] flex-col justify-center overflow-hidden pb-[calc(clamp(110px,calc(16*var(--svh)),150px)+var(--toolbar))] pt-[clamp(70px,calc(11*var(--svh)),104px)]"
         style={{ backgroundColor: tones[0].bg }}
       >
         {/* The names, huge, on one long strip above the ring */}
@@ -397,7 +397,7 @@ export default function FeatureCarousel() {
                 <span
                   key={f.n}
                   className="flex w-[100vw] shrink-0 justify-center whitespace-nowrap pb-[0.06em] font-extrabold leading-[0.86] tracking-[-0.065em]"
-                  style={{ color: tones[i].ink, fontSize: `min(20vw, ${(150 / word.length).toFixed(2)}vw, 22svh)` }}
+                  style={{ color: tones[i].ink, fontSize: `min(20vw, ${(150 / word.length).toFixed(2)}vw, calc(22 * var(--svh)))` }}
                 >
                   {word}
                 </span>
@@ -408,7 +408,7 @@ export default function FeatureCarousel() {
 
         <div
           ref={stage}
-          className="relative -mt-[2svh] h-[calc(var(--w)*1.24_+_60px)] w-full shrink cursor-grab touch-pan-y select-none active:cursor-grabbing [--w:min(54vw,34svh)] sm:[--w:min(38vw,36svh)] md:[--w:clamp(190px,min(20vw,37svh),360px)]"
+          className="relative -mt-[calc(2*var(--svh))] h-[calc(var(--w)*1.24_+_60px)] w-full shrink cursor-grab touch-pan-y select-none active:cursor-grabbing [--w:min(54vw,calc(34*var(--svh)))] sm:[--w:min(38vw,calc(36*var(--svh)))] md:[--w:clamp(190px,min(20vw,calc(37*var(--svh))),360px)]"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}

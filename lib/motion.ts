@@ -16,6 +16,10 @@ let registered = false;
 export function ensureGsap(): typeof gsap {
   if (!registered && typeof window !== 'undefined') {
     gsap.registerPlugin(ScrollTrigger, SplitText, ScrambleTextPlugin, DrawSVGPlugin);
+    // A phone's browser bars sliding in and out change only the window's
+    // height: no new measuring of the scroll scenes for that (they are laid
+    // out in viewport heights that stay put, components/ViewportScript.tsx).
+    ScrollTrigger.config({ ignoreMobileResize: true });
     gsap.defaults({ ease: 'power3.out', duration: 0.8 });
     registered = true;
   }

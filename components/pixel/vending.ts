@@ -1,12 +1,12 @@
 import { itemSprite } from './collectibles';
 import { Sprite, dither, line, rect, soft, textPixels, type Pt } from './sprite';
 
-// Room 2B's vending machine up close (components/room/Vending.tsx): the lit
-// sign, fifteen slots behind the glass (rows A–E, columns 1–3; the bottom row
-// is the cooled drinks), each with its item on a spiral and a price tag, the
-// display, the keypad, the slot for gold stars and the flap at the bottom
-// where things come out. 96 × 164 pixels of the drawing; the parts that can
-// be pressed come with their boxes.
+// The vending machine of room A+2/05 up close (components/room/Vending.tsx):
+// the lit SHOP sign, fifteen slots behind the glass (rows A–E, columns 1–3;
+// the bottom row is the cooled drinks), each with its item on a spiral and a
+// price tag, the display, the keypad, the slot for gold stars and the flap at
+// the bottom where things come out. 96 × 164 pixels of the drawing; the parts
+// that can be pressed come with their boxes.
 
 export const VM_W = 96;
 export const VM_H = 164;
@@ -60,7 +60,8 @@ export function vendingFront(prices: Record<string, number>): Sprite {
   // The sign at the top, and the bulbs around it (lit apart, they blink).
   s.mass(rect(8, 7, 80, 18), 'nt', { outline: true });
   s.fill(rect(9, 8, 78, 16), 'nt0');
-  const sign = textPixels('SNACKS', 0, 0);
+  // It sells everything for gold stars: a shop, a star either side.
+  const sign = textPixels('★ SHOP ★', 0, 0);
   const sx = 8 + Math.floor((80 - sign.width * 2) / 2);
   for (const [px, py] of sign.points) s.fill(rect(sx + px * 2, 11 + py * 2, 2, 2), 'gd3');
   // The glass, its frame, the shelves; on each a spiral and a price tag.
@@ -176,7 +177,7 @@ export function spiralTurn(code: string): [Sprite, Sprite] {
   }) as [Sprite, Sprite];
 }
 
-/** The wall and parquet of room 2B behind the machine (or the tablet), for a stage of w × h. */
+/** The wall and parquet of the room behind the machine (or the console), for a stage of w × h. */
 export function roomBackdrop(w: number, h: number, floor: number): Sprite {
   const s = new Sprite();
   s.fill(rect(0, 0, w, floor), 'cw2');

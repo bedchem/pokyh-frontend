@@ -362,7 +362,7 @@
   border-radius: 18px;
   background: var(--surface);
   color: var(--ink);
-  box-shadow: 0 18px 44px -16px rgb(0 0 0 / 0.35), 0 0 0 1px var(--line);
+  box-shadow: 0 18px 44px -16px rgb(0 0 0 / 0.35);
   transform-origin: top right;
 }
 .menuRule {

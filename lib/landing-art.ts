@@ -647,14 +647,21 @@ export function drawTile(kind: TileKind, width: number, portrait: boolean, t: Ti
       break;
     }
     case 'plate': {
-      // The Mensa's next dish on its pixel plate.
+      // The Mensa's next dish: its pixel plate on top in the middle, the
+      // dish's name below it, then the stars and the average on one line.
       const scene = plateSceneSize('plate');
-      const px = Math.floor((portrait ? 150 : 96) / scene.w);
-      paintPixelPlate(ctx, { x: (bw - scene.w * px) / 2 + (portrait ? 0 : -44), y: portrait ? 18 : 14, px, size: 'plate', style: 'pasta', seed: 'tile' });
-      const tx = portrait ? pad : 112;
-      text(ctx, t.dish, tx, portrait ? bh - pad - 26 : 62, { size: portrait ? 16 : 14, weight: 800, color: C.ink, font: f, max: portrait ? bw - pad * 2 : 76 });
-      stars(ctx, tx, portrait ? bh - pad : 90, portrait ? 15 : 11, 5, f);
-      if (!portrait) text(ctx, '4,6', tx, 118, { size: 13, weight: 800, color: C.ink, font: f });
+      const px = Math.floor((portrait ? 150 : 80) / scene.w);
+      paintPixelPlate(ctx, { x: (bw - scene.w * px) / 2, y: portrait ? 18 : 12, px, size: 'plate', style: 'pasta', seed: 'tile' });
+      const cx = bw / 2;
+      text(ctx, t.dish, cx, portrait ? bh - pad - 28 : 112, { size: portrait ? 17 : 15, weight: 800, color: C.ink, font: f, align: 'center', max: bw - pad * 2 });
+      const size = portrait ? 15 : 12;
+      const y = portrait ? bh - pad : 138;
+      ctx.font = `800 ${size + 1}px ${f}`;
+      const rateW = ctx.measureText('4,6').width;
+      const starsW = 5 * size * 1.02;
+      const x0 = cx - (starsW + 7 + rateW) / 2;
+      stars(ctx, x0, y, size, 5, f);
+      text(ctx, '4,6', x0 + starsW + 7, y, { size: size + 1, weight: 800, color: C.ink, font: f });
       break;
     }
   }

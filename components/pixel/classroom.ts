@@ -2,18 +2,22 @@ import { FEET } from './mascot';
 import { clockFace } from './hallway';
 import { Sprite, dither, disc, ellipse, grid, line, minus, rect, soft, textPixels, type Pt } from './sprite';
 
-// Room 2B, behind the door of the sign-in hallway (./hallway.ts): the warm
-// classroom of a tiny school game. A window with curtains and the sky
+// Room A+2/05, behind the door of the sign-in hallway (./hallway.ts): the
+// warm classroom of a tiny school game. A window with curtains and the sky
 // outside (sun, clouds, rain or snow; the night in the dark theme), a space
-// poster, the chalkboard with the day's chalk, the clock, a bookshelf with a
-// globe, a vending machine, the teacher's desk with an apple, a bin, rows of
-// desks (a notebook on one, a tablet on another) and a backpack. The mascot
-// (./mascot.ts) stands by the board.
+// poster with a rocket on it, the chalkboard with the day's chalk, the clock,
+// a bookshelf with a globe, a vending machine, the teacher's desk with an
+// apple, a bin, rows of desks (a notebook on one, a game console on
+// another). The mascot (./mascot.ts) stands by the board. What moves
+// when it is clicked (the curtains, the clock, the bin, the notebook, the
+// rocket) is drawn on its own.
 //
 // Everything that can be clicked lies inside a core of ROOM_W × ROOM_H
-// pixels of the drawing; the scene is built as large as its panel, the wall
-// and the floor growing around the core (the core keeps to the bottom, in
-// the middle). `spots` are the clickable areas in pixels of the drawing.
+// pixels of the drawing; the scene is built a little wider than its panel
+// (so the view can move to a thing at its edge without running out of
+// room), the wall and the floor growing around the core (the core keeps to
+// the bottom, in the middle). `spots` are the clickable areas in pixels of
+// the drawing.
 
 export const ROOM_W = 240;
 export const ROOM_H = 127;
@@ -24,7 +28,7 @@ export const SKY_LOOP = 96;
 
 export type Box = [number, number, number, number];
 
-export const SPOTS = ['window', 'poster', 'switch', 'board', 'clock', 'globe', 'shelf', 'vending', 'apple', 'bin', 'notebook', 'tablet', 'backpack', 'mascot'] as const;
+export const SPOTS = ['window', 'poster', 'switch', 'board', 'clock', 'globe', 'shelf', 'vending', 'apple', 'bin', 'notebook', 'console', 'mascot'] as const;
 export type Spot = (typeof SPOTS)[number];
 
 /** Room decorations, each with its place (./collectibles.ts draws them). */
@@ -48,29 +52,49 @@ export interface Classroom {
   clouds: Sprite;
   rain: Sprite;
   snow: Sprite;
-  /** The poster, its corner lifted (a secret behind it). */
-  posterPeel: Sprite;
+  /** The window's curtains, hanging and blown into the room. */
+  curtains: [Sprite, Sprite];
+  /** The rocket on the poster (it flies off and lands again), its flame in two frames, puffs of smoke at its foot. */
+  rocket: { at: Pt; body: Sprite; flame: [Sprite, Sprite]; smoke: Sprite };
   /** The light switch, up and down. */
   switchOn: Sprite;
   switchOff: Sprite;
   /** The chalkboard's writing area: [x, y, w, h]. */
   board: Box;
   clock: Pt;
+  /** The clock's face (it rings), the bin (it wobbles), drawn apart from the wall. */
+  clockFace: Sprite;
+  bin: Sprite;
+  /** Where things thrown into the bin go, and its middle at the top. */
+  binTop: Pt;
+  /** The notebook lying shut, and its pages flipping in two frames. */
+  notebook: [Sprite, Sprite, Sprite];
   /** The globe in four turns. */
   globe: Sprite[];
   /** The red book that can be pulled out of the shelf. */
   book: { in: Sprite; out: Sprite };
   /** The vending machine's lit sign, on and flickering. */
   sign: [Sprite, Sprite];
-  /** The tablet's screen, two frames of a little game playing by itself. */
+  /** The console's screen, two frames of a little game playing by itself. */
   screen: [Sprite, Sprite];
   apple: Sprite;
+  /** Where the apple lies (its top left) and where the red book stands. */
+  appleAt: Pt;
+  bookAt: Pt;
+  /** Where the note from the red book lands on the floor. */
+  noteAt: Pt;
+  /**
+   * Where something on the floor would be drawn wrongly or hidden: the back
+   * row's desks (drawn behind it), the front row (drawn in front of it), the
+   * bin. [x, y, w, h].
+   */
+  floorBlocks: Box[];
   /** Top left of the mascot. */
   mascot: Pt;
   /** What glows when the light is off, and the lamps' light in the evening. */
   glow: Sprite;
   lampLight: Sprite;
-  /** What stays bright with the light off: the window, the machine's glass and sign, the tablet's screen. */
+  /** What stays bright with the light off: the window, the machine's glass and sign, the console's screen. */
   bright: Box[];
   spots: Record<Spot, Box>;
   decor: Record<DecorSpot, Pt>;
@@ -130,12 +154,13 @@ function lamps(s: Sprite, light: Sprite, xs: number[], top: number) {
 
 // ── The window ───────────────────────────────────────────────────────────
 
-function curtain(s: Sprite, x: number, y: number, h: number, mirror: boolean) {
+function curtain(s: Sprite, x: number, y: number, h: number, mirror: boolean, blow = 0) {
   const shape: Pt[] = [];
   for (let j = 0; j < h; j++) {
-    // Gathered at the top, falling wider, tied in at two thirds.
+    // Gathered at the top, falling wider, tied in at two thirds; a draught
+    // blows the bottom in over the window.
     const tie = Math.abs(j - Math.round(h * 0.62)) < 2 ? -2 : 0;
-    const width = Math.min(8, 5 + Math.floor(j / 6)) + tie;
+    const width = Math.min(8, 5 + Math.floor(j / 6)) + tie + Math.round(blow * (j / h) ** 2);
     for (let i = 0; i < width; i++) shape.push([mirror ? x + 7 - i : x + i, y + j]);
   }
   s.mass(shape, 'ld', { deep: true });
@@ -145,7 +170,8 @@ function curtain(s: Sprite, x: number, y: number, h: number, mirror: boolean) {
   s.fill(rect(mirror ? x + 2 : x + 1, ty, 5, 1), 'lb3');
 }
 
-function windowAt(s: Sprite, x: number, y: number): Box[] {
+/** A window; its curtains go into `drapes` (hanging, blown) when given, otherwise into `s`. */
+function windowAt(s: Sprite, x: number, y: number, drapes?: [Sprite, Sprite]): Box[] {
   s.mass(rect(x, y, 42, 36), 'wf', { deep: true });
   const panes: Box[] = [[x + 2, y + 2, 18, 11], [x + 22, y + 2, 18, 11], [x + 2, y + 15, 18, 19], [x + 22, y + 15, 18, 19]];
   // The sill, and its shadow on the wall.
@@ -153,8 +179,15 @@ function windowAt(s: Sprite, x: number, y: number): Box[] {
   s.fill(dither(rect(x - 2, y + 39, 46, 1)), 'sh');
   // The rod and the curtains.
   s.fill(rect(x - 7, y - 4, 56, 1), 'wd1').set(x - 8, y - 4, 'wd0').set(x + 49, y - 4, 'wd0');
-  curtain(s, x - 7, y - 3, 41, false);
-  curtain(s, x + 41, y - 3, 41, true);
+  if (drapes) {
+    drapes.forEach((d, i) => {
+      curtain(d, x - 7, y - 3, 41, false, i * 4);
+      curtain(d, x + 41, y - 3, 41, true, i * 4);
+    });
+  } else {
+    curtain(s, x - 7, y - 3, 41, false);
+    curtain(s, x + 41, y - 3, 41, true);
+  }
   return panes;
 }
 
@@ -230,28 +263,43 @@ function weather(x: number, y: number, w: number, h: number) {
 
 // ── On the wall ──────────────────────────────────────────────────────────
 
+/** The space poster: stars, a ringed planet, a launch pad (its rocket is drawn apart). */
 function poster(s: Sprite, x: number, y: number) {
   s.fill(dither(rect(x + 1, y + 1, 16, 22)), 'sh');
   s.mass(rect(x, y, 16, 22), 'pp');
   s.fill(rect(x + 2, y + 2, 12, 14), 'nt1');
   s.fill(dither(rect(x + 2, y + 2, 12, 5), 1), 'nt0');
-  for (const [px, py] of [[x + 3, y + 4], [x + 11, y + 3], [x + 12, y + 12], [x + 4, y + 13], [x + 8, y + 3]] as Pt[]) s.set(px, py, 'pp4');
-  // A ringed planet.
-  s.mass(disc(x + 8, y + 9, 3.2), 'or', { round: [x + 8, y + 9] });
-  s.fill([[x + 3, y + 11], [x + 4, y + 10], [x + 5, y + 10], [x + 11, y + 8], [x + 12, y + 8], [x + 13, y + 7]], 'gd3');
+  for (const [px, py] of [[x + 3, y + 3], [x + 7, y + 4], [x + 12, y + 3], [x + 3, y + 12], [x + 6, y + 10]] as Pt[]) s.set(px, py, 'pp4');
+  // A ringed planet top left, the pad bottom right.
+  s.mass(disc(x + 5, y + 6.5, 2.4), 'or', { round: [x + 5, y + 6.5] });
+  s.fill([[x + 2, y + 8], [x + 3, y + 8], [x + 7, y + 6], [x + 8, y + 5]], 'gd3');
+  s.fill(rect(x + 8, y + 15, 6, 1), 'st2').fill(rect(x + 9, y + 15, 4, 1), 'st3');
   // Its title in two bars of print, a pin in each top corner.
   s.fill(rect(x + 3, y + 18, 10, 1), 'ik3').fill(rect(x + 5, y + 20, 6, 1), 'ik3');
   s.set(x + 1, y + 1, 'rd2').set(x + 14, y + 1, 'rd2');
 }
 
-/** The poster's lower right corner lifted: "2B" written on the wall behind it. */
-function posterPeelAt(x: number, y: number): Sprite {
-  const s = new Sprite();
-  s.fill(rect(x + 10, y + 16, 6, 6), 'cw1');
-  s.fill(textPixels('2B', x + 9, y + 16).points.filter(([px]) => px >= x + 10), 'rd2');
-  s.fill([[x + 10, y + 21], [x + 11, y + 20], [x + 12, y + 19], [x + 13, y + 18], [x + 14, y + 17], [x + 15, y + 16]], 'pp0');
-  s.fill([[x + 11, y + 21], [x + 12, y + 21], [x + 12, y + 20], [x + 13, y + 20], [x + 13, y + 19], [x + 14, y + 19], [x + 14, y + 18], [x + 15, y + 18], [x + 15, y + 17], [x + 16, y + 17]], 'pp1');
-  return s;
+/** The poster's rocket (7 × 9, its feet on row 8), the flame under it in two frames, smoke for the start. */
+function rocketAt(x: number, y: number): { at: Pt; body: Sprite; flame: [Sprite, Sprite]; smoke: Sprite } {
+  const body = new Sprite().rows([
+    '...O...',
+    '..ORO..',
+    '.ORRRO.',
+    '.OPPPO.',
+    '.OPWPO.',
+    '.OPPPO.',
+    'ORPPPRO',
+    'ORPSPRO',
+    'OO.O.OO',
+  ], x, y, { O: 'ik2', R: 'rd2', P: 'pp3', W: 'wt3', S: 'st1' });
+  body.set(x + 2, y + 3, 'pp4').set(x + 4, y + 4, 'wt4');
+  const flame = [
+    ['..Y..', '.YOY.', '..O..'],
+    ['..Y..', '..Y..', '.YOY.', '..O..'],
+  ].map((rows) => new Sprite().rows(rows, x + 1, y + 9, { Y: 'gd3', O: 'or2' })) as [Sprite, Sprite];
+  const smoke = new Sprite();
+  for (const [cx, r] of [[-1, 1.6], [3.5, 1.3], [8, 1.6]] as Pt[]) smoke.fill(disc(x + cx, y + 9.5, r), 'pp2');
+  return { at: [x, y], body, flame, smoke };
 }
 
 function lightSwitch(x: number, y: number, on: boolean): Sprite {
@@ -316,14 +364,19 @@ function shelf(s: Sprite, x: number, y: number) {
   for (let i = 0; i < 4; i++) s.fill(rect(x + 15, tops[2] + 12 - i * 2, 10, 2), i % 2 ? 'la2' : 'lc2').fill(rect(x + 15, tops[2] + 12 - i * 2, 10, 1), i % 2 ? 'la3' : 'lc3');
 }
 
+/**
+ * The red book in its gap on the middle shelf (3 × 10, its top at y),
+ * standing like the others or pulled up by its top, the empty slot dark
+ * below it.
+ */
 function bookAt(x: number, y: number, out: boolean): Sprite {
   const s = new Sprite();
-  const bx = out ? x - 1 : x;
-  const by = out ? y - 1 : y;
-  // Pulled out, it tilts: the top leans left.
-  const pts = out ? rect(bx, by, 3, 12).map(([px, py]) => [px - (py < by + 4 ? 1 : 0), py] as Pt) : rect(bx, by, 3, 12);
+  const by = out ? y - 4 : y;
+  if (out) s.fill(rect(x, y + 6, 3, 4), 'wd0');
+  const pts = rect(x, by, 3, 10);
   s.mass(pts, 'rd', { outline: false });
-  s.fill(pts.filter(([, py]) => py === by + 3 || py === by + 8), 'gd3');
+  s.fill(rect(x, by, 1, 10), 'rd3').fill(rect(x + 2, by, 1, 10), 'rd1');
+  s.fill([...rect(x, by + 2, 3, 1), ...rect(x, by + 7, 3, 1)], 'gd3');
   return s;
 }
 
@@ -385,7 +438,7 @@ function vendingMachine(s: Sprite, x: number, y: number) {
 
 function vendingSign(x: number, y: number, on: boolean): Sprite {
   const s = new Sprite();
-  const t = textPixels('SNACKS', 0, 0);
+  const t = textPixels('SHOP', 0, 0);
   const tx = x + 2 + Math.floor((23 - t.width) / 2);
   s.fill(t.points.map(([px, py]) => [px + tx, py + y + 3] as Pt), on ? 'gd3' : 'gd1');
   return s;
@@ -419,6 +472,18 @@ function appleAt(x: number, y: number): Sprite {
   s.fill([[x + 3, y], [x + 3, y - 1]], 'wd1');
   s.fill([[x + 4, y - 1], [x + 5, y - 2], [x + 5, y - 1]], 'gn2');
   return s;
+}
+
+/** A paper ball out of the bin (4 × 4). */
+export const PAPER_BALL = new Sprite().mass([...rect(1, 0, 2, 4), ...rect(0, 1, 4, 2)], 'pp').set(1, 1, 'pp1').set(2, 2, 'pp1');
+
+/** The note from the red book (as wide as its writing, 9 high): the keypad's secret code. */
+export function noteSprite(code: string): Sprite {
+  const t = textPixels(code, 0, 0);
+  const w = t.width + 6;
+  const s = new Sprite().fill(dither(rect(1, 9, w, 1)), 'sh').mass(rect(0, 0, w, 9), 'pp');
+  s.fill(rect(0, 0, w, 1), 'pp3').fill([[w - 1, 0], [w - 2, 0], [w - 1, 1]], 'pp1');
+  return s.fill(t.points.map(([px, py]) => [px + 3, py + 2] as Pt), 'rd2');
 }
 
 function bin(s: Sprite, x: number, feet: number) {
@@ -458,33 +523,45 @@ function desk(s: Sprite, x: number, feet: number, chair: string): number {
   return top;
 }
 
-function notebook(s: Sprite, x: number, y: number) {
-  s.mass(rect(x, y, 10, 2), 'pp');
-  s.fill(rect(x + 5, y, 1, 2), 'pp1');
-  s.fill([[x + 1, y], [x + 3, y], [x + 7, y], [x + 8, y]], 'wt3');
-  s.fill(line(x + 10, y + 1, x + 14, y - 1), 'gd2').set(x + 14, y - 1, 'ik2');
+/** The notebook on a desk: lying shut, and two frames of its pages flipping (a flip book). */
+function notebookFrames(x: number, y: number): [Sprite, Sprite, Sprite] {
+  const base = () => {
+    const s = new Sprite().mass(rect(x, y, 10, 2), 'pp');
+    s.fill(rect(x + 5, y, 1, 2), 'pp1');
+    s.fill(line(x + 10, y + 1, x + 14, y - 1), 'gd2').set(x + 14, y - 1, 'ik2');
+    return s;
+  };
+  const shut = base().fill([[x + 1, y], [x + 3, y], [x + 7, y], [x + 8, y]], 'wt3');
+  // A page standing up at the spine, then falling over to the right.
+  const up = base().mass([...rect(x + 5, y - 5, 1, 5), [x + 4, y - 4], [x + 4, y - 3]], 'pp');
+  const over = base().mass([...line(x + 5, y - 1, x + 9, y - 4), ...line(x + 6, y - 1, x + 9, y - 3)], 'pp');
+  return [shut, up, over];
 }
 
-function tabletAt(s: Sprite, x: number, y: number) {
-  // Standing on its little stand, the screen towards the room.
-  s.mass(rect(x, y, 13, 9), 'ik', { deep: true });
-  s.fill(rect(x + 1, y + 1, 11, 7), 'nt0');
-  s.mass(rect(x + 4, y + 9, 5, 1), 'st');
-  s.set(x + 12, y + 4, 'gn3');
+/** The game console on its desk, standing on a little stand with its screen towards the room. */
+function consoleAt(s: Sprite, x: number, y: number) {
+  s.mass(rect(x + 5, y + 9, 5, 1), 'st');
+  s.mass(soft(x, y, 15, 9, 2), 'la', { deep: true });
+  s.fill(rect(x + 4, y + 2, 7, 5), 'nt0');
+  s.fill([[x + 2, y + 3], [x + 1, y + 4], [x + 2, y + 4], [x + 3, y + 4], [x + 2, y + 5]], 'ik2');
+  s.set(x + 13, y + 3, 'ld2').set(x + 12, y + 5, 'lb2');
 }
 
-/** The tablet's screen: a tiny game playing by itself, in two frames. */
+/** The console's screen: a tiny game playing by itself, in two frames. */
 function screenFrames(x: number, y: number): [Sprite, Sprite] {
   const frame = (f: number) => {
     const s = new Sprite();
-    s.fill(rect(x + 2, y + 2, 9, 5), 'nt2');
-    s.fill(rect(x + 2, y + 6, 9, 1), 'gn2');
-    s.fill(rect(x + 3 + f * 3, y + 4, 2, 2), 'ac3');
+    s.fill(rect(x + 4, y + 2, 7, 5), 'nt2');
+    s.fill(rect(x + 4, y + 6, 7, 1), 'gn2');
+    s.fill(rect(x + 5 + f * 2, y + 4, 2, 2), 'ac3');
     s.set(x + 9 - f * 2, y + 2 + f, 'gd3');
     return s;
   };
   return [frame(0), frame(1)];
 }
+
+/** The backpack (11 × 17, its feet on row 16): the icon of the inventory in the bar on top. */
+export const BACKPACK = (() => { const s = new Sprite(); backpack(s, 0, 16); return s; })();
 
 function backpack(s: Sprite, x: number, feet: number) {
   s.fill(dither(ellipse(x + 5, feet + 0.5, 7, 1.2)), 'sh');
@@ -497,14 +574,65 @@ function backpack(s: Sprite, x: number, feet: number) {
 }
 
 /** A low cupboard with a big plant on it, for room beside the core. */
-function cupboard(s: Sprite, x: number, floor: number) {
+/**
+ * A pointed leaf from (x, y) towards `deg` (0 is straight up, positive to
+ * the right), `len` long and `wide` across at its widest.
+ */
+function leafShape(x: number, y: number, deg: number, len: number, wide: number): { shape: Pt[]; vein: Pt[] } {
+  const a = (deg * Math.PI) / 180;
+  const ux = Math.sin(a);
+  const uy = -Math.cos(a);
+  const shape: Pt[] = [];
+  const reach = Math.ceil(len) + 2;
+  for (let py = Math.floor(y - reach); py <= y + reach; py++) {
+    for (let px = Math.floor(x - reach); px <= x + reach; px++) {
+      const dx = px + 0.5 - x;
+      const dy = py + 0.5 - y;
+      const u = dx * ux + dy * uy;
+      const v = -dx * uy + dy * ux;
+      // Widest a little below the middle, coming to a point at the tip.
+      if (u > 0 && u < len && Math.abs(v) <= (wide / 2) * Math.sin(Math.PI * (u / len) ** 0.8)) shape.push([px, py]);
+    }
+  }
+  const tip: Pt = [Math.round(x + ux * (len - 2)), Math.round(y + uy * (len - 2))];
+  return { shape, vein: line(Math.round(x + ux * 2), Math.round(y + uy * 2), tip[0], tip[1]) };
+}
+
+/** A houseplant in a terracotta pot standing on (cx, base): pointed leaves fanned out, the back ones darker. */
+function pottedPlant(s: Sprite, cx: number, base: number) {
+  const top = base - 8;
+  // Behind: three leaves in the shade; in front: four lit ones, the outer ones low.
+  const leaves: Array<[number, number, number, boolean]> = [
+    [-46, 19, 6, true], [40, 19, 6, true], [-6, 22, 6.4, true],
+    [-74, 14, 5.4, false], [-24, 19, 6.2, false], [20, 21, 6.2, false], [70, 14, 5.4, false],
+  ];
+  for (const [deg, len, wide, back] of leaves) {
+    const { shape, vein } = leafShape(cx + 0.5 + deg / 30, top + 1, deg, len, wide);
+    s.mass(shape, 'gn', { deep: true });
+    if (back) s.recolor(shape, 'gn', 'lc').fill(shape.filter(([px, py]) => (px + py) % 2 === 0 && s.get(px, py) === 'lc2'), 'lc1');
+    const on = new Set(shape.map(([px, py]) => `${px},${py}`));
+    s.fill(vein.filter(([px, py]) => on.has(`${px},${py}`)), back ? 'lc3' : 'gn3');
+  }
+  // The pot: a rim, a body narrowing downwards, soil inside the rim.
+  s.mass(rect(cx - 6, top, 13, 2), 'tc', { deep: true });
+  s.fill(rect(cx - 5, top, 11, 1), 'wd0');
+  const body: Pt[] = [];
+  for (let j = 0; j < 6; j++) for (let i = -5 + Math.floor(j / 3); i <= 5 - Math.floor(j / 3); i++) body.push([cx + i, top + 2 + j]);
+  s.mass(body, 'tc', { deep: true });
+  s.fill(rect(cx - 4, top + 2, 9, 1), 'tc1');
+}
+
+/** A low cupboard, the plant on it or (where the panel's edge would cut the plant from its pot) boxes and folders. */
+function cupboard(s: Sprite, x: number, floor: number, plant: boolean) {
   s.fill(dither(rect(x + 1, floor, 30, 2)), 'sh');
   s.mass(rect(x, floor - 26, 30, 26), 'wd', { deep: true });
   s.fill([...rect(x + 14, floor - 23, 1, 20), ...rect(x + 3, floor - 13, 24, 1)], 'wd1');
   s.mass(rect(x + 11, floor - 19, 2, 1), 'gd').mass(rect(x + 17, floor - 19, 2, 1), 'gd');
-  s.mass(rect(x + 9, floor - 33, 12, 7), 'tc', { deep: true });
-  const leaves = [...disc(x + 15, floor - 40, 5), ...disc(x + 10, floor - 37, 3.6), ...disc(x + 20, floor - 37, 3.6), ...disc(x + 15, floor - 47, 3.4)];
-  s.mass(leaves, 'gn', { round: [x + 13, floor - 44] });
+  const top = floor - 26;
+  if (plant) { pottedPlant(s, x + 15, top); return; }
+  s.mass(rect(x + 3, top - 9, 13, 9), 'ck', { deep: true });
+  s.fill(rect(x + 3, top - 6, 13, 1), 'ck1').fill(rect(x + 8, top - 9, 3, 3), 'pp3');
+  for (let i = 0; i < 3; i++) s.fill(rect(x + 18, top - 2 - i * 2, 9, 2), i % 2 ? 'la2' : 'lc2').fill(rect(x + 18, top - 2 - i * 2, 9, 1), i % 2 ? 'la3' : 'lc3');
 }
 
 /** Little flags on a string under the ceiling, in the tones of the site's tiles. */
@@ -521,7 +649,8 @@ function garland(s: Sprite, w: number, y: number) {
 
 // ── The scene ────────────────────────────────────────────────────────────
 
-export function buildClassroom(w: number, h: number): Classroom {
+/** `view`: the part of the drawing's width shown in the panel when it isn't moving, [from, to). */
+export function buildClassroom(w: number, h: number, view: [number, number] = [0, w]): Classroom {
   const ox = Math.floor((w - ROOM_W) / 2);
   const oy = h - ROOM_H;
   const at = (x: number, y: number): Pt => [ox + x, oy + y];
@@ -541,7 +670,8 @@ export function buildClassroom(w: number, h: number): Classroom {
   }
 
   const [wx, wy] = at(8, 14);
-  const panes = windowAt(back, wx, wy);
+  const curtains: [Sprite, Sprite] = [new Sprite(), new Sprite()];
+  const panes = windowAt(back, wx, wy, curtains);
   const sky = skyOf(panes, wy);
   const wet = weather(wx + 2, wy + 2, 38, 32);
   // Below the window, a radiator.
@@ -551,21 +681,22 @@ export function buildClassroom(w: number, h: number): Classroom {
 
   const [px, py] = at(55, 17);
   poster(back, px, py);
+  const rocket = rocketAt(px + 7, py + 6);
   const [sx, sy] = at(71, 52);
   const [bx, by] = at(78, 12);
   const board = chalkboard(back, bx, by);
   const clock: Pt = [ox + 172.5, oy + 19];
-  clockFace(back, clock[0], clock[1]);
+  const clockBody = new Sprite();
+  clockFace(clockBody, clock[0], clock[1]);
 
   const [shx, shy] = at(182, 32);
   shelf(back, shx, shy);
   const [gx, gy] = at(195, 22);
-  const book = { in: bookAt(shx + 13, shy + 21, false), out: bookAt(shx + 13, shy + 21, true) };
+  const book = { in: bookAt(shx + 13, shy + 20, false), out: bookAt(shx + 13, shy + 20, true) };
 
   const [vx, vy] = at(211, 20);
   vendingMachine(back, vx, vy);
   glow.fill(rect(vx + 2, vy + 12, 16, 37), 'glow').fill(rect(vx + 2, vy + 2, 23, 8), 'glow');
-  glow.fill(dither(rect(vx - 2, floor, 31, 4)), 'lit');
 
   // Where the panel is wider than the core: more windows on the left, a
   // cupboard with a plant on the right, more desks in both rows. Taller: a
@@ -575,10 +706,19 @@ export function buildClassroom(w: number, h: number): Classroom {
     back.mass(rect(x + 3, ry, 32, 14), 'wf', { deep: true });
     for (let i = 2; i < 32; i += 3) back.fill(rect(x + 3 + i, ry + 2, 1, 10), 'wf1');
   }
-  for (let x = ox + ROOM_W + 6; x < w + 30; x += 64) cupboard(back, x, floor);
+  // The plant only where it is seen whole or not at all (its leaves reach 6
+  // beyond the cupboard); cut by the panel's edge it would hang in the air.
+  for (let x = ox + ROOM_W + 8; x < w; x += 64) {
+    const plant = (x + 36 <= view[1] || x >= view[1]) && x + 36 <= w;
+    cupboard(back, x, floor, plant);
+  }
   if (oy >= 14) garland(back, w, oy - 9);
-  for (let x = 10 - 74; ox + x > -40; x -= 74) desk(back, ox + x, oy + 100, 'ld');
-  for (let x = 158 + 74; ox + x < w + 10; x += 74) desk(back, ox + x, oy + 100, 'lc');
+  const floorBlocks: Box[] = [];
+  const backDesk = (x: number) => floorBlocks.push([x - 2, oy + 78, 34, 26]);
+  const frontDesk = (x: number) => floorBlocks.push([x - 2, oy + 98, 34, 26]);
+  [ox + 10, ox + 158].forEach(backDesk);
+  for (let x = 10 - 74; ox + x > -40; x -= 74) { desk(back, ox + x, oy + 100, 'ld'); backDesk(ox + x); }
+  for (let x = 158 + 74; ox + x < w + 10; x += 74) { desk(back, ox + x, oy + 100, 'lc'); backDesk(ox + x); }
 
   // Behind the mascot: the teacher's desk, a bin, the back row.
   const [tx] = at(102, 0);
@@ -586,24 +726,39 @@ export function buildClassroom(w: number, h: number): Classroom {
   teacherDesk(back, tx, deskFeet);
   const appleXY: Pt = [tx + 37, deskFeet - 29];
   const [nx] = at(150, 0);
-  bin(back, nx, oy + 94);
+  const binBody = new Sprite();
+  bin(binBody, nx, oy + 94);
   const backRow: Array<[number, string]> = [[10, 'lc'], [158, 'la']];
   for (const [x, chair] of backRow) desk(back, ox + x, oy + 100, chair);
 
   // The front row, in front of the mascot.
   const rowFeet = oy + 121;
   const nbTop = desk(front, ox + 4, rowFeet, 'ld');
-  notebook(front, ox + 17, nbTop - 2);
+  const notebook = notebookFrames(ox + 17, nbTop - 2);
   const tabDeskX = ox + 120;
   const tabTop = desk(front, tabDeskX, rowFeet, 'lb');
-  const tabXY: Pt = [tabDeskX + 16, tabTop - 10];
-  tabletAt(front, tabXY[0], tabXY[1]);
-  glow.fill(rect(tabXY[0] + 1, tabXY[1] + 1, 11, 7), 'glow');
+  const tabXY: Pt = [tabDeskX + 15, tabTop - 10];
+  consoleAt(front, tabXY[0], tabXY[1]);
+  glow.fill(rect(tabXY[0] + 4, tabXY[1] + 2, 7, 5), 'glow');
   desk(front, ox + 203, rowFeet, 'la');
-  for (let x = 4 - 74; ox + x > -40; x -= 74) desk(front, ox + x, rowFeet, 'lb');
-  for (let x = 203 + 74; ox + x < w + 10; x += 74) desk(front, ox + x, rowFeet, 'ld');
-  const [kx] = at(37, 0);
-  backpack(front, kx, rowFeet);
+  for (let x = 4 - 74; ox + x > -40; x -= 74) { desk(front, ox + x, rowFeet, 'lb'); frontDesk(ox + x); }
+  for (let x = 203 + 74; ox + x < w + 10; x += 74) { desk(front, ox + x, rowFeet, 'ld'); frontDesk(ox + x); }
+  [ox + 4, tabDeskX, ox + 203].forEach(frontDesk);
+  floorBlocks.push([nx - 3, oy + 81, 15, 16]);
+
+  // With the light off, the machine's glass lights the floor in front of it:
+  // a pool widening towards the room, thinning out, on the bare floor only
+  // (not over the desks and chairs that stand in it).
+  for (let j = 0; j < 9; j++) {
+    const y = floor + j;
+    const half = 15 + j * 1.6;
+    for (let x = Math.floor(vx + 13.5 - half); x <= vx + 13.5 + half; x++) {
+      const tone = back.get(x, y);
+      const bare = !!tone && (tone.startsWith('pq') || tone === 'sh' || tone === 'shd') && !front.get(x, y);
+      const edge = Math.abs(x - (vx + 13.5)) / half;
+      if (bare && (j < 3 ? (x + y) % 2 === 0 : (x + 2 * y) % (j < 6 ? 3 : 4) === 0) && edge < 0.96 - j * 0.03) glow.set(x, y, 'lit');
+    }
+  }
 
   const mascotXY: Pt = [ox + 60, oy + 99 - FEET];
 
@@ -619,27 +774,34 @@ export function buildClassroom(w: number, h: number): Classroom {
     vending: box(vx, vy, 27, 62),
     apple: box(appleXY[0] - 2, appleXY[1] - 4, 10, 10),
     bin: box(nx - 1, oy + 81, 11, 14),
-    notebook: box(ox + 15, nbTop - 5, 18, 8),
-    tablet: box(tabXY[0] - 2, tabXY[1] - 2, 17, 13),
-    backpack: box(kx - 1, rowFeet - 17, 13, 18),
+    notebook: box(ox + 15, nbTop - 7, 18, 10),
+    console: box(tabXY[0] - 2, tabXY[1] - 2, 19, 13),
     mascot: box(mascotXY[0] + 4, mascotXY[1], 32, 36),
   };
 
   return {
     w, h, ox, oy, floor, back, front, panes, sky,
     clouds: wet.clouds, rain: wet.rain, snow: wet.snow,
-    posterPeel: posterPeelAt(px, py),
+    curtains, rocket,
     switchOn: lightSwitch(sx, sy, true),
     switchOff: lightSwitch(sx, sy, false),
     board, clock,
+    clockFace: clockBody,
+    bin: binBody,
+    binTop: [nx + 4, oy + 82],
+    notebook,
     globe: globeFrames(gx, gy),
     book,
     sign: [vendingSign(vx, vy, true), vendingSign(vx, vy, false)],
     screen: screenFrames(tabXY[0], tabXY[1]),
     apple: appleAt(appleXY[0], appleXY[1]),
+    appleAt: appleXY,
+    bookAt: [shx + 13, shy + 16],
+    noteAt: [shx + 6, oy + 84],
+    floorBlocks,
     mascot: mascotXY,
     glow, lampLight, spots,
-    bright: [...panes, [vx + 2, vy + 2, 23, 8], [vx + 2, vy + 12, 16, 37], [vx + 20, vy + 13, 5, 3], [tabXY[0] + 1, tabXY[1] + 1, 11, 7]],
+    bright: [...panes, [vx + 2, vy + 2, 23, 8], [vx + 2, vy + 12, 16, 37], [vx + 20, vy + 13, 5, 3], [tabXY[0] + 4, tabXY[1] + 2, 7, 5]],
     decor: {
       plant: at(37, 50),
       lamp: [tx + 27, deskFeet - 24],
@@ -702,13 +864,18 @@ export function classroomPreview(w = ROOM_W, h = ROOM_H + 12) {
       { name: 'scenery', sprite: r.sky.scenery },
       { name: 'sun', sprite: r.sky.sun },
       { name: 'clouds', sprite: r.clouds },
+      { name: 'curtains', sprite: r.curtains[0] },
+      { name: 'rocket', sprite: r.rocket.body },
       { name: 'switch', sprite: r.switchOn },
+      { name: 'clock', sprite: r.clockFace },
+      { name: 'bin', sprite: r.bin },
       { name: 'book', sprite: r.book.in },
       { name: 'globe', sprite: r.globe[0] },
       { name: 'sign', sprite: r.sign[0] },
       { name: 'apple', sprite: r.apple },
-      { name: 'chalk', sprite: chalk(['HAUSAUFGABEN:', 'KEINE!', '(ODER?)', '2B = ♥'], r.board, 'mascot') },
+      { name: 'chalk', sprite: chalk(['WIR LERNEN FUERS', 'LEBEN. DAS LEBEN', 'HAT NIE GEFRAGT.'], r.board, 'mascot') },
       { name: 'front', sprite: r.front },
+      { name: 'notebook', sprite: r.notebook[0] },
       { name: 'screen', sprite: r.screen[0] },
     ],
   };

@@ -2,21 +2,37 @@
 
 import { useSyncExternalStore } from 'react';
 
-// Where in room 2B the sign-in page is: an anchor of the page's address, so
-// the browser's back button leaves the vending machine, the tablet or the
-// room the way it came, and a reload stays where it was. Only the door in
-// the hallway leads here; the address is the door's, not another way in.
-// Entries the room adds carry a marker in the history state (Next.js keeps
-// its own state beside it), so "back" knows whether to go back or replace.
+// Where in room A+2/05 the sign-in page is: an anchor of the page's
+// address, so the browser's back button leaves the vending machine, the
+// console or the room the way it came, and a reload stays where it was. Only
+// the door in the hallway leads here; the address is the door's, not another
+// way in. Entries the room adds carry a marker in the history state (Next.js
+// keeps its own state beside it), so "back" knows whether to go back or
+// replace. The addresses of the room's old number (#2b…) still lead in.
 
-export type RoomView = 'room' | 'snacks' | 'tablet' | 'bag';
+export type RoomView = 'room' | 'shop' | 'console' | 'bag';
 
-const HASH: Record<RoomView, string> = { room: '#2b', snacks: '#2b/snacks', tablet: '#2b/tablet', bag: '#2b/bag' };
+const HASH: Record<RoomView, string> = { room: '#a205', shop: '#a205/shop', console: '#a205/console', bag: '#a205/bag' };
+const OLD: Record<string, RoomView> = { '#2b': 'room', '#2b/snacks': 'shop', '#2b/tablet': 'console', '#2b/bag': 'bag' };
 const CHANGE = 'pokyh:room-view';
 
 export function viewOf(hash: string): RoomView | null {
-  const found = (Object.keys(HASH) as RoomView[]).find((v) => HASH[v] === hash.toLowerCase());
-  return found ?? null;
+  const h = hash.toLowerCase();
+  return (Object.keys(HASH) as RoomView[]).find((v) => HASH[v] === h) ?? OLD[h] ?? null;
+}
+
+// The way in through the door: the View Transition that carries the
+// hallway's panel into the room's (app/[lang]/login). The room keeps its
+// warm light up until it is over, then clears it.
+let wayIn: Promise<unknown> | null = null;
+
+export function enteringWith(done: Promise<unknown> | null) {
+  wayIn = done;
+}
+
+/** The last way in through the door (settled long ago on a later look), or null when there was none. */
+export function wayInto(): Promise<unknown> | null {
+  return wayIn;
 }
 
 function current(): RoomView | null {

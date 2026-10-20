@@ -8,7 +8,7 @@ import { frontpageDict } from '@/lib/i18n/dictionaries/frontpage';
 import { siteDict } from '@/lib/i18n/dictionaries/site';
 import { useGsap } from '@/lib/motion';
 import { MANIFEST_PULL, lvh } from './scenes';
-import { SCROLL, sceneHeight } from '@/lib/scroll-pace';
+import { SCROLL, largeViewport, sceneHeight } from '@/lib/scroll-pace';
 
 // The night behind the dark screen of the hero: one sentence. It is already
 // on that screen while the camera flies towards it (the hero shows a copy of
@@ -87,7 +87,7 @@ export default function Manifest() {
     gsap.fromTo(
       scope.querySelector('[data-manifest-inner]'),
       { y: 0 },
-      { y: () => -window.innerHeight * 0.08, ease: 'none', scrollTrigger: { trigger: scope, start: 'top top', end: '+=150%', scrub: 0.6, invalidateOnRefresh: true } },
+      { y: () => -largeViewport() * 0.08, ease: 'none', scrollTrigger: { trigger: scope, start: 'top top', end: '+=150%', scrub: 0.6, invalidateOnRefresh: true } },
     );
     gsap.fromTo(
       scope.querySelectorAll('[data-after]'),

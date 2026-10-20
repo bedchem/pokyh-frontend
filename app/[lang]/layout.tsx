@@ -19,6 +19,7 @@ import AnalyticsLoader from '@/components/AnalyticsLoader';
 import PWAInit from '@/components/PWAInit';
 import SubjectImagePreloader from '@/components/SubjectImagePreloader';
 import ThemeScript from '@/components/ThemeScript';
+import ViewportScript from '@/components/ViewportScript';
 import AppIconApplier from '@/components/AppIconApplier';
 import ConsoleSecret from '@/components/ConsoleSecret';
 
@@ -192,6 +193,7 @@ export default async function RootLayout({
     <html lang={htmlLang(lang)} className={`${jakarta.variable} ${dmMono.variable}`} suppressHydrationWarning>
       <head>
         <ThemeScript />
+        <ViewportScript />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData(lang)).replace(/</g, '\\u003c') }}

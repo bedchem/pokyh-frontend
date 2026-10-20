@@ -406,7 +406,7 @@ export default function Hero() {
         </div>
 
         <div ref={head} className="pointer-events-none absolute inset-0 flex items-center justify-center will-change-transform">
-          <h1 id="hero-title" data-title className="font-display flex pb-[0.04em] text-[min(27vw,44svh)] font-extrabold leading-[0.8] tracking-[-0.055em]">
+          <h1 id="hero-title" data-title className="font-display flex pb-[0.04em] text-[min(27vw,calc(44*var(--svh)))] font-extrabold leading-[0.8] tracking-[-0.055em]">
             <span className="visually-hidden">{t('heroHidden')}</span>
             {t('heroTitle').split('').map((l, i) => (
               <span key={i} data-letter aria-hidden="true" className="inline-block origin-bottom" style={{ animationDelay: `${0.1 + i * 0.07}s` }}>

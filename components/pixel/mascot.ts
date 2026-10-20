@@ -136,10 +136,18 @@ function eye(s: Sprite, [cx, cy]: Pt, kind: Eyes, [lx, ly]: [number, number], ri
   // upright pupil looking where the mascot looks.
   const grow = (right ? 0.2 : 0) + (kind === 'wide' || big ? 0.6 : 0);
   s.fill(ellipse(cx, cy, 3.7 + grow, 4.3 + grow), 'pp3');
+  const legend = { 1: 'pu1', 2: 'pu2', 3: 'pu3', 4: 'pu4' };
+  if (big) {
+    // Behind the magnifier: the pupil half as big again.
+    const px = Math.round(cx + 0.4 + lx * 0.8) - 3;
+    const py = Math.round(cy - 0.3 + ly * 0.8) - 4;
+    s.rows(['.1111.', '114411', '114111', '111122', '122222', '222233', '223333', '.3333.'], px, py, legend);
+    return;
+  }
   // A fixed pixel oval, so the pupil is clean wherever it looks.
   const px = Math.round(cx + 0.4 + lx * 1.2) - 2;
   const py = Math.round(cy - 0.3 + ly * 1.1) - 3;
-  s.rows(['.11.', '1411', '1122', '2222', '2233', '.33.'], px, py, { 1: 'pu1', 2: 'pu2', 3: 'pu3', 4: 'pu4' });
+  s.rows(['.11.', '1411', '1122', '2222', '2233', '.33.'], px, py, legend);
 }
 
 function mouth(s: Sprite, kind: Mouth) {
@@ -204,17 +212,25 @@ export function mascot(pose: Pose): Sprite {
     mitt(s, [...limb(32.5, 18, 31.5, 16.5, 2.4), ...soft(28, 12, 8, 7, 2.5)], [[30, 15], [31, 15], [32, 15], [33, 15]]);
     mitt(s, soft(29, 7, 3, 6, 1.4));
   } else if (lens) {
-    // A magnifier held to the right eye: its glass makes the eye big.
+    // A magnifier held to the right eye, the eye big behind it. Its glass is
+    // a sprite of its own (LENS_GLASS), laid over the figure, so the eye
+    // shows through it.
     const [cx, cy] = EYE_R;
-    s.fill(disc(cx, cy, 5.3), 'gl');
     s.mass(minus(disc(cx, cy, 6.7), disc(cx, cy, 5.3)), 'wd', { round: [cx, cy] });
-    s.fill([[cx - 3.5, cy - 3], [cx - 2.5, cy - 4]].map(([x, y]) => [Math.floor(x), Math.floor(y)] as Pt), 'pp4');
     s.mass([...line(29, 16, 32, 19), ...line(30, 16, 33, 19)], 'wd');
     mitt(s, [...limb(33.5, 22, 33.5, 20.5, 2.4), ...soft(30, 18, 7, 6, 2.5)], [[32, 20], [33, 20]]);
   }
   cache.set(k, s);
   return s;
 }
+
+/**
+ * The magnifier's glass for the 'lens' arms, over the mascot: a faint blue
+ * through which the eye is seen, and a glint at its top left.
+ */
+export const LENS_GLASS = new Sprite()
+  .fill(disc(EYE_R[0], EYE_R[1], 4.8), 'gl')
+  .fill([[21, 8], [22, 7], [21, 9]], 'pp4');
 
 /** Its shadow on the floor, apart from the body so it stays down when the body hops. */
 export const MASCOT_SHADOW = new Sprite().fill(dither(ellipse(20, 34.5, 15, 1.6)), 'sh').fill(dither(ellipse(20, 34.5, 9, 1.2), 1), 'shd');

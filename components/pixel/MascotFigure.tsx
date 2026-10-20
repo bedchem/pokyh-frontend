@@ -4,14 +4,16 @@ import { useEffect, useRef, useState } from 'react';
 import { prefersReducedMotion } from '@/lib/motion';
 import { Paths } from './SceneSvg';
 import { anger, bolt, mark, steam, sweat, thinking } from './hallway';
-import { MASCOT_SHADOW, MW, mascot, type Pose } from './mascot';
+import { LENS_GLASS, MASCOT_SHADOW, MW, mascot, type Pose } from './mascot';
 import { wearSprite } from './collectibles';
 
 // The mascot as it moves in a scene (inside an <svg> with the sprite
 // palette): its shadow, the body with the frames of its animations
-// (breathing, blinking, waving, hopping, jumping, shaking, fuming, buzzing;
-// the classes in app/globals.css), what it wears (room 2B, components/room)
-// and the signs above its head. Used by the sign-in hallway and room 2B.
+// (breathing, blinking, waving, hopping, jumping, shaking, fuming, buzzing,
+// a somersault; the classes in app/globals.css), what it wears (room A+2/05,
+// components/room) and the signs above its head, and the glass of the
+// magnifier, which the eye shows through. Used by the sign-in hallway and
+// room A+2/05.
 
 export interface Look {
   pose: Pose;
@@ -21,9 +23,9 @@ export interface Look {
   sweat?: boolean;
   think?: boolean;
   anger?: boolean;
-  /** Fizzing with energy (room 2B's energy can): bolts flash around it. */
+  /** Fizzing with energy (room A+2/05's energy can): bolts flash around it. */
   zap?: boolean;
-  motion: 'bob' | 'hop' | 'jump' | 'shake' | 'fume' | 'buzz';
+  motion: 'bob' | 'hop' | 'jump' | 'shake' | 'fume' | 'buzz' | 'flip';
 }
 
 /** What the mascot wears: a hat and something on its face (ids from components/room/catalog.ts). */
@@ -67,6 +69,7 @@ export default function MascotFigure({ look, motionKey, marks = 'above', wear }:
           {wave && <g className="ms-frame-b"><Paths sprite={wave} /></g>}
           {wave3 && <g className="ms-frame-c"><Paths sprite={wave3} /></g>}
           {blink && <g className="ms-blink"><Paths sprite={blink} /></g>}
+          {pose.arms === 'lens' && <Paths sprite={LENS_GLASS} />}
           {glasses && <Paths sprite={glasses} />}
           {hat && <Paths sprite={hat} />}
           {look.sweat && <g className="ms-drip"><Paths sprite={sweat(31, 3)} /></g>}

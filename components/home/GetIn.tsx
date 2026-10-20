@@ -37,10 +37,10 @@ export default function GetIn() {
 
   return (
     <section ref={root} data-tone="dark" data-scroll-pace="getIn" aria-labelledby="get-title" className="relative bg-[var(--indigo)] text-white">
-      <div className="flex min-h-[100svh] flex-col items-center justify-center px-5 pb-[clamp(80px,12svh,140px)] pt-28 md:px-10">
+      <div className="flex min-h-[calc(100*var(--svh))] flex-col items-center justify-center px-5 pb-[clamp(80px,calc(12*var(--svh)),140px)] pt-28 md:px-10">
         <h2 id="get-title" aria-label={`${t('getTitleA')} ${t('getTitleB')}`} className="font-display flex flex-col items-center text-center font-extrabold tracking-[-0.06em]">
           <span data-line aria-hidden="true" className="block text-[clamp(44px,8.4vw,168px)] leading-[0.9]">{t('getTitleA')}</span>
-          <span aria-hidden="true" className="flex pb-[0.04em] text-[min(25vw,40svh)] leading-[0.8]">
+          <span aria-hidden="true" className="flex pb-[0.04em] text-[min(25vw,calc(40*var(--svh)))] leading-[0.8]">
             {[...name.split(''), '.'].map((l, i) => (
               <span key={i} data-letter className={`inline-block ${l === '.' ? 'text-[var(--lilac)]' : ''}`}>
                 {l}
@@ -49,7 +49,7 @@ export default function GetIn() {
           </span>
         </h2>
 
-        <ul className="mt-[clamp(36px,7svh,80px)] flex flex-wrap items-center justify-center gap-3 md:gap-4">
+        <ul className="mt-[clamp(36px,calc(7*var(--svh)),80px)] flex flex-wrap items-center justify-center gap-3 md:gap-4">
           {ways.map((w) => (
             <li key={w.href} data-way>
               <Link href={localize(w.href)} className={`key key-lg md:h-[68px] md:px-10 md:text-[19px] ${w.tone}`}>

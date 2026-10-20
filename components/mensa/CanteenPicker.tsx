@@ -42,7 +42,7 @@ export function CanteenPicker({ canteens, ownCanteen, onChoose }: {
     <div className="rise">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-6">
         <label htmlFor={`${id}-search`} className="visually-hidden">{t('searchLabel')}</label>
-        <div className="flex h-[58px] w-full max-w-[560px] items-center gap-3 rounded-[18px] bg-[var(--surface)] px-4 shadow-[0_0_0_1px_var(--line)] transition-shadow focus-within:shadow-[0_0_0_2px_var(--accent-ink)]">
+        <div className="flex h-[58px] w-full max-w-[560px] items-center gap-3 rounded-[18px] bg-[var(--surface)] px-4 transition-shadow focus-within:shadow-[0_0_0_2px_var(--accent-ink)]">
           <MagnifyingGlass size={20} weight="bold" aria-hidden="true" className="shrink-0 text-ink-3" />
           <input
             id={`${id}-search`}

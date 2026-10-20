@@ -116,7 +116,7 @@ export default function LanguageButton({
           role="menu"
           aria-label={t('languageTitle')}
           onKeyDown={onMenuKey}
-          className={`lang-menu absolute z-50 w-[208px] rounded-[18px] bg-[var(--surface)] p-1.5 text-ink shadow-[0_18px_44px_-16px_rgb(0_0_0/0.35),0_0_0_1px_var(--line)] ${
+          className={`lang-menu absolute z-50 w-[208px] rounded-[18px] bg-[var(--surface)] p-1.5 text-ink shadow-[0_18px_44px_-16px_rgb(0_0_0/0.35)] ${
             placement === 'above' ? 'bottom-full mb-2' : 'top-full mt-2'
           } ${
             align === 'right'

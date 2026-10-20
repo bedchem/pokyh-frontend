@@ -36,7 +36,7 @@ export interface Hallway {
   lockerOpen: Sprite;
   lockerShut: Sprite;
   clock: Pt;
-  /** The door of room 2B: it opens into the room (components/room). */
+  /** The door of room A+2/05: it opens into the room (components/room). */
   door: Doorway;
 }
 
@@ -153,7 +153,7 @@ function board(s: Sprite, x: number, y: number) {
 
 // ── Door, sign, clock ───────────────────────────────────────────────
 
-/** The door's frame, and room 2B behind it (seen when the door is open). */
+/** The door's frame, and room A+2/05 behind it (seen when the door is open). */
 function doorFrame(s: Sprite, x: number, floor: number) {
   const h = 60;
   const top = floor - h;
@@ -261,7 +261,7 @@ function lightSpill(x: number, floor: number, h: number): Sprite {
   return s;
 }
 
-/** The door of room 2B with its frame drawn into `back`, its floor at row `floor`. */
+/** The door of room A+2/05 with its frame drawn into `back`, its floor at row `floor`. */
 export function doorway(back: Sprite, x: number, floor: number, h: number): Doorway {
   doorFrame(back, x, floor);
   return {
@@ -315,10 +315,15 @@ function panesOf(x: number, y: number): Array<[number, number, number, number]> 
 
 // ── The scene ────────────────────────────────────────────────────────────
 
-export function buildHallway(w: number, h: number): Hallway {
+/**
+ * The hallway, `w` pixels of the drawing wide; `view` of them are seen in
+ * the panel at rest (the rest, to the right of the door, comes into view as
+ * the view turns to the door and goes through it).
+ */
+export function buildHallway(w: number, h: number, view = w): Hallway {
   const floor = h - FLOOR;
   // The door (from cx + 50 to cx + 80) always stays in view.
-  const cx = Math.max(24, Math.min(Math.round(w * 0.4), w - 84));
+  const cx = Math.max(24, Math.min(Math.round(view * 0.4), view - 84));
   const back = new Sprite();
 
   // The wall, the band below the rail, the skirting.
@@ -367,7 +372,18 @@ export function buildHallway(w: number, h: number): Hallway {
   board(back, cx + 8, floor - 66);
   const doorX = cx + 52;
   const doorParts = doorway(back, doorX, floor, h);
-  sign(back, doorX + 6, floor - 73, '2B');
+  // Beyond the door the hallway goes on: another window, more lockers.
+  const rightX = doorX + 34;
+  if (rightX < w) {
+    const winX2 = rightX + 8;
+    windowFrame(back, winX2, winY);
+    panes.push(...panesOf(winX2, winY));
+    const n = Math.ceil((w - rightX) / (LW + 1));
+    back.mass(rect(rightX - 1, floor - 3, n * (LW + 1) + 1, 3), 'st', { deep: true });
+    for (let i = 0; i < n; i++) lockerDoor(back, rightX + i * (LW + 1), lockerTop, LOCKER_TONES[(i + 2) % LOCKER_TONES.length]);
+  }
+  // The room's number over the door, as wide as its frame.
+  sign(back, doorX - 2, floor - 73, 'A+2/05');
   const clock: Pt = [cx + 26.5, floor - 76];
   clockFace(back, clock[0], clock[1]);
 

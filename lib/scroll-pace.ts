@@ -124,6 +124,17 @@ export function sceneHeight(scene: SceneStretch, base: number): string {
 }
 
 /**
+ * The large viewport's height in pixels as the page measured it
+ * (components/ViewportScript.tsx), for distances in scroll animations: the
+ * window's own height changes while a phone's browser bars slide.
+ */
+export function largeViewport(): number {
+  const v = getComputedStyle(document.documentElement).getPropertyValue('--lvh').trim();
+  const px = v.endsWith('px') ? parseFloat(v) * 100 : NaN;
+  return Number.isFinite(px) && px > 0 ? px : window.innerHeight;
+}
+
+/**
  * Which kind of device a wheel event comes from. Chromium and Safari tell it
  * by the legacy wheelDeltaY (classic notches are multiples of 120), Firefox
  * mice by line units; otherwise a quick stream of small steps is a trackpad.

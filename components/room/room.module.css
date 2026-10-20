@@ -1,7 +1,7 @@
-/* Room 2B (components/room): the classroom, its vending machine, the backpack
-   and the tablet's games. Sprite animations run in steps, like the hallway's
-   (app/globals.css); lengths inside the drawings are pixels of the drawing.
-   The room's warm wall is the colour of the stage under everything. */
+/* Room A+2/05 (components/room): the classroom, its vending machine, the
+   backpack and the console's games. Sprite animations run in steps, like the
+   hallway's (app/globals.css); lengths inside the drawings are pixels of the
+   drawing. The room's warm wall is the colour of the stage under everything. */
 
 .stage {
   --room-wall: light-dark(#f4ead8, #2a2531);
@@ -13,7 +13,9 @@
   color: var(--ink);
 }
 
-/* The door's warm light clears on arrival and comes back on leaving. */
+/* The door's warm light clears on arrival and comes back on leaving. Under
+   it the room is a step closer than it is and settles back as the light
+   clears, the bar on top coming in last. */
 .into {
   position: absolute;
   inset: 0;
@@ -21,7 +23,7 @@
   background: var(--room-wall);
   pointer-events: none;
   opacity: 1;
-  transition: opacity 0.45s ease;
+  transition: opacity 0.6s ease;
 }
 .stage[data-arrived] .into { opacity: 0; }
 .stage[data-leaving] .into { opacity: 1; transition-duration: 0.22s; }
@@ -30,7 +32,13 @@
   position: absolute;
   inset: 0;
   overflow: hidden;
+  transform-origin: 50% 62%;
 }
+.stage:not([data-arrived]) .scroller { transform: scale(1.07); }
+.stage[data-arrived] .scroller { transition: transform 1s cubic-bezier(0.16, 1, 0.3, 1); }
+.stage[data-leaving] .scroller { transform: scale(1.03); transition-duration: 0.3s; }
+.stage:not([data-arrived]) :is(.hud, .back) { opacity: 0; translate: 0 -8px; }
+.stage[data-arrived] :is(.hud, .back) { transition: opacity 0.4s ease 0.35s, translate 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.35s; }
 .scroller[data-pan] {
   overflow-x: auto;
   overflow-y: hidden;
@@ -46,7 +54,7 @@
 }
 .scene { display: block; }
 
-/* ── Things to click: corners like a game's target, the name above ──── */
+/* ── Things to click: corners like a game's target, no words ─────────── */
 
 .spot {
   position: absolute;
@@ -73,32 +81,10 @@
     linear-gradient(var(--corner), var(--corner)) bottom right / 3px 10px no-repeat;
   transition: inset 0.12s steps(2, end), opacity 0.1s steps(1, end);
 }
-.tag {
-  position: absolute;
-  bottom: calc(100% + 10px);
-  left: 50%;
-  z-index: 2;
-  translate: -50% 0;
-  padding: 3px 8px;
-  border-radius: 4px;
-  background: var(--ink);
-  color: var(--surface);
-  font-family: var(--app-font-mono);
-  font-size: 11.5px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-}
-.tag[data-below] { top: calc(100% + 10px); bottom: auto; }
 @media (hover: hover) {
   .spot:hover .corners { opacity: 1; animation: target 0.9s steps(2, end) infinite; }
-  .spot:hover .tag { opacity: 1; }
 }
 .spot:focus-visible .corners { opacity: 1; animation: target 0.9s steps(2, end) infinite; }
-.spot:focus-visible .tag { opacity: 1; }
 .spot:active .corners { inset: 2px; opacity: 1; animation: none; }
 @keyframes target {
   0%, 49% { inset: -4px; }
@@ -118,14 +104,14 @@
   border-radius: 999px;
   background: var(--surface);
   color: var(--ink);
-  box-shadow: 0 0 0 1px var(--line), 0 6px 16px -8px rgb(0 0 0 / 0.4);
+  box-shadow: 0 8px 20px -10px rgb(0 0 0 / 0.45);
   transition: scale 0.15s ease;
 }
 .panLeft { left: 10px; }
 .panRight { right: 10px; }
 .panLeft:active, .panRight:active { scale: 0.92; }
 
-/* ── The bar on top: stars, discoveries, the way back ─────────────────── */
+/* ── The bar on top: stars, discoveries, the backpack, the way back ───── */
 
 .hud {
   position: absolute;
@@ -145,24 +131,58 @@
   border-radius: 12px;
   background: var(--surface);
   color: var(--ink);
-  box-shadow: 0 0 0 1px var(--line);
+  box-shadow: 0 8px 20px -12px rgb(0 0 0 / 0.45);
   font-family: var(--app-font-mono);
   font-size: 14.5px;
   font-weight: 600;
 }
-.chipStar { width: 18px; height: 18px; }
+.chipStar { display: block; width: 18px; height: 18px; }
 .tnum { font-variant-numeric: tabular-nums; }
-.gain {
+.chipButton { cursor: pointer; transition: background-color 0.15s ease, scale 0.15s ease; }
+.chipButton:hover { background: color-mix(in srgb, var(--surface) 88%, var(--ink)); }
+.chipButton:active { scale: 0.94; }
+.chipButton:focus-visible { outline: 3px solid var(--accent-ink); outline-offset: 2px; }
+.chipBag { display: block; width: 22px; height: 32px; margin: 0 2px; }
+/* The name of the thing under the pointer. */
+.tip {
   position: absolute;
-  top: -8px;
-  right: -8px;
-  padding: 1px 6px;
+  z-index: 32;
+  padding: 6px 11px 7px;
+  border-radius: 10px;
+  background: var(--ink);
+  color: var(--surface);
+  box-shadow: 0 8px 18px -10px rgb(0 0 0 / 0.5);
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+  translate: -50% -100%;
+  animation: tip-in 0.14s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes tip-in { from { opacity: 0; scale: 0.92; } }
+/* Things new in the backpack, until it is opened. */
+.dot {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
   border-radius: 999px;
-  background: var(--star);
-  color: #3a2400;
-  font-size: 12px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
   font-weight: 800;
-  animation: gain 1.4s steps(7, end) forwards;
+}
+/* The counter and the backpack bump when something lands in them. */
+.bump { display: block; animation: bump 0.32s steps(4, end); }
+@keyframes bump {
+  0% { scale: 1; }
+  40% { scale: 1.45; }
+  100% { scale: 1; }
 }
 @keyframes gain {
   0% { opacity: 0; translate: 0 6px; }
@@ -176,75 +196,15 @@
   .back { width: 44px; padding: 0 !important; }
   .backText { display: none; }
 }
-.toasts {
-  position: absolute;
-  top: 62px;
-  left: 14px;
-  z-index: 30;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  pointer-events: none;
-}
-.toast {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  max-width: min(360px, calc(100vw - 60px));
-  padding: 7px 12px;
-  border-radius: 10px;
-  background: var(--ink);
-  color: var(--surface);
-  font-size: 13.5px;
-  font-weight: 600;
-  animation: toast 3.2s steps(16, end) forwards;
-}
-.toastStars { display: inline-flex; align-items: center; gap: 3px; color: var(--star); font-family: var(--app-font-mono); font-weight: 700; }
-.toastStar { width: 14px; height: 14px; }
-@keyframes toast {
-  0% { opacity: 0; translate: -8px 0; }
-  8%, 88% { opacity: 1; translate: 0 0; }
-  100% { opacity: 0; translate: 0 -4px; }
-}
-
-/* ── The text box ─────────────────────────────────────────────────────── */
-
-.dialogWrap {
-  position: absolute;
-  bottom: 16px;
-  left: 50%;
-  z-index: 30;
-  width: min(580px, calc(100% - 24px));
-  translate: -50% 0;
-}
-.dialog {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 13px 16px;
-  border: 2px solid var(--ink);
-  border-radius: 6px;
-  background: var(--surface);
-  color: var(--ink);
-  box-shadow: 4px 4px 0 color-mix(in srgb, var(--ink) 22%, transparent);
-  font-family: var(--app-font-mono);
-  font-size: 14.5px;
-  line-height: 1.5;
-  text-align: left;
-  animation: pop-in 0.2s steps(3, end) both;
-}
-.dialog:focus-visible { outline: 3px solid var(--accent-ink); outline-offset: 3px; }
-.dialogFace { width: 46px; height: 37px; flex-shrink: 0; }
-.dialogText { flex: 1; min-width: 0; }
-.dialogRest { visibility: hidden; }
-.dialogMore { align-self: flex-end; font-size: 10px; animation: blink 0.9s steps(1, end) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
-@keyframes pop-in {
-  from { opacity: 0; translate: 0 6px; }
-  to { opacity: 1; translate: 0 0; }
-}
+
+/* ── Rewards on their way (components/room/parts.tsx) ─────────────────── */
+
+.fx { position: absolute; inset: 0; z-index: 36; overflow: hidden; pointer-events: none; }
+.fxStar, .fxSpark, .fxItem { position: absolute; top: 0; left: 0; will-change: transform; }
+.fxStar { width: 28px; height: 28px; margin: -14px 0 0 -14px; filter: drop-shadow(0 2px 0 rgb(60 30 0 / 0.25)); }
+.fxSpark { width: 12px; height: 12px; margin: -6px 0 0 -6px; }
+.fxItem { width: 44px; height: 47px; margin: -23px 0 0 -22px; }
 
 /* ── Animated parts of the room ───────────────────────────────────────── */
 
@@ -264,6 +224,82 @@
   72%, 100% { opacity: 1; }
 }
 .chalkIn { animation: chalk-in 0.3s steps(3, end) both; }
+
+/* What a click sets moving. The poster's rocket lifts off, out of the top
+   of the room (larger, as if it came off the poster) and back onto its pad. */
+.rocketFly { transform-box: fill-box; transform-origin: 50% 100%; animation: rocket 3.4s both; }
+@keyframes rocket {
+  0% { transform: translate(0, 0) scale(1); }
+  4% { transform: translate(-0.5px, 0) scale(1); }
+  8% { transform: translate(0.5px, 0) scale(1); }
+  12% { transform: translate(0, 0) scale(1); animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.45); }
+  42% { transform: translate(8px, var(--up)) scale(2); }
+  56% { transform: translate(-6px, var(--up)) scale(2); animation-timing-function: cubic-bezier(0.1, 0.55, 0.3, 1); }
+  93% { transform: translate(0, -1px) scale(1); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+.flame { --pace: 0.16s; opacity: 0; animation: flame 3.4s steps(1, end) both; }
+@keyframes flame {
+  0%, 7% { opacity: 0; }
+  8%, 44% { opacity: 1; }
+  45%, 55% { opacity: 0; }
+  56%, 94% { opacity: 1; }
+  95%, 100% { opacity: 0; }
+}
+.smoke { transform-box: fill-box; transform-origin: 50% 100%; animation: smoke 1.3s steps(6, end) both; }
+@keyframes smoke {
+  0% { opacity: 0; transform: scale(0.4); }
+  15% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-3px) scale(1.8, 1.3); }
+}
+/* The clock rings, the bin wobbles, the apple pops back on the desk. */
+.ring { transform-box: fill-box; transform-origin: 50% 50%; animation: ring 0.9s steps(1, end); }
+@keyframes ring {
+  0%, 100% { rotate: 0deg; }
+  10%, 50% { rotate: -9deg; }
+  20%, 60% { rotate: 9deg; }
+  30%, 70% { rotate: -6deg; }
+  40%, 80% { rotate: 6deg; }
+  90% { rotate: -2deg; }
+}
+.wobble { transform-box: fill-box; transform-origin: 50% 100%; animation: wobble-bin 0.6s steps(1, end); }
+@keyframes wobble-bin {
+  0%, 100% { rotate: 0deg; }
+  15% { rotate: -8deg; }
+  35% { rotate: 7deg; }
+  55% { rotate: -4deg; }
+  75% { rotate: 2deg; }
+}
+.popIn { transform-box: fill-box; transform-origin: 50% 100%; animation: pop-back 0.4s steps(4, end); }
+@keyframes pop-back {
+  0% { transform: scale(0.2); }
+  60% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+/* A draught blows the curtains in a few times. */
+.drapeRest, .drapeBlown { animation: drape-rest 1.6s steps(1, end) both; }
+.drapeBlown { animation-name: drape-blown; }
+@keyframes drape-rest {
+  0%, 12% { opacity: 1; }
+  13%, 30% { opacity: 0; }
+  31%, 40% { opacity: 1; }
+  41%, 62% { opacity: 0; }
+  63%, 100% { opacity: 1; }
+}
+@keyframes drape-blown {
+  0%, 12% { opacity: 0; }
+  13%, 30% { opacity: 1; }
+  31%, 40% { opacity: 0; }
+  41%, 62% { opacity: 1; }
+  63%, 100% { opacity: 0; }
+}
+/* The notebook's flip book: a page up, over, up, over, then shut again. */
+.nbShut, .nbUp, .nbOver { animation: nb-shut 1s steps(1, end) both; }
+.nbUp { animation-name: nb-up; }
+.nbOver { animation-name: nb-over; }
+@keyframes nb-shut { 0%, 89% { opacity: 0; } 90%, 100% { opacity: 1; } }
+@keyframes nb-up { 0%, 14%, 30%, 44%, 60%, 74% { opacity: 1; } 15%, 29%, 45%, 59%, 75%, 100% { opacity: 0; } }
+@keyframes nb-over { 0%, 14%, 30%, 44%, 60%, 74%, 90%, 100% { opacity: 0; } 15%, 29%, 45%, 59%, 75%, 89% { opacity: 1; } }
 @keyframes chalk-in { from { opacity: 0; } }
 .dim { animation: chalk-in 0.25s steps(3, end) both; }
 
@@ -348,12 +384,11 @@
 @keyframes coin { to { transform: translateY(10px); opacity: 0; } }
 .blink { animation: blink 0.7s steps(1, end) infinite; }
 
-.panel, .bag {
-  border: 2px solid var(--ink);
-  border-radius: 6px;
+.panel, .inv {
+  border-radius: 24px;
   background: var(--surface);
   color: var(--ink);
-  box-shadow: 4px 4px 0 color-mix(in srgb, var(--ink) 22%, transparent);
+  box-shadow: 0 30px 60px -30px rgb(0 0 0 / 0.5);
 }
 .panel {
   position: relative;
@@ -384,46 +419,71 @@
   100% { scale: 1; translate: 0 0; }
 }
 
-/* The backpack. */
-.bag {
+/* The backpack: a game's inventory. */
+.inv {
   position: absolute;
   inset: 70px 14px 14px;
-  max-width: 720px;
+  max-width: 880px;
   margin: 0 auto;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 20px 22px 24px;
+  padding: 22px 24px 26px;
+  animation: inv-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-.bagHeader { display: flex; align-items: center; gap: 14px; }
-.bagMascot { width: 74px; height: 91px; flex-shrink: 0; }
-.bagTitle { font-size: 26px; font-weight: 800; letter-spacing: -0.035em; outline: none; }
-.bagLead { margin-top: 2px; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 14px; color: var(--ink-2); }
-.inlineStar { width: 15px; height: 15px; }
-.bagSection { margin-top: 20px; }
-.bagHeading { font-family: var(--app-font-mono); font-size: 12.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-3); }
-.bagRow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-.bagItem {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 46px;
-  padding: 0 14px 0 8px;
-  border-radius: 10px;
+@keyframes inv-in {
+  from { opacity: 0; translate: 0 14px; }
+  to { opacity: 1; translate: 0 0; }
+}
+.invHead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.invTitle { font-size: 26px; font-weight: 800; letter-spacing: -0.035em; outline: none; }
+.tabs { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--inset); }
+.tab { height: 36px; padding: 0 16px; border-radius: 999px; font-size: 14px; font-weight: 700; color: var(--ink-2); transition: background-color 0.15s ease, color 0.15s ease; }
+.tab:hover { color: var(--ink); }
+.tab[aria-selected='true'] { background: var(--surface); color: var(--ink); box-shadow: 0 4px 12px -6px rgb(0 0 0 / 0.3); }
+.tab:focus-visible { outline: 3px solid var(--accent-ink); outline-offset: 2px; }
+.invBody { display: grid; grid-template-columns: 220px 1fr; gap: 22px; margin-top: 20px; }
+.doll { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 18px 12px 16px; border-radius: 20px; background: var(--room-wall); }
+.dollMascot { width: 150px; height: 169px; }
+.equips { display: flex; gap: 10px; }
+.equip, .slot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: 16px;
   background: var(--inset);
-  color: var(--ink);
-  font-size: 14.5px;
-  font-weight: 650;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.15s ease, scale 0.15s ease;
 }
-.bagItem:hover { background: color-mix(in srgb, var(--inset) 80%, var(--ink)); }
-.bagItem[aria-pressed='true'] { background: var(--periwinkle); color: var(--periwinkle-ink); box-shadow: inset 0 0 0 2px var(--accent-ink); }
-.bagItem:focus-visible { outline: 3px solid var(--accent-ink); outline-offset: 2px; }
-.bagIcon { width: 30px; height: 32px; }
-.bagNone { display: grid; place-items: center; width: 30px; font-family: var(--app-font-mono); font-weight: 700; color: var(--ink-3); }
-.bagEmpty { margin-top: 6px; font-size: 14px; line-height: 1.5; color: var(--ink-3); }
-.bagFound { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; margin-top: 8px; }
-.bagFound li { padding: 7px 10px; border-radius: 8px; background: var(--inset); font-size: 13.5px; font-weight: 600; color: var(--ink-3); letter-spacing: 0.08em; }
-.bagFound li[data-on] { background: var(--sage); color: var(--sage-ink); letter-spacing: 0; }
+.equip { width: 64px; background: var(--surface); }
+.equip:not([data-empty]):hover { background: color-mix(in srgb, var(--surface) 85%, var(--ink)); }
+.equip[data-empty] { cursor: default; }
+.slot:hover { background: color-mix(in srgb, var(--inset) 82%, var(--ink)); }
+.slot:active, .equip:not([data-empty]):active { scale: 0.94; }
+.slot[aria-pressed='true'] { box-shadow: inset 0 0 0 3px var(--accent-ink); }
+.slot[data-on] { background: var(--periwinkle); }
+.equip:focus-visible, .slot:focus-visible { outline: 3px solid var(--accent-ink); outline-offset: 2px; }
+.slotIcon { width: 62%; height: 62%; }
+/* Not found yet: only its shape, dark. */
+.ghost, .slot[data-locked] .slotIcon { filter: brightness(0); opacity: 0.16; }
+:global(.dark) :is(.ghost, .slot[data-locked] .slotIcon) { filter: brightness(0) invert(1); opacity: 0.14; }
+.slotOn { position: absolute; top: 6px; right: 6px; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 999px; background: var(--accent-ink); color: #fff; }
+.dollStars { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700; color: var(--ink-2); }
+.inlineStar { width: 15px; height: 15px; }
+.invMain { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 10px; }
+.info { display: flex; align-items: center; gap: 14px; min-height: 92px; padding: 14px 16px; border-radius: 20px; background: var(--inset); }
+.infoHint { flex: 1; font-size: 14.5px; color: var(--ink-3); }
+.infoIcon { width: 56px; height: 60px; flex-shrink: 0; }
+.infoName { font-size: 17px; font-weight: 800; letter-spacing: -0.02em; }
+.infoText { margin-top: 2px; font-size: 14px; line-height: 1.45; color: var(--ink-2); }
+.panelSub { margin-top: 22px; font-size: 14px; font-weight: 700; color: var(--ink-2); }
+.secrets { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; margin-top: 10px; }
+.secrets li { padding: 12px 14px; border-radius: 14px; background: var(--inset); font-size: 14px; font-weight: 650; color: var(--ink-3); letter-spacing: 0.08em; }
+.secrets li[data-on] { background: var(--sage); color: var(--sage-ink); letter-spacing: 0; }
+.eaten { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.eaten li { display: inline-flex; align-items: center; gap: 6px; height: 46px; padding: 0 14px 0 8px; border-radius: 14px; background: var(--inset); font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.eatenIcon { width: 30px; height: 32px; }
+.bagEmpty { margin-top: 18px; font-size: 14px; line-height: 1.5; color: var(--ink-3); }
 .bagRecords { margin-top: 6px; }
 .bagRecords li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14.5px; font-weight: 600; }
 .bagGame { width: 24px; height: 24px; }
@@ -492,6 +552,67 @@
 .screen[data-game='puzzle'] { --scr: #1d4741; }
 .screen[data-kind='boot'] { --scr: #141032; }
 .screenStar { display: inline-block; width: 1.05em; height: 1.05em; vertical-align: -0.15em; margin-right: 0.25em; }
+
+/* The key prompts on the console, at its buttons: dark keycaps, pressed
+   down and lit while their key is held. */
+.prompt {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  gap: 4px;
+  pointer-events: none;
+  animation: prompt-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.prompt[data-side='above'] { translate: -50% -100%; }
+.prompt[data-side='below'] { translate: -50% 0; }
+.prompt[data-side='left'] { translate: -100% -50%; }
+.prompt[data-side='right'] { translate: 0 -50%; }
+/* The arrow keys as on a keyboard: one up top, three below. */
+.prompt[data-arrows] { display: grid; grid-template-columns: repeat(3, auto); grid-template-areas: '. up .' 'left down right'; }
+.prompt kbd[data-key='up'] { grid-area: up; }
+.prompt kbd[data-key='left'] { grid-area: left; }
+.prompt kbd[data-key='down'] { grid-area: down; }
+.prompt kbd[data-key='right'] { grid-area: right; }
+.prompt kbd {
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: #1d1730;
+  color: #ece9ff;
+  box-shadow: 0 3px 0 #0c0918, inset 0 1px 0 rgb(255 255 255 / 0.14);
+  font-family: var(--app-font-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1;
+  transition: translate 0.05s steps(1, end), box-shadow 0.05s steps(1, end), background-color 0.05s steps(1, end);
+}
+.prompt kbd[data-on] { translate: 0 2px; background: var(--accent); color: #fff; box-shadow: 0 1px 0 #0c0918; }
+@keyframes prompt-in { from { opacity: 0; scale: 0.85; } }
+.keysToggle {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-2);
+  box-shadow: 0 8px 20px -12px rgb(0 0 0 / 0.45);
+  font-size: 13.5px;
+  font-weight: 700;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.keysToggle:hover { color: var(--ink); }
+.keysToggle[aria-pressed='true'] { background: var(--periwinkle); color: var(--periwinkle-ink); }
+.keysToggle:focus-visible { outline: 3px solid var(--accent-ink); outline-offset: 2px; }
+@media (hover: none) { .keysToggle { display: none; } }
 
 .boot { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 0.8em; }
 .bootLogo { animation: boot 0.9s steps(6, end) both; }
@@ -691,26 +812,37 @@
 .puzzleGap { border-radius: 1px; background: rgb(0 0 0 / 0.28); }
 .puzzleNum { position: absolute; top: 2px; left: 3px; padding: 0 0.3em; border-radius: 2px; background: rgb(0 0 0 / 0.55); color: #fff; font-size: 0.8em; font-weight: 700; }
 
+@media (max-width: 760px) {
+  .invBody { grid-template-columns: 1fr; }
+  .doll { flex-direction: row; justify-content: center; padding: 10px 14px; }
+  .dollMascot { width: 96px; height: 108px; }
+  .equips { flex-direction: column; }
+  .equip { width: 52px; }
+  .dollStars { display: none; }
+}
 @media (max-width: 520px) {
   .hud { top: 10px; left: 10px; gap: 6px; }
   .intro, .result { gap: 0.35em; padding: 0.4em 0.7em; }
   .introText { font-size: 0.95em; }
   .chip { height: 36px; padding: 0 10px; font-size: 13.5px; }
   .back { top: 10px; right: 10px; }
-  .toasts { top: 54px; left: 10px; }
-  .dialog { padding: 11px 13px; font-size: 13.5px; }
   .vmLayout { padding-top: 58px; gap: 8px; }
-  .dialogFace { width: 38px; height: 31px; }
-  .bag { inset: 60px 10px 10px; padding: 16px; }
+  .inv { inset: 60px 10px 10px; padding: 16px; border-radius: 20px; }
+  .invTitle { font-size: 22px; }
+  .tab { padding: 0 12px; }
+  .slots { grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 8px; }
+  .info { flex-wrap: wrap; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .world, .into, .memoryBack, .memoryFace { transition: none; }
-  .clouds, .rain, .snow, .twinkle, .chalkIn, .dim, .frameA, .sign .frameA, .bulbs, .gain, .toast, .dialog, .dialogMore,
+  .world, .into, .memoryBack, .memoryFace, .stage[data-arrived] .scroller, .stage[data-arrived] :is(.hud, .back) { transition: none; }
+  .stage:not([data-arrived]) .scroller { transform: none; }
+  .clouds, .rain, .snow, .twinkle, .chalkIn, .dim, .frameA, .sign .frameA, .bulbs, .bump, .inv, .prompt, .tip,
+  .rocketFly, .smoke, .ring, .wobble, .popIn, .drapeRest, .drapeBlown, .nbShut, .nbUp, .nbOver,
   .sub, .machine[data-shake], .vmFlap, .push, .stuck, .fall, .landed, .coin, .blink, .revealIcon, .device, .bootLogo, .bootSub,
   .menuIcon, .starsBig span[data-on], .flash, .ttLesson[data-next], .ttChip[data-wrong], .puzzleBoard[data-solved], .spot:hover .corners, .spot:focus-visible .corners {
     animation: none;
   }
-  .frameB, .sign .frameB { animation: none; opacity: 0; }
+  .frameB, .sign .frameB, .flame, .drapeBlown, .nbUp, .nbOver { animation: none; opacity: 0; }
   .ttBar { animation-name: tt-bar; }
 }

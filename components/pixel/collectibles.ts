@@ -118,6 +118,13 @@ const ITEM_ART: Record<string, (s: Sprite) => void> = {
     s.mass([...ellipse(5.5, 8, 5, 3), ...disc(7.5, 4, 2.6)], 'gd', { round: [6, 5] });
     s.fill([[10, 4], [11, 4], [10, 5]], 'or2').set(8, 3, 'ik2');
   },
+  note: (s) => {
+    // A folded note, a line of red writing on it.
+    s.mass(rect(1, 2, 10, 9), 'pp');
+    s.fill([[10, 2], [10, 3], [9, 2]], 'pp1').set(10, 2, null);
+    s.fill(rect(1, 6, 10, 1), 'pp1');
+    s.fill([...rect(3, 4, 5, 1), ...rect(3, 8, 3, 1), [7, 8]], 'rd2');
+  },
 };
 
 const itemCache = new Map<string, Sprite>();
@@ -230,26 +237,16 @@ export function lightsAt(x: number, y: number, w = 84): [Sprite, Sprite] {
   }) as [Sprite, Sprite];
 }
 
-/** The disco ball hanging from the ceiling at (x, top), and the spots of light it throws, in two frames. */
-export function discoAt(x: number, top: number, room: { w: number; floor: number }): { ball: Sprite; spots: [Sprite, Sprite] } {
-  const ball = new Sprite();
-  ball.fill(rect(x, 0, 1, top + 1), 'st1');
+/** The disco ball hanging from the ceiling at (x, top), its mirrors catching the light in two frames. */
+export function discoAt(x: number, top: number): [Sprite, Sprite] {
   const d = disc(x + 0.5, top + 5, 4.4);
-  ball.mass(d, 'st', { round: [x + 0.5, top + 5] });
-  for (const [px, py] of d) if ((px + py) % 2 === 0) ball.set(px, py, (px * 3 + py) % 5 === 0 ? 'pp4' : 'st3');
-  const tones = ['pk3', 'gd3', 'lc3', 'wt3', 'la3', 'or3'];
-  const spots = [0, 1].map((f) => {
-    const s = new Sprite();
-    for (let i = 0; i < 46; i++) {
-      const n = Math.sin((i + f * 23) * 91.7) * 43758.5;
-      const sx = Math.floor((n - Math.floor(n)) * room.w);
-      const m = Math.sin((i + f * 23) * 17.3) * 9631.1;
-      const sy = Math.floor((m - Math.floor(m)) * (room.floor + 30));
-      s.fill(rect(sx, sy, 2, 2), tones[i % tones.length]);
-    }
-    return s;
+  return [0, 1].map((f) => {
+    const ball = new Sprite();
+    ball.fill(rect(x, 0, 1, top + 1), 'st1');
+    ball.mass(d, 'st', { round: [x + 0.5, top + 5] });
+    for (const [px, py] of d) if ((px + py) % 2 === 0) ball.set(px, py, (px * 3 + py + f * 2) % 5 === 0 ? 'pp4' : 'st3');
+    return ball;
   }) as [Sprite, Sprite];
-  return { ball, spots };
 }
 
 /** The trophy on the shelf, standing on (x, y). */

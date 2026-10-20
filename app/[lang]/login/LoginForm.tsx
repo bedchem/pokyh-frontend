@@ -22,12 +22,12 @@ import { readCookieChoice, COOKIE_CONSENT_EVENT } from '@/lib/cookie-consent';
 import { rememberPendingAck } from '@/lib/privacy-consent';
 import { forgetSchoolChoice, readSchoolChoice, saveSchoolChoice, type SchoolChoice } from '@/lib/school-choice';
 import { prefersReducedMotion } from '@/lib/motion';
-import { closeView, openView, useRoomView } from '@/components/room/route';
+import { closeView, enteringWith, openView, useRoomView } from '@/components/room/route';
 import { HallwayScene, MascotBadge, type MascotEvent, type MascotState } from './Hallway';
 
-// Room 2B, behind the hallway's door: a little secret classroom, fetched only
-// when someone goes near the door (components/room). Its first frame is the
-// same warm wall the door opens onto.
+// Room A+2/05, behind the hallway's door: a little secret classroom,
+// fetched and built only when someone goes near the door (components/room).
+// Its first frame is the same warm wall the door opens onto.
 const loadRoom = () => import('@/components/room/Classroom');
 const Classroom = dynamic(loadRoom, { ssr: false, loading: RoomWait });
 
@@ -75,19 +75,23 @@ function SchoolBadge({ school, className = '' }: { school: SchoolChoice; classNa
 }
 
 // A step change as a View Transition where the browser has them: the chosen
-// school flies from the list into its place above the form.
-function transition(update: () => void) {
-  const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
-  if (!doc.startViewTransition || prefersReducedMotion()) { update(); return; }
-  doc.startViewTransition(() => { flushSync(update); });
+// school flies from the list into its place above the form. Returns the
+// transition (null without one).
+function transition(update: () => void): { finished: Promise<void> } | null {
+  const doc = document as Document & { startViewTransition?: (cb: () => void) => { finished: Promise<void> } };
+  if (!doc.startViewTransition || prefersReducedMotion()) { update(); return null; }
+  return doc.startViewTransition(() => { flushSync(update); });
 }
 
-/** The same, for a change that lands a moment later (the browser going back in its history). */
-function transitionUntil(update: () => Promise<void>) {
-  const doc = document as Document & { startViewTransition?: (cb: () => Promise<void>) => unknown };
-  if (!doc.startViewTransition || prefersReducedMotion()) { void update(); return; }
-  doc.startViewTransition(update);
+/**
+ * The room's frame as a clip of the stage: the panel at `at` (the hallway's,
+ * in the window) seen from the stage at `stage`, rounded like both.
+ */
+function clipTo(at: DOMRect, stage: DOMRect): string {
+  const px = (v: number) => `${Math.max(0, v).toFixed(1)}px`;
+  return `inset(${px(at.top - stage.top)} ${px(stage.right - at.right)} ${px(stage.bottom - at.bottom)} ${px(at.left - stage.left)} round 36px)`;
 }
+const FULL = 'inset(0px 0px 0px 0px round 36px)';
 
 // Sign-in in two steps, like WebUntis itself: first the school (any school on
 // WebUntis, found through its public school search, see
@@ -202,21 +206,100 @@ export default function LoginForm() {
     onAnimationStart: (e: React.AnimationEvent<HTMLInputElement>) => { if (e.animationName === 'login-autofill') autofill(); },
   });
 
-  // Room 2B: open while the address says so (#2b…); the door shuts behind
+  // Room A+2/05: open while the address says so (#a205…); the door shuts behind
   // whoever comes back out.
   const view = useRoomView();
   const inRoom = view !== null;
   const [returns, setReturns] = useState(0);
   const [wasInRoom, setWasInRoom] = useState(inRoom);
+  // As soon as someone goes near the door, the room is built: in its place
+  // under the header, clipped to the hallway's panel and lying under it, so
+  // nothing heavy happens while the door opens and the view walks through,
+  // and stepping in only has to let its frame grow.
+  const [staged, setStaged] = useState<{ top: number; clip: string } | null>(null);
   if (wasInRoom !== inRoom) {
     setWasInRoom(inRoom);
-    if (!inRoom) setReturns((n) => n + 1);
+    if (!inRoom) { setReturns((n) => n + 1); setStaged(null); }
   }
-  const fetchRoom = useCallback(() => { void loadRoom(); }, []);
-  const enterRoom = useCallback(() => {
-    void loadRoom().then(() => transition(() => openView('room')), () => openView('room'));
+  const page = useRef<HTMLDivElement>(null);
+  const spacer = useRef<HTMLDivElement>(null);
+  // Going in: the hallway's panel (all warm light by now) becomes the room's
+  // frame, which then grows to the whole stage; nothing in it is scaled.
+  // The room clears its light while the frame grows. Coming out, the frame
+  // shrinks back to the panel and the hallway takes over there.
+  const roomStage = useRef<HTMLDivElement>(null);
+  const hallAt = useRef<{ rect: DOMRect; width: number } | null>(null);
+  // Lets the room clear its light once its frame has started to grow.
+  const lightUp = useRef<(() => void) | null>(null);
+  // The door opens: the form steps aside (straight on the page, no new
+  // render while the door moves).
+  const openDoor = useCallback(() => { page.current?.setAttribute('data-entering', ''); }, []);
+  useEffect(() => { if (returns) page.current?.removeAttribute('data-entering'); }, [returns]);
+  // Where the hallway's panel is now, as a clip of the room's stage under the
+  // header (16 px in from the edges, the hallway's own padding).
+  const underHall = useCallback(() => {
+    const hall = document.querySelector<HTMLElement>('.login-hall')?.getBoundingClientRect();
+    const top = spacer.current?.getBoundingClientRect().bottom;
+    if (!hall || top === undefined) return null;
+    hallAt.current = { rect: hall, width: window.innerWidth };
+    return { top, clip: clipTo(hall, new DOMRect(16, top, window.innerWidth - 32, window.innerHeight - top - 16)) };
   }, []);
-  const leaveRoom = useCallback(() => transitionUntil(() => closeView(null)), []);
+  // Near the door (the pointer or the focus on it): the room is fetched and,
+  // once the browser is idle, built underneath. Clicked before that, it is
+  // built as the view walks through.
+  const staging = useRef(false);
+  const stageRoom = useCallback(() => {
+    if (staging.current || prefersReducedMotion()) return;
+    staging.current = true;
+    void loadRoom().then(() => {
+      const at = underHall();
+      if (!at) { staging.current = false; return; }
+      enteringWith(new Promise<void>((done) => { lightUp.current = () => window.setTimeout(done, 300); }));
+      setStaged(at);
+    }, () => { staging.current = false; });
+  }, [underHall]);
+  const fetchRoom = useCallback(() => {
+    void loadRoom().then(() => {
+      if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(stageRoom, { timeout: 400 });
+      else setTimeout(stageRoom, 0);
+    }, () => {});
+  }, [stageRoom]);
+  // Back out of the room: the next visit is built afresh.
+  useEffect(() => { if (returns) staging.current = false; }, [returns]);
+  // The window changes size while the room waits underneath: it keeps to the panel.
+  useEffect(() => {
+    if (!staged || inRoom) return;
+    const onResize = () => { const at = underHall(); if (at) setStaged(at); };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [staged, inRoom, underHall]);
+  const enterRoom = useCallback(() => {
+    void loadRoom().then(() => {
+      const hall = hallAt.current?.rect ?? document.querySelector<HTMLElement>('.login-hall')?.getBoundingClientRect() ?? null;
+      const moving = !!hall && !prefersReducedMotion();
+      if (!lightUp.current) enteringWith(moving ? new Promise((done) => window.setTimeout(done, 300)) : null);
+      flushSync(() => openView('room'));
+      lightUp.current?.();
+      lightUp.current = null;
+      const el = roomStage.current;
+      el?.querySelector<HTMLElement>('h1')?.focus({ preventScroll: true });
+      if (!moving || !el?.animate) return;
+      el.animate([{ clipPath: clipTo(hall, el.getBoundingClientRect()) }, { clipPath: FULL }], { duration: 720, easing: 'cubic-bezier(0.65, 0, 0.2, 1)' });
+    }, () => openView('room'));
+  }, []);
+  const leaveRoom = useCallback(() => {
+    const el = roomStage.current;
+    const back = () => { void closeView(null); };
+    if (!el?.animate || prefersReducedMotion() || !window.matchMedia('(min-width: 1024px)').matches) { back(); return; }
+    const r = el.getBoundingClientRect();
+    const saved = hallAt.current;
+    // The hallway's panel where it was, or where the layout puts it (54 %, 57 % from 1280 px).
+    const hall = saved && saved.width === window.innerWidth
+      ? saved.rect
+      : new DOMRect(r.left, r.top, window.innerWidth * (window.innerWidth >= 1280 ? 0.57 : 0.54) - 32, r.height);
+    const anim = el.animate([{ clipPath: FULL }, { clipPath: clipTo(hall, r) }], { duration: 520, easing: 'cubic-bezier(0.65, 0, 0.35, 1)', fill: 'forwards' });
+    anim.onfinish = back;
+  }, []);
 
   const searchInput = useRef<HTMLInputElement>(null);
   const userInput = useRef<HTMLInputElement>(null);
@@ -391,16 +474,21 @@ export default function LoginForm() {
   return (
     // One quiet column on a fixed screen: the page itself never scrolls; on
     // very small screens or with the keyboard open only the column does.
-    <div className="site login-page fixed inset-0 flex flex-col overflow-hidden">
+    <div ref={page} className="site login-page fixed inset-0 flex flex-col overflow-hidden">
       {/* The site's own bar on top, fixed; the room below keeps it clear. */}
       <SiteHeader />
-      <div aria-hidden="true" className="h-[72px] shrink-0 md:h-[84px]" style={{ marginTop: 'var(--safe-top)' }} />
+      <div ref={spacer} aria-hidden="true" className="h-[72px] shrink-0 md:h-[84px]" style={{ marginTop: 'var(--safe-top)' }} />
 
-      {/* Room 2B: the sign-in stays as it was beneath, hidden, until you come back. */}
-      {inRoom && (
-        <div className="flex min-h-0 flex-1 px-3 pb-3 lg:px-4 lg:pb-4">
-          <div className="room-stage relative min-w-0 flex-1 overflow-hidden rounded-[28px] lg:rounded-[36px]" style={{ viewTransitionName: 'login-stage' }}>
-            <Classroom view={view} onLeave={leaveRoom} />
+      {/* Room A+2/05: the sign-in stays as it was beneath, hidden, until you come back. */}
+      {(inRoom || staged) && (
+        <div
+          className={inRoom ? 'flex min-h-0 flex-1 px-3 pb-3 lg:px-4 lg:pb-4' : 'pointer-events-none absolute inset-x-0 bottom-0 -z-10 flex px-3 pb-3 lg:px-4 lg:pb-4'}
+          style={inRoom || !staged ? undefined : { top: staged.top }}
+          inert={!inRoom || undefined}
+          aria-hidden={!inRoom || undefined}
+        >
+          <div ref={roomStage} className="room-stage relative min-w-0 flex-1 overflow-hidden rounded-[28px] lg:rounded-[36px]" style={inRoom || !staged ? undefined : { clipPath: staged.clip }}>
+            <Classroom view={view ?? 'room'} onLeave={leaveRoom} />
           </div>
         </div>
       )}
@@ -408,10 +496,10 @@ export default function LoginForm() {
       <div className="flex min-h-0 flex-1" hidden={inRoom}>
       {/* Desktops: the mascot in its hallway (with the door of room 2B) beside the form; phones get it small above the form, without the door. */}
       <aside className="hidden px-4 pb-4 lg:block lg:w-[54%] xl:w-[57%]">
-        <HallwayScene state={mascot} onDoor={enterRoom} onDoorIntent={fetchRoom} returns={returns} />
+        <HallwayScene state={mascot} onDoor={enterRoom} onDoorIntent={fetchRoom} onDoorOpen={openDoor} onWalk={stageRoom} returns={returns} />
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="login-col flex min-w-0 flex-1 flex-col">
 
       <main id="main" data-lenis-prevent className="login-scroll flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-5" style={{ paddingBottom: 'max(16px, var(--safe-bottom))' }}>
         <section aria-labelledby="login-title" className="mx-auto flex w-full max-w-[400px] flex-1 flex-col justify-center py-6">
@@ -425,7 +513,7 @@ export default function LoginForm() {
             /* ── The school ─────────────────────────────────────────────── */
             <div key="school" className="login-step mt-8 flex min-h-0 flex-col">
               <label htmlFor="school-search" className="visually-hidden">{t('schoolLabel')}</label>
-              <div className="login-field flex h-[54px] items-center gap-3 rounded-[16px] bg-[var(--surface)] px-4 shadow-[0_0_0_1px_var(--line)] transition-shadow focus-within:shadow-[0_0_0_2px_var(--accent-ink)]">
+              <div className="login-field flex h-[54px] items-center gap-3 rounded-[16px] bg-[var(--surface)] px-4 transition-shadow focus-within:shadow-[0_0_0_2px_var(--accent-ink)]">
                 <MagnifyingGlass size={19} weight="bold" aria-hidden="true" className="shrink-0 text-ink-3" />
                 <input
                   ref={searchInput}
@@ -526,7 +614,7 @@ export default function LoginForm() {
 
               <form onSubmit={handleLogin} className="mt-4 flex flex-col gap-2.5" noValidate>
                 <label htmlFor="login-user" className="visually-hidden">{t('username')}</label>
-                <div className="login-field flex h-[54px] items-center gap-3 rounded-[16px] bg-[var(--surface)] px-4 shadow-[0_0_0_1px_var(--line)] transition-shadow focus-within:shadow-[0_0_0_2px_var(--accent-ink)]">
+                <div className="login-field flex h-[54px] items-center gap-3 rounded-[16px] bg-[var(--surface)] px-4 transition-shadow focus-within:shadow-[0_0_0_2px_var(--accent-ink)]">
                   <input
                     ref={userInput}
                     id="login-user"
@@ -545,7 +633,7 @@ export default function LoginForm() {
                   />
                 </div>
                 <label htmlFor="login-pass" className="visually-hidden">{t('password')}</label>
-                <div className="login-field flex h-[54px] items-center gap-3 rounded-[16px] bg-[var(--surface)] px-4 shadow-[0_0_0_1px_var(--line)] transition-shadow focus-within:shadow-[0_0_0_2px_var(--accent-ink)]">
+                <div className="login-field flex h-[54px] items-center gap-3 rounded-[16px] bg-[var(--surface)] px-4 transition-shadow focus-within:shadow-[0_0_0_2px_var(--accent-ink)]">
                   <input
                     id="login-pass"
                     type={showPw ? 'text' : 'password'}

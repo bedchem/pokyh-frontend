@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Paths, SpritePalette } from '@/components/pixel/SceneSvg';
 import { STAR, itemSprite } from '@/components/pixel/collectibles';
 import {
@@ -10,18 +10,18 @@ import {
 import { useT } from '@/providers/LocaleProvider';
 import { roomDict, type RoomKey } from '@/lib/i18n/dictionaries/room';
 import { prefersReducedMotion } from '@/lib/motion';
-import { ITEMS, SECRET_CODE, STUCK_ODDS, itemByCode, itemById, type Item } from './catalog';
+import { ITEMS, SECRET_CODE, STUCK_ODDS, itemByCode, itemById, type Item, type ItemId } from './catalog';
 import { purchase, roomSnapshot, unlock, useRoomSave } from './store';
 import { ItemIcon, StarIcon } from './parts';
 import s from './room.module.css';
 
-// The vending machine of room 2B up close. Choose a slot (a click, or its
-// code on the keypad or the keyboard: a letter, then a number), pay with
+// The vending machine of room A+2/05 up close. Choose a slot (a click, or
+// its code on the keypad or the keyboard: a letter, then a number), pay with
 // gold stars, watch the spiral turn and the thing drop, take it out of the
 // flap. Now and then something gets stuck and wants a shake; now and then a
-// crown falls out as well. The room's number typed on the keypad does
-// something too. Snacks and drinks go to the mascot; hats, glasses and
-// decorations are kept (components/room/store.ts).
+// crown falls out as well. The countdown on the note in the red book, typed
+// on the keypad (3, 2, 1), does something too. Snacks and drinks go to the mascot; hats, glasses and
+// decorations fly into the inventory (components/room/store.ts).
 
 type Phase = 'idle' | 'paying' | 'turning' | 'stuck' | 'falling' | 'tray' | 'taken';
 
@@ -30,17 +30,19 @@ const IN_SLOTS = Object.fromEntries(ITEMS.filter((i) => i.code).map((i) => [i.co
 const FRONT = vendingFront(PRICES);
 const TRAY: [number, number] = [FLAP[0] + 23, FLAP[1] - 1];
 
-export default function Vending({ onClose, onFed, onToast, onFound }: {
+export default function Vending({ onClose, onFed, onItem, onFound }: {
   onClose: () => void;
   /** A snack or a drink bought: the mascot has it back in the room. */
   onFed: (item: Item, name: string) => void;
-  onToast: (text: string, stars: number) => void;
+  /** Something to keep, taken out at this point of the screen: it flies into the inventory. */
+  onItem: (id: ItemId, from: { x: number; y: number }) => void;
   onFound: (id: 'code' | 'stuck') => void;
 }) {
   const t = useT(roomDict);
   const save = useRoomSave();
   const titleId = useId();
   const root = useRef<HTMLDivElement>(null);
+  const machine = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState<{ W: number; H: number } | null>(null);
   const [sel, setSel] = useState<string | null>(null);
   const [typed, setTyped] = useState('');
@@ -51,10 +53,12 @@ export default function Vending({ onClose, onFed, onToast, onFound }: {
   const [lcdNote, setLcdNote] = useState<string[] | null>(null);
   const shakesNeeded = useRef(0);
 
-  useEffect(() => {
+  // Measured before the first paint, so the machine opens at its size.
+  useLayoutEffect(() => {
     const el = root.current;
     if (!el) return;
-    const ro = new ResizeObserver(([e]) => setBox({ W: e.contentRect.width, H: e.contentRect.height }));
+    setBox({ W: el.clientWidth, H: el.clientHeight });
+    const ro = new ResizeObserver(([e]) => setBox((old) => (old && old.W === e.contentRect.width && old.H === e.contentRect.height ? old : { W: e.contentRect.width, H: e.contentRect.height })));
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
@@ -117,12 +121,15 @@ export default function Vending({ onClose, onFed, onToast, onFound }: {
     if (phase !== 'tray' || !drop) return;
     setPhase('taken');
     const name = t(`item_${drop.item.id}` as RoomKey);
+    const r = machine.current?.getBoundingClientRect();
+    const from = r ? { x: r.left + (FLAP[0] + FLAP[2] / 2) * px, y: r.top + (FLAP[1] + FLAP[3] / 2) * px } : { x: 0, y: 0 };
     if (drop.item.kind === 'snack') onFed(drop.item, name);
-    else onToast(t('toastItem', { name }), 0);
-    if (drop.lucky) onToast(t('toastItem', { name: t('item_crown') }), 0);
+    else onItem(drop.item.id, from);
+    if (drop.lucky) onItem('crown', from);
   };
 
-  // The keypad: a letter and a number choose a slot; the room's number is a secret.
+  // The keypad: a letter and a number choose a slot (a letter always starts
+  // one); numbers alone are the secret code.
   const press = (k: Key) => {
     if (busy) return;
     if (k === 'X') { setTyped(''); setLcdNote(null); setNote(null); return; }
@@ -131,10 +138,11 @@ export default function Vending({ onClose, onFed, onToast, onFound }: {
       else buy();
       return;
     }
-    const next = (typed + k).slice(-2);
-    setTyped(next);
+    const next = /[A-E]/.test(k) ? k : typed + k;
     setLcdNote(null);
-    if (next.length === 2) enterCode(next);
+    const digits = /^\d/.test(next);
+    if (next.length === 1 || (digits && next !== SECRET_CODE && SECRET_CODE.startsWith(next))) { setTyped(next); return; }
+    enterCode(next);
   };
   const enterCode = (code: string) => {
     setTyped('');
@@ -208,7 +216,7 @@ export default function Vending({ onClose, onFed, onToast, onFound }: {
       )}
       <h2 id={titleId} className="visually-hidden">{t('vmTitle')}</h2>
       <div className={s.vmLayout} data-wide={wide ? '' : undefined}>
-        <div className={s.machine} style={{ width: VM_W * px, height: VM_H * px }} data-shake={shake || undefined} key={`m${shake}`}>
+        <div ref={machine} className={s.machine} style={{ width: VM_W * px, height: VM_H * px }} data-shake={shake || undefined} key={`m${shake}`}>
           <svg viewBox={`0 0 ${VM_W} ${VM_H}`} className="spr absolute inset-0 h-full w-full" shapeRendering="crispEdges" aria-hidden="true">
             <Paths sprite={FRONT} />
             <g className={s.bulbs}>

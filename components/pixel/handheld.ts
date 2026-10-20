@@ -1,9 +1,11 @@
 import { mascot } from './mascot';
-import { Sprite, disc, dither, ellipse, grid, line, rect, soft, textPixels, type Pt } from './sprite';
+import { Sprite, disc, dither, ellipse, grid, limb, minus, rect, soft, textPixels, type Pt } from './sprite';
 
-// The tablet of room 2B turned into a little handheld (components/room/
-// Handheld.tsx): a lilac body, the screen in a dark frame with "POKYH" and a
-// light under it, a cross of arrows, A and B, SELECT and START, a speaker.
+// The game console on a desk of room A+2/05, up close (components/room/
+// Handheld.tsx): a lilac shell with its thickness showing along the bottom
+// and shoulder buttons on top, the screen in a dark frame with "POKYH" and a
+// power light, a cross of arrows in its round dip, A and B with their letters
+// on them, SELECT and START with their names under them, a speaker grille.
 // Lying wide on bigger screens, standing up on phones. The parts that can be
 // pressed come with their boxes; the screen is a box the games fill. And the
 // little sprites of the games themselves.
@@ -22,6 +24,9 @@ export interface Handheld {
 }
 
 function dpad(s: Sprite, cx: number, cy: number): Record<'up' | 'down' | 'left' | 'right', Box> {
+  // The round dip the cross sits in.
+  s.fill(disc(cx + 0.5, cy + 0.5, 13.5), 'la1');
+  s.fill(minus(disc(cx + 0.5, cy + 0.5, 13.5), disc(cx + 1.5, cy + 1.5, 13)), 'la0');
   s.mass([...rect(cx - 10, cy - 3, 21, 7), ...rect(cx - 3, cy - 10, 7, 21)], 'ik', { deep: true });
   s.fill(disc(cx + 0.5, cy + 0.5, 1.6), 'ik1');
   s.fill([[cx, cy - 8], [cx - 1, cy - 7], [cx, cy - 7], [cx + 1, cy - 7]], 'ik3');
@@ -36,30 +41,43 @@ function dpad(s: Sprite, cx: number, cy: number): Record<'up' | 'down' | 'left' 
   };
 }
 
+/** A round button with its letter pressed into the middle of it. */
 function button(s: Sprite, cx: number, cy: number, mat: string, label: string): Box {
-  s.fill(dither(ellipse(cx + 1, cy + 6, 6, 1.2)), 'la1');
+  s.fill(dither(ellipse(cx + 1, cy + 6.5, 6, 1.2)), 'la0');
   s.mass(disc(cx, cy, 6.2), mat, { round: [cx, cy] });
-  s.fill(textPixels(label, cx + 6, cy + 4).points, 'la1');
+  const t = textPixels(label, 0, 0);
+  s.fill(t.points.map(([px, py]) => [px + Math.floor(cx) - 1, py + Math.floor(cy) - 2] as Pt), `${mat}0`);
   return [cx - 7, cy - 7, 14, 14];
 }
 
-function pill(s: Sprite, x: number, y: number): Box {
-  s.mass(soft(x, y, 12, 4, 2), 'la', { outline: true, deep: true });
-  s.fill(rect(x + 2, y + 1, 8, 2), 'la1');
+/** A rubber pill and its name under it (centred on the pill). */
+function pill(s: Sprite, x: number, y: number, name: string): Box {
+  s.mass(soft(x, y, 12, 4, 2), 'ik', { outline: true, deep: true });
+  s.fill(rect(x + 2, y + 1, 8, 1), 'ik3');
+  const t = textPixels(name, 0, 0);
+  s.fill(t.points.map(([px, py]) => [px + x + 6 - Math.ceil(t.width / 2), py + y + 7] as Pt), 'la0');
   return [x - 2, y - 3, 16, 10];
 }
 
-function speaker(s: Sprite, x: number, y: number) {
-  for (let i = 0; i < 5; i++) s.fill(line(x + i * 3, y + 10, x + i * 3 + 6, y + 4), 'la1');
+/** Holes of the speaker, in rows that slide by one. */
+function speaker(s: Sprite, x: number, y: number, rows: number, cols: number) {
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) s.set(x + c * 3 + (r % 2), y + r * 3, 'la0').set(x + c * 3 + (r % 2) + 1, y + r * 3, 'la3');
 }
 
 function bezel(s: Sprite, x: number, y: number): Box {
-  s.mass(soft(x, y, 96, 82, 6), 'nt', { deep: true });
-  s.fill(soft(x + 2, y + 2, 92, 78, 5), 'nt0');
+  s.mass(soft(x, y, 96, 80, 7), 'nt', { deep: true });
+  s.fill(soft(x + 2, y + 2, 92, 76, 6), 'nt0');
   const label = textPixels('POKYH', 0, 0);
-  s.fill(label.points.map(([px, py]) => [px + x + 48 - Math.floor(label.width / 2), py + y + 73] as Pt), 'la2');
-  s.fill(rect(x + 6, y + 75, 2, 2), 'st1');
-  return [x + 4, y + 4, 88, 66];
+  s.fill(label.points.map(([px, py]) => [px + x + 48 - Math.floor(label.width / 2), py + y + 70] as Pt), 'la2');
+  return [x + 4, y + 4, 88, 62];
+}
+
+/** The shell: shoulder buttons behind, the bottom edge showing how thick it is, the face. */
+function shell(s: Sprite, w: number, h: number, r: number, shoulders: number[]) {
+  for (const x of shoulders) s.mass(soft(x, -3, 30, 8, 3), 'la', { deep: true });
+  s.mass(soft(0, 2, w, h - 2, r), 'la', { deep: true });
+  s.fill(soft(1, 3, w - 2, h - 4, r), 'la1');
+  s.mass(soft(0, 0, w, h - 5, r), 'la', { deep: true });
 }
 
 const cache = new Map<string, Handheld>();
@@ -70,28 +88,28 @@ export function handheld(layout: 'wide' | 'tall'): Handheld {
   const body = new Sprite();
   let made: Handheld;
   if (layout === 'wide') {
-    body.mass([...rect(18, -2, 24, 4), ...rect(134, -2, 24, 4)], 'la', { deep: true });
-    body.mass(soft(0, 0, 176, 100, 18), 'la', { deep: true });
-    body.fill(dither(rect(8, 92, 160, 2)), 'la1');
+    shell(body, 176, 106, 20, [14, 132]);
     const screen = bezel(body, 40, 6);
-    const arrows = dpad(body, 22, 50);
-    const a = button(body, 160, 44, 'ld', 'A');
-    const b = button(body, 146, 58, 'lb', 'B');
-    const select = pill(body, 70, 91);
-    const start = pill(body, 94, 91);
-    speaker(body, 142, 74);
-    made = { w: 176, h: 100, body, led: new Sprite().fill(rect(46, 81, 2, 2), 'gn3'), screen, pads: { ...arrows, a, b, select, start } };
+    const arrows = dpad(body, 22, 48);
+    // A and B in a dip slanting up to the right.
+    body.fill(limb(149, 56, 163, 42, 9.5), 'la1');
+    const a = button(body, 163, 42, 'ld', 'A');
+    const b = button(body, 149, 56, 'lb', 'B');
+    const select = pill(body, 66, 88, 'SELECT');
+    const start = pill(body, 98, 88, 'START');
+    speaker(body, 146, 74, 4, 6);
+    made = { w: 176, h: 106, body, led: new Sprite().fill(rect(46, 77, 2, 2), 'gn3'), screen, pads: { ...arrows, a, b, select, start } };
   } else {
-    body.mass(soft(0, 0, 112, 158, 16), 'la', { deep: true });
-    body.fill(dither(rect(8, 150, 96, 2)), 'la1');
+    shell(body, 112, 164, 16, [8, 74]);
     const screen = bezel(body, 8, 8);
-    const arrows = dpad(body, 26, 114);
-    const a = button(body, 91, 107, 'ld', 'A');
+    const arrows = dpad(body, 26, 112);
+    body.fill(limb(76, 120, 92, 106, 9.5), 'la1');
+    const a = button(body, 92, 106, 'ld', 'A');
     const b = button(body, 76, 120, 'lb', 'B');
-    const select = pill(body, 36, 139);
-    const start = pill(body, 60, 139);
-    speaker(body, 82, 134);
-    made = { w: 112, h: 158, body, led: new Sprite().fill(rect(14, 83, 2, 2), 'gn3'), screen, pads: { ...arrows, a, b, select, start } };
+    const select = pill(body, 30, 142, 'SELECT');
+    const start = pill(body, 62, 142, 'START');
+    speaker(body, 86, 136, 4, 6);
+    made = { w: 112, h: 164, body, led: new Sprite().fill(rect(14, 79, 2, 2), 'gn3'), screen, pads: { ...arrows, a, b, select, start } };
   }
   cache.set(layout, made);
   return made;
@@ -144,13 +162,13 @@ export function fallingSprite(kind: string): Sprite {
   return s;
 }
 
-/** Mascot puzzle: the picture (48 × 48), the mascot by the board of room 2B. */
+/** Mascot puzzle: the picture (48 × 48), the mascot by the board of room A+2/05. */
 export function puzzlePicture(): Sprite {
   const s = new Sprite();
   s.fill(rect(0, 0, 48, 30), 'cw2');
   s.mass(rect(4, 3, 40, 18), 'wd', { deep: true });
   s.fill(rect(6, 5, 36, 14), 'cb2');
-  s.fill(textPixels('2B', 9, 7).points, 'pp3');
+  s.fill(textPixels('A+2/05', 7, 7).points, 'pp3');
   s.fill([[30, 9], [31, 8], [32, 9], [33, 8], [34, 9], [35, 8]], 'pp3');
   s.fill(rect(0, 30, 48, 4), 'cl2');
   for (let y = 34; y < 48; y++) for (let x = 0; x < 48; x++) s.set(x, y, (y - 34) % 4 === 0 || (x + Math.floor((y - 34) / 4) * 5) % 9 === 0 ? 'pq1' : 'pq2');

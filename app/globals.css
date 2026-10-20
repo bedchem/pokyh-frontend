@@ -75,8 +75,10 @@
   /* Viewport units for the scroll scenes. Full-screen stages use the large
      viewport (--lvh), so no strip of the next section shows when a phone's
      browser bars collapse; what must stay visible above those bars sits
-     within the small viewport (--svh). --toolbar is the difference. Older
-     browsers without these units fall back to vh. */
+     within the small viewport (--svh). --toolbar is the difference. Before
+     the first paint components/ViewportScript.tsx sets all three in pixels
+     (on phones they then stay put while the bars slide); these are the
+     stand-ins without it. Older browsers without the units fall back to vh. */
   --lvh: 1vh;
   --svh: 1vh;
   --toolbar: 0px;
@@ -1123,7 +1125,7 @@ html.lenis body {
   from { transform: none; opacity: 1; }
   to { transform: translateY(-4px); opacity: 0; }
 }
-/* After the energy can (room 2B): buzzing on the spot in little hops, bolts
+/* After the energy can (room A+2/05): buzzing on the spot in little hops, bolts
    flashing on either side in turn. */
 .ms-buzz { animation: ms-buzz 0.32s steps(1, end) infinite; }
 @keyframes ms-buzz {
@@ -1138,6 +1140,16 @@ html.lenis body {
   0%, 49% { opacity: 1; }
   50%, 100% { opacity: 0; }
 }
+/* A somersault (room A+2/05's flip book): crouch, up, once round, land. */
+.ms-flip { transform-box: fill-box; transform-origin: 50% 55%; animation: ms-flip 0.9s both; }
+@keyframes ms-flip {
+  0% { transform: translateY(0) rotate(0deg) scale(1, 1); }
+  14% { transform: translateY(2px) rotate(0deg) scale(1.06, 0.9); animation-timing-function: cubic-bezier(0.2, 0.8, 0.4, 1); }
+  32% { transform: translateY(-12px) rotate(0deg) scale(1, 1); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  72% { transform: translateY(-12px) rotate(-360deg) scale(1, 1); animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.5); }
+  88% { transform: translateY(1px) rotate(-360deg) scale(1.08, 0.9); }
+  100% { transform: translateY(0) rotate(-360deg) scale(1, 1); }
+}
 /* Signs and bubbles pop up; a drop of sweat runs down. */
 .ms-pop { animation: ms-pop 0.24s steps(3, end) both; }
 @keyframes ms-pop {
@@ -1149,7 +1161,7 @@ html.lenis body {
   from { transform: none; }
   to { transform: translateY(3px); opacity: 0.4; }
 }
-/* The door of room 2B (components/room): a button over the drawn door. The
+/* The door of room A+2/05 (components/room): a button over the drawn door. The
    door itself answers the pointer (handle down, light at its edge); the
    keyboard's focus rings it. Going in, the room's warm wall fills the view,
    and the hallway's panel grows into the room's (View Transition). */
@@ -1161,16 +1173,31 @@ html.lenis body {
 }
 .login-door:focus-visible { outline: 3px solid var(--accent-ink); outline-offset: 4px; }
 .login-door:disabled { cursor: default; }
-.hw-into { fill: var(--s-cw2); opacity: 0; pointer-events: none; transition: opacity 0.35s ease; }
-.hw-into[data-on] { opacity: 1; transition: opacity 0.3s ease 0.5s; }
+.hw-into { position: absolute; inset: 0; background: light-dark(#f4ead8, #2a2531); opacity: 0; pointer-events: none; transition: opacity 0.35s ease; }
+.hw-into[data-on] { opacity: 1; transition: opacity 0.3s ease-in 0.68s; }
+.hw-moving { will-change: transform; }
+.hw-walk .spr * { animation-play-state: paused !important; }
+/* The walk through the door: the view turns to it until the doorway is in
+   the middle (the hallway goes on beyond the panel for that), then goes
+   through it, faster and faster. */
+.hw-walk { animation: hw-walk 1s both; }
+@keyframes hw-walk {
+  0% { transform: translate(0, 0) scale(1); animation-timing-function: cubic-bezier(0.45, 0, 0.4, 1); }
+  40% { transform: translate(var(--dx), var(--dy)) scale(1.22); animation-timing-function: cubic-bezier(0.55, 0, 0.9, 0.35); }
+  100% { transform: translate(var(--dx), var(--dy)) scale(var(--k)); }
+}
+/* The form steps aside as the door opens. */
+.login-col { transition: opacity 0.4s ease, translate 0.55s var(--ease-out); }
+.login-page[data-entering] .login-col { opacity: 0; translate: 28px 0; pointer-events: none; }
+.login-page:not([data-entering]) .login-col { transition-delay: 0.2s; }
 .room-stage { background: light-dark(#f4ead8, #2a2531); }
-::view-transition-group(login-stage) { animation-duration: 0.5s; animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }
 ::view-transition-group(login-school) { animation-duration: 0.45s; animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.3s; }
 @media (prefers-reduced-motion: reduce) {
   .login-step, .login-results [role='option'] { animation: none; }
-  .login-hall-in, .hw-clouds, .hw-stars, .hw-locker, .ms-breathe, .ms-hop, .ms-jump, .ms-shake,
-  .ms-open, .ms-frame-a, .ms-pop, .ms-drip, .ms-fume, .ms-throb, .ms-steam, .ms-buzz, .ms-zap-a { animation: none; }
+  .login-hall-in, .hw-clouds, .hw-stars, .hw-locker, .hw-walk, .ms-breathe, .ms-hop, .ms-jump, .ms-shake,
+  .ms-open, .ms-frame-a, .ms-pop, .ms-drip, .ms-fume, .ms-throb, .ms-steam, .ms-buzz, .ms-flip, .ms-zap-a { animation: none; }
+  .login-col { transition: none; }
   .ms-blink, .ms-frame-b, .ms-frame-c, .ms-zap-b { animation: none; opacity: 0; }
 }
 
@@ -1256,7 +1283,7 @@ html[data-hero-wait] .home-hero :is([data-title], [data-letter], [data-chrome] >
 
 /* Without motion the scroll scenes become plain, stacked sections. */
 @media (prefers-reduced-motion: reduce) {
-  .home-hero { height: 100svh !important; }
+  .home-hero { height: calc(100 * var(--svh)) !important; }
   .home-manifest { height: auto !important; margin-top: 0 !important; }
   .home-manifest > div { position: relative !important; }
 }

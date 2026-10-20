@@ -1,16 +1,16 @@
 'use client';
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type ComponentType } from 'react';
-import { CaretLeft, CaretRight } from '@phosphor-icons/react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ComponentType } from 'react';
+import { CaretLeft, CaretRight, Keyboard } from '@phosphor-icons/react';
 import { Paths, SpritePalette } from '@/components/pixel/SceneSvg';
 import { handheld, type Pad } from '@/components/pixel/handheld';
 import { roomBackdrop } from '@/components/pixel/vending';
 import { useT } from '@/providers/LocaleProvider';
 import { roomDict, type RoomKey } from '@/lib/i18n/dictionaries/room';
 import { prefersReducedMotion } from '@/lib/motion';
-import { GAME_IDS, GAME_RULES, PERFECT_BONUS, type GameId } from './catalog';
+import { GAME_IDS, GAME_RULES, PERFECT_BONUS, type GameId, type ItemId } from './catalog';
 import { finishGame, useRoomSave, type GameResult } from './store';
-import { GameIcon, StarIcon } from './parts';
+import { GameIcon, StarIcon, type XY } from './parts';
 import { PixelText, createPadBus, usePad, type GameProps } from './games/shared';
 import Memory from './games/Memory';
 import Maths from './games/Maths';
@@ -19,13 +19,16 @@ import Timetable from './games/Timetable';
 import Puzzle from './games/Puzzle';
 import s from './room.module.css';
 
-// The tablet on the desk of room 2B, turned on: a little handheld with five
-// games (./games). The cross of arrows, A, B, SELECT and START work with a
-// click or a finger, and with the keyboard (arrows or WASD; Enter, Space or
-// K for A; Backspace, J or Escape for B; P for START). Every game starts
-// with its rules, plays, and ends with the score, the stars for it (one to
-// three, the same rules for every game: components/room/catalog.ts) and the
-// gold stars they bring.
+// The game console on a desk of room A+2/05, picked up: a handheld with
+// five games (./games). The cross of arrows, A, B, SELECT and START work
+// with a click or a finger, and with the keyboard (arrows or WASD; Enter,
+// Space or K for A; Backspace, J or Escape for B; P for START; Shift for
+// SELECT). Beside each of the console's buttons sits the key that presses
+// it, like a game's button prompts (shown at first where there is a mouse,
+// switched with the keyboard button), lit while it is held. Every game starts with its rules,
+// plays, and ends with the score, the stars for it (one to three, the same
+// rules for every game: components/room/catalog.ts) and the gold stars they
+// bring, which burst out of the screen and fly into the room's counter.
 
 const GAMES: Record<GameId, ComponentType<GameProps>> = { memory: Memory, maths: Maths, catch: Catch, timetable: Timetable, puzzle: Puzzle };
 
@@ -44,11 +47,36 @@ const KEYMAP: Record<string, Pad> = {
   p: 'start', Shift: 'select',
 };
 
-export default function Handheld({ onClose, onToast }: { onClose: () => void; onToast: (text: string, stars: number) => void }) {
+/**
+ * The key prompts: which key of the keyboard presses which button, placed at
+ * the button (`side`: where of it), for screen readers as a list.
+ */
+const PROMPTS: Array<{ pad: Pad | 'arrows'; keys: string[]; side: 'above' | 'below' | 'left' | 'right'; label: RoomKey }> = [
+  { pad: 'arrows', keys: ['↑', '←', '↓', '→'], side: 'above', label: 'keysMove' },
+  { pad: 'a', keys: ['Enter'], side: 'above', label: 'pad_a' },
+  { pad: 'b', keys: ['Esc'], side: 'below', label: 'pad_b' },
+  { pad: 'select', keys: ['Shift'], side: 'left', label: 'pad_select' },
+  { pad: 'start', keys: ['P'], side: 'right', label: 'pad_start' },
+];
+const ARROW_OF: Record<string, Pad> = { '↑': 'up', '←': 'left', '↓': 'down', '→': 'right' };
+
+// B never leaves the console: it steps back inside it (from a game's rules
+// to the menu, pauses a game, leaves a result); out to the room is the
+// button in the bar on top.
+export default function Handheld({ onEarn, onItem, announce }: {
+  /** Gold stars won, bursting out of the screen at this point of the window. */
+  onEarn: (stars: number, from: XY) => void;
+  /** Something won to keep (the trophy), from this point. */
+  onItem: (id: ItemId, from: XY) => void;
+  /** For screen readers. */
+  announce: (text: string) => void;
+}) {
   const t = useT(roomDict);
   const save = useRoomSave();
   const titleId = useId();
   const root = useRef<HTMLDivElement>(null);
+  const screenEl = useRef<HTMLDivElement>(null);
+  const [keys, setKeys] = useState(() => typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches);
   const [box, setBox] = useState<{ W: number; H: number } | null>(null);
   const [screen, setScreen] = useState<Screen>(() => (prefersReducedMotion() ? { kind: 'menu' } : { kind: 'boot' }));
   const [pick, setPick] = useState(0);
@@ -56,13 +84,18 @@ export default function Handheld({ onClose, onToast }: { onClose: () => void; on
   const [down, setDown] = useState<Pad | null>(null);
   const bus = useMemo(() => createPadBus(), []);
 
-  useEffect(() => {
+  // Measured before the first paint: the console is there at its size and
+  // place from its first frame (no jump from a guessed size).
+  useLayoutEffect(() => {
     const el = root.current;
     if (!el) return;
-    const ro = new ResizeObserver(([e]) => setBox({ W: e.contentRect.width, H: e.contentRect.height }));
+    setBox({ W: el.clientWidth, H: el.clientHeight });
+    const ro = new ResizeObserver(([e]) => setBox((old) => (old && old.W === e.contentRect.width && old.H === e.contentRect.height ? old : { W: e.contentRect.width, H: e.contentRect.height })));
     ro.observe(el);
-    root.current?.querySelector<HTMLElement>('[data-first]')?.focus({ preventScroll: true });
     return () => ro.disconnect();
+  }, []);
+  useEffect(() => {
+    root.current?.querySelector<HTMLElement>('[data-first]')?.focus({ preventScroll: true });
   }, []);
 
   // Switched on: the logo, then the games.
@@ -96,9 +129,14 @@ export default function Handheld({ onClose, onToast }: { onClose: () => void; on
     const result = finishGame(game, score);
     setScreen({ kind: 'result', game, result });
     setPaused(false);
-    if (result.earned > 0) onToast(t('toastGame', { game: t(`game_${game}` as RoomKey) }), result.earned);
-    if (result.trophy) onToast(t('toastItem', { name: t('item_trophy') }), 0);
-  }, [onToast, t]);
+    const r = screenEl.current?.getBoundingClientRect();
+    const from = r ? { x: r.left + r.width / 2, y: r.top + r.height * 0.4 } : { x: 0, y: 0 };
+    if (result.earned > 0) {
+      announce(`${t('toastGame', { game: t(`game_${game}` as RoomKey) })}, ${t('resultEarned', { n: result.earned })}`);
+      onEarn(result.earned, from);
+    }
+    if (result.trophy) onItem('trophy', from);
+  }, [announce, onEarn, onItem, t]);
 
   // What A, B and START do around the games (the games listen for themselves).
   usePad(bus, (key, pressed) => {
@@ -108,7 +146,6 @@ export default function Handheld({ onClose, onToast }: { onClose: () => void; on
       if (key === 'left' || key === 'up') setPick((p) => (p - 1 + GAME_IDS.length) % GAME_IDS.length);
       else if (key === 'right' || key === 'down') setPick((p) => (p + 1) % GAME_IDS.length);
       else if (key === 'a' || key === 'start') setScreen({ kind: 'intro', game: GAME_IDS[pick] });
-      else if (key === 'b') onClose();
     } else if (screen.kind === 'intro') {
       if (key === 'a' || key === 'start') setScreen({ kind: 'play', game: screen.game, run: Date.now() });
       else if (key === 'b') setScreen({ kind: 'menu' });
@@ -125,9 +162,10 @@ export default function Handheld({ onClose, onToast }: { onClose: () => void; on
   // ── The device ────────────────────────────────────────────────────────
   const tall = box ? box.W / box.H < 1.1 : false;
   const device = handheld(tall ? 'tall' : 'wide');
-  // Below the bar with the stars and the way back.
+  // Below the bar with the stars and the way back, above the row of keys.
   const top = box && box.W <= 520 ? 58 : 76;
-  const px = box ? Math.min((box.W * (tall ? 0.96 : 0.9)) / device.w, ((box.H - top) * 0.97) / device.h, tall ? 4.4 : 5.6) : 3;
+  const bottom = 58;
+  const px = box ? Math.min((box.W * (tall ? 0.96 : 0.9)) / device.w, ((box.H - top - bottom) * 0.97) / device.h, tall ? 4.4 : 5.6) : 3;
   const bw = box ? Math.ceil(box.W / px) + 2 : 0;
   const bh = box ? Math.ceil(box.H / px) + 2 : 0;
   const backdrop = useMemo(() => (bw && bh ? roomBackdrop(bw, bh, Math.round(bh * 0.55)) : null), [bw, bh]);
@@ -153,14 +191,15 @@ export default function Handheld({ onClose, onToast }: { onClose: () => void; on
           <Paths sprite={backdrop} />
         </svg>
       )}
-      <h2 id={titleId} className="visually-hidden">{t('tabletTitle')}</h2>
-      <div className={s.device} style={{ width: device.w * px, height: device.h * px, top: `calc(50% + ${top / 2 - 4}px)` }}>
+      <h2 id={titleId} className="visually-hidden">{t('consoleTitle')}</h2>
+      <div className={s.device} style={{ width: device.w * px, height: device.h * px, top: box ? top + (box.H - top - bottom) / 2 : '50%' }}>
         <svg viewBox={`0 0 ${device.w} ${device.h}`} className="spr absolute inset-0 h-full w-full" shapeRendering="crispEdges" aria-hidden="true">
           <Paths sprite={device.body} />
           <g className={s.ledOn}><Paths sprite={device.led} /></g>
         </svg>
 
         <div
+          ref={screenEl}
           className={s.screen}
           data-game={game ?? undefined}
           data-kind={screen.kind}
@@ -260,7 +299,36 @@ export default function Handheld({ onClose, onToast }: { onClose: () => void; on
             />
           );
         })}
+
+        {keys && (
+          <ul aria-label={t('keysLabel')}>
+            {PROMPTS.map((p) => {
+              const [x, y, w, h] = p.pad === 'arrows' ? device.pads.up : device.pads[p.pad];
+              const at = p.side === 'above' ? [x + w / 2, y - 2] : p.side === 'below' ? [x + w / 2, y + h + 1] : p.side === 'left' ? [x - 1, y + h / 2] : [x + w + 1, y + h / 2];
+              return (
+                <li
+                  key={p.label}
+                  className={s.prompt}
+                  data-side={p.side}
+                  data-arrows={p.pad === 'arrows' ? '' : undefined}
+                  style={{ left: at[0] * px, top: at[1] * px }}
+                  aria-label={`${p.keys.join(' ')}: ${t(p.label)}`}
+                >
+                  {p.keys.map((k) => {
+                    const pad = p.pad === 'arrows' ? ARROW_OF[k] : p.pad;
+                    return <kbd key={k} aria-hidden="true" data-on={down === pad ? '' : undefined} data-key={ARROW_OF[k] ?? undefined}>{k}</kbd>;
+                  })}
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
+
+      <button type="button" className={s.keysToggle} aria-pressed={keys} aria-label={t('keysLabel')} onClick={() => setKeys((k) => !k)}>
+        <Keyboard size={18} weight="bold" aria-hidden="true" />
+        <span aria-hidden="true">{t('keysShow')}</span>
+      </button>
     </div>
   );
 }

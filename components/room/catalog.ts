@@ -1,17 +1,18 @@
-// What there is in room 2B (./Classroom.tsx): the vending machine's items,
-// the rare things found elsewhere, the secrets that count as discoveries and
-// the tablet's games with their rules for gold stars. Everything is
+// What there is in room A+2/05 (./Classroom.tsx): the vending machine's
+// items, the rare things found elsewhere, the secrets that count as
+// discoveries and the console's games with their rules for gold stars. Everything is
 // cosmetic and only lives in this browser (./store.ts); nothing here costs
 // real money or touches POKYH itself.
 
-export type ItemKind = 'snack' | 'head' | 'face' | 'decor';
+/** `keep`: something found to keep in the backpack (it does nothing but be had). */
+export type ItemKind = 'snack' | 'head' | 'face' | 'decor' | 'keep';
 
 export const ITEM_IDS = [
   'pudding', 'gum', 'lemonade', 'chips', 'monster', 'cocoa',
   'partyhat', 'gradcap', 'headphones',
   'shades', 'stareyes', 'hearteyes',
   'plant', 'lavalamp', 'lights',
-  'crown', 'disco', 'trophy', 'duck',
+  'crown', 'disco', 'trophy', 'duck', 'note',
 ] as const;
 export type ItemId = (typeof ITEM_IDS)[number];
 
@@ -24,7 +25,7 @@ export interface Item {
   /** A snack that is drunk, not eaten (the bottom row of the machine). */
   drink?: boolean;
   /** How a rare thing is found. */
-  rare?: 'lucky' | 'code' | 'trophy' | 'bin';
+  rare?: 'lucky' | 'code' | 'trophy' | 'bin' | 'book';
 }
 
 export const ITEMS: Item[] = [
@@ -44,25 +45,33 @@ export const ITEMS: Item[] = [
   { id: 'lemonade', kind: 'snack', code: 'E1', price: 2, drink: true },
   { id: 'monster', kind: 'snack', code: 'E2', price: 3, drink: true },
   { id: 'cocoa', kind: 'snack', code: 'E3', price: 2, drink: true },
-  // Never in the window: a lucky extra now and then when buying, the room
-  // number typed on the keypad, three stars in every game, the bin.
+  // Never in the window: a lucky extra now and then when buying, the secret
+  // code typed on the keypad, three stars in every game, the bin.
   { id: 'crown', kind: 'head', code: null, price: 0, rare: 'lucky' },
   { id: 'disco', kind: 'decor', code: null, price: 0, rare: 'code' },
   { id: 'trophy', kind: 'decor', code: null, price: 0, rare: 'trophy' },
   { id: 'duck', kind: 'decor', code: null, price: 0, rare: 'bin' },
+  // The note that falls out of the red book, picked up off the floor.
+  { id: 'note', kind: 'keep', code: null, price: 0, rare: 'book' },
 ];
 
 export const itemById = (id: string): Item | undefined => ITEMS.find((i) => i.id === id);
 export const itemByCode = (code: string): Item | undefined => ITEMS.find((i) => i.code === code);
 
-/** The secret code of the keypad: the room's number. */
-export const SECRET_CODE = '2B';
+/**
+ * The secret code of the keypad, on the note in the red book: a countdown
+ * (like the poster's rocket), digits only, so it never starts a slot's code.
+ */
+export const SECRET_CODE = '321';
 /** One purchase in this many drops the crown as well (until it is found). */
 export const LUCKY_ODDS = 14;
 /** One purchase in this many gets stuck and wants a shake. */
 export const STUCK_ODDS = 9;
 /** One search of the bin in this many finds the duck (after the first). */
 export const DUCK_ODDS = 5;
+/** Paper balls thrown out of the bin per click, and at most on the floor at once. */
+export const PAPER_PER_THROW = 3;
+export const PAPER_MAX = 15;
 /** One click on the mascot in this many is a golden moment. */
 export const GOLDEN_ODDS = 25;
 export const GOLDEN_STARS = 3;
@@ -77,7 +86,7 @@ export const DISCOVERIES = [
 ] as const;
 export type Discovery = (typeof DISCOVERIES)[number];
 
-// ── The tablet's games ───────────────────────────────────────────────────
+// ── The console's games ──────────────────────────────────────────────────
 
 export const GAME_IDS = ['memory', 'maths', 'catch', 'timetable', 'puzzle'] as const;
 export type GameId = (typeof GAME_IDS)[number];
