@@ -11,6 +11,7 @@ const compiled = ts.transpileModule(source, {
 }).outputText;
 const {
   buildFeed, streakMilestone, lostStreak, settleSeen, markSeen, freshKeys, readSeen, untisDay, withoutCleared, clearKeys,
+  mergeSeen, unsyncedMarks,
 } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
 
 const H = 3_600_000;
@@ -118,6 +119,26 @@ test('cleared items leave the feed for good and count as seen', () => {
   assert.deepEqual(markSeen(state, shown).cleared, state.cleared);
   assert.equal(withoutCleared(feed, []), feed);
   assert.equal(clearKeys(state, []), state);
+});
+
+test('what another device saw or cleared joins this one', () => {
+  const local = { keys: ['msg:10'], sources: ['messages'], cleared: [] };
+  const merged = mergeSeen(local, { seen: ['grade:1', 'rem-soon:a'], cleared: ['rem-soon:a'] });
+  assert.deepEqual(merged, { keys: ['msg:10', 'grade:1', 'rem-soon:a'], sources: ['messages'], cleared: ['rem-soon:a'] });
+  // Cleared on the phone: gone here too.
+  const shown = withoutCleared(buildFeed(input, now), merged.cleared);
+  assert.equal(shown.current.some((i) => i.key === 'rem-soon:a'), false);
+  assert.equal(freshKeys(shown, merged).has('grade:1'), false);
+  // Nothing new: the same state comes back.
+  assert.equal(mergeSeen(merged, { seen: ['grade:1'], cleared: [] }), merged);
+});
+
+test('only what the account lacks is sent', () => {
+  const state = { keys: ['a', 'b', 'c'], sources: [], cleared: ['c'] };
+  assert.deepEqual(unsyncedMarks(state, { seen: new Set(), cleared: new Set() }), { seen: ['a', 'b'], cleared: ['c'] });
+  assert.deepEqual(unsyncedMarks(state, { seen: new Set(['a', 'c']), cleared: new Set(['c']) }), { seen: ['b'], cleared: [] });
+  // Seen there, cleared here: the clearing goes up.
+  assert.deepEqual(unsyncedMarks(state, { seen: new Set(['a', 'b', 'c']), cleared: new Set() }), { seen: [], cleared: ['c'] });
 });
 
 test('a streak of three days or more that missed a whole day ran out', () => {

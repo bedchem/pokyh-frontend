@@ -6,7 +6,7 @@ import { api, type ApiReminder, type ApiTodo } from '@/lib/api-client';
 import { fetchAccountActivity, type AccountActivity } from '@/lib/account-activity';
 import { messageIsRead } from '@/lib/untis-parse';
 import {
-  buildFeed, clearKeys, freshKeys, lostStreak, markSeen, readSeen, settleSeen, withoutCleared,
+  buildFeed, clearKeys, freshKeys, lostStreak, markSeen, mergeSeen, readSeen, settleSeen, unsyncedMarks, withoutCleared,
   type BellSource, type Feed, type FeedInput, type GradeIn, type MessageIn, type ReminderIn, type SeenState, type StreakIn, type TodoIn,
 } from '@/lib/bell-feed';
 import { useSession } from '@/providers/SessionProvider';
@@ -19,7 +19,8 @@ import { useApp } from '@/providers/AppProvider';
 // from the account's activity (shared with the profile). Opening the bell
 // reads the to-dos and reminders again; coming back to the tab after a while
 // reads everything again. What was seen, and what was cleared away, is
-// remembered on the device, per account.
+// remembered per account: on the device, and with the account so every device
+// shows the same (see "The account's marks" below).
 
 export interface StreakView {
   days: number;
@@ -35,11 +36,13 @@ interface BellStore {
   seen: SeenState;
   /** Undefined while loading, null when the activity can't be read. */
   streak: StreakView | null | undefined;
+  /** The account's marks are in (or couldn't be read): the badge may count. */
+  synced: boolean;
 }
 
 const EMPTY_SEEN: SeenState = { keys: [], sources: [], cleared: [] };
 const EMPTY_INPUT: FeedInput = {};
-let store: BellStore = { owner: '', input: EMPTY_INPUT, seen: EMPTY_SEEN, streak: undefined };
+let store: BellStore = { owner: '', input: EMPTY_INPUT, seen: EMPTY_SEEN, streak: undefined, synced: false };
 const listeners = new Set<() => void>();
 /** When each source was last asked for. */
 let asked: Partial<Record<BellSource, number>> = {};
@@ -70,7 +73,7 @@ function adoptOwner(owner: string) {
   try { seen = readSeen(localStorage.getItem(seenKey(owner))); } catch { /* storage blocked */ }
   asked = {};
   refreshedAt = 0;
-  emit({ owner, input: EMPTY_INPUT, seen, streak: undefined });
+  emit({ owner, input: EMPTY_INPUT, seen, streak: undefined, synced: false });
 }
 
 function patch(owner: string, part: FeedInput, streak?: StreakView | null) {
@@ -83,6 +86,88 @@ function saveSeen(seen: SeenState) {
   if (seen === store.seen) return;
   emit({ ...store, seen });
   try { localStorage.setItem(seenKey(store.owner), JSON.stringify(seen)); } catch { /* storage blocked */ }
+  schedulePush();
+}
+
+// ── The account's marks (pokyh-backend /users/me/bell) ───────────────────────
+// What was seen or cleared on one device counts on all of them. The device's
+// own copy shows at once (and offline); the account's is joined in when the
+// bell starts, on opening it and back in the tab after a while, and what this
+// device marks goes up shortly after. Only the notifications' identifiers
+// travel ("grade:4711"), kept 30 days. Until the account's marks are in, the
+// badge waits (at most SYNC_WAIT_MS), so another device's clearing never
+// flashes up as new.
+
+const PULL_AGAIN_MS = 30_000;
+const PUSH_DELAY_MS = 800;
+const SYNC_WAIT_MS = 4_000;
+/** Most identifiers per request (as many as the backend takes). */
+const PUSH_BATCH = 400;
+
+interface Remote {
+  owner: string;
+  /** What the account is known to hold. */
+  seen: Set<string>;
+  cleared: Set<string>;
+  /** Read once: from then on, what this device marks is sent. */
+  read: boolean;
+  pulledAt: number;
+  pushing: boolean;
+}
+
+let remote: Remote = { owner: '', seen: new Set(), cleared: new Set(), read: false, pulledAt: 0, pushing: false };
+let pushTimer: ReturnType<typeof setTimeout> | undefined;
+
+function settle(owner: string) {
+  if (store.owner === owner && !store.synced) emit({ ...store, synced: true });
+}
+
+function pull(owner: string) {
+  if (remote.owner !== owner) remote = { owner, seen: new Set(), cleared: new Set(), read: false, pulledAt: 0, pushing: false };
+  if (Date.now() - remote.pulledAt < PULL_AGAIN_MS) return;
+  remote.pulledAt = Date.now();
+  const wait = setTimeout(() => settle(owner), SYNC_WAIT_MS);
+  api.bell.marks()
+    .then((marks) => {
+      if (remote.owner !== owner || store.owner !== owner) return;
+      marks.seen.forEach((k) => remote.seen.add(k));
+      marks.cleared.forEach((k) => remote.cleared.add(k));
+      remote.read = true;
+      saveSeen(mergeSeen(store.seen, marks));
+      // What this device marked meanwhile (or before there was an account copy).
+      schedulePush();
+    })
+    // An older backend, offline: the device's own copy stands.
+    .catch(() => {})
+    .finally(() => {
+      clearTimeout(wait);
+      settle(owner);
+    });
+}
+
+function schedulePush() {
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(push, PUSH_DELAY_MS);
+}
+
+function push() {
+  const owner = store.owner;
+  if (!owner || remote.owner !== owner || !remote.read || remote.pushing) return;
+  const due = unsyncedMarks(store.seen, remote);
+  const batch = { seen: due.seen.slice(0, PUSH_BATCH), cleared: due.cleared.slice(0, PUSH_BATCH) };
+  if (batch.seen.length === 0 && batch.cleared.length === 0) return;
+  remote.pushing = true;
+  api.bell.mark(batch)
+    .then(() => {
+      if (remote.owner !== owner) return;
+      batch.seen.forEach((k) => remote.seen.add(k));
+      batch.cleared.forEach((k) => { remote.seen.add(k); remote.cleared.add(k); });
+      // The rest of a long list, or what was marked while this was on its way.
+      schedulePush();
+    })
+    // Not sent: it goes with the next change or the next reading.
+    .catch(() => {})
+    .finally(() => { remote.pushing = false; });
 }
 
 // ── Reading the answers ──────────────────────────────────────────────────────
@@ -215,11 +300,11 @@ export interface Bell {
   /** Nothing has arrived yet. */
   loading: boolean;
   now: number;
-  /** Reads the to-dos and reminders again (on opening). */
+  /** Reads the to-dos, the reminders and the account's marks again (on opening). */
   refresh: () => void;
   /** Everything shown counts as seen. */
   seeAll: () => void;
-  /** These items leave the feed for good (on this device). */
+  /** These items leave the feed for good, on every device of the account. */
   clear: (keys: string[]) => void;
 }
 
@@ -236,6 +321,7 @@ export function useBell(): Bell {
     if (!owner) return;
     adoptOwner(owner);
     load({ owner, untis, username, uid: stableUid, classId }, false);
+    pull(owner);
   }, [owner, untis, username, stableUid, classId]);
 
   // Times ("vor 5 Min.", "fällig in …") and what is due move with the clock.
@@ -263,6 +349,7 @@ export function useBell(): Bell {
       refreshedAt = Date.now();
       setNow(Date.now());
       load({ owner, untis, username, uid: stableUid, classId }, true);
+      pull(owner);
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
@@ -285,6 +372,7 @@ export function useBell(): Bell {
     if (!owner) return;
     setNow(Date.now());
     load({ owner, untis, username, uid: stableUid, classId }, true);
+    pull(owner);
   }, [owner, untis, username, stableUid, classId]);
 
   const seeAll = useCallback(() => {
@@ -298,7 +386,7 @@ export function useBell(): Bell {
   return {
     feed,
     fresh,
-    newCount: fresh.size,
+    newCount: mine && state.synced ? fresh.size : 0,
     streak: mine ? state.streak : undefined,
     loading: loaded.length === 0,
     now,

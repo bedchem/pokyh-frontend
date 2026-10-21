@@ -235,6 +235,26 @@ function mergeKeys(front: string[], rest: string[]): string[] {
   return [...new Set([...front, ...rest])].slice(0, SEEN_LIMIT);
 }
 
+/** What the account holds (pokyh-backend /users/me/bell): `seen` includes the cleared. */
+export interface BellMarks { seen: string[]; cleared: string[] }
+
+/** The account's marks, from any device, joined into this device's. Unchanged state comes back as the same object. */
+export function mergeSeen(state: SeenState, marks: BellMarks): SeenState {
+  const keys = mergeKeys(state.keys, marks.seen);
+  const cleared = mergeKeys(state.cleared, marks.cleared);
+  const same = (a: string[], b: string[]) => a.length === b.length && a.every((k, i) => k === b[i]);
+  if (same(keys, state.keys) && same(cleared, state.cleared)) return state;
+  return { ...state, keys, cleared };
+}
+
+/** What this device marked that the account doesn't hold yet. */
+export function unsyncedMarks(state: SeenState, known: { seen: ReadonlySet<string>; cleared: ReadonlySet<string> }): BellMarks {
+  return {
+    seen: state.keys.filter((k) => !known.seen.has(k) && !state.cleared.includes(k)),
+    cleared: state.cleared.filter((k) => !known.cleared.has(k)),
+  };
+}
+
 /** The stored state, or a fresh one for anything unreadable (stored before clearing: nothing cleared). */
 export function readSeen(raw: string | null): SeenState {
   try {

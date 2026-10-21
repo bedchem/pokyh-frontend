@@ -21,7 +21,8 @@ import s from './shell.module.css';
 // panel with the streak on top, then what is due soon, then what happened
 // lately (lib/bell-feed.ts). Opening it counts everything as seen; what was
 // new keeps its dot while the panel stays open. Each item can be cleared away
-// (its ×), or all of them at once; they slide out and the list closes up.
+// (its ×), or all of them at once; they slide out and the list closes up. Seen
+// and cleared count on every device of the account (useBell.ts).
 // Closes on a choice, a click elsewhere, Escape or leaving it with Tab.
 
 const DAY = 86_400_000;

@@ -87,3 +87,75 @@ Factual log. No credentials, personal data or request bodies are recorded here.
 - Checks: `node --test tests/bell-feed.test.mjs` 10/10 (3 new), `tsc --noEmit`
   clean, `eslint` clean on the changed files.
 - Release state: uncommitted
+
+## 2026-10-21 · Seen and cleared, the same on every device
+
+- Owner asked whether clearing works account-wide (it was per browser) and
+  then for it to be account-wide, asking first whether storing it is lawful.
+- A "seen/cleared before time X" mark per account was considered and dropped:
+  grades carry their exam date and often arrive days later, and due to-dos
+  and reminders lie ahead, so a time mark would hide late grades or never
+  clear due items. The identifiers the browser already keeps are stored
+  instead.
+- pokyh-backend (state at `35f5ced`, which holds the comment stars):
+  - `prisma/schema.prisma`: `BellMark` (`bell_marks`: stable_uid, key ≤ 120,
+    cleared, created_at; key (stable_uid, key); cascade with the user;
+    index on created_at). Added by the start-up schema sync; replicated in a
+    cluster without further code (catalog read from the database). Not part
+    of the admin JSON export (short-lived state).
+  - `src/services/bellMarks.ts`: read (last 30 days, newest 1000), add
+    (seen stays seen, clearing upgrades a seen mark), delete expired.
+  - `src/routes/users.ts`: `GET /users/me/bell` → `{ seen, cleared }`
+    (`seen` includes the cleared; `Cache-Control: private, no-store`);
+    `POST /users/me/bell` `{ seen?, cleared? }` → 204, at most 400 keys each,
+    1–120 characters of `[A-Za-z0-9:._-]`; read/write rate limits.
+  - `src/index.ts`: daily `cleanupBellMarks` (one node in a cluster), 30 days.
+- Frontend:
+  - `lib/bell-feed.ts`: `mergeSeen` (the account's marks joined in, same
+    object when nothing is new), `unsyncedMarks` (what the account lacks).
+  - `components/app/useBell.ts`: the device's copy shows at once; the
+    account's marks are read when the bell starts, on opening (at most every
+    30 s) and back in the tab after 5 minutes; what the device marks is sent
+    800 ms later in batches of 400, unsent marks go with the next change or
+    reading. The badge waits for the account's marks (at most 4 s), so
+    another device's clearing doesn't flash up. Without the endpoint (backend
+    not deployed yet, 404) or offline the device's copy stands.
+  - `lib/api-client.ts`: `api.bell.marks()`, `api.bell.mark()`.
+  - "Alle entfernen" got a red trash icon.
+- Privacy notice (`app/[lang]/(site)/legal/content.ts`, de/it/en): new entry
+  "Benachrichtigungen (Glocke)" (identifiers only, user ID, time; Art. 6(1)(b)
+  GDPR; deleted after 30 days and with the account); a sentence in the
+  storage periods; the browser entry `pokyh_bell_seen_*` refers to it. The
+  canteen entry now says that a commenter's stars stand beside their comment
+  (it said ratings appear only as average and count). `PRIVACY_NOTICE_VERSION`
+  and `PRIVACY_NOTICE_DAY` raised to 2026-10-21: every account is asked to
+  read the notice again.
+- Deploy the backend before the frontend.
+- Checks (bell sync): frontend `node --test tests/*.test.mjs` 49/49 (2 new), `tsc
+  --noEmit` and `eslint` clean, `next build` passes; backend `prisma
+  validate`, `tsc --noEmit` clean, `npm test` 215/220 with the same 4
+  Windows-only cluster failures. Through the dev server the live API answers
+  `GET /users/me/bell` with 404 (not deployed), which the bell handles.
+- Release state: uncommitted
+
+## 2026-10-21 · pokyh-backend CI green again
+
+- Owner asked why the backend workflow exists and then for it to pass again.
+- `.github/workflows/ci.yml` ("Backend verification", added 2026-09-11 in
+  `1120c61`): on push, pull request and by hand — `npm ci`, `prisma validate`,
+  `npm run build`, `npm audit --omit=dev`.
+- Red on every push since 2026-10-21 04:22: only the audit step failed.
+  `sanitize-html` 2.17.7 (popup HTML, `src/services/popupRender.ts`) has three
+  moderate XSS advisories (GHSA-x3q4-9hxx-gx8m, GHSA-374f-7chj-9948,
+  GHSA-cv27-6wvh-8x7j), published after it was installed; the dependency
+  itself had not changed since `0f1b372`.
+- `npm update sanitize-html`: 2.18.1 (within `^2.17.7`), `launder` 1.7.2,
+  `deepmerge` no longer needed. Only `package-lock.json` changed.
+- Checks: the workflow's steps run locally — `npm ci`, `prisma validate`
+  (valid), `npm run build` (exit 0), `npm audit --omit=dev` (0
+  vulnerabilities); `renderPopupContent` still renders Markdown, links and
+  images and strips scripts, `javascript:` links, event handlers, meta
+  refresh and SVG animation hrefs; `npm test` 215/220 with the same 4
+  Windows-only cluster failures.
+- The workflow turns green with the next push that contains the lockfile.
+- Release state: uncommitted

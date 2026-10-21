@@ -1,6 +1,7 @@
 'use client';
 
 import { API_BASE, API_KEY, forgetSignIn, rememberAccessToken } from './backend';
+import type { BellMarks } from './bell-feed';
 
 // ─── Token storage ────────────────────────────────────────────────────────────
 
@@ -373,6 +374,18 @@ export const api = {
   users: {
     async get(userId: string): Promise<ApiUser> {
       return apiJson<ApiUser>(`/users/${encodeURIComponent(userId)}`);
+    },
+  },
+
+  // Which of the bell's notifications the account has seen and cleared away,
+  // the same on every device (identifiers only, kept 30 days).
+  bell: {
+    async marks(): Promise<BellMarks> {
+      return apiJson<BellMarks>('/users/me/bell');
+    },
+    async mark(marks: BellMarks): Promise<void> {
+      const res = await apiFetch('/users/me/bell', { method: 'POST', body: JSON.stringify(marks) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
     },
   },
 
