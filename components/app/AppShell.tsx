@@ -15,6 +15,7 @@ import Spinner from '@/components/ui/Spinner';
 import LanguageButton, { RoundFlag } from '@/components/site/LanguageButton';
 import { ACTIVE_LOCALES, LOCALE_LABELS, LOCALE_NAMES } from '@/lib/i18n/locale';
 import Avatar from './Avatar';
+import Bell from './Bell';
 import SearchPalette from './SearchPalette';
 import { AppActionsProvider } from './actions';
 import { useMensaAvailable, useUnreadMessages, useUntisPermissions } from './hooks';
@@ -119,6 +120,7 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
           )}
         </Link>
       )}
+      <Bell />
       {/* Phones: the picture opens the same menu as the folded sidebar's. */}
       <AccountMenu
         variant="top"

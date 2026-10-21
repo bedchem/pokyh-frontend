@@ -2064,6 +2064,11 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Welche Hinweis-Popups du bereits gesehen hast."
                 },
                 {
+                  "name": "pokyh_bell_seen_*",
+                  "kind": "setting",
+                  "desc": "Welche Benachrichtigungen der Glocke du schon gesehen hast (nur Kennungen, keine Inhalte), je Konto. Bleibt im Browser, bis du ihn dort löschst."
+                },
+                {
                   "name": "pokyh_app_icon",
                   "kind": "setting",
                   "desc": "Gewähltes App-Symbol."
@@ -2281,6 +2286,11 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Quali popup informativi hai già visto."
                 },
                 {
+                  "name": "pokyh_bell_seen_*",
+                  "kind": "setting",
+                  "desc": "Quali notifiche della campanella hai già visto (solo identificativi, nessun contenuto), per account. Resta nel browser finché non lo elimini lì."
+                },
+                {
                   "name": "pokyh_app_icon",
                   "kind": "setting",
                   "desc": "Icona dell’app scelta."
@@ -2496,6 +2506,11 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "name": "pokyh_popups_seen",
                   "kind": "setting",
                   "desc": "Which notice popups you have already seen."
+                },
+                {
+                  "name": "pokyh_bell_seen_*",
+                  "kind": "setting",
+                  "desc": "Which of the bell’s notifications you have already seen (identifiers only, no content), per account. Stays in the browser until you delete it there."
                 },
                 {
                   "name": "pokyh_app_icon",

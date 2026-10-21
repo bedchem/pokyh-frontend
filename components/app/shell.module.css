@@ -114,6 +114,105 @@
 .iconBtn:hover {
   background: color-mix(in srgb, var(--surface) 92%, var(--ink));
 }
+.iconBtn:active { scale: 0.95; }
+.iconBtnOn,
+.iconBtnOn:hover {
+  background: var(--accent-tint);
+  color: var(--accent-ink);
+}
+
+/* ── The bell (Bell.tsx) ────────────────────────────────────── */
+
+/* Rings when something new comes in: swings from its top, settling. */
+.ring {
+  display: grid;
+  transform-origin: 50% 2px;
+  animation: bell-ring 0.9s var(--ease-out) both;
+}
+@keyframes bell-ring {
+  0% { rotate: 0deg; }
+  12% { rotate: 18deg; }
+  26% { rotate: -15deg; }
+  40% { rotate: 11deg; }
+  54% { rotate: -7deg; }
+  68% { rotate: 4deg; }
+  82% { rotate: -2deg; }
+  100% { rotate: 0deg; }
+}
+.pop { animation: bell-pop 0.38s var(--ease-out) both; }
+@keyframes bell-pop {
+  from { scale: 0.3; opacity: 0; }
+  60% { scale: 1.15; opacity: 1; }
+  to { scale: 1; }
+}
+
+/* Phones: across the screen under the top bar. Wider: hanging from the bell. */
+.bellPanel {
+  position: fixed;
+  top: calc(64px + var(--safe-top));
+  inset-inline: 12px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 64px - var(--safe-top) - var(--bar-h) - 16px);
+  border-radius: 20px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 18px 44px -16px rgb(0 0 0 / 0.35);
+  transform-origin: top right;
+  outline: none;
+}
+@media (min-width: 640px) {
+  .bellPanel {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    left: auto;
+    width: 392px;
+    max-height: min(640px, calc(100dvh - 120px - var(--bar-h)));
+  }
+}
+.bellScroll {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: 4px;
+}
+.bellTile {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+}
+/* What is new comes in one after another when the panel opens. */
+.bellRow[data-fresh] { animation: bell-row-in 0.4s var(--ease-out) both; }
+li:nth-child(2) > .bellRow[data-fresh] { animation-delay: 40ms; }
+li:nth-child(3) > .bellRow[data-fresh] { animation-delay: 80ms; }
+li:nth-child(n + 4) > .bellRow[data-fresh] { animation-delay: 120ms; }
+@keyframes bell-row-in {
+  from { opacity: 0; translate: 10px 0; }
+  to { opacity: 1; translate: none; }
+}
+/* The streak's flame catches when the panel opens; the week fills in after it. */
+.flame[data-lit='true'] svg { animation: flame-catch 0.7s var(--ease-out) both; transform-origin: 50% 90%; }
+@keyframes flame-catch {
+  0% { scale: 0.4; opacity: 0; }
+  45% { scale: 1.18; opacity: 1; }
+  70% { scale: 0.94; }
+  100% { scale: 1; }
+}
+.weekDay {
+  width: 11px;
+  height: 11px;
+  border-radius: 3.5px;
+  animation: week-in 0.3s var(--ease-out) both;
+}
+.weekToday { box-shadow: 0 0 0 1.5px var(--inset), 0 0 0 3px var(--accent-ink); }
+@keyframes week-in {
+  from { scale: 0.2; opacity: 0; }
+  to { scale: 1; opacity: 1; }
+}
 /* Module classes win over Tailwind's display utilities, so visibility by
    width is set here. */
 

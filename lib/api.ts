@@ -230,6 +230,11 @@ export function areAbsencesStale(year?: number): boolean {
   return pcIsStale(`/api/webuntis/absences?startDate=${start}&endDate=${end}`);
 }
 
+/** True when the stored current grades are older than the cache's TTL (or missing). */
+export function areGradesStale(): boolean {
+  return pcIsStale('/api/webuntis/grades');
+}
+
 export function isTimetableStale(date?: string): boolean {
   return pcIsStale(`/api/webuntis/timetable?date=${date ?? todayFormatted()}`);
 }

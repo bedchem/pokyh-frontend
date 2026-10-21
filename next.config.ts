@@ -21,12 +21,12 @@ const envSeconds = (name: string, fallback: number) => {
 // The API's top-level paths the website calls. `next dev` passes them on to
 // the API on its own address, so the API's cookies land on localhost and the
 // website runs as it does in production (lib/backend.ts uses '' as the API
-// address in development).
+// address in development). They go through app/dev-api, which drops the
+// browser's Origin the API's CORS would refuse.
 const API_PATHS = [
   'webuntis', 'auth', 'dishes', 'dish-ratings', 'dish-comments', 'users', 'classes', 'sse',
   'subject-images', 'activity-log', 'client-errors', 'usage', 'privacy', 'push', 'popups',
 ];
-const DEV_API_TARGET = (process.env.API_DEV_PROXY_TARGET ?? process.env.NEXT_PUBLIC_API_BACKEND_URL ?? 'https://api.pokyh.com').replace(/\/$/, '');
 
 const base: NextConfig = {
   // The development badge would sit on the sidebar's profile and settings.
@@ -69,12 +69,14 @@ export default function nextConfig(phase: string): NextConfig {
   if (phase === PHASE_DEVELOPMENT_SERVER) {
     return {
       ...base,
+      // Files ending in .dev.ts are routes in development only (app/dev-api).
+      pageExtensions: ['dev.ts', 'tsx', 'ts', 'jsx', 'js'],
       // The API's calls must not be redirected to an address with a slash.
       skipTrailingSlashRedirect: true,
       async rewrites() {
         return API_PATHS.flatMap((p) => [
-          { source: `/${p}`, destination: `${DEV_API_TARGET}/${p}` },
-          { source: `/${p}/:path*`, destination: `${DEV_API_TARGET}/${p}/:path*` },
+          { source: `/${p}`, destination: `/dev-api/${p}` },
+          { source: `/${p}/:path*`, destination: `/dev-api/${p}/:path*` },
         ]);
       },
     };

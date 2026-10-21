@@ -184,7 +184,9 @@ export default function CommentSection({ comments, stableUid, isAdmin, loading, 
             const canDelete = isMine || isAdmin;
             const canReport = stableUid != null && !isMine;
             const isEditing = editingId === c.id;
-            const stars = ratings?.[c.stableUid];
+            // The live vote under the same account first; else what the backend
+            // matched (a comment written before the account's stableUid changed).
+            const stars = ratings?.[c.stableUid] ?? c.stars;
 
             return (
               <li key={c.id} className="group relative flex gap-3 py-3.5 before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-line first:pt-1 first:before:hidden">

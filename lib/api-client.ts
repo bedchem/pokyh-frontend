@@ -319,6 +319,8 @@ export interface ApiComment {
   body: string;
   createdAt: string;
   updatedAt: string;
+  /** Under a dish, signed in: the stars its author gave it (pokyh-backend matches them by account, also across a changed stableUid). */
+  stars?: number | null;
 }
 
 export interface CreateTodoData {
