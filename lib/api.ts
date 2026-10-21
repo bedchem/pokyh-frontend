@@ -13,7 +13,7 @@
 import { API_KEY, apiUrl, rememberSignIn, untisUrl } from './backend';
 import { accessToken, signOutEverywhere } from './api-client';
 import { cacheGet, cacheSet, cacheIsStale, cacheClear, cacheDel } from './cache';
-import { pcGetStale, pcIsStale, pcSet, pcDel, pcClear } from './persist-cache';
+import { pcGetStale, pcIsStale, pcSet, pcDel, pcClear, pcUrls } from './persist-cache';
 import type {
   UntisPermissions,
   AbsenceReason,
@@ -121,8 +121,47 @@ async function backendRequest(url: string, opts?: RequestInit): Promise<[string,
   return [apiUrl(`/dishes${school ? `?school=${encodeURIComponent(school)}` : ''}`), opts ?? {}];
 }
 
+// When this page last asked WebUntis anything (components/app/hooks.ts keeps
+// the session from going idle).
+let lastUntisRequest = 0;
+
+/** How long this page has not asked WebUntis anything (ms). */
+export function untisIdleMs(): number {
+  return Date.now() - lastUntisRequest;
+}
+
+// A sign-in lasts 4 hours from its last renewal (the API's cookies and
+// pokyh_user). WebUntis' short sessions used to renew it every few minutes on
+// their own; with current tokens that stopped, so while the person uses the
+// app a sign-in 3 hours old gets the same silent renewal in the background.
+const RENEW_AFTER_MS = 3 * 60 * 60_000;
+const RENEW_RETRY_MS = 5 * 60_000;
+let renewTriedAt = 0;
+
+function signInAge(): number | null {
+  const m = typeof document !== 'undefined' ? document.cookie.match(/(?:^|;\s*)pokyh_user=([^;]*)/) : null;
+  if (!m) return null;
+  try {
+    const at = (JSON.parse(decodeURIComponent(m[1])) as { loginAt?: unknown }).loginAt;
+    return typeof at === 'number' ? Date.now() - at : null;
+  } catch {
+    return null;
+  }
+}
+
+function renewWhileInUse(): void {
+  const age = signInAge();
+  if (age === null || age < RENEW_AFTER_MS || Date.now() - renewTriedAt < RENEW_RETRY_MS) return;
+  renewTriedAt = Date.now();
+  void attemptSilentRelogin();
+}
+
 async function apiFetch(url: string, opts?: RequestInit) {
   log('fetch', url);
+  if (url.startsWith('/api/webuntis/')) {
+    lastUntisRequest = Date.now();
+    renewWhileInUse();
+  }
   const res = await fetch(...(await backendRequest(url, opts)));
 
   if (res.status === 401) {
@@ -187,11 +226,54 @@ async function apiFetchCached(url: string, opts?: RequestInit): Promise<unknown>
   const request = apiFetch(url, opts)
     .then((data) => {
       cacheSet(url, data);
-      pcSet(url, data);
+      storeOnDevice(url, data);
       return data;
     })
     .finally(() => inFlight.delete(url));
   inFlight.set(url, request);
+  return request;
+}
+
+// Stored answers whose addresses never end (one per week, per date range, per
+// message): only the newest few of each family stay on the device, so it
+// doesn't fill up over a school year.
+function familyOf(url: string): { name: string; limit: number } | null {
+  const [path, query = ''] = url.split('?');
+  if (path === '/api/webuntis/timetable') return { name: 'timetable', limit: 8 };
+  if (path === '/api/webuntis/exams' || path === '/api/webuntis/homework') return { name: path, limit: 4 };
+  // Opened messages: the last few, so going back to one is instant too.
+  if (path === '/api/webuntis/messages' && /(^|&)id=/.test(query)) return { name: 'message', limit: 10 };
+  // Single weeks of absences (the timetable overlay); school years are few.
+  if (path === '/api/webuntis/absences' && !/startDate=\d{4}0901&endDate=\d{4}0630/.test(query)) return { name: 'absence-weeks', limit: 4 };
+  return null;
+}
+
+function storeOnDevice(url: string, data: unknown): void {
+  pcSet(url, data);
+  const family = familyOf(url);
+  if (!family) return;
+  const indexKey = `#stored:${family.name}`;
+  // A device from before the limit: its copies of the family join the list, oldest first.
+  const listed = pcGetStale<string[]>(indexKey) ?? pcUrls().filter((u) => familyOf(u)?.name === family.name);
+  const urls = listed.filter((u) => u !== url);
+  urls.push(url);
+  while (urls.length > family.limit) pcDel(urls.shift() as string);
+  pcSet(indexKey, urls);
+}
+
+/** How long an answer just in serves whoever asks next (a page opened right after a preload). */
+const REUSE_MS = 5_000;
+
+function apiFetchStored(url: string): Promise<unknown> {
+  const pending = inFlight.get(url);
+  if (pending) return pending;
+  const request = apiFetch(url).then((data) => {
+    storeOnDevice(url, data);
+    return data;
+  });
+  inFlight.set(url, request);
+  const forget = () => { if (inFlight.get(url) === request) inFlight.delete(url); };
+  request.then(() => window.setTimeout(forget, REUSE_MS), forget);
   return request;
 }
 
@@ -216,11 +298,30 @@ export function getAbsencesStale(year?: number): unknown | undefined {
   return pcGetStale(`/api/webuntis/absences?startDate=${start}&endDate=${end}`);
 }
 
+// The current school year's class register has one address, whichever way a
+// page asks for it (the API takes no year as the current one, with the same rule).
+function classregUrl(year?: number): string {
+  const now = new Date();
+  const current = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+  return year && year !== current ? `/api/webuntis/classregevents?year=${year}` : '/api/webuntis/classregevents';
+}
+
 export function getClassregEventsStale(year?: number): unknown | undefined {
-  const url = year
-    ? `/api/webuntis/classregevents?year=${year}`
-    : '/api/webuntis/classregevents';
-  return pcGetStale(url);
+  return pcGetStale(classregUrl(year));
+}
+
+/** Exams of that range (yyyyMMdd) as this device stored them last time. */
+export function getExamsStale(startDate: string, endDate: string): unknown | undefined {
+  return pcGetStale(`/api/webuntis/exams?startDate=${startDate}&endDate=${endDate}`);
+}
+
+/** Homework of that range (yyyyMMdd) as this device stored it last time. */
+export function getHomeworkStale(startDate: string, endDate: string): unknown | undefined {
+  return pcGetStale(`/api/webuntis/homework?startDate=${startDate}&endDate=${endDate}`);
+}
+
+export function getClassServicesStale(): unknown | undefined {
+  return pcGetStale('/api/webuntis/classservices');
 }
 
 /** True when the stored Abwesenheiten of that school year are older than the cache's TTL. */
@@ -244,6 +345,18 @@ export function isTimetableStale(date?: string): boolean {
 export function fetchTimetable(date?: string) {
   const d = date ?? todayFormatted();
   return apiFetchCached(`/api/webuntis/timetable?date=${d}`);
+}
+
+/**
+ * A week of the timetable for a calculation over a whole school year (the
+ * absence rate): live, and kept neither in memory nor on the device, which
+ * that many weeks would fill. A week already kept in memory is taken as it is.
+ */
+export function fetchTimetableForCalc(date: string): Promise<unknown> {
+  const url = `/api/webuntis/timetable?date=${date}`;
+  const kept = cacheGet<unknown>(url);
+  if (kept !== undefined) return Promise.resolve(kept);
+  return inFlight.get(url) ?? apiFetch(url);
 }
 
 export function fetchGrades(year?: number) {
@@ -274,7 +387,12 @@ export function fetchMessages(folder: MessageFolder = 'inbox') {
 }
 
 export function fetchMessageDetail(id: number) {
-  return apiFetch(`/api/webuntis/messages?id=${id}`);
+  return apiFetchStored(`/api/webuntis/messages?id=${id}`);
+}
+
+/** A message as this device stored it when it was last opened. */
+export function getMessageDetailStale(id: number): unknown | undefined {
+  return pcGetStale(`/api/webuntis/messages?id=${id}`);
 }
 
 export function fetchMessageAttachments(id: number) {
@@ -282,6 +400,21 @@ export function fetchMessageAttachments(id: number) {
 }
 
 const INBOX_URL = '/api/webuntis/messages?folder=inbox';
+
+/** The inbox live from WebUntis, whatever memory holds; stored like fetchMessages does. */
+export function refreshInbox(): Promise<unknown> {
+  const pending = inFlight.get(INBOX_URL);
+  if (pending) return pending;
+  const request = apiFetch(INBOX_URL)
+    .then((data) => {
+      cacheSet(INBOX_URL, data);
+      storeOnDevice(INBOX_URL, data);
+      return data;
+    })
+    .finally(() => inFlight.delete(INBOX_URL));
+  inFlight.set(INBOX_URL, request);
+  return request;
+}
 
 /**
  * Marks messages as read in the stored inbox as well, so the list, the
@@ -307,8 +440,11 @@ function markReadInStoredInbox(ids: number[]): void {
   window.dispatchEvent(new CustomEvent('pokyh-messages-updated', { detail: { unread } }));
 }
 
-export async function markMessageRead(id: number) {
-  await fetch(untisUrl(`/api/webuntis/messages?id=${id}`), untisInit({ method: 'POST' }));
+/**
+ * A message just opened with fetchMessageDetail: opening it is what marks it
+ * read in WebUntis, so only the stored inbox and the badges need to follow.
+ */
+export function markOpenedMessageRead(id: number): void {
   markReadInStoredInbox([id]);
 }
 
@@ -323,26 +459,23 @@ export function fetchHomework() {
   const future = new Date();
   future.setDate(future.getDate() + 30);
   const end = dateFormatted(future).replace(/-/g, '');
-  return apiFetch(`/api/webuntis/homework?startDate=${start}&endDate=${end}`);
+  return apiFetchStored(`/api/webuntis/homework?startDate=${start}&endDate=${end}`);
 }
 
 export function fetchClassregEvents(year?: number) {
-  const url = year
-    ? `/api/webuntis/classregevents?year=${year}`
-    : '/api/webuntis/classregevents';
-  return apiFetchCached(url);
+  return apiFetchCached(classregUrl(year));
 }
 
 export function fetchClassServices() {
-  return apiFetch('/api/webuntis/classservices');
+  return apiFetchStored('/api/webuntis/classservices');
 }
 
 export function fetchExams(startDate: string, endDate: string) {
-  return apiFetch(`/api/webuntis/exams?startDate=${startDate}&endDate=${endDate}`);
+  return apiFetchStored(`/api/webuntis/exams?startDate=${startDate}&endDate=${endDate}`);
 }
 
 export function fetchHomeworkRange(startDate: string, endDate: string) {
-  return apiFetch(`/api/webuntis/homework?startDate=${startDate}&endDate=${endDate}`);
+  return apiFetchStored(`/api/webuntis/homework?startDate=${startDate}&endDate=${endDate}`);
 }
 
 /**
@@ -394,9 +527,24 @@ function invalidateAbsences() {
   for (const k of keys) { cacheDel(k); pcDel(k); }
 }
 
+// The last live permissions answer on this device. Its own address: answers
+// stored under the API's, from before the report gate followed only WebUntis'
+// own flag, may hold a "yes" for a student under 18.
+const PERMISSIONS_KEY = '#permissions';
+
 export function fetchPermissions(): Promise<UntisPermissions> {
-  // Never cached (browser or memory), the 18+/report gate is always read fresh.
-  return apiFetch('/api/webuntis/permissions', { cache: 'no-store' }) as Promise<UntisPermissions>;
+  // Read live every time; the copy on the device only shows the page until
+  // the answer is there. Reporting itself is checked live by the API.
+  return apiFetch('/api/webuntis/permissions').then((data) => {
+    pcSet(PERMISSIONS_KEY, data);
+    pcDel('/api/webuntis/permissions');
+    return data as UntisPermissions;
+  });
+}
+
+/** The last live permissions answer on this device, for the page until the live one is there. */
+export function getStoredPermissions(): UntisPermissions | null {
+  return pcGetStale<UntisPermissions>(PERMISSIONS_KEY) ?? null;
 }
 
 export function fetchAbsenceReasons(): Promise<{ reasons: AbsenceReason[] }> {

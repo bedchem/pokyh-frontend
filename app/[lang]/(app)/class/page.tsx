@@ -16,7 +16,11 @@ import {
   fetchClassServices,
   fetchExams,
   fetchHomeworkRange,
+  getAbsencesStale,
   getClassregEventsStale,
+  getClassServicesStale,
+  getExamsStale,
+  getHomeworkStale,
 } from '@/lib/api';
 import type { AbsenceEntry } from '@/lib/types';
 import { useDateLocale, useT } from '@/providers/LocaleProvider';
@@ -107,6 +111,34 @@ function parseHomework(raw: unknown): { homeworks: HomeworkRecord[]; lessons: { 
   };
 }
 
+type WeekHomework = { now: HomeworkRecord[]; next: HomeworkRecord[]; subjects: Map<number, string> };
+
+type SchoolWeek = ReturnType<typeof schoolWeek>;
+
+/** The open homework of this and next week, with the subject of each lesson. */
+function homeworkOf(raw: unknown, now: SchoolWeek, next: SchoolWeek): WeekHomework {
+  const { homeworks, lessons } = parseHomework(raw);
+  const open = homeworks.filter((h) => !h.completed && h.dueDate > 0).sort((a, b) => a.dueDate - b.dueDate);
+  return {
+    now: open.filter((h) => h.dueDate >= now.startNum && h.dueDate <= now.endNum),
+    next: open.filter((h) => h.dueDate >= next.startNum && h.dueDate <= next.endNum),
+    subjects: new Map(lessons.map((l) => [l.id, l.subject.split(' (')[0]])),
+  };
+}
+
+/** Your open absences, newest first. */
+function openAbsencesOf(raw: unknown): AbsenceEntry[] {
+  return parseAbsences(raw).filter((a) => !a.isExcused).sort((a, b) => b.startDate - a.startDate);
+}
+
+/**
+ * A part shown at once from what this device stored last time (the live
+ * answer replaces it), or a skeleton until the live answer is there.
+ */
+function storedPart<T>(stored: unknown, parse: (raw: unknown) => T, empty: T): Part<T> {
+  return stored === undefined ? start(empty) : { loading: false, failed: false, data: parse(stored) };
+}
+
 function recentOf(events: ClassregEvent[]): ClassregEvent[] {
   const d = new Date();
   d.setMonth(d.getMonth() - 3);
@@ -163,12 +195,22 @@ function ClassContent() {
     const stale = getClassregEventsStale();
     return { loading: true, failed: false, data: stale ? recentOf(parseClassregRows(stale)) : [] };
   });
-  const [services, setServices] = useState<Part<ClassRole[]>>(() => start([]));
-  const [absences, setAbsences] = useState<Part<AbsenceEntry[]>>(() => start([]));
-  const [exams, setExams] = useState<Part<{ now: ExamItem[]; next: ExamItem[] }>>(() => start({ now: [], next: [] }));
-  const [homework, setHomework] = useState<Part<{ now: HomeworkRecord[]; next: HomeworkRecord[]; subjects: Map<number, string> }>>(
-    () => start({ now: [], next: [], subjects: new Map() }),
-  );
+  const [services, setServices] = useState<Part<ClassRole[]>>(() => storedPart(getClassServicesStale(), parseClassServices, []));
+  const [absences, setAbsences] = useState<Part<AbsenceEntry[]>>(() => storedPart(getAbsencesStale(), openAbsencesOf, []));
+  const [exams, setExams] = useState<Part<{ now: ExamItem[]; next: ExamItem[] }>>(() => {
+    const now = schoolWeek(0);
+    const next = schoolWeek(1);
+    const storedNow = getExamsStale(now.startStr, now.endStr);
+    const storedNext = getExamsStale(next.startStr, next.endStr);
+    return storedNow === undefined || storedNext === undefined
+      ? start({ now: [], next: [] })
+      : { loading: false, failed: false, data: { now: parseExams(storedNow), next: parseExams(storedNext) } };
+  });
+  const [homework, setHomework] = useState<Part<WeekHomework>>(() => {
+    const now = schoolWeek(0);
+    const next = schoolWeek(1);
+    return storedPart(getHomeworkStale(now.startStr, next.endStr), (raw) => homeworkOf(raw, now, next), { now: [], next: [], subjects: new Map() });
+  });
 
   const thisWeek = schoolWeek(0);
   const nextWeek = schoolWeek(1);
@@ -188,29 +230,13 @@ function ClassContent() {
       .then((raw) => setServices({ loading: false, failed: false, data: parseClassServices(raw) }))
       .catch((e) => { if (!expired(e)) setServices((p) => ({ ...p, loading: false, failed: true })); });
     fetchAbsences()
-      .then((raw) => setAbsences({
-        loading: false,
-        failed: false,
-        data: parseAbsences(raw).filter((a) => !a.isExcused).sort((a, b) => b.startDate - a.startDate),
-      }))
+      .then((raw) => setAbsences({ loading: false, failed: false, data: openAbsencesOf(raw) }))
       .catch((e) => { if (!expired(e)) setAbsences((p) => ({ ...p, loading: false, failed: true })); });
     Promise.all([fetchExams(now.startStr, now.endStr), fetchExams(next.startStr, next.endStr)])
       .then(([a, b]) => setExams({ loading: false, failed: false, data: { now: parseExams(a), next: parseExams(b) } }))
       .catch((e) => { if (!expired(e)) setExams((p) => ({ ...p, loading: false, failed: true })); });
     fetchHomeworkRange(now.startStr, next.endStr)
-      .then((raw) => {
-        const { homeworks, lessons } = parseHomework(raw);
-        const open = homeworks.filter((h) => !h.completed && h.dueDate > 0).sort((a, b) => a.dueDate - b.dueDate);
-        setHomework({
-          loading: false,
-          failed: false,
-          data: {
-            now: open.filter((h) => h.dueDate >= now.startNum && h.dueDate <= now.endNum),
-            next: open.filter((h) => h.dueDate >= next.startNum && h.dueDate <= next.endNum),
-            subjects: new Map(lessons.map((l) => [l.id, l.subject.split(' (')[0]])),
-          },
-        });
-      })
+      .then((raw) => setHomework({ loading: false, failed: false, data: homeworkOf(raw, now, next) }))
       .catch((e) => { if (!expired(e)) setHomework((p) => ({ ...p, loading: false, failed: true })); });
   }, []);
 

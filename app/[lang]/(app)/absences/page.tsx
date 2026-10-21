@@ -15,7 +15,8 @@ import ErrorView from '@/components/ui/ErrorView';
 // Abwesenheit-melden deaktiviert (kein funktionierender WebUntis-Schreib-Endpunkt):
 import ReportAbsenceSheet from '@/components/absences/ReportAbsenceSheet';
 import ExcuseSheet from '@/components/absences/ExcuseSheet';
-import { fetchAbsences, fetchTimetable, getAbsencesStale, fetchPermissions, excuseLetterUrl } from '@/lib/api';
+import { fetchAbsences, fetchTimetableForCalc, getAbsencesStale, excuseLetterUrl } from '@/lib/api';
+import { useUntisPermissions } from '@/components/app/hooks';
 import { untisActionsDict } from '@/lib/i18n/dictionaries/untisActions';
 import { useSession, loginPath } from '@/providers/SessionProvider';
 import type { AbsenceEntry } from '@/lib/types';
@@ -251,8 +252,10 @@ export default function AbsencesPage() {
   const [loading, setLoading] = useState(() => !getAbsencesStale(CURRENT_SCHOOL_YEAR));
   const [error, setError] = useState('');
   const [exact, setExact] = useState(false);
-  const [canReport, setCanReport] = useState(false);
-  const [personName, setPersonName] = useState<string | null>(null);
+  // Shared with the frame: shown at once from the last answer on this device.
+  const perms = useUntisPermissions();
+  const canReport = !!perms?.canReportAbsence;
+  const personName = perms?.personName ?? null;
   const [showReport, setShowReport] = useState(false);
   const [excuse, setExcuse] = useState<{ ids: number[]; summary: string } | null>(null);
   const [letterOpen, setLetterOpen] = useState(false);
@@ -286,7 +289,7 @@ export default function AbsencesPage() {
 
       // Fetch timetable for absence weeks + all school-year weeks (for accurate rate denominator)
       const allWeeks = Array.from(new Set([...getWeeksForAbsences(parsed), ...getWeeksForSchoolYear(now, sep)]));
-      const weekResults = await Promise.allSettled(allWeeks.map((d) => fetchTimetable(d)));
+      const weekResults = await Promise.allSettled(allWeeks.map((d) => fetchTimetableForCalc(d)));
 
       // If any timetable fetch was rejected due to session expiry, redirect now.
       const sessionExpired = weekResults.some(
@@ -342,18 +345,6 @@ export default function AbsencesPage() {
     const timer = window.setTimeout(() => { void load(); }, 0);
     return () => window.clearTimeout(timer);
   }, [load]);
-
-  useEffect(() => {
-    let alive = true;
-    fetchPermissions()
-      .then((p) => {
-        if (!alive) return;
-        setCanReport(!!p.canReportAbsence);
-        setPersonName(p.personName ?? null);
-      })
-      .catch(() => { /* gating stays off on error */ });
-    return () => { alive = false; };
-  }, []);
 
   useEffect(() => {
     function onDown(e: MouseEvent) {

@@ -35,7 +35,7 @@ import { Page } from '@/components/app/Page';
 import { Bone, Line } from '@/components/app/Skeleton';
 import { initialsOf } from '@/components/app/hooks';
 import ErrorView from '@/components/ui/ErrorView';
-import { fetchMessageDetail, fetchMessageAttachments, markMessageRead, getAttachmentUrl, getMessagesStale } from '@/lib/api';
+import { fetchMessageDetail, fetchMessageAttachments, markOpenedMessageRead, getAttachmentUrl, getMessageDetailStale, getMessagesStale } from '@/lib/api';
 import { messageRecipientNames } from '@/lib/untis-parse';
 import type { MessageDetail, MessageAttachment } from '@/lib/types';
 import { useDateLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
@@ -212,6 +212,14 @@ function parseMessageDetail(json: unknown, t: TFn, outgoing = false): MessageDet
   } catch {
     return null;
   }
+}
+
+// The list the API answers to `attachments=1`, taken from the detail already
+// loaded instead of asking for the same message again.
+function attachmentListOf(detail: unknown): { attachments: unknown } {
+  const root = (detail ?? {}) as Record<string, unknown>;
+  const data = (root.data as Record<string, unknown>) ?? root;
+  return { attachments: data.storageAttachments ?? data.attachments ?? [] };
 }
 
 function parseAttachmentsFallback(json: unknown, fallbackName: string): MessageAttachment[] {
@@ -399,25 +407,31 @@ function MessageDetailView({ id }: { id: string }) {
   }, [t]);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    setLoadedAttachments(null);
-    setAttachmentsFetchFailed(false);
-    try {
-      const sent = new URLSearchParams(window.location.search).get('folder') === 'sent';
-      const data = await fetchMessageDetail(parseInt(id));
+    const msgId = parseInt(id);
+    const sent = new URLSearchParams(window.location.search).get('folder') === 'sent';
+    const show = (data: unknown) => {
       const parsed = parseMessageDetail(data, t, sent);
       setOutgoing(sent);
       setMsg(parsed);
-      if (!sent) markMessageRead(parseInt(id)).catch(() => {});
-      if (parsed && parsed.attachments.length === 0) fetchFallbackAttachments(parsed.id);
+      setLoadedAttachments(parsed && parsed.attachments.length === 0 ? parseAttachmentsFallback(attachmentListOf(data), t('attachment')) : null);
+      return parsed;
+    };
+    setError('');
+    setAttachmentsFetchFailed(false);
+    // The copy from the last time it was opened at once; the live one replaces it.
+    const stored = getMessageDetailStale(msgId);
+    const shown = stored !== undefined && show(stored) !== null;
+    setLoading(!shown);
+    try {
+      show(await fetchMessageDetail(msgId));
+      if (!sent) markOpenedMessageRead(msgId);
     } catch (e: unknown) {
       if (e instanceof Error && e.message === 'session_expired') window.location.replace(loginPath());
-      else setError(e instanceof Error ? e.message : 'error');
+      else if (!shown) setError(e instanceof Error ? e.message : 'error');
     } finally {
       setLoading(false);
     }
-  }, [id, fetchFallbackAttachments, t]);
+  }, [id, t]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void load(); }, 0);

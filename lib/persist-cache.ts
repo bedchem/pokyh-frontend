@@ -45,6 +45,20 @@ export function pcSet<T>(url: string, data: T): void {
   catch { /* quota exceeded */ }
 }
 
+/** The addresses of everything stored, oldest first. */
+export function pcUrls(): string[] {
+  const s = ls();
+  if (!s) return [];
+  const out: { url: string; ts: number }[] = [];
+  for (let i = 0; i < s.length; i++) {
+    const k = s.key(i);
+    if (!k?.startsWith(PREFIX)) continue;
+    const url = k.slice(PREFIX.length);
+    out.push({ url, ts: pcGetWithTs(url)?.ts ?? 0 });
+  }
+  return out.sort((a, b) => a.ts - b.ts).map((e) => e.url);
+}
+
 export function pcDel(url: string): void {
   ls()?.removeItem(PREFIX + url);
 }

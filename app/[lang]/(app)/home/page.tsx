@@ -20,9 +20,9 @@ import { useDateLocale, useLocale, useLocalizeHref, useT } from '@/providers/Loc
 import { api } from '@/lib/api-client';
 import {
   fetchAbsences, fetchExams, fetchGrades, fetchMensa, fetchMessages, fetchTimetable,
-  getGradesStale, getMessagesStale, getTimetableStale,
+  getAbsencesStale, getExamsStale, getGradesStale, getMessagesStale, getTimetableStale,
 } from '@/lib/api';
-import { dateNumOf, nextUpcomingExam, parseTimetable } from '@/lib/timetable-logic';
+import { dateNumOf, isoDate, mondayOf, nextUpcomingExam, parseTimetable } from '@/lib/timetable-logic';
 import { schoolClock } from '@/lib/school-day';
 import { averageRating, dietOf, dishesFrom, isTodayKey, localized, upcomingDays } from '@/lib/mensa';
 import { messageIsRead, untisDate } from '@/lib/untis-parse';
@@ -126,7 +126,18 @@ function mergeEntries(lists: TimetableEntry[][]): TimetableEntry[] {
   return out.sort((a, b) => a.date - b.date || a.startTime - b.startTime);
 }
 
-const isoDay = (d: Date) => format(d, 'yyyy-MM-dd');
+/** The exams from today on, from the timetable weeks and the exam list, each once. */
+function upcomingExams(weeks: TimetableEntry[][], list: TimetableEntry[], todayNum: number): TimetableEntry[] {
+  const fromTimetable = mergeEntries(weeks).filter((e) => e.isExam && e.date >= todayNum);
+  const seen = new Set<string>();
+  return [...fromTimetable, ...list].filter((e) => {
+    const key = `${e.date}-${e.startTime}-${e.subjectName}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 const daysBetween = (from: number, to: number) => Math.round((untisDate(to).getTime() - untisDate(from).getTime()) / 86_400_000);
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -168,7 +179,12 @@ function Dashboard() {
 
   const load = useCallback(async () => {
     const today = new Date();
-    const nextWeek = isoDay(addDays(today, 7));
+    // The school weeks (Monday to Saturday) the timetable and the app frame
+    // load too, so one request serves all of them; three of them cover the
+    // next two weeks' exams.
+    const [thisWeek, nextWeek, laterWeek] = [0, 1, 2].map((w) => isoDate(mondayOf(w)));
+    const examsFrom = format(today, 'yyyyMMdd');
+    const examsTo = format(addDays(today, 14), 'yyyyMMdd');
 
     // Public data first: it doesn't wait for WebUntis.
     // The own school's menu; a school without one shows no Mensa here.
@@ -201,32 +217,40 @@ function Dashboard() {
         .catch(() => {});
     }
     if (untis && user) {
-      fetchAbsences()
-        .then((raw) => {
-          const { minutes, rate } = absenceSummary(parseAbsences(raw), readAbsenceCalc(user.studentId, schoolYearOf()));
-          const hours = String(Math.round(minutes / 6) / 10).replace('.', locale === 'en' ? '.' : ',');
-          setQuick((q) => ({
-            ...q,
-            absences: rate != null ? t('absencesNote', { rate: rate.toFixed(1).replace('.', locale === 'en' ? '.' : ','), hours }) : t('absencesHours', { hours }),
-          }));
-        })
-        .catch(() => {});
+      const absenceNote = (raw: unknown) => {
+        const { minutes, rate } = absenceSummary(parseAbsences(raw), readAbsenceCalc(user.studentId, schoolYearOf()));
+        const hours = String(Math.round(minutes / 6) / 10).replace('.', locale === 'en' ? '.' : ',');
+        setQuick((q) => ({
+          ...q,
+          absences: rate != null ? t('absencesNote', { rate: rate.toFixed(1).replace('.', locale === 'en' ? '.' : ','), hours }) : t('absencesHours', { hours }),
+        }));
+      };
+      const storedAbsences = getAbsencesStale();
+      if (storedAbsences !== undefined) absenceNote(storedAbsences);
+      fetchAbsences().then(absenceNote).catch(() => {});
     }
 
     if (!untis) return;
 
     // 1. Instant: what this device stored last time.
-    const staleNow = getTimetableStale();
+    const todayNum = dateNumOf(today);
+    const staleNow = getTimetableStale(thisWeek);
     const staleNext = getTimetableStale(nextWeek);
+    const staleLater = getTimetableStale(laterWeek);
+    const staleExamList = getExamsStale(examsFrom, examsTo);
     const staleGrades = getGradesStale();
     const staleMessages = getMessagesStale();
-    if (staleNow !== undefined || staleNext !== undefined) setExams(mergeEntries([parseTimetable(staleNow), parseTimetable(staleNext)]).filter((e) => e.isExam));
+    if (staleNow !== undefined || staleNext !== undefined) {
+      const weeks = [staleNow, staleNext, staleLater].filter((w) => w !== undefined).map(parseTimetable);
+      setExams(upcomingExams(weeks, staleExamList !== undefined ? parseExamResult(staleExamList) : [], todayNum));
+    }
     if (staleGrades !== undefined) { setGrades(parseGrades(staleGrades)); setGradesState({ loading: false }); }
     if (staleMessages !== undefined) { setMessages(parseMessages(staleMessages, tm('unknown'), tm('noSubject'))); setMessagesState({ loading: false }); }
     if (staleNow !== undefined && staleGrades !== undefined) setLoading(false);
 
-    // 2. Fresh from WebUntis.
-    const results = await Promise.allSettled([fetchTimetable(), fetchTimetable(nextWeek), fetchGrades(), fetchMessages()]);
+    // 2. Live from WebUntis; the exam sources of step 3 start at once too.
+    const examSources = Promise.allSettled([fetchTimetable(laterWeek), fetchExams(examsFrom, examsTo)]);
+    const results = await Promise.allSettled([fetchTimetable(thisWeek), fetchTimetable(nextWeek), fetchGrades(), fetchMessages()]);
     const [ttNow, ttNext, gr, ms] = results;
     if (results.some((r) => r.status === 'rejected' && (r.reason as Error)?.message === 'session_expired')) {
       window.location.replace(loginPath());
@@ -234,7 +258,6 @@ function Dashboard() {
     }
     setOffline(results.every((r) => r.status === 'rejected'));
     const weeks = [ttNow, ttNext].filter((r): r is PromiseFulfilledResult<unknown> => r.status === 'fulfilled').map((r) => parseTimetable(r.value));
-    const timetable = weeks.length ? mergeEntries(weeks) : [];
     const reason = (r: PromiseRejectedResult) => (r.reason instanceof Error ? r.reason.message : String(r.reason));
     if (gr.status === 'fulfilled') { setGrades(parseGrades(gr.value)); setGradesState({ loading: false }); }
     else setGradesState((st) => (st.loading ? { loading: false, failed: reason(gr) } : st));
@@ -243,21 +266,9 @@ function Dashboard() {
     setLoading(false);
 
     // 3. Exams of the next two weeks, from the timetable and the exam list.
-    const todayNum = dateNumOf(today);
-    const [ttLater, examRes] = await Promise.allSettled([
-      fetchTimetable(isoDay(addDays(today, 14))),
-      fetchExams(format(today, 'yyyyMMdd'), format(addDays(today, 14), 'yyyyMMdd')),
-    ]);
-    const fromTimetable = mergeEntries([timetable, ttLater.status === 'fulfilled' ? parseTimetable(ttLater.value) : []])
-      .filter((e) => e.isExam && e.date >= todayNum);
-    const fromList = examRes.status === 'fulfilled' ? parseExamResult(examRes.value) : [];
-    const seen = new Set<string>();
-    setExams([...fromTimetable, ...fromList].filter((e) => {
-      const key = `${e.date}-${e.startTime}-${e.subjectName}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    }));
+    const [ttLater, examRes] = await examSources;
+    const later = ttLater.status === 'fulfilled' ? [parseTimetable(ttLater.value)] : [];
+    setExams(upcomingExams([...weeks, ...later], examRes.status === 'fulfilled' ? parseExamResult(examRes.value) : [], todayNum));
   }, [untis, user, classId, locale, t, tm]);
 
   useEffect(() => {

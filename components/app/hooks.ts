@@ -1,7 +1,16 @@
 'use client';
 
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { fetchMensa, fetchMessages, fetchPermissions, getMensaStale, getMessagesStale } from '@/lib/api';
+import {
+  fetchMensa,
+  fetchMessages,
+  fetchPermissions,
+  getMensaStale,
+  getMessagesStale,
+  getStoredPermissions,
+  refreshInbox,
+  untisIdleMs,
+} from '@/lib/api';
 import { useSession } from '@/providers/SessionProvider';
 import type { UntisPermissions } from '@/lib/types';
 import { messageIsRead } from '@/lib/untis-parse';
@@ -20,13 +29,17 @@ export function useUntisPermissions(): UntisPermissions | null {
 
   useEffect(() => {
     if (!untis) return;
+    // At once from the last live answer on this device (name and the report
+    // button), then from the live one.
+    const stored = getStoredPermissions();
+    const early = stored ? window.setTimeout(() => setValue((v) => v ?? stored), 0) : undefined;
     permissions ??= fetchPermissions().catch(() => {
       permissions = null;
       return null;
     });
     let alive = true;
-    permissions.then((p) => { if (alive) setValue(p); });
-    return () => { alive = false; };
+    permissions.then((p) => { if (alive && p) setValue(p); });
+    return () => { alive = false; window.clearTimeout(early); };
   }, [untis]);
 
   return untis ? value : null;
@@ -86,6 +99,45 @@ export function useUnreadMessages(): number {
   }, [untis]);
 
   return untis ? unread : 0;
+}
+
+// WebUntis ends a session after a few idle minutes, and the next request then
+// pays for a refused answer and a new sign-in first. While someone is at the
+// app (it is in view and was touched, typed in or scrolled lately), the inbox
+// (the unread badges) is read again live once nothing else has asked WebUntis
+// for a few minutes, and right away when the tab comes back after that long.
+// Using the app keeps the session busy anyway: no extra request then. A tab
+// left alone lets the session lapse as before.
+const UNTIS_IDLE_MS = 3 * 60_000;
+const PRESENT_MS = 3 * 60_000;
+
+export function useKeepUntisSession(): void {
+  const { user } = useSession();
+  const untis = !!user && user.isUntisUser !== false;
+
+  useEffect(() => {
+    if (!untis) return;
+    let activeAt = Date.now();
+    const check = () => {
+      if (document.visibilityState !== 'visible' || Date.now() - activeAt > PRESENT_MS || untisIdleMs() < UNTIS_IDLE_MS) return;
+      refreshInbox().then((json) => setUnreadValue(countUnread(json))).catch(() => {});
+    };
+    const active = () => { activeAt = Date.now(); };
+    const back = () => {
+      if (document.visibilityState !== 'visible') return;
+      active();
+      check();
+    };
+    const timer = window.setInterval(check, 30_000);
+    const events = ['pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'] as const;
+    for (const e of events) window.addEventListener(e, active, { passive: true, capture: true });
+    document.addEventListener('visibilitychange', back);
+    return () => {
+      window.clearInterval(timer);
+      for (const e of events) window.removeEventListener(e, active, { capture: true });
+      document.removeEventListener('visibilitychange', back);
+    };
+  }, [untis]);
 }
 
 /**

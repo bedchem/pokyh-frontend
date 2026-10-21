@@ -14,11 +14,12 @@ import { commonDict } from '@/lib/i18n/dictionaries/common';
 import Spinner from '@/components/ui/Spinner';
 import LanguageButton, { RoundFlag } from '@/components/site/LanguageButton';
 import { ACTIVE_LOCALES, LOCALE_LABELS, LOCALE_NAMES } from '@/lib/i18n/locale';
+import { installIntentPreload } from '@/lib/preload';
 import Avatar from './Avatar';
 import Bell from './Bell';
 import SearchPalette from './SearchPalette';
 import { AppActionsProvider } from './actions';
-import { useMensaAvailable, useUnreadMessages, useUntisPermissions } from './hooks';
+import { useKeepUntisSession, useMensaAvailable, useUnreadMessages, useUntisPermissions } from './hooks';
 import { BOTTOM_TABS, DEST, SIDEBAR_GROUPS, isActive, tabFor, type AppDestination } from './nav';
 import { useSidebarCollapsed } from './sidebar-state';
 import s from './shell.module.css';
@@ -36,6 +37,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const [collapsed] = useSidebarCollapsed();
   const [ready, setReady] = useState(false);
   const [searching, setSearching] = useState(false);
+  const { user } = useSession();
+  const untis = !!user && user.isUntisUser !== false;
+
+  // A page's live data starts loading as soon as its link is about to be
+  // chosen (lib/preload.ts), only while signed in with WebUntis.
+  useEffect(() => (untis ? installIntentPreload() : undefined), [untis]);
+  useKeepUntisSession();
 
   // Transitions only after the stored sidebar state is applied, so a folded
   // sidebar doesn't animate shut on every page load.
