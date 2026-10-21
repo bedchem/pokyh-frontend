@@ -187,13 +187,25 @@
 }
 /* What is new comes in one after another when the panel opens. */
 .bellRow[data-fresh] { animation: bell-row-in 0.4s var(--ease-out) both; }
-li:nth-child(2) > .bellRow[data-fresh] { animation-delay: 40ms; }
-li:nth-child(3) > .bellRow[data-fresh] { animation-delay: 80ms; }
-li:nth-child(n + 4) > .bellRow[data-fresh] { animation-delay: 120ms; }
+li:nth-child(2) .bellRow[data-fresh] { animation-delay: 40ms; }
+li:nth-child(3) .bellRow[data-fresh] { animation-delay: 80ms; }
+li:nth-child(n + 4) .bellRow[data-fresh] { animation-delay: 120ms; }
 @keyframes bell-row-in {
   from { opacity: 0; translate: 10px 0; }
   to { opacity: 1; translate: none; }
 }
+/* Cleared: the row slides off to the side and the list closes up behind it;
+   clearing all, one after another (Bell.tsx LEAVE_MS covers the longest). */
+.bellItem {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.24s var(--ease-out), opacity 0.18s var(--ease-out), translate 0.2s var(--ease-out);
+}
+.bellItem > * { min-height: 0; overflow: hidden; }
+.bellItem[data-leaving] { grid-template-rows: 0fr; opacity: 0; translate: 28px 0; pointer-events: none; }
+.bellItem[data-leaving='all']:nth-child(2) { transition-delay: 25ms; }
+.bellItem[data-leaving='all']:nth-child(3) { transition-delay: 50ms; }
+.bellItem[data-leaving='all']:nth-child(n + 4) { transition-delay: 75ms; }
 /* The streak's flame catches when the panel opens; the week fills in after it. */
 .flame[data-lit='true'] svg { animation: flame-catch 0.7s var(--ease-out) both; transform-origin: 50% 90%; }
 @keyframes flame-catch {

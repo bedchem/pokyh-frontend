@@ -7,6 +7,11 @@ export type BellKey =
   | 'labelNew'
   | 'newCount'
   | 'isNew'
+  | 'clear'
+  | 'clearOne'
+  | 'clearAll'
+  | 'streakLost'
+  | 'streakLostSub'
   | 'streakDays'
   | 'streakOne'
   | 'streakNone'
@@ -36,6 +41,11 @@ export const bellDict: Dictionary<BellKey> = {
     labelNew: 'Benachrichtigungen, {n} neu',
     newCount: '{n} neu',
     isNew: 'neu',
+    clear: 'Entfernen',
+    clearOne: '{title} entfernen',
+    clearAll: 'Alle entfernen',
+    streakLost: 'Deine Serie von {n} Tagen ist vorbei',
+    streakLostSub: 'Fang heute eine neue an',
     streakDays: '{n} Tage in Folge',
     streakOne: '1 Tag in Folge',
     streakNone: 'Heute startet deine Serie',
@@ -64,6 +74,11 @@ export const bellDict: Dictionary<BellKey> = {
     labelNew: 'Notifiche, {n} nuove',
     newCount: '{n} nuove',
     isNew: 'nuovo',
+    clear: 'Rimuovi',
+    clearOne: 'Rimuovi {title}',
+    clearAll: 'Rimuovi tutte',
+    streakLost: 'La tua serie di {n} giorni è finita',
+    streakLostSub: 'Iniziane una nuova oggi',
     streakDays: '{n} giorni di fila',
     streakOne: '1 giorno di fila',
     streakNone: 'Oggi inizia la tua serie',
@@ -92,6 +107,11 @@ export const bellDict: Dictionary<BellKey> = {
     labelNew: 'Notifications, {n} new',
     newCount: '{n} new',
     isNew: 'new',
+    clear: 'Clear',
+    clearOne: 'Clear {title}',
+    clearAll: 'Clear all',
+    streakLost: 'Your {n}-day streak ran out',
+    streakLostSub: 'Start a new one today',
     streakDays: '{n} days in a row',
     streakOne: '1 day in a row',
     streakNone: 'Your streak starts today',

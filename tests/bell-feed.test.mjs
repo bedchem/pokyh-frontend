@@ -10,7 +10,7 @@ const compiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 },
 }).outputText;
 const {
-  buildFeed, streakMilestone, settleSeen, markSeen, freshKeys, readSeen, untisDay,
+  buildFeed, streakMilestone, lostStreak, settleSeen, markSeen, freshKeys, readSeen, untisDay, withoutCleared, clearKeys,
 } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
 
 const H = 3_600_000;
@@ -99,7 +99,49 @@ test('opening the bell sees everything; something newer is new again', () => {
 });
 
 test('a stored state that cannot be read starts empty', () => {
-  assert.deepEqual(readSeen(null), { keys: [], sources: [] });
-  assert.deepEqual(readSeen('nope'), { keys: [], sources: [] });
-  assert.deepEqual(readSeen('{"keys":["a",3],"sources":["grades"]}'), { keys: ['a'], sources: ['grades'] });
+  assert.deepEqual(readSeen(null), { keys: [], sources: [], cleared: [] });
+  assert.deepEqual(readSeen('nope'), { keys: [], sources: [], cleared: [] });
+  // Stored before clearing existed: nothing cleared.
+  assert.deepEqual(readSeen('{"keys":["a",3],"sources":["grades"]}'), { keys: ['a'], sources: ['grades'], cleared: [] });
+  assert.deepEqual(readSeen('{"keys":[],"sources":[],"cleared":["msg:10",1]}').cleared, ['msg:10']);
+});
+
+test('cleared items leave the feed for good and count as seen', () => {
+  const feed = buildFeed(input, now);
+  const state = clearKeys({ keys: [], sources: [], cleared: [] }, ['msg:10', 'rem-soon:a']);
+  assert.deepEqual(state.cleared, ['msg:10', 'rem-soon:a']);
+  const shown = withoutCleared(feed, state.cleared);
+  assert.equal([...shown.current, ...shown.recent].some((i) => i.key === 'msg:10' || i.key === 'rem-soon:a'), false);
+  assert.equal(shown.current.length, feed.current.length - 1);
+  assert.equal(freshKeys(shown, state).has('msg:10'), false);
+  // Seeing everything later keeps what was cleared.
+  assert.deepEqual(markSeen(state, shown).cleared, state.cleared);
+  assert.equal(withoutCleared(feed, []), feed);
+  assert.equal(clearKeys(state, []), state);
+});
+
+test('a streak of three days or more that missed a whole day ran out', () => {
+  const day = (n) => midnight + n * D;
+  // Active the 10th–5th day before today, then 2 days ago, and today.
+  const active = [day(-10), day(-9), day(-8), day(-7), day(-6), day(-5), day(-2), day(0)];
+  assert.deepEqual(lostStreak(active, midnight), { days: 6, start: day(-10), end: day(-5) });
+  // Active until yesterday, today still open: not lost yet.
+  assert.equal(lostStreak([day(-3), day(-2), day(-1)], midnight), null);
+  // Yesterday missed as a whole: lost since midnight.
+  assert.deepEqual(lostStreak([day(-4), day(-3), day(-2)], midnight), { days: 3, start: day(-4), end: day(-2) });
+  // Two days don't make a streak worth a line; the run before it does.
+  assert.deepEqual(lostStreak([day(-9), day(-8), day(-7), day(-4), day(-3)], midnight), { days: 3, start: day(-9), end: day(-7) });
+  assert.equal(lostStreak([], midnight), null);
+});
+
+test('a lost streak shows the day it ran out', () => {
+  const lost = { days: 6, start: midnight - 10 * D, end: midnight - 5 * D };
+  const feed = buildFeed({ streak: { days: 1, end: midnight, lost } }, now);
+  const item = feed.recent.find((i) => i.kind === 'streakLost');
+  assert.equal(item.key, `streak-lost:${midnight - 10 * D}:6`);
+  assert.equal(item.at, midnight - 3 * D);
+  assert.equal(item.value, 6);
+  // Older than the feed reaches: gone.
+  const old = { days: 4, start: midnight - 30 * D, end: midnight - 27 * D };
+  assert.equal(buildFeed({ streak: { days: 0, end: midnight, lost: old } }, now).recent.length, 0);
 });

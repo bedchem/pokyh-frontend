@@ -6,7 +6,7 @@ import { api, type ApiReminder, type ApiTodo } from '@/lib/api-client';
 import { fetchAccountActivity, type AccountActivity } from '@/lib/account-activity';
 import { messageIsRead } from '@/lib/untis-parse';
 import {
-  buildFeed, freshKeys, markSeen, readSeen, settleSeen,
+  buildFeed, clearKeys, freshKeys, lostStreak, markSeen, readSeen, settleSeen, withoutCleared,
   type BellSource, type Feed, type FeedInput, type GradeIn, type MessageIn, type ReminderIn, type SeenState, type StreakIn, type TodoIn,
 } from '@/lib/bell-feed';
 import { useSession } from '@/providers/SessionProvider';
@@ -18,8 +18,8 @@ import { useApp } from '@/providers/AppProvider';
 // twice), the to-dos and the class's reminders from the backend, the streak
 // from the account's activity (shared with the profile). Opening the bell
 // reads the to-dos and reminders again; coming back to the tab after a while
-// reads everything again. What was seen is remembered on the device, per
-// account.
+// reads everything again. What was seen, and what was cleared away, is
+// remembered on the device, per account.
 
 export interface StreakView {
   days: number;
@@ -37,7 +37,7 @@ interface BellStore {
   streak: StreakView | null | undefined;
 }
 
-const EMPTY_SEEN: SeenState = { keys: [], sources: [] };
+const EMPTY_SEEN: SeenState = { keys: [], sources: [], cleared: [] };
 const EMPTY_INPUT: FeedInput = {};
 let store: BellStore = { owner: '', input: EMPTY_INPUT, seen: EMPTY_SEEN, streak: undefined };
 const listeners = new Set<() => void>();
@@ -142,8 +142,9 @@ function dayOf(key: string, shift = 0): number {
 function streakFrom(a: AccountActivity): { input: StreakIn; view: StreakView } {
   // A quiet today doesn't end the streak yet (the backend counts it the same way).
   const todayActive = a.days[a.days.length - 1]?.active ?? false;
+  const lost = lostStreak(a.days.filter((d) => d.active).map((d) => dayOf(d.date)), dayOf(a.today));
   return {
-    input: { days: a.totals.currentStreak, end: dayOf(a.today, todayActive ? 0 : -1) },
+    input: { days: a.totals.currentStreak, end: dayOf(a.today, todayActive ? 0 : -1), lost },
     view: {
       days: a.totals.currentStreak,
       longest: a.totals.longestStreak,
@@ -218,6 +219,8 @@ export interface Bell {
   refresh: () => void;
   /** Everything shown counts as seen. */
   seeAll: () => void;
+  /** These items leave the feed for good (on this device). */
+  clear: (keys: string[]) => void;
 }
 
 export function useBell(): Bell {
@@ -267,7 +270,8 @@ export function useBell(): Bell {
 
   const mine = state.owner === owner;
   const input = mine ? state.input : EMPTY_INPUT;
-  const feed = useMemo(() => buildFeed(input, now), [input, now]);
+  const cleared = mine ? state.seen.cleared : EMPTY_SEEN.cleared;
+  const feed = useMemo(() => withoutCleared(buildFeed(input, now), cleared), [input, now, cleared]);
   const loaded = useMemo(() => loadedSources(input), [input]);
   // Settled while drawing, so a first load never flashes a full badge.
   const seen = mine ? settleSeen(state.seen, feed, loaded, now) : EMPTY_SEEN;
@@ -287,6 +291,10 @@ export function useBell(): Bell {
     if (store.owner === owner) saveSeen(markSeen(settleSeen(store.seen, feed, loaded, Date.now()), feed));
   }, [owner, feed, loaded]);
 
+  const clear = useCallback((keys: string[]) => {
+    if (store.owner === owner) saveSeen(clearKeys(store.seen, keys));
+  }, [owner]);
+
   return {
     feed,
     fresh,
@@ -296,5 +304,6 @@ export function useBell(): Bell {
     now,
     refresh,
     seeAll,
+    clear,
   };
 }

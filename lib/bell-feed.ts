@@ -1,8 +1,9 @@
 // The bell in the app's top bar (components/app/Bell.tsx): what happened
 // lately across POKYH — new grades and messages, reminders a classmate put up,
-// to-dos and reminders coming due, the streak reaching a milestone — and which
-// of it the account hasn't looked at yet. Pure: the inputs arrive already read
-// from WebUntis and the backend (components/app/useBell.ts).
+// to-dos and reminders coming due, the streak reaching a milestone or running
+// out — which of it the account hasn't looked at yet, and what it cleared
+// away. Pure: the inputs arrive already read from WebUntis and the backend
+// (components/app/useBell.ts).
 
 const DAY = 86_400_000;
 
@@ -14,18 +15,20 @@ export const SOON_MS = DAY;
 export const FRESH_MS = 3 * DAY;
 /** Streak lengths worth a line of their own. */
 export const STREAK_MILESTONES = [3, 7, 14, 21, 30, 50, 75, 100, 150, 200, 250, 300, 365];
-/** How many seen keys are remembered (newest first). */
+/** How many seen (and cleared) keys are remembered (newest first). */
 const SEEN_LIMIT = 400;
 
 export type BellSource = 'grades' | 'messages' | 'reminders' | 'todos' | 'streak';
-export type BellKind = 'grade' | 'message' | 'reminder' | 'reminderSoon' | 'todo' | 'streak';
+export type BellKind = 'grade' | 'message' | 'reminder' | 'reminderSoon' | 'todo' | 'streak' | 'streakLost';
 
 export interface GradeIn { id: number; subject: string; lessonId: number; value: number; date: number; examType: string }
 export interface MessageIn { id: number; subject: string; sender: string; sent: number; read: boolean }
 export interface ReminderIn { id: string; title: string; remindAt: number; createdAt: number; by: string; mine: boolean }
 export interface TodoIn { id: string; title: string; dueAt: number | null; done: boolean }
-/** The running streak: its length and the last day it counts (local midnight). */
-export interface StreakIn { days: number; end: number }
+/** A run of active days, its first and last day (local midnight). */
+export interface StreakRun { days: number; start: number; end: number }
+/** The running streak: its length and the last day it counts (local midnight); `lost`: the last one that ran out. */
+export interface StreakIn { days: number; end: number; lost?: StreakRun | null }
 
 /** Each source is absent until it has been read. */
 export interface FeedInput {
@@ -49,7 +52,7 @@ export interface BellItem {
   /** Subject's exam type, a sender, who made a reminder. */
   sub: string;
   href: string;
-  /** The mark of a grade, the days of a streak. */
+  /** The mark of a grade, the days of a streak (reached or lost). */
   value?: number;
   overdue?: boolean;
   /** Nothing to tell (a message already read): never counts as new. */
@@ -67,6 +70,8 @@ export interface SeenState {
   keys: string[];
   /** Sources whose first load has been settled (see `settleSeen`). */
   sources: BellSource[];
+  /** What was cleared away: it stays out of the feed. */
+  cleared: string[];
 }
 
 /** Local midnight of a WebUntis date (YYYYMMDD). */
@@ -95,6 +100,25 @@ export function streakMilestone(streak: StreakIn): { days: number; at: number; s
   if (!days) return null;
   const start = addDays(streak.end, -(streak.days - 1));
   return { days, at: addDays(start, days - 1), start };
+}
+
+/**
+ * The latest streak, of at least the first milestone, that ran out: a whole
+ * day without POKYH after it (a quiet today doesn't end one yet, as on the
+ * backend). `active`: the active days, local midnights; `today`: midnight.
+ */
+export function lostStreak(active: number[], today: number): StreakRun | null {
+  const days = [...new Set(active)].sort((a, b) => a - b);
+  // The runs of consecutive days, oldest first.
+  const runs: StreakRun[] = [];
+  for (const day of days) {
+    const run = runs[runs.length - 1];
+    if (run && addDays(run.end, 1) === day) {
+      run.days += 1;
+      run.end = day;
+    } else runs.push({ days: 1, start: day, end: day });
+  }
+  return runs.findLast((r) => r.days >= STREAK_MILESTONES[0] && addDays(r.end, 2) <= today) ?? null;
 }
 
 export function buildFeed(input: FeedInput, now: number): Feed {
@@ -149,9 +173,32 @@ export function buildFeed(input: FeedInput, now: number): Feed {
     });
   }
 
+  // Gone at the end of the first day missed.
+  const lost = input.streak?.lost;
+  const lostAt = lost ? addDays(lost.end, 2) : 0;
+  if (lost && lostAt >= since && lostAt <= now) {
+    recent.push({
+      key: `streak-lost:${lost.start}:${lost.days}`, source: 'streak', kind: 'streakLost', at: lostAt, allDay: true,
+      title: '', sub: '', href: '/profile', value: lost.days,
+    });
+  }
+
   current.sort((a, b) => a.at - b.at);
   recent.sort((a, b) => b.at - a.at);
   return { current, recent: recent.slice(0, 30) };
+}
+
+/** The feed without what was cleared away. */
+export function withoutCleared(feed: Feed, cleared: readonly string[]): Feed {
+  if (cleared.length === 0) return feed;
+  const gone = new Set(cleared);
+  return { current: feed.current.filter((i) => !gone.has(i.key)), recent: feed.recent.filter((i) => !gone.has(i.key)) };
+}
+
+/** These items are cleared away (and count as seen). */
+export function clearKeys(state: SeenState, keys: string[]): SeenState {
+  if (keys.length === 0) return state;
+  return { ...state, keys: mergeKeys(keys, state.keys), cleared: mergeKeys(keys, state.cleared) };
 }
 
 export function isNew(item: BellItem, seen: ReadonlySet<string>): boolean {
@@ -173,7 +220,7 @@ export function settleSeen(state: SeenState, feed: Feed, loaded: BellSource[], n
   const first = loaded.filter((s) => !state.sources.includes(s));
   if (first.length === 0) return state;
   const old = feed.recent.filter((i) => first.includes(i.source) && i.at < now - FRESH_MS).map((i) => i.key);
-  return { keys: mergeKeys(old, state.keys), sources: [...state.sources, ...first] };
+  return { ...state, keys: mergeKeys(old, state.keys), sources: [...state.sources, ...first] };
 }
 
 /** Everything in the feed now counts as seen. */
@@ -188,13 +235,17 @@ function mergeKeys(front: string[], rest: string[]): string[] {
   return [...new Set([...front, ...rest])].slice(0, SEEN_LIMIT);
 }
 
-/** The stored state, or a fresh one for anything unreadable. */
+/** The stored state, or a fresh one for anything unreadable (stored before clearing: nothing cleared). */
 export function readSeen(raw: string | null): SeenState {
   try {
     const v = JSON.parse(raw ?? '') as Partial<SeenState>;
     if (Array.isArray(v.keys) && Array.isArray(v.sources)) {
-      return { keys: v.keys.filter((k) => typeof k === 'string'), sources: v.sources.filter((s) => typeof s === 'string') };
+      return {
+        keys: v.keys.filter((k) => typeof k === 'string'),
+        sources: v.sources.filter((s) => typeof s === 'string'),
+        cleared: Array.isArray(v.cleared) ? v.cleared.filter((k) => typeof k === 'string') : [],
+      };
     }
   } catch { /* nothing stored yet */ }
-  return { keys: [], sources: [] };
+  return { keys: [], sources: [], cleared: [] };
 }

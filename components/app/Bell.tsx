@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useId, useRef, useState } from 'react';
-import { Bell as BellIcon, BellRinging, CheckSquare, EnvelopeSimple, Fire } from '@phosphor-icons/react';
+import { Bell as BellIcon, BellRinging, CheckSquare, EnvelopeSimple, Fire, Trash, X } from '@phosphor-icons/react';
 import { useDateLocale, useLocalizeHref, useRoutePath, useT } from '@/providers/LocaleProvider';
 import { bellDict, type BellKey } from '@/lib/i18n/dictionaries/bell';
 import { uiDict, type UiKey } from '@/lib/i18n/dictionaries/ui';
@@ -20,10 +20,13 @@ import s from './shell.module.css';
 // is new since the bell was last opened (a short ring when it goes up), and a
 // panel with the streak on top, then what is due soon, then what happened
 // lately (lib/bell-feed.ts). Opening it counts everything as seen; what was
-// new keeps its dot while the panel stays open. Closes on a choice, a click
-// elsewhere, Escape or leaving it with Tab.
+// new keeps its dot while the panel stays open. Each item can be cleared away
+// (its ×), or all of them at once; they slide out and the list closes up.
+// Closes on a choice, a click elsewhere, Escape or leaving it with Tab.
 
 const DAY = 86_400_000;
+/** How long a cleared row takes to leave (shell.module.css .bellItem). */
+const LEAVE_MS = 320;
 
 type TBell = (key: BellKey, vars?: Record<string, string | number>) => string;
 type TUi = (key: UiKey, vars?: Record<string, string | number>) => string;
@@ -65,6 +68,8 @@ export default function Bell() {
   const [open, setOpen] = useState(false);
   // What was new when the panel opened: it keeps its dot while it is open.
   const [shown, setShown] = useState<ReadonlySet<string>>(() => new Set());
+  // Cleared rows on their way out, and whether it was all of them.
+  const [leaving, setLeaving] = useState<{ keys: ReadonlySet<string>; all: boolean }>(() => ({ keys: new Set(), all: false }));
   const root = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
@@ -85,7 +90,7 @@ export default function Bell() {
     setOpen(false);
   }
 
-  const { seeAll } = bell;
+  const { seeAll, clear } = bell;
   const close = (focusButton = false) => {
     setOpen(false);
     seeAll();
@@ -98,6 +103,18 @@ export default function Bell() {
     setOpen(true);
     bell.refresh();
     seeAll();
+  };
+
+  // The rows slide out first, then leave the feed; focus stays in the panel
+  // (the × that was pressed goes with its row).
+  const clearAway = (keys: string[], all = false) => {
+    if (keys.length === 0) return;
+    setLeaving((l) => ({ keys: new Set([...l.keys, ...keys]), all }));
+    panel.current?.focus({ preventScroll: true });
+    window.setTimeout(() => {
+      clear(keys);
+      setLeaving((l) => ({ keys: new Set([...l.keys].filter((k) => !keys.includes(k))), all: false }));
+    }, LEAVE_MS);
   };
 
   // Seen again on the way out, for whatever arrived while it was open.
@@ -126,8 +143,21 @@ export default function Bell() {
 
   const n = bell.newCount;
   const isNew = (key: string) => shown.has(key) || bell.fresh.has(key);
-  const newShown = [...bell.feed.current, ...bell.feed.recent].filter((i) => isNew(i.key)).length;
-  const empty = !bell.loading && bell.feed.current.length === 0 && bell.feed.recent.length === 0;
+  const items = [...bell.feed.current, ...bell.feed.recent];
+  const staying = items.filter((i) => !leaving.keys.has(i.key));
+  const newShown = staying.filter((i) => isNew(i.key)).length;
+  const empty = !bell.loading && items.length === 0;
+  const row = (item: BellItem) => (
+    <Row
+      key={item.key}
+      item={item}
+      now={bell.now}
+      fresh={isNew(item.key)}
+      leaving={leaving.keys.has(item.key) ? (leaving.all ? 'all' : 'one') : undefined}
+      onPick={() => close()}
+      onClear={() => clearAway([item.key])}
+    />
+  );
 
   return (
     <div
@@ -156,9 +186,21 @@ export default function Bell() {
 
       {open && (
         <div ref={panel} id={id} role="dialog" aria-label={t('title')} tabIndex={-1} className={`${s.bellPanel} lang-menu`}>
-          <div className="flex items-baseline justify-between gap-3 px-4 pb-1 pt-3.5">
-            <h2 className="text-[16.5px] font-bold tracking-[-0.015em]">{t('title')}</h2>
-            {newShown > 0 && <span className="text-[13px] font-semibold text-accent-ink">{t('newCount', { n: newShown })}</span>}
+          <div className="flex min-h-[46px] flex-wrap items-center justify-between gap-x-3 gap-y-1 pb-1 pl-4 pr-2 pt-2.5">
+            <div className="flex items-baseline gap-2">
+              <h2 className="text-[16.5px] font-bold tracking-[-0.015em]">{t('title')}</h2>
+              {newShown > 0 && <span className="text-[13px] font-semibold text-accent-ink tnum">{t('newCount', { n: newShown })}</span>}
+            </div>
+            {staying.length > 0 && (
+              <button
+                type="button"
+                onClick={() => clearAway(staying.map((i) => i.key), true)}
+                className="inline-flex h-8 items-center gap-1.5 rounded-full pl-2.5 pr-3 text-[13px] font-semibold text-ink-2 transition-colors hover:bg-inset hover:text-ink"
+              >
+                <Trash size={15} weight="bold" className="text-danger-ink" aria-hidden="true" />
+                {t('clearAll')}
+              </button>
+            )}
           </div>
 
           <div className={s.bellScroll}>
@@ -182,19 +224,11 @@ export default function Bell() {
             ) : (
               <>
                 {bell.feed.current.length > 0 && (
-                  <ul className="flex flex-col gap-0.5 p-1.5">
-                    {bell.feed.current.map((item) => (
-                      <Row key={item.key} item={item} now={bell.now} fresh={isNew(item.key)} onPick={() => close()} />
-                    ))}
-                  </ul>
+                  <ul className="flex flex-col p-1.5">{bell.feed.current.map(row)}</ul>
                 )}
                 {bell.feed.current.length > 0 && bell.feed.recent.length > 0 && <div className={s.menuRule} />}
                 {bell.feed.recent.length > 0 && (
-                  <ul className="flex flex-col gap-0.5 p-1.5">
-                    {bell.feed.recent.map((item) => (
-                      <Row key={item.key} item={item} now={bell.now} fresh={isNew(item.key)} onPick={() => close()} />
-                    ))}
-                  </ul>
+                  <ul className="flex flex-col p-1.5">{bell.feed.recent.map(row)}</ul>
                 )}
               </>
             )}
@@ -238,7 +272,17 @@ function Streak({ streak }: { streak: StreakView | null | undefined }) {
   );
 }
 
-function Row({ item, now, fresh, onPick }: { item: BellItem; now: number; fresh: boolean; onPick: () => void }) {
+interface RowProps {
+  item: BellItem;
+  now: number;
+  fresh: boolean;
+  /** Cleared, on its way out: by itself or with all the others. */
+  leaving?: 'one' | 'all';
+  onPick: () => void;
+  onClear: () => void;
+}
+
+function Row({ item, now, fresh, leaving, onPick, onClear }: RowProps) {
   const t = useT(bellDict);
   const tu = useT(uiDict);
   const tm = useT(messagesDict);
@@ -277,30 +321,47 @@ function Row({ item, now, fresh, onPick }: { item: BellItem; now: number; fresh:
       title = t('milestone', { n: item.value ?? 0 });
       sub = [t('milestoneSub'), at];
       break;
+    case 'streakLost':
+      // The flame gone out.
+      tile = <span className={`${s.bellTile} bg-inset text-ink-3`}><Fire size={19} weight="bold" /></span>;
+      title = t('streakLost', { n: item.value ?? 0 });
+      sub = [t('streakLostSub'), at];
+      break;
   }
 
   return (
-    <li>
-      <Link
-        href={localize(item.href)}
-        onClick={onPick}
-        className={`${s.bellRow} flex items-center gap-3 rounded-[14px] px-2.5 py-2 outline-none transition-colors hover:bg-inset focus-visible:bg-inset`}
-        data-fresh={fresh || undefined}
-      >
-        <span aria-hidden="true" className="shrink-0">{tile}</span>
-        <span className="min-w-0 flex-1 leading-tight">
-          <span className={`block truncate text-[14.5px] ${fresh ? 'font-bold text-ink' : 'font-semibold text-ink'}`}>{title}</span>
-          <span className={`mt-0.5 block truncate text-[12.5px] font-medium ${item.overdue ? 'text-danger-ink' : 'text-ink-2'}`}>
-            {sub.filter(Boolean).join(' · ')}
+    <li className={s.bellItem} data-leaving={leaving}>
+      <div className="group relative py-px">
+        <Link
+          href={localize(item.href)}
+          onClick={onPick}
+          className={`${s.bellRow} flex items-center gap-3 rounded-[14px] py-2 pl-2.5 pr-11 outline-none transition-colors hover:bg-inset focus-visible:bg-inset`}
+          data-fresh={fresh || undefined}
+        >
+          <span aria-hidden="true" className="shrink-0">{tile}</span>
+          <span className="min-w-0 flex-1 leading-tight">
+            <span className={`block truncate text-[14.5px] ${fresh ? 'font-bold text-ink' : 'font-semibold text-ink'}`}>{title}</span>
+            <span className={`mt-0.5 block truncate text-[12.5px] font-medium ${item.overdue ? 'text-danger-ink' : 'text-ink-2'}`}>
+              {sub.filter(Boolean).join(' · ')}
+            </span>
           </span>
-        </span>
-        {fresh && (
-          <>
-            <span className="size-2 shrink-0 rounded-full bg-accent" aria-hidden="true" />
-            <span className="visually-hidden">, {t('isNew')}</span>
-          </>
-        )}
-      </Link>
+          {fresh && (
+            <>
+              <span className="size-2 shrink-0 rounded-full bg-accent" aria-hidden="true" />
+              <span className="visually-hidden">, {t('isNew')}</span>
+            </>
+          )}
+        </Link>
+        <button
+          type="button"
+          onClick={onClear}
+          aria-label={t('clearOne', { title })}
+          title={t('clear')}
+          className="absolute right-1.5 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-ink-3 transition-[background-color,color] hover:bg-[color-mix(in_srgb,var(--ink)_8%,transparent)] hover:text-ink"
+        >
+          <X size={14} weight="bold" aria-hidden="true" />
+        </button>
+      </div>
     </li>
   );
 }
