@@ -3,15 +3,20 @@
 import { useSyncExternalStore } from 'react';
 
 // The viewport heights the scroll scenes are built from (--lvh, --svh,
-// --toolbar in app/globals.css), measured once before the first paint: the
-// large viewport (a phone's browser bars hidden) and the small one (bars
-// shown). On a touch device they are measured again only when the width
-// changes (turning the phone), never while the bars slide in and out, so
-// nothing on the page changes size while scrolling, even in a browser whose
-// own lvh and svh move along with the bars. Elsewhere (a desktop window
-// being resized) every resize measures them again. Without the script the
-// CSS units themselves stand in.
-const VIEWPORT_INIT = `(function(){var d=document.documentElement,touch=matchMedia('(hover: none), (pointer: coarse)').matches,w=-1;function probe(u){var e=document.createElement('div');e.style.cssText='position:absolute;top:0;left:0;width:0;visibility:hidden;pointer-events:none;height:100'+u;d.appendChild(e);var h=e.offsetHeight;d.removeChild(e);return h}function set(){var L=probe('lvh')||probe('vh')||innerHeight,S=Math.min(L,probe('svh')||L);d.style.setProperty('--lvh',L/100+'px');d.style.setProperty('--svh',S/100+'px');d.style.setProperty('--toolbar',L-S+'px');w=innerWidth}set();addEventListener('resize',function(){if(!touch||innerWidth!==w)set()})})()`;
+// --toolbar in app/globals.css), measured before the first paint: the large
+// viewport (a phone's browser bars hidden) and the small one (bars shown).
+// On a touch device they are measured anew only when the width changes
+// (turning the phone), never while the bars slide in and out, so nothing on
+// the page changes size while scrolling, even in a browser whose own lvh and
+// svh move along with the bars. One exception: when the window turns out
+// taller than the large viewport measured (iOS 26 Safari can report its
+// small viewport as the large one at load), the large one grows to it, once
+// per new height and never back, and VIEWPORT_GROW_EVENT tells the scroll
+// scenes to measure again (lib/motion.ts). Elsewhere (a desktop window being
+// resized) every resize measures them again. Without the script the CSS
+// units themselves stand in.
+export const VIEWPORT_GROW_EVENT = 'pokyh-viewport-grow';
+const VIEWPORT_INIT = `(function(){var d=document.documentElement,touch=matchMedia('(hover: none), (pointer: coarse)').matches,w=-1,L=0,S=0;function probe(u){var e=document.createElement('div');e.style.cssText='position:absolute;top:0;left:0;width:0;visibility:hidden;pointer-events:none;height:100'+u;d.appendChild(e);var h=e.offsetHeight;d.removeChild(e);return h}function apply(){d.style.setProperty('--lvh',L/100+'px');d.style.setProperty('--svh',S/100+'px');d.style.setProperty('--toolbar',L-S+'px')}function set(){L=Math.max(probe('lvh')||probe('vh')||innerHeight,innerHeight);S=Math.min(L,probe('svh')||L);apply();w=innerWidth}set();addEventListener('resize',function(){if(!touch||innerWidth!==w){set();return}var h=Math.max(innerHeight,probe('lvh'));if(h>L+1){L=h;apply();dispatchEvent(new Event('${VIEWPORT_GROW_EVENT}'))}})})()`;
 
 const noopSubscribe = () => () => {};
 

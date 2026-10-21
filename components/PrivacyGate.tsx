@@ -11,7 +11,6 @@ import { privacyDict } from '@/lib/i18n/dictionaries/privacy';
 import { COOKIE_CONSENT_EVENT, cookieChoiceNeeded } from '@/lib/cookie-consent';
 import {
   PRIVACY_NOTICE_DATE,
-  PRIVACY_NOTICE_VERSION,
   acknowledgePrivacy,
   clearPendingAck,
   fetchPrivacyStatus,
@@ -21,6 +20,7 @@ import {
   rememberOpenGate,
   syncCookieChoice,
 } from '@/lib/privacy-consent';
+import { noticeCovers } from '@/lib/privacy-notice';
 
 // Inside the app: the account is told about the current privacy notice once.
 // The sign-in form already showed it and is recorded here first (the backend
@@ -58,7 +58,7 @@ export default function PrivacyGate({ paused = false }: { paused?: boolean }) {
       } else {
         const status = await fetchPrivacyStatus();
         if (alive && status) {
-          const due = status.acknowledgedVersion !== PRIVACY_NOTICE_VERSION;
+          const due = !noticeCovers(status.acknowledgedVersion);
           if (due) rememberOpenGate(account);
           else forgetOpenGate();
           setOpen(due);

@@ -82,6 +82,10 @@
   --lvh: 1vh;
   --svh: 1vh;
   --toolbar: 0px;
+  /* How far a full-screen stage paints its colour below itself: iOS 26
+     Safari draws the page behind its floating bottom bar as well, below
+     the large viewport, where the next section would show through. */
+  --bleed: 0px;
 
   --app-font-sans: var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --app-font-mono: var(--font-dm-mono), ui-monospace, 'SFMono-Regular', Menlo, monospace;
@@ -111,6 +115,9 @@
     --svh: 1svh;
     --toolbar: calc(100lvh - 100svh);
   }
+}
+@media (hover: none) and (pointer: coarse) {
+  :root { --bleed: 160px; }
 }
 
 .dark {
@@ -1284,6 +1291,7 @@ html[data-hero-wait] .home-hero :is([data-title], [data-letter], [data-chrome] >
 /* Without motion the scroll scenes become plain, stacked sections. */
 @media (prefers-reduced-motion: reduce) {
   .home-hero { height: calc(100 * var(--svh)) !important; }
+  .home-hero > [data-stage] { box-shadow: none !important; }
   .home-manifest { height: auto !important; margin-top: 0 !important; }
   .home-manifest > div { position: relative !important; }
 }

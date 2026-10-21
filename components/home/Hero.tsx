@@ -180,7 +180,8 @@ export default function Hero() {
       const covered = camZ < END_Z + 0.02;
       const handed = p >= ARRIVE - 0.0005 && m.progress >= ARRIVE - 0.0005;
       const bg = covered ? colours.night : colours.paper;
-      box.style.backgroundColor = handed ? 'transparent' : bg;
+      // Also the colour of the band painted below the stage (--bleed).
+      box.style.setProperty('--stage-bg', handed ? 'transparent' : bg);
       box.style.pointerEvents = handed ? 'none' : '';
       // Handed over: the section underneath is in charge (also of the scroll pace).
       section.style.pointerEvents = handed ? 'none' : '';
@@ -392,7 +393,17 @@ export default function Hero() {
 
   return (
     <section ref={root} data-tone="light" data-scroll-pace="hero" aria-labelledby="hero-title" className="home-hero relative z-10" style={{ height: sceneHeight('hero', HERO_LVH) }}>
-      <div ref={stage} className="sticky top-0 overflow-hidden bg-[var(--paper)] text-ink" style={{ height: lvh(100) }}>
+      {/* The shadow is a band of the stage's colour below it (--bleed): what a phone shows behind its browser bar. */}
+      <div
+        ref={stage}
+        data-stage
+        className="sticky top-0 overflow-hidden text-ink"
+        style={{
+          height: lvh(100),
+          backgroundColor: 'var(--stage-bg, var(--paper))',
+          boxShadow: '0 var(--bleed) 0 0 var(--stage-bg, var(--paper))',
+        }}
+      >
         <canvas ref={canvasRef} aria-hidden="true" className="absolute inset-0 block h-full w-full opacity-0" />
 
         {/* The dark screen in the tunnel, with the next section already on it */}

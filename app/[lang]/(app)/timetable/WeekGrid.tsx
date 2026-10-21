@@ -30,10 +30,13 @@ import {
   type PartMark,
 } from '@/lib/timetable-logic';
 import { SpecialDayCard, lessonMarkIcon } from './parts';
+import { prefetchLesson } from './lessonDetail';
 import { PixelSpriteArt } from '@/components/app/PixelState';
 import s from './timetable.module.css';
 
 const PER_MILLE = 1000;
+/** A pointer resting this long on a lesson asks for its detail ahead of the click; passing over does not. */
+const HOVER_PREFETCH_MS = 140;
 
 /**
  * The week grid: six day columns (Mo-Sa) against a time axis built from the week's own lesson
@@ -326,13 +329,25 @@ function GridLessonCell({ cell, height, width, dense, scale, onTap }: {
   const roomForLines = height > 42 * scale ? 2 : height > 28 * scale ? 1 : 0;
   const label = [subjectText, entry.teacherName, entry.roomName, cancelled ? t('cancelled') : ''].filter(Boolean).join(', ');
 
+  // The popup's detail is asked for before the tap lands (lessonDetail.ts).
+  const hover = useRef(0);
+  const prefetch = () => prefetchLesson(cell.slot.display);
+  const leave = () => window.clearTimeout(hover.current);
+
   return (
     <button
       type="button"
       className={`${s.cell} ${s.toned} ${outline}`}
       style={toneVars(tone) as CSSProperties}
       onClick={e => { e.stopPropagation(); onTap(cell.slot); }}
-      onPointerDown={e => e.stopPropagation()}
+      onPointerDown={e => { e.stopPropagation(); prefetch(); }}
+      onPointerEnter={e => {
+        if (e.pointerType !== 'mouse') return;
+        leave();
+        hover.current = window.setTimeout(prefetch, HOVER_PREFETCH_MS);
+      }}
+      onPointerLeave={leave}
+      onFocus={prefetch}
       aria-label={label}
       title={label}
     >

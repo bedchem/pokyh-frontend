@@ -57,6 +57,7 @@ export type TimetableKey =
   | 'instead'
   | 'insteadOf'
   | 'wholeDay'
+  | 'detailsLoading'
   // absence marks
   | 'markPreExcused'
   | 'markExcused'
@@ -116,11 +117,12 @@ export const timetableDict: Dictionary<TimetableKey> = {
     absent: 'Abwesend',
     period: 'Zeitraum',
     reason: 'Grund',
-    teacher: 'Lehrer',
+    teacher: 'Lehrkraft',
     room: 'Raum',
     instead: 'Stattdessen',
     insteadOf: 'Statt',
     wholeDay: 'Ganzer Tag',
+    detailsLoading: 'Details der Stunde werden geladen',
     markPreExcused: 'Vorentschuldigung',
     markExcused: 'Entschuldigt',
     markAbsent: 'Unentschuldigt',
@@ -183,6 +185,7 @@ export const timetableDict: Dictionary<TimetableKey> = {
     instead: 'Al suo posto',
     insteadOf: 'Al posto di',
     wholeDay: 'Tutto il giorno',
+    detailsLoading: 'Caricamento dei dettagli dell’ora',
     markPreExcused: 'Giustificazione anticipata',
     markExcused: 'Giustificata',
     markAbsent: 'Non giustificata',
@@ -245,6 +248,7 @@ export const timetableDict: Dictionary<TimetableKey> = {
     instead: 'Instead',
     insteadOf: 'Instead of',
     wholeDay: 'All day',
+    detailsLoading: 'Loading the lesson details',
     markPreExcused: 'Excused in advance',
     markExcused: 'Excused',
     markAbsent: 'Unexcused',

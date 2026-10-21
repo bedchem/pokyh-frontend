@@ -10,6 +10,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { SplitText } from 'gsap/SplitText';
 import { ScrambleTextPlugin } from 'gsap/ScrambleTextPlugin';
 import { DrawSVGPlugin } from 'gsap/DrawSVGPlugin';
+import { VIEWPORT_GROW_EVENT } from '@/components/ViewportScript';
 
 let registered = false;
 
@@ -20,6 +21,8 @@ export function ensureGsap(): typeof gsap {
     // height: no new measuring of the scroll scenes for that (they are laid
     // out in viewport heights that stay put, components/ViewportScript.tsx).
     ScrollTrigger.config({ ignoreMobileResize: true });
+    // ...unless the large viewport turned out taller than first measured.
+    window.addEventListener(VIEWPORT_GROW_EVENT, () => ScrollTrigger.refresh());
     gsap.defaults({ ease: 'power3.out', duration: 0.8 });
     registered = true;
   }
