@@ -12,13 +12,15 @@
 /lld/*                  /de/:splat                     301
 /lld                    /de/                           301
 
+# The message list's own navigation data lives in the same folder as the
+# message pages: served as it is, before the id rule below can catch it.
+/:lang/messages/__next.$d$lang/*  /:lang/messages/__next.$d$lang/:splat  200
+
 # Detail pages with an id (lib/route-id.ts): every id gets the one page built
-# for the id "_" and its navigation data; the page reads the real id.
+# for the id "_" and its navigation data; the page reads the real id. Only
+# addresses below an id folder (/messages/123/…) match, so the list's files
+# (/messages/index.txt, /messages/__next.*.txt) are never rewritten.
 /:lang/messages/:id/*        /:lang/messages/_/:splat        200
 /:lang/mensa/dish/:id/*      /:lang/mensa/dish/_/:splat      200
 /:lang/canteen/dish/:id/*    /:lang/canteen/dish/_/:splat    200
 /:lang/grades/subject/:id/*  /:lang/grades/subject/_/:splat  200
-/:lang/messages/:id          /:lang/messages/_/              200
-/:lang/mensa/dish/:id        /:lang/mensa/dish/_/            200
-/:lang/canteen/dish/:id      /:lang/canteen/dish/_/          200
-/:lang/grades/subject/:id    /:lang/grades/subject/_/        200

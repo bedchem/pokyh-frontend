@@ -108,6 +108,13 @@ Factual log. No credentials, personal data or request bodies are recorded here.
 - `deploy/nginx.conf` + `deploy/nginx-headers.conf` (headers, redirects,
   language, id pages, caching); `public/_headers`, `public/_redirects` for
   Cloudflare Pages. Dockerfile: Node build stage → unprivileged nginx on 3011.
+- Fix after the first beta deploy (beta.pokyh.com, nginx behind Cloudflare):
+  the id rules also caught the message list's own navigation files
+  (`/messages/index.txt`, `/messages/__next.*`) and tried the `_` folder,
+  which redirected to itself (`ERR_TOO_MANY_REDIRECTS`, messages tab not
+  clickable, `grades/subject/_/` prefetch failing). Ids are now dot-free
+  segments only, the `_` page is served as a file, never a folder; the same
+  for `public/_redirects`. Checked against a local server with the same rules.
 - Service worker polls messages at the API address sent by the page.
 - Console: no preloads nobody uses (fonts not preloaded, small logos lazy or
   low priority, avatar only for a signed-in account).
