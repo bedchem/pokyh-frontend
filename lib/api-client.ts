@@ -202,6 +202,62 @@ async function apiJson<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+// ─── Live streams ─────────────────────────────────────────────────────────────
+
+// EventSource can't send headers, so the token and API key ride in the address.
+// The browser retries a dropped stream by itself, but with that same address
+// (an expired token after an hour), and never after an error answer such as
+// 401 or 429: the stream then stays shut. Every error therefore closes it and
+// opens a new one with a current token, waiting twice as long each time up to
+// five minutes, so a rate limit or an outage isn't hammered. The waits are
+// spread so a school's streams that dropped together don't return together.
+const STREAM_RETRY_MIN_MS = 2_000;
+const STREAM_RETRY_MAX_MS = 5 * 60_000;
+
+function liveStream<T>(path: string, event: string, onData: (data: T) => void): () => void {
+  let source: EventSource | null = null;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let delay = STREAM_RETRY_MIN_MS;
+  let stopped = false;
+
+  const retry = () => {
+    if (stopped) return;
+    timer = setTimeout(() => { void open(); }, delay * (0.5 + Math.random() / 2));
+    delay = Math.min(delay * 2, STREAM_RETRY_MAX_MS);
+  };
+
+  const open = async () => {
+    const token = await currentToken();
+    if (stopped) return;
+    if (!token) { retry(); return; }
+    const es = new EventSource(`${API_BASE}${path}?token=${encodeURIComponent(token)}&apiKey=${encodeURIComponent(API_KEY)}`);
+    source = es;
+    es.onopen = () => { delay = STREAM_RETRY_MIN_MS; };
+    es.addEventListener(event, (e: MessageEvent<string>) => {
+      let data: T;
+      try {
+        data = JSON.parse(e.data) as T;
+      } catch {
+        console.error(`[api-client] Failed to parse ${event} SSE event`);
+        return;
+      }
+      onData(data);
+    });
+    es.onerror = () => {
+      es.close();
+      source = null;
+      retry();
+    };
+  };
+
+  void open();
+  return () => {
+    stopped = true;
+    clearTimeout(timer);
+    source?.close();
+  };
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface ApiUser {
@@ -348,29 +404,7 @@ export const api = {
     },
 
     subscribe(username: string, callback: (todos: ApiTodo[]) => void): () => void {
-      const token = getToken();
-      if (!token) return () => {};
-
-      // Use SSE: pass token as query param (EventSource can't set headers).
-      // The proxy route injects the API key server-side.
-      const url = `${API_BASE}/sse/todos?token=${encodeURIComponent(token)}&apiKey=${encodeURIComponent(API_KEY)}`;
-      const es = new EventSource(url);
-
-      es.addEventListener('todos', (e: MessageEvent) => {
-        try {
-          const todos = JSON.parse(e.data) as ApiTodo[];
-          callback(todos);
-        } catch {
-          console.error('[api-client] Failed to parse todos SSE event');
-        }
-      });
-
-      es.onerror = () => {
-        // EventSource auto-reconnects
-        console.warn('[api-client] SSE todos connection lost, reconnecting...');
-      };
-
-      return () => es.close();
+      return liveStream('/sse/todos', 'todos', callback);
     },
   },
 
@@ -411,26 +445,8 @@ export const api = {
     },
 
     subscribe(classId: string, callback: (reminders: ApiReminder[]) => void): () => void {
-      const token = getToken();
-      if (!token || !classId) return () => {};
-
-      const url = `${API_BASE}/sse/reminders/${classId}?token=${encodeURIComponent(token)}&apiKey=${encodeURIComponent(API_KEY)}`;
-      const es = new EventSource(url);
-
-      es.addEventListener('reminders', (e: MessageEvent) => {
-        try {
-          const reminders = JSON.parse(e.data) as ApiReminder[];
-          callback(reminders);
-        } catch {
-          console.error('[api-client] Failed to parse reminders SSE event');
-        }
-      });
-
-      es.onerror = () => {
-        console.warn('[api-client] SSE reminders connection lost, reconnecting...');
-      };
-
-      return () => es.close();
+      if (!classId) return () => {};
+      return liveStream(`/sse/reminders/${encodeURIComponent(classId)}`, 'reminders', callback);
     },
   },
 
@@ -462,15 +478,8 @@ export const api = {
     },
 
     subscribe(reminderId: string, callback: (comments: ApiComment[]) => void): () => void {
-      const token = getToken();
-      if (!token || !reminderId) return () => {};
-      const url = `${API_BASE}/sse/reminder-comments/${encodeURIComponent(reminderId)}?token=${encodeURIComponent(token)}&apiKey=${encodeURIComponent(API_KEY)}`;
-      const es = new EventSource(url);
-      es.addEventListener('reminderComments', (e: MessageEvent) => {
-        try { callback(JSON.parse(e.data) as ApiComment[]); } catch { /* ignore */ }
-      });
-      es.onerror = () => { /* auto-reconnects */ };
-      return () => es.close();
+      if (!reminderId) return () => {};
+      return liveStream(`/sse/reminder-comments/${encodeURIComponent(reminderId)}`, 'reminderComments', callback);
     },
   },
 
@@ -503,15 +512,8 @@ export const api = {
     },
 
     subscribe(dishId: string, callback: (comments: ApiComment[]) => void): () => void {
-      const token = getToken();
-      if (!token || !dishId) return () => {};
-      const url = `${API_BASE}/sse/dish-comments/${encodeURIComponent(dishId)}?token=${encodeURIComponent(token)}&apiKey=${encodeURIComponent(API_KEY)}`;
-      const es = new EventSource(url);
-      es.addEventListener('dishComments', (e: MessageEvent) => {
-        try { callback(JSON.parse(e.data) as ApiComment[]); } catch { /* ignore */ }
-      });
-      es.onerror = () => { /* auto-reconnects */ };
-      return () => es.close();
+      if (!dishId) return () => {};
+      return liveStream(`/sse/dish-comments/${encodeURIComponent(dishId)}`, 'dishComments', callback);
     },
   },
 
@@ -596,49 +598,12 @@ export const api = {
 
     // Live ratings of every dish, fires whenever anyone rates anywhere (web or app).
     subscribeAll(callback: (dishId: string, data: DishRatingsData) => void): () => void {
-      const token = getToken();
-      if (!token) return () => {};
-
-      const url = `${API_BASE}/sse/dish-ratings?token=${encodeURIComponent(token)}&apiKey=${encodeURIComponent(API_KEY)}`;
-      const es = new EventSource(url);
-
-      es.addEventListener('dishRating', (e: MessageEvent) => {
-        try {
-          const { dishId, ...data } = JSON.parse(e.data) as DishRatingsData & { dishId: string };
-          callback(dishId, data);
-        } catch {
-          console.error('[api-client] Failed to parse dishRating SSE event');
-        }
-      });
-
-      es.onerror = () => {
-        console.warn('[api-client] SSE all dish-ratings connection lost, reconnecting...');
-      };
-
-      return () => es.close();
+      return liveStream<DishRatingsData & { dishId: string }>('/sse/dish-ratings', 'dishRating', ({ dishId, ...data }) => callback(dishId, data));
     },
 
     subscribe(dishId: string, callback: (data: DishRatingsData) => void): () => void {
-      const token = getToken();
-      if (!token || !dishId) return () => {};
-
-      const url = `${API_BASE}/sse/dish-ratings/${encodeURIComponent(dishId)}?token=${encodeURIComponent(token)}&apiKey=${encodeURIComponent(API_KEY)}`;
-      const es = new EventSource(url);
-
-      es.addEventListener('dishRatings', (e: MessageEvent) => {
-        try {
-          const data = JSON.parse(e.data) as DishRatingsData;
-          callback(data);
-        } catch {
-          console.error('[api-client] Failed to parse dishRatings SSE event');
-        }
-      });
-
-      es.onerror = () => {
-        console.warn('[api-client] SSE dish-ratings connection lost, reconnecting...');
-      };
-
-      return () => es.close();
+      if (!dishId) return () => {};
+      return liveStream(`/sse/dish-ratings/${encodeURIComponent(dishId)}`, 'dishRatings', callback);
     },
   },
 };

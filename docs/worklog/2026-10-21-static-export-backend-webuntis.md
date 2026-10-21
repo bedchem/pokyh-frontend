@@ -135,3 +135,25 @@ Factual log. No credentials, personal data or request bodies are recorded here.
   37/37.
 - Release state: uncommitted. Deploy order: backend first (the current
   website keeps working with it), then the static website.
+
+## 2026-10-21 · Live streams answered 429
+
+- Symptom after the static switch: `/sse/todos`, `/sse/reminders/*` and
+  `/sse/dish-ratings` answered 429; the console repeated "connection lost,
+  reconnecting..." while live updates had in fact stopped.
+- Cause: the browser now opens the streams straight at the API, and the
+  backend's `sseLimiter` allowed 10 new streams a minute per address, shared
+  by everyone at a school. The browser also never retries an EventSource
+  after an error answer (429, 401) and retries network drops with the old
+  address, whose token expires after an hour.
+- Backend: `sseLimiter` mounted after `requireAuth` and counted per account
+  (`sse:<stableUid>`), default `RATE_LIMIT_SSE_MAX` 30 (`.env.example`
+  updated); `globalLimiter` still bounds each address.
+- Website: one `liveStream()` in `lib/api-client.ts` for all six streams. Any
+  error closes the stream and opens a new one with a current token, waiting
+  2 s doubling to 5 min, randomly spread; a successful open resets the wait.
+  The misleading warnings are gone.
+- Verification: `tsc --noEmit` ok in both repositories, `eslint` ok on
+  `lib/api-client.ts`. Not run against a backend (no local backend testing).
+- Release state: uncommitted. Deploy the backend and raise
+  `RATE_LIMIT_SSE_MAX` in the server's `.env` if it still says 10.
