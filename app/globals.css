@@ -11,7 +11,11 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  color-scheme: light;
+  /* "only light": the light theme is drawn as it is. A browser with a dark
+     mode of its own (Samsung Internet) must not paint its filter over it;
+     the site has a real dark theme (.dark, from the system or the choice,
+     announced by <meta name="color-scheme" content="light dark">). */
+  color-scheme: only light;
 
   /* Neutral ramp: canvas → surface → inset. In the light theme the cards are
      a warm off-white on a slightly deeper paper, not pure white: softer on
@@ -480,7 +484,7 @@ html.lenis body {
   --key-default-bg: var(--ink);
   --key-default-fg: var(--paper);
 
-  color-scheme: light;
+  color-scheme: only light;
   background: var(--paper);
   color: var(--ink);
 }

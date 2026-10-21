@@ -1,4 +1,7 @@
 services:
+  # The website: a static export served by nginx (Dockerfile, deploy/nginx.conf).
+  # Everything is decided when the image is built (the NEXT_PUBLIC_* values);
+  # the container needs no secrets and no environment.
   web:
     build:
       context: .
@@ -16,10 +19,10 @@ services:
     restart: unless-stopped
     ports:
       - "3011:3011"
-    environment:
-      - NODE_ENV=production
-      - PORT=3011
-      - SESSION_SECRET
-      - API_BACKEND_URL
-      - API_BACKEND_KEY
-      - API_SERVER_KEY
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true

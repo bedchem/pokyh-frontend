@@ -30,9 +30,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [classId, setClassId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
-  const init = useCallback(async (username: string, klasseId: number, klasseName: string) => {
+  const init = useCallback(async () => {
     try {
-      const result = await api.auth.loginWithSession(username, klasseId, klasseName);
+      const result = await api.auth.loginWithSession();
       if (result.stableUid) {
         setStableUid(result.stableUid);
         setClassId(result.classId);
@@ -48,12 +48,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     setReady(false);
     setClassId(null);
-    init(user.username, user.klasseId, user.klasseName);
+    void init();
   }, [user, init]);
 
+  // Started right after the render, not inside the effect itself.
   useEffect(() => {
     if (!user) return;
-    init(user.username, user.klasseId, user.klasseName);
+    const timer = window.setTimeout(() => { void init(); }, 0);
+    return () => window.clearTimeout(timer);
   }, [user, init]);
 
   // Periodically verify the backend session is still valid.

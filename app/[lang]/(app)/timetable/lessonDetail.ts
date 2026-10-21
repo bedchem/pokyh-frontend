@@ -2,6 +2,7 @@
 
 import type { TimetableEntry } from '@/lib/types';
 import type { TimetableKey } from '@/lib/i18n/dictionaries/timetable';
+import { untisGet } from '@/lib/api';
 
 // What a lesson's detail (WebUntis calendar-entry/detail) adds to the
 // timetable's own fields: the lesson texts, classes, group, exam and
@@ -81,7 +82,7 @@ export function loadLessonDetail(lesson: LessonRef): Promise<LessonDetail | null
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < KEEP_MS) return hit.promise;
   const entry: { at: number; promise: Promise<LessonDetail | null>; value?: LessonDetail | null } = { at: Date.now(), promise: Promise.resolve(null) };
-  entry.promise = fetch(`/api/webuntis/lesson-detail?date=${lesson.date}&startTime=${lesson.startTime}&endTime=${lesson.endTime}`)
+  entry.promise = untisGet(`/api/webuntis/lesson-detail?date=${lesson.date}&startTime=${lesson.startTime}&endTime=${lesson.endTime}`)
     .then((r) => (r.ok ? r.json() : null))
     .then((data) => {
       const list: unknown = data?.calendarEntries;

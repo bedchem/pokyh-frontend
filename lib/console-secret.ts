@@ -1,13 +1,15 @@
-// What people find when they open the developer tools: a greeting, a warning
-// against pasting foreign code (self-XSS), and a few secret commands on
-// `window.pokyh`. Pressing F12 (or the usual shortcuts) on the page reveals
-// the commands. Loaded lazily, after the page is idle (ConsoleSecret.tsx).
+// What people find when they open the developer tools: a greeting and a few
+// secret commands on `window.pokyh`. Pressing F12 (or the usual shortcuts) on
+// the page reveals the commands. Loaded lazily, after the page is idle, or at
+// once when the shortcut comes first (ConsoleSecret.tsx).
 
+import { isDevtoolsShortcut } from '@/lib/devtools-key';
 import { makeT } from '@/lib/i18n/dictionary';
 import { consoleSecretDict } from '@/lib/i18n/dictionaries/consoleSecret';
 import { localized, dishesFrom } from '@/lib/mensa';
 import type { Locale } from '@/lib/i18n/locale';
 import { SOURCE_URL } from '@/lib/site-links';
+import { apiUrl } from '@/lib/backend';
 
 const LOGO = [
   ' ____   ___  _  ____   ___   _ ',
@@ -18,17 +20,18 @@ const LOGO = [
 ].join('\n');
 
 const INDIGO = '#534AB7';
-const LILAC = '#DEDDFB';
 const TONES = ['#F7E7AC', '#D5E4D0', '#DEDDFB', '#F7D9D3', '#534AB7'];
 
 interface Options {
   locale: Locale;
   toggleTheme: () => void;
+  /** The shortcut was pressed before this was loaded: show the commands now. */
+  revealNow?: boolean;
 }
 
 let installed = false;
 
-export function installConsoleSecret({ locale, toggleTheme }: Options): () => void {
+export function installConsoleSecret({ locale, toggleTheme, revealNow = false }: Options): () => void {
   const t = makeT(consoleSecretDict, locale);
   const quotes = t('quotes').split('|');
 
@@ -54,7 +57,7 @@ export function installConsoleSecret({ locale, toggleTheme }: Options): () => vo
     },
     async mensa() {
       try {
-        const res = await fetch('/api/mensa');
+        const res = await fetch(apiUrl('/dishes'));
         const dishes = dishesFrom(await res.json());
         const now = new Date();
         const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -80,32 +83,34 @@ export function installConsoleSecret({ locale, toggleTheme }: Options): () => vo
     installed = true;
     console.log(`%c${LOGO}`, `color:${INDIGO};font:700 12px/1.15 monospace`);
     console.log(`%c${t('hello')}%c\n${t('curious')}\n${SOURCE_URL}`, `font:800 20px system-ui;color:${INDIGO}`, 'font:14px/1.5 system-ui');
-    console.log(`%c${t('warnTitle')}%c ${t('warnText')}`, 'font:800 16px system-ui;color:#fff;background:#C0392B;padding:2px 8px;border-radius:6px', 'font:14px/1.5 system-ui;color:#C0392B');
-    console.log(`%c${t('help')}`, `font:600 13px system-ui;color:${INDIGO};background:${LILAC};padding:2px 8px;border-radius:6px`);
   }
 
   (window as unknown as { pokyh?: typeof api }).pokyh = api;
 
-  // F12, Ctrl/Cmd+Shift+I/J/C and Cmd+Option+I/J/C: the hidden commands appear.
-  let revealed = false;
-  const onKey = (e: KeyboardEvent) => {
-    // Autofill sends keydown events without a key.
-    if (typeof e.key !== 'string') return;
-    const key = e.key.toLowerCase();
-    const devtools = e.key === 'F12'
-      || ((e.ctrlKey || e.metaKey) && e.shiftKey && ['i', 'j', 'c'].includes(key))
-      || (e.metaKey && e.altKey && ['i', 'j', 'c'].includes(key));
-    if (!devtools || revealed) return;
-    revealed = true;
+  // The developer-tools shortcuts show the hidden commands, every time the
+  // panel is opened that way: a press within a few seconds of the last one
+  // (closing it again) adds nothing.
+  const reveal = () => {
+    const now = Date.now();
+    if (now - lastReveal < REVEAL_GAP_MS) return;
+    lastReveal = now;
     // After the panel has opened, so the message is the newest line.
     window.setTimeout(() => {
       console.log(`%c${t('caught')}`, `font:700 15px system-ui;color:#fff;background:${INDIGO};padding:4px 10px;border-radius:8px`);
       api.help();
     }, 600);
   };
-  window.addEventListener('keydown', onKey);
-  return () => window.removeEventListener('keydown', onKey);
+  if (revealNow) reveal();
+  // Capture phase: a component that stops the key event can't swallow it.
+  const onKey = (e: KeyboardEvent) => {
+    if (isDevtoolsShortcut(e)) reveal();
+  };
+  window.addEventListener('keydown', onKey, true);
+  return () => window.removeEventListener('keydown', onKey, true);
 }
+
+const REVEAL_GAP_MS = 3_000;
+let lastReveal = 0;
 
 /** The five letters fall over the page as coloured tiles, then are gone. */
 function party() {

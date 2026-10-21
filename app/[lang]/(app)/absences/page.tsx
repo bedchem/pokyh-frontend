@@ -17,7 +17,7 @@ import ReportAbsenceSheet from '@/components/absences/ReportAbsenceSheet';
 import ExcuseSheet from '@/components/absences/ExcuseSheet';
 import { fetchAbsences, fetchTimetable, getAbsencesStale, fetchPermissions, excuseLetterUrl } from '@/lib/api';
 import { untisActionsDict } from '@/lib/i18n/dictionaries/untisActions';
-import { useSession } from '@/providers/SessionProvider';
+import { useSession, loginPath } from '@/providers/SessionProvider';
 import type { AbsenceEntry } from '@/lib/types';
 import { parseAbsences } from '@/lib/absences';
 import { useDateLocale, useLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
@@ -293,7 +293,7 @@ export default function AbsencesPage() {
         (r) => r.status === 'rejected' && r.reason instanceof Error && r.reason.message === 'session_expired',
       );
       if (sessionExpired) {
-        window.location.replace('/login');
+        window.location.replace(loginPath());
         return;
       }
 
@@ -329,7 +329,7 @@ export default function AbsencesPage() {
       writeAbsenceCalc(studentId, selectedYear, mins, possibleMins, parsed.length);
     } catch (e: unknown) {
       if (e instanceof Error && e.message === 'session_expired') {
-        window.location.replace('/login');
+        window.location.replace(loginPath());
       } else {
         setError(e instanceof Error ? e.message : 'Fehler');
       }

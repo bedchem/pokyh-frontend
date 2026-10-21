@@ -4,9 +4,6 @@ import type { Dictionary } from '../dictionary';
 export type ConsoleSecretKey =
   | 'hello'
   | 'curious'
-  | 'warnTitle'
-  | 'warnText'
-  | 'help'
   | 'caught'
   | 'cmdHelp'
   | 'cmdParty'
@@ -23,11 +20,8 @@ export type ConsoleSecretKey =
 
 export const consoleSecretDict: Dictionary<ConsoleSecretKey> = {
   de: {
-    hello: 'Servus, Neugier!',
+    hello: 'Servus!',
     curious: 'Du schaust unter die Haube. Gefällt uns. POKYH ist Open Source, schau gern rein und mach mit.',
-    warnTitle: 'Stopp!',
-    warnText: 'Füge hier nichts ein, was dir jemand geschickt hat. Wer dich dazu bringt, Code in die Konsole zu kopieren, will meistens an dein Konto.',
-    help: 'Tipp: pokyh.help()',
     caught: 'Erwischt! F12 gedrückt. Als Belohnung: ein paar geheime Befehle.',
     cmdHelp: 'diese Liste',
     cmdParty: 'ein kleines Fest auf der Seite',
@@ -43,11 +37,8 @@ export const consoleSecretDict: Dictionary<ConsoleSecretKey> = {
     quotes: 'Montag ist auch nur ein Tag.|Die Pause ist die wichtigste Stunde.|Hausaufgaben erledigen sich nicht von allein. Leider.|Der Stundenplan ändert sich, die Freunde bleiben.|Noch fünf Minuten bis zum Gong.',
   },
   it: {
-    hello: 'Ciao, curiosità!',
+    hello: 'Ciao!',
     curious: 'Stai guardando sotto il cofano. Ci piace. POKYH è open source: dai un’occhiata e partecipa.',
-    warnTitle: 'Stop!',
-    warnText: 'Non incollare qui niente che ti abbia mandato qualcuno. Chi ti chiede di copiare codice nella console di solito vuole il tuo account.',
-    help: 'Suggerimento: pokyh.help()',
     caught: 'Beccato! Hai premuto F12. In premio: qualche comando segreto.',
     cmdHelp: 'questa lista',
     cmdParty: 'una piccola festa sulla pagina',
@@ -63,11 +54,8 @@ export const consoleSecretDict: Dictionary<ConsoleSecretKey> = {
     quotes: 'Anche il lunedì è solo un giorno.|La ricreazione è l’ora più importante.|I compiti non si fanno da soli. Purtroppo.|L’orario cambia, gli amici restano.|Mancano cinque minuti alla campanella.',
   },
   en: {
-    hello: 'Hello, curious one!',
+    hello: 'Hi there!',
     curious: 'You are looking under the hood. We like that. POKYH is open source, take a look and join in.',
-    warnTitle: 'Stop!',
-    warnText: 'Do not paste anything here that someone sent you. Whoever asks you to copy code into the console usually wants your account.',
-    help: 'Tip: pokyh.help()',
     caught: 'Caught you! F12 pressed. Your reward: a few secret commands.',
     cmdHelp: 'this list',
     cmdParty: 'a little party on the page',

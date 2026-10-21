@@ -5,8 +5,9 @@ import { SITE_PAGES } from '@/lib/seo/pages';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com';
 
-// Rebuilt once a day, so the menu page carries today's date.
-export const revalidate = 86400;
+// Written when the website is built (it is a static page): the menu page
+// carries the build's date.
+export const dynamic = 'force-static';
 
 /**
  * One entry per page and language, each listing all its language versions

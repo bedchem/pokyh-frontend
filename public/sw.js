@@ -1,6 +1,9 @@
 const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 min: same as native app
 let _knownUnread = -1;
 let _pollTimer = null;
+// Where WebUntis is read: the API's address, which the page sends along with
+// 'start-poll' (the website itself is static). Empty: this address.
+let _apiBase = '';
 
 self.addEventListener('install', () => self.skipWaiting());
 
@@ -10,8 +13,10 @@ self.addEventListener('activate', (event) => {
 
 // Start polling when the SW activates or when the page tells us the user logged in
 self.addEventListener('message', (event) => {
-  if (event.data === 'start-poll') startPolling();
-  if (event.data === 'stop-poll') stopPolling();
+  const type = typeof event.data === 'string' ? event.data : event.data?.type;
+  if (event.data && typeof event.data.api === 'string') _apiBase = event.data.api.replace(/\/$/, '');
+  if (type === 'start-poll') startPolling();
+  if (type === 'stop-poll') stopPolling();
 });
 
 function startPolling() {
@@ -27,7 +32,7 @@ function stopPolling() {
 
 async function checkMessages() {
   try {
-    const res = await fetch('/api/webuntis/messages', { credentials: 'include' });
+    const res = await fetch(`${_apiBase}/webuntis/messages`, { credentials: 'include' });
     if (!res.ok) { stopPolling(); return; } // session expired / logged out
 
     const data = await res.json();

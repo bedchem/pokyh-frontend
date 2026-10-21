@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LayoutGroup, motion } from 'framer-motion';
 import { Checks, Paperclip, PencilSimple, Trash } from '@phosphor-icons/react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AuthGuard from '@/components/AuthGuard';
 import UntisGuard from '@/components/UntisGuard';
@@ -22,6 +21,7 @@ import { useDateLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider
 import { messagesDict, type MessagesKey } from '@/lib/i18n/dictionaries/messages';
 import { formatDate, formatTime } from '@/lib/i18n/dateLocale';
 import { messageIsRead, messageRecipientNames } from '@/lib/untis-parse';
+import { loginPath } from '@/providers/SessionProvider';
 
 type TFn = (key: MessagesKey, vars?: Record<string, string | number>) => string;
 
@@ -97,7 +97,6 @@ function formatMessageDate(dateStr: string, tag: string, yesterday: string): str
 }
 
 export default function MessagesPage() {
-  const router = useRouter();
   const t = useT(messagesDict);
   const { tag } = useDateLocale();
   const localize = useLocalizeHref();
@@ -129,14 +128,14 @@ export default function MessagesPage() {
       setError('');
     } catch (e: unknown) {
       if (e instanceof Error && e.message === 'session_expired') {
-        router.replace('/login');
+        window.location.replace(loginPath());
       } else {
         setError(e instanceof Error ? e.message : 'error');
       }
     } finally {
       setLoading(false);
     }
-  }, [router, folder, t]);
+  }, [folder, t]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void load(); }, 0);
@@ -166,7 +165,7 @@ export default function MessagesPage() {
       setComposeInitial({ draftId: id, subject: d.subject, content: d.content, recipients: d.recipients, attachments: d.attachments });
       setShowCompose(true);
     } catch (e) {
-      if (e instanceof Error && e.message === 'session_expired') router.replace('/login');
+      if (e instanceof Error && e.message === 'session_expired') window.location.replace(loginPath());
       else setError(t('draftOpenFailed'));
     } finally {
       setOpeningDraftId(null);
@@ -180,7 +179,7 @@ export default function MessagesPage() {
       await deleteDraft(id);
       setMessages((prev) => prev.filter((m) => m.id !== id));
     } catch (e) {
-      if (e instanceof Error && e.message === 'session_expired') router.replace('/login');
+      if (e instanceof Error && e.message === 'session_expired') window.location.replace(loginPath());
       else setError(t('draftDeleteFailed'));
     } finally {
       setDeletingDraftId(null);

@@ -1,12 +1,13 @@
+# ── Build: the static export (out/) ───────────────────────────────────────────
 FROM node:22-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
 
-# Build-time env vars (baked into the client bundle). NEXT_PUBLIC_* is frozen at
-# build time, so the backend URL must be set here — and must be https:// to avoid
-# Mixed Content when the app is served over HTTPS.
+# Build-time env vars (baked into the pages and the client bundle). NEXT_PUBLIC_*
+# is frozen at build time, so the backend URL must be set here — and must be
+# https:// to avoid Mixed Content when the site is served over HTTPS.
 ARG NEXT_PUBLIC_API_KEY
 ARG NEXT_PUBLIC_SITE_URL=https://pokyh.com
 ARG NEXT_PUBLIC_DEBUG_API=false
@@ -31,15 +32,15 @@ ENV NEXT_PUBLIC_API_BACKEND_URL=$NEXT_PUBLIC_API_BACKEND_URL
 
 RUN npm run build
 
-FROM node:22-alpine AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-ENV HOSTNAME=0.0.0.0
-ENV PORT=3011
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-USER appuser
-# Keep the standalone server on the same port published by docker-compose.yml.
-CMD ["node", "server.js"]
+# The web server falls back to the same language as the pages (lib/i18n/locale.ts).
+RUN case "$NEXT_PUBLIC_FALLBACK_LOCALE" in de|it|en) lang="$NEXT_PUBLIC_FALLBACK_LOCALE" ;; *) lang=en ;; esac \
+    && sed -i "s/__FALLBACK_LOCALE__/$lang/g" deploy/nginx.conf
+
+# ── Serve: nginx, unprivileged, nothing but files ─────────────────────────────
+FROM nginxinc/nginx-unprivileged:1.28-alpine AS runner
+COPY --from=builder /app/deploy/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /app/deploy/nginx-headers.conf /etc/nginx/pokyh/headers.conf
+COPY --from=builder /app/out /usr/share/nginx/html
+# Same port as before, so the tunnel / proxy in front stays as it is.
+EXPOSE 3011
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD wget -q -O /dev/null http://127.0.0.1:3011/de/ || exit 1

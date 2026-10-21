@@ -4,8 +4,10 @@ import { PROTECTED_APP_ROUTES } from '@/lib/routes';
 // robots.txt, written by hand so it can carry content signals
 // (https://contentsignals.org), which the metadata route cannot express.
 // Public pages, the sitemap and llms.txt are open to everyone, search engines
-// and AI assistants alike; the signed-in app and the API are not, except the
-// public menu, which the Mensa page loads and crawlers need to render it.
+// and AI assistants alike; the signed-in app is not. The menu the Mensa page
+// shows comes from the API (api.pokyh.com), which has its own address.
+
+export const dynamic = 'force-static';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com';
 /** What crawlers may do with the content (search, AI answers, AI training). */
@@ -19,7 +21,7 @@ const SEARCH_AND_AI = [
   'DuckAssistBot', 'cohere-ai', 'YouBot',
 ];
 
-const ALLOW = ['/', '/api/mensa'];
+const ALLOW = ['/'];
 const DISALLOW = ['/api/', ...ACTIVE_LOCALES.flatMap((l) => PROTECTED_APP_ROUTES.map((r) => `/${l}${r}/`))];
 
 function group(agents: string[]): string {

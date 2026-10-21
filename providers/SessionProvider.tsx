@@ -1,9 +1,9 @@
 'use client';
 
-import { stripLocale } from '@/lib/i18n/locale';
+import { DEFAULT_LOCALE, isLocale, stripLocale } from '@/lib/i18n/locale';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { logout as apiLogout } from '@/lib/api';
-import { forgetStoredTokens } from '@/lib/api-client';
+import { forgetStoredTokens, signOutEverywhere } from '@/lib/api-client';
 import { cacheClear } from '@/lib/cache';
 import { forgetTabCredentials } from '@/lib/passkey';
 import { pcClear } from '@/lib/persist-cache';
@@ -40,6 +40,18 @@ const Ctx = createContext<SessionCtx>({
 const COOKIE_CHECK_MS = 2000;
 
 const hasUserCookie = () => /(?:^|;\s*)pokyh_user=/.test(document.cookie);
+
+/**
+ * The sign-in page in the language of the current page, coming back here
+ * afterwards. The website is static, so nothing in front of it adds the
+ * language or the way back any more.
+ */
+export function loginPath(comeBack = true): string {
+  const lang = window.location.pathname.split('/')[1] || DEFAULT_LOCALE;
+  const here = window.location.pathname + window.location.search;
+  const path = `/${isLocale(lang) ? lang : DEFAULT_LOCALE}/login/`;
+  return comeBack && isProtectedAppRoute(stripLocale(window.location.pathname)) ? `${path}?next=${encodeURIComponent(here)}` : path;
+}
 
 /** The account's school data kept on the device for quick display goes with the sign-in. */
 function forgetSignedInData() {
@@ -90,13 +102,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setIsLoading(false);
       forgetSignedInData();
-      // Clear server-side pokyh_session cookie so middleware allows /login
-      fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' })
+      // The API's sign-in cookies and the page's own go, so the sign-in page
+      // shows the form instead of sending straight back.
+      signOutEverywhere()
         .catch(() => {})
         .finally(() => {
           // Pages that need a sign-in send to it; public ones stay, for a guest.
           if (isProtectedAppRoute(stripLocale(window.location.pathname))) {
-            window.location.replace('/login');
+            window.location.replace(loginPath());
           }
         });
     };
@@ -119,7 +132,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     try { await apiLogout(); } catch { /* best effort */ }
     forgetSignedInData();
     setUser(null);
-    window.location.replace('/login');
+    window.location.replace(loginPath(false));
   }, []);
 
   // Signed in means the cookies are there. When they go (deleted in the

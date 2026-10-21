@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -25,22 +25,46 @@ function resolveTheme(t: Theme): 'light' | 'dark' {
   return t;
 }
 
+// The chosen theme lives in localStorage (pokyh_theme): read as an external
+// store, so the server render and hydration use 'system' and the page then
+// takes the stored choice; other tabs follow through the storage event.
+const THEME_KEY = 'pokyh_theme';
+const THEME_EVENT = 'pokyh-theme-change';
+
+function readStoredTheme(): Theme {
+  try {
+    const saved = localStorage.getItem(THEME_KEY);
+    return saved === 'light' || saved === 'dark' ? saved : 'system';
+  } catch {
+    return 'system';
+  }
+}
+
+function subscribeStoredTheme(onChange: () => void): () => void {
+  window.addEventListener(THEME_EVENT, onChange);
+  window.addEventListener('storage', onChange);
+  return () => {
+    window.removeEventListener(THEME_EVENT, onChange);
+    window.removeEventListener('storage', onChange);
+  };
+}
+
+function setThemeState(t: Theme): void {
+  try { localStorage.setItem(THEME_KEY, t); } catch { /* storage blocked: this page only */ }
+  window.dispatchEvent(new Event(THEME_EVENT));
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('system');
+  const theme = useSyncExternalStore(subscribeStoredTheme, readStoredTheme, () => 'system' as Theme);
   const [resolved, setResolved] = useState<'light' | 'dark'>('dark');
   const pendingRef = useRef<'light' | 'dark'>('dark');
   const activeCountRef = useRef(0);
 
   useEffect(() => {
-    const saved = (localStorage.getItem('pokyh_theme') as Theme) ?? 'system';
-    setThemeState(saved);
-    pendingRef.current = resolveTheme(saved);
-  }, []);
-
-  useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const apply = () => {
       const isDark = theme === 'dark' || (theme === 'system' && mq.matches);
+      pendingRef.current = isDark ? 'dark' : 'light';
       setResolved(isDark ? 'dark' : 'light');
       document.documentElement.classList.toggle('dark', isDark);
     };
@@ -51,7 +75,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setTheme = (t: Theme) => {
     setThemeState(t);
-    localStorage.setItem('pokyh_theme', t);
     const isDark = resolveTheme(t) === 'dark';
     document.documentElement.classList.toggle('dark', isDark);
   };
@@ -76,7 +99,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const newBg = nextResolved === 'dark' ? '#111114' : '#F5F2ED';
 
     document.documentElement.classList.toggle('dark', isDark);
-    localStorage.setItem('pokyh_theme', next);
     setThemeState(next);
     setResolved(nextResolved);
 

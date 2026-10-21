@@ -1,4 +1,6 @@
 import type { MetadataRoute } from 'next';
+// Written once when the website is built (a static file).
+export const dynamic = 'force-static';
 
 // The installed web app. One manifest for all languages; the app itself
 // follows the language of the device (proxy.ts) and the saved choice.

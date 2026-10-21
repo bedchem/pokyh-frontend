@@ -57,7 +57,6 @@ export function useGsap(
       if (typeof cleanup === 'function') cleanup();
       ctx.revert();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 }
 

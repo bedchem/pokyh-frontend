@@ -131,7 +131,7 @@ export default function MobileMenu({
     >
       <div className="flex h-[72px] shrink-0 items-center justify-between px-5 md:h-[84px] md:px-10">
         <Link href={localize('/')} onClick={onClose} aria-label={`POKYH, ${t('home')}`} className="flex items-center gap-3 rounded-lg">
-          <Image src="/POKYH_Logo.png" alt="" width={44} height={44} loading="eager" className="size-10 md:size-11" />
+          <Image src="/POKYH_Logo.png" alt="" width={44} height={44} loading="lazy" className="size-10 md:size-11" />
           <span className="font-display text-[22px] tracking-[-0.04em]">POKYH</span>
         </Link>
         <button ref={closeBtn} type="button" onClick={onClose} aria-label={t('close')} className="key key-sm key-glass !px-0 w-11">

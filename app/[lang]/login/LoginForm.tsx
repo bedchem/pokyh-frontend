@@ -20,6 +20,9 @@ import {
 } from '@/lib/passkey';
 import { readCookieChoice, COOKIE_CONSENT_EVENT } from '@/lib/cookie-consent';
 import { rememberPendingAck } from '@/lib/privacy-consent';
+import { API_BASE, API_KEY, rememberSignIn, untisUrl, type SignInAnswer } from '@/lib/backend';
+import { untisSignIn } from '@/lib/api';
+import { useSession } from '@/providers/SessionProvider';
 import { forgetSchoolChoice, readSchoolChoice, saveSchoolChoice, type SchoolChoice } from '@/lib/school-choice';
 import { prefersReducedMotion } from '@/lib/motion';
 import { closeView, enteringWith, openView, useRoomView } from '@/components/room/route';
@@ -125,7 +128,7 @@ function useSchoolSearch(query: string): SearchState {
     const ctrl = new AbortController();
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/webuntis/schools?q=${encodeURIComponent(q)}`, { signal: ctrl.signal });
+        const res = await fetch(untisUrl(`/api/webuntis/schools?q=${encodeURIComponent(q)}`), { signal: ctrl.signal });
         const data = (await res.json().catch(() => ({}))) as { schools?: SchoolChoice[]; reason?: string };
         setAnswer({
           q,
@@ -168,6 +171,7 @@ function rememberedSnapshot(): SchoolChoice | null {
 
 export default function LoginForm() {
   const t = useT(loginDict);
+  const { user: signedIn, isLoading: sessionLoading } = useSession();
   const ta = useT(untisActionsDict);
   const localize = useLocalizeHref();
 
@@ -199,6 +203,14 @@ export default function LoginForm() {
   const typed = () => setKeys((n) => n + 1);
   const happen = (kind: NonNullable<MascotEvent>['kind']) => setEvent({ kind, n: Date.now() });
   const autofill = () => setEvent(autofilled);
+
+  // Already signed in: straight on to the app (where ?next= points, or home).
+  useEffect(() => {
+    if (sessionLoading || !signedIn || loading) return;
+    const raw = new URLSearchParams(window.location.search).get('next') ?? '';
+    window.location.replace(raw.startsWith('/') && !raw.startsWith('//') ? raw : localize('/home'));
+  }, [sessionLoading, signedIn, loading, localize]);
+
   const focusOn = (field: NonNullable<MascotState['focus']>) => ({
     onFocus: () => setFocus(field),
     onBlur: () => setFocus((f) => (f === field ? null : f)),
@@ -394,19 +406,15 @@ export default function LoginForm() {
     const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : localize('/home');
 
     try {
-      const untisRes = await fetch('/api/webuntis/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: username.trim(),
-          password,
-          school: { loginName: school.loginName, server: school.server, name: school.name },
-        }),
-        credentials: 'same-origin',
+      const untisRes = await untisSignIn({
+        username: username.trim(),
+        password,
+        school: { loginName: school.loginName, server: school.server, name: school.name },
       });
-      const untisData = (await untisRes.json().catch(() => ({}))) as { ok?: boolean; code?: string };
+      const untisData = (await untisRes.json().catch(() => ({}))) as { ok?: boolean; code?: string } & SignInAnswer;
 
       if (untisRes.ok && untisData.ok) {
+        rememberSignIn(untisData);
         setLoadingMsg(t('almostDone'));
         happen('success');
         if (isPasswordCredentialSupported() && !hasDeclinedPasskey()) {
@@ -424,14 +432,15 @@ export default function LoginForm() {
       // Wrong WebUntis credentials may still be a POKYH-only account.
       if (untisData.code === 'bad_credentials' || untisData.code === 'refused') {
         setLoadingMsg(t('checkingPokyh'));
-        const pokyhRes = await fetch('/api/auth/pokyh-login', {
+        const pokyhRes = await fetch(`${API_BASE}/auth/web/local-login`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: username.trim(), password }),
-          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
+          body: JSON.stringify({ username: username.trim().toLowerCase(), password }),
+          credentials: 'include',
         });
-        const pokyhData = (await pokyhRes.json().catch(() => ({}))) as { ok?: boolean };
+        const pokyhData = (await pokyhRes.json().catch(() => ({}))) as { ok?: boolean } & SignInAnswer;
         if (pokyhRes.ok && pokyhData.ok) {
+          rememberSignIn(pokyhData);
           setLoadingMsg(t('almostDone'));
           happen('success');
           window.location.replace(next);

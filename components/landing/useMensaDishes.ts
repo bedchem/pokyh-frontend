@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { dishesFrom, type MenuDish } from '@/lib/mensa';
+import { apiUrl } from '@/lib/backend';
 
 // The school's Mensa plan, loaded once per page and shared by every section
-// of the homepage that shows dishes.
+// of the homepage that shows dishes (the public menu, straight from the API).
 let request: Promise<MenuDish[]> | null = null;
 
 function load(): Promise<MenuDish[]> {
-  request ??= fetch('/api/mensa')
+  request ??= fetch(apiUrl('/dishes'))
     .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
     .then((json) => dishesFrom(json))
     .catch(() => {

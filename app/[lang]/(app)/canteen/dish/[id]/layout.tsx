@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react';
+import { placeholderParams } from '@/lib/route-placeholder';
 
-// Rendered in the browser from the menu; each id is rendered on its first
-// visit and served static from then on.
-export function generateStaticParams() {
-  return [];
-}
+// Built once, for the placeholder id: the page renders in the browser and
+// reads the real id from the address (lib/route-id.ts); the web server
+// answers every id with this one page.
+export const generateStaticParams = placeholderParams;
 
 export default function DishLayout({ children }: { children: ReactNode }) {
   return children;

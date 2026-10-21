@@ -68,7 +68,7 @@ export default function LandingNav() {
           <div className="lp-nav-left">
             <Link href={localize('/')} className="lp-nav-brand">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/POKYH_Logo.png" alt="POKYH" className="lp-nav-logo-img" />
+              <img src="/POKYH_Logo.png" alt="POKYH" fetchPriority="low" className="lp-nav-logo-img" />
               POKYH
             </Link>
             <div className="lp-nav-links">

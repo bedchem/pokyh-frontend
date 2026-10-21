@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { SortAscending } from '@phosphor-icons/react';
 import AuthGuard from '@/components/AuthGuard';
 import UntisGuard from '@/components/UntisGuard';
@@ -16,6 +15,7 @@ import { classPagesDict } from '@/lib/i18n/dictionaries/classPages';
 import { shellDict } from '@/lib/i18n/dictionaries/shell';
 import { formatDate } from '@/lib/i18n/dateLocale';
 import { EntryRow, TONE_BAR, categoryTone, dateOf, parseClassregRows, type ClassregEvent } from '@/components/class/ClassregEntry';
+import { loginPath } from '@/providers/SessionProvider';
 
 // The class register (Klassenbuch): what teachers noted for the class in a
 // school year. Four figures and how the entries split by category on top,
@@ -30,7 +30,6 @@ const CURRENT_SCHOOL_YEAR = _now.getMonth() >= 8 ? _now.getFullYear() : _now.get
 const AVAILABLE_YEARS = Array.from({ length: 4 }, (_, i) => CURRENT_SCHOOL_YEAR - i);
 
 function ClassregContent() {
-  const router = useRouter();
   const t = useT(classPagesDict);
   const ts = useT(shellDict);
   const { tag } = useDateLocale();
@@ -52,12 +51,12 @@ function ClassregContent() {
     try {
       setEvents(parseClassregRows(await fetchClassregEvents(selectedYear)));
     } catch (e: unknown) {
-      if (e instanceof Error && e.message === 'session_expired') router.replace('/login');
+      if (e instanceof Error && e.message === 'session_expired') window.location.replace(loginPath());
       else setError(e instanceof Error ? e.message : 'error');
     } finally {
       setLoading(false);
     }
-  }, [router, selectedYear]);
+  }, [selectedYear]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void load(); }, 0);

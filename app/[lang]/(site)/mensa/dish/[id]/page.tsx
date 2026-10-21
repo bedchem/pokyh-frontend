@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import DishView from '@/components/mensa/DishView';
+import RouteDishView from '@/components/mensa/RouteDishView';
 import { makeT } from '@/lib/i18n/dictionary';
 import { routeLocale } from '@/lib/i18n/server';
 import { mensaDict } from '@/lib/i18n/dictionaries/mensa';
@@ -18,5 +18,5 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function MensaDishPage({ params }: PageProps) {
   const { id } = await params;
-  return <DishView id={decodeURIComponent(id)} />;
+  return <RouteDishView id={id} />;
 }

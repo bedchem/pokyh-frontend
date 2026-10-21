@@ -25,7 +25,6 @@ import {
 } from '@phosphor-icons/react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { useRouter } from 'next/navigation';
 import type { MediaItem } from '@/components/ui/MediaViewer';
 import { uiDict } from '@/lib/i18n/dictionaries/ui';
 import AuthGuard from '@/components/AuthGuard';
@@ -43,6 +42,8 @@ import { useDateLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider
 import { messagesDict, type MessagesKey } from '@/lib/i18n/dictionaries/messages';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
 import { formatDateTime } from '@/lib/i18n/dateLocale';
+import { loginPath } from '@/providers/SessionProvider';
+import { ROUTE_PLACEHOLDER, useRouteId } from '@/lib/route-id';
 
 const MediaViewer = dynamic(() => import('@/components/ui/MediaViewer'), { ssr: false });
 
@@ -282,7 +283,8 @@ function AttachmentRow({ att, msgId, onOpen }: { att: MessageAttachment; msgId: 
     if (downloading) return;
     setDownloading(true);
     try {
-      const res = await fetch(url, { credentials: 'same-origin' });
+      // From the API: its session cookie has to go along.
+      const res = await fetch(url, { credentials: 'include' });
       if (!res.ok) throw new Error('download_failed');
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
@@ -350,13 +352,18 @@ function MessageSkeleton() {
   );
 }
 
+// The message named by the address, once it is known in the browser (lib/route-id.ts).
 export default function MessageDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = use(params);
-  const router = useRouter();
+  const id = useRouteId(use(params).id);
+  if (id === ROUTE_PLACEHOLDER) return null;
+  return <MessageDetailView key={id} id={id} />;
+}
+
+function MessageDetailView({ id }: { id: string }) {
   const t = useT(messagesDict);
   const tc = useT(commonDict);
   const ta = useT(untisActionsDict);
@@ -405,12 +412,12 @@ export default function MessageDetailPage({
       if (!sent) markMessageRead(parseInt(id)).catch(() => {});
       if (parsed && parsed.attachments.length === 0) fetchFallbackAttachments(parsed.id);
     } catch (e: unknown) {
-      if (e instanceof Error && e.message === 'session_expired') router.replace('/login');
+      if (e instanceof Error && e.message === 'session_expired') window.location.replace(loginPath());
       else setError(e instanceof Error ? e.message : 'error');
     } finally {
       setLoading(false);
     }
-  }, [id, router, fetchFallbackAttachments, t]);
+  }, [id, fetchFallbackAttachments, t]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void load(); }, 0);

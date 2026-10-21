@@ -1,6 +1,9 @@
 import { indexNowKey } from '@/lib/indexnow';
 
 // The IndexNow key file (lib/indexnow.ts), at the site root so it covers every URL.
+// Written once when the website is built.
+
+export const dynamic = 'force-static';
 
 export function GET() {
   const key = indexNowKey();

@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowClockwise, CalendarBlank, CaretDown, CaretLeft, CaretRight, Exam, ShareFat, WifiSlash } from '@phosphor-icons/react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
 import UntisGuard from '@/components/UntisGuard';
 import Spinner from '@/components/ui/Spinner';
@@ -39,6 +39,7 @@ import { shellDict } from '@/lib/i18n/dictionaries/shell';
 import PixelState, { PixelSpriteArt, holidaySprite } from '@/components/app/PixelState';
 import { Button } from '@/components/ui/Button';
 import { formatDate, formatTime } from '@/lib/i18n/dateLocale';
+import { loginPath } from '@/providers/SessionProvider';
 
 type WeekPageState =
   | { status: 'loading' }
@@ -92,7 +93,6 @@ function asOfText(ts: number, tag: string): string {
 }
 
 function TimetableContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const t = useT(timetableDict);
   const ts = useT(shellDict);
@@ -134,7 +134,7 @@ function TimetableContent() {
       setPage(offset, { status: 'data', entries, savedAt: Date.now(), stale: false });
       if (entries.length) import('@/lib/api-client').then(({ api }) => api.subjectImages.reportSubjects(entries)).catch(() => {});
     } catch (e: unknown) {
-      if (e instanceof Error && e.message === 'session_expired') { router.replace('/login'); return; }
+      if (e instanceof Error && e.message === 'session_expired') { window.location.replace(loginPath()); return; }
       const current = pagesRef.current[offset];
       if (current?.status === 'data') {
         // WebUntis unreachable → keep the copy off the disk, but say it's a copy.
@@ -145,7 +145,7 @@ function TimetableContent() {
     } finally {
       inFlight.current.delete(offset);
     }
-  }, [router, setPage]);
+  }, [setPage]);
 
   const ensureWeek = useCallback((offset: number, force = false) => {
     const cached = pagesRef.current[offset];
@@ -360,7 +360,7 @@ function TimetableContent() {
 
   useEffect(() => {
     if (autoSlot) window.history.replaceState(null, '', localize('/timetable'));
-  }, [autoSlot]);
+  }, [autoSlot, localize]);
 
   const shownSlot = activeSlot ?? autoSlot;
   const closeSheet = useCallback(() => { setActiveSlot(null); setAutoOpenId(null); }, []);

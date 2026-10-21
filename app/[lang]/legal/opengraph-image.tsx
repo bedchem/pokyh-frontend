@@ -8,6 +8,8 @@ import { ACTIVE_LOCALES } from '@/lib/i18n/locale';
 
 export const size = OG_SIZE;
 export const contentType = 'image/png';
+// Written once when the website is built (a static file).
+export const dynamic = 'force-static';
 export const alt = 'POKYH';
 
 // One card per language, rendered at build time.

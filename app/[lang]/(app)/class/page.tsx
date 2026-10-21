@@ -1,9 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
 import { Exam, NotePencil, XCircle } from '@phosphor-icons/react';
-import { useSession } from '@/providers/SessionProvider';
+import { useSession, loginPath } from '@/providers/SessionProvider';
 import AuthGuard from '@/components/AuthGuard';
 import UntisGuard from '@/components/UntisGuard';
 import { Page, PageHeader, Section, SectionLink } from '@/components/app/Page';
@@ -155,7 +154,6 @@ function DayTile({ date, tone, tag }: { date: Date; tone: string; tag: string })
 }
 
 function ClassContent() {
-  const router = useRouter();
   const { user } = useSession();
   const t = useT(classPagesDict);
   const tc = useT(commonDict);
@@ -179,7 +177,7 @@ function ClassContent() {
     const now = schoolWeek(0);
     const next = schoolWeek(1);
     const expired = (e: unknown) => {
-      if (e instanceof Error && e.message === 'session_expired') { router.replace('/login'); return true; }
+      if (e instanceof Error && e.message === 'session_expired') { window.location.replace(loginPath()); return true; }
       return false;
     };
 
@@ -214,7 +212,7 @@ function ClassContent() {
         });
       })
       .catch((e) => { if (!expired(e)) setHomework((p) => ({ ...p, loading: false, failed: true })); });
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(load, 0);

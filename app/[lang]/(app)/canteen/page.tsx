@@ -7,7 +7,7 @@ import s from './canteen.module.css';
 // comment; guests are sent to the public /mensa page instead (proxy.ts).
 export default function CanteenPage() {
   return (
-    <AuthGuard>
+    <AuthGuard guests="mensa">
       <div className={`site ${s.frame}`}>
         <MensaClient inApp />
       </div>

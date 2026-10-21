@@ -2,7 +2,6 @@
 
 import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowCounterClockwise, ArrowRight, EyeSlash, Minus, Plus, Target, TrendDown, TrendUp, X } from '@phosphor-icons/react';
-import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { Page, PageHeader, Section } from '@/components/app/Page';
@@ -29,6 +28,8 @@ import { gradesDict } from '@/lib/i18n/dictionaries/grades';
 import { shellDict } from '@/lib/i18n/dictionaries/shell';
 
 import type { GradesKey } from '@/lib/i18n/dictionaries/grades';
+import { loginPath } from '@/providers/SessionProvider';
+import { ROUTE_PLACEHOLDER, useRouteId } from '@/lib/route-id';
 
 type DraftState = {
   removedTeacherGradeIds: number[];
@@ -74,14 +75,19 @@ function relativeDay(date: number, t: (key: GradesKey, vars?: Record<string, num
   return t('yearsAgo', { n: Math.round(diff / 365) });
 }
 
+// The subject named by the address, once it is known in the browser (lib/route-id.ts).
 export default function SubjectDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id: idParam } = use(params);
+  const id = useRouteId(use(params).id);
+  if (id === ROUTE_PLACEHOLDER) return null;
+  return <SubjectDetailView key={id} idParam={id} />;
+}
+
+function SubjectDetailView({ idParam }: { idParam: string }) {
   const lessonId = parseInt(idParam, 10);
-  const router = useRouter();
   const t = useT(gradesDict);
   const ts = useT(shellDict);
   const { tag } = useDateLocale();
@@ -122,14 +128,14 @@ export default function SubjectDetailPage({
       setSubjects(parseGrades(res));
     } catch (e: unknown) {
       if (e instanceof Error && e.message === 'session_expired') {
-        router.replace('/login');
+        window.location.replace(loginPath());
       } else {
         setError(e instanceof Error ? e.message : 'error');
       }
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void load(); }, 0);

@@ -1,0 +1,24 @@
+# Redirects and rewrites for Cloudflare Pages (and hosts that read the same
+# format). The Docker image uses deploy/nginx.conf instead — keep both in step.
+# The visitor's language for an address without one is picked in the browser
+# (index.html and 404.html run lib/locale-redirect.ts); old ?view= links to the
+# legal texts are forwarded by the legal page itself.
+
+# Short links used by the iOS app and App Store Connect.
+/datenschutz            /legal/datenschutz/            302
+/nutzungsbedingungen    /legal/nutzungsbedingungen/    302
+
+# Ladin is retired: its addresses land on the German page.
+/lld/*                  /de/:splat                     301
+/lld                    /de/                           301
+
+# Detail pages with an id (lib/route-id.ts): every id gets the one page built
+# for the id "_" and its navigation data; the page reads the real id.
+/:lang/messages/:id/*        /:lang/messages/_/:splat        200
+/:lang/mensa/dish/:id/*      /:lang/mensa/dish/_/:splat      200
+/:lang/canteen/dish/:id/*    /:lang/canteen/dish/_/:splat    200
+/:lang/grades/subject/:id/*  /:lang/grades/subject/_/:splat  200
+/:lang/messages/:id          /:lang/messages/_/              200
+/:lang/mensa/dish/:id        /:lang/mensa/dish/_/            200
+/:lang/canteen/dish/:id      /:lang/canteen/dish/_/          200
+/:lang/grades/subject/:id    /:lang/grades/subject/_/        200

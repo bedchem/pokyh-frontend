@@ -1,4 +1,10 @@
+import { apiFetch } from './api-client';
+import { API_BASE } from './backend';
+
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '';
+
+// The service worker polls WebUntis at the API's address (public/sw.js).
+const START_POLL = { type: 'start-poll', api: API_BASE || (typeof window !== 'undefined' ? window.location.origin : '') };
 
 function urlBase64ToUint8Array(base64: string): Uint8Array {
   const padding = '='.repeat((4 - (base64.length % 4)) % 4);
@@ -24,7 +30,7 @@ export async function requestPermissionAndSubscribe(): Promise<void> {
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') return;
     const reg = await navigator.serviceWorker.ready;
-    reg.active?.postMessage('start-poll');
+    reg.active?.postMessage(START_POLL);
     return;
   }
 
@@ -43,11 +49,11 @@ export async function requestPermissionAndSubscribe(): Promise<void> {
     }
 
     // Tell the backend: it will poll WebUntis using the user's current session
+    // (read from the API's own session cookie, which goes along).
     const json = sub.toJSON();
-    await fetch('/api/push/register', {
+    await apiFetch('/push/register', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
+      credentials: 'include',
       body: JSON.stringify({
         endpoint: json.endpoint,
         p256dh: (json.keys as Record<string, string>)['p256dh'],
@@ -56,7 +62,7 @@ export async function requestPermissionAndSubscribe(): Promise<void> {
     });
 
     // Also start SW polling as a fallback (helps on Android)
-    reg.active?.postMessage('start-poll');
+    reg.active?.postMessage(START_POLL);
   } catch {
     // Silently ignore: e.g. user denied in a different tab, or VAPID mismatch
   }

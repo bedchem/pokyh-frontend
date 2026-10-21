@@ -1,4 +1,4 @@
-import DishView from '@/components/mensa/DishView';
+import RouteDishView from '@/components/mensa/RouteDishView';
 import AuthGuard from '@/components/AuthGuard';
 import s from '../../canteen.module.css';
 
@@ -8,9 +8,9 @@ type PageProps = { params: Promise<{ lang: string; id: string }> };
 export default async function CanteenDishPage({ params }: PageProps) {
   const { id } = await params;
   return (
-    <AuthGuard>
+    <AuthGuard guests="mensa">
       <div className={`site ${s.frame}`}>
-        <DishView id={decodeURIComponent(id)} inApp />
+        <RouteDishView id={id} inApp />
       </div>
     </AuthGuard>
   );

@@ -71,7 +71,9 @@ export default function MediaViewer({ item, onClose }: { item: MediaItem; onClos
   }, []);
 
   const renderPdf = useCallback(async (signal: { cancelled: boolean }) => {
-    const res = await fetch(item.src, { credentials: 'same-origin', cache: 'no-store' }).catch(() => null);
+    // Documents come from the API (another address of the same site): its
+    // session cookie has to go along.
+    const res = await fetch(item.src, { credentials: 'include', cache: 'no-store' }).catch(() => null);
     if (signal.cancelled) return;
     const type = res?.headers.get('content-type') ?? '';
     if (!res || !res.ok || type.includes('application/json') || type.includes('text/html')) {

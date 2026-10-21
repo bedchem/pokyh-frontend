@@ -208,7 +208,9 @@ function Sidebar({ collapsed }: { collapsed: boolean }) {
           className="flex h-11 min-w-0 grow items-center gap-3 overflow-hidden rounded-[14px] px-[9px]"
           aria-label="POKYH, Home"
         >
-          <Image src="/POKYH_Logo.png" alt="" width={34} height={34} priority className="size-[34px] shrink-0 rounded-[10px]" />
+          {/* Lazy, not preloaded: on phones the sidebar is closed, and a
+              preload nobody uses fills the console with warnings. */}
+          <Image src="/POKYH_Logo.png" alt="" width={34} height={34} loading="lazy" className="size-[34px] shrink-0 rounded-[10px]" />
           <span className={`${s.fold} text-[21px] font-extrabold tracking-[-0.045em]`}>POKYH</span>
         </Link>
       </div>

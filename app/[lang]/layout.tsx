@@ -19,6 +19,7 @@ import AnalyticsLoader from '@/components/AnalyticsLoader';
 import PWAInit from '@/components/PWAInit';
 import SubjectImagePreloader from '@/components/SubjectImagePreloader';
 import ThemeScript from '@/components/ThemeScript';
+import DevConsoleQuiet from '@/components/DevConsoleQuiet';
 import ViewportScript from '@/components/ViewportScript';
 import AppIconApplier from '@/components/AppIconApplier';
 import ConsoleSecret from '@/components/ConsoleSecret';
@@ -27,15 +28,17 @@ const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 const analyticsEnabled = /^G-[A-Z0-9]+$/i.test(GA_ID ?? '');
 
 // Plus Jakarta Sans is the Android app's typeface; DM Mono sets tabular data
-// (times, periods, rooms) only. Preloaded is what every page uses at once:
-// Jakarta's latin subset (German, Italian and English need nothing else; the
-// other subsets still load when a page has such letters). DM Mono appears on
-// a few screens only and loads when one needs it; preloading files a page
-// doesn't use makes the browser warn about them.
+// (times, periods, rooms) only. Neither is preloaded: a page whose text
+// appears only after its intro (the landing page), or whose styles arrive a
+// moment later (the dev server), asks for the font after the browser's
+// few-second window, and every preload not used in it fills the console with
+// a warning. The fonts load with the stylesheet instead, swapping in when
+// ready (German, Italian and English need only the latin subset).
 const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
   variable: '--font-jakarta',
   display: 'swap',
+  preload: false,
 });
 const dmMono = DM_Mono({
   subsets: ['latin'],
@@ -118,6 +121,9 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
 }
 
 export const viewport: Viewport = {
+  // The site has a light and a dark theme of its own (ThemeScript): browsers
+  // with a dark mode of their own (Samsung Internet) must not darken it.
+  colorScheme: 'light dark',
   themeColor: [
     { media: '(prefers-color-scheme: dark)', color: '#111114' },
     { media: '(prefers-color-scheme: light)', color: '#F5F2ED' },
@@ -192,6 +198,7 @@ export default async function RootLayout({
   return (
     <html lang={htmlLang(lang)} className={`${jakarta.variable} ${dmMono.variable}`} suppressHydrationWarning>
       <head>
+        {process.env.NODE_ENV === 'development' && <DevConsoleQuiet />}
         <ThemeScript />
         <ViewportScript />
         <script

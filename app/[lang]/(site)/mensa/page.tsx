@@ -15,9 +15,8 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com';
 type PageProps = { params: Promise<{ lang: string }> };
 
 // Prerendered with the menu in it (search engines and slow phones see the
-// dishes at once) and regenerated every ten minutes; the browser loads the
-// current menu on top, as before.
-export const revalidate = 600;
+// dishes at once) when the website is built; the browser loads the current
+// menu from the API on top, as before.
 
 /**
  * What search engines read about the page, from the canteens there are: one

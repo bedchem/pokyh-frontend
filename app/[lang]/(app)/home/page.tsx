@@ -14,7 +14,7 @@ import {
   ExamCard, GradeList, ListCard, MensaCard, MessageList, QuickTile,
   type DashDish, type RecentGrade,
 } from '@/components/dashboard/widgets';
-import { useSession } from '@/providers/SessionProvider';
+import { useSession, loginPath } from '@/providers/SessionProvider';
 import { useApp } from '@/providers/AppProvider';
 import { useDateLocale, useLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { api } from '@/lib/api-client';
@@ -229,7 +229,7 @@ function Dashboard() {
     const results = await Promise.allSettled([fetchTimetable(), fetchTimetable(nextWeek), fetchGrades(), fetchMessages()]);
     const [ttNow, ttNext, gr, ms] = results;
     if (results.some((r) => r.status === 'rejected' && (r.reason as Error)?.message === 'session_expired')) {
-      window.location.replace('/login');
+      window.location.replace(loginPath());
       return;
     }
     setOffline(results.every((r) => r.status === 'rejected'));

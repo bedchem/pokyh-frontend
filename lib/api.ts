@@ -1,8 +1,17 @@
 'use client';
 
-// All API routes read the session from the httpOnly cookie automatically.
-// No credentials are ever sent from the client.
+// WebUntis through the API (api.pokyh.com/webuntis/*): every route reads the
+// person's WebUntis session from the API's httpOnly cookie, which the browser
+// sends along (credentials: 'include'). No credentials are ever sent from the
+// page, except at sign-in. The /api/webuntis/… addresses below stay the keys
+// of the data stored on the device; lib/backend.ts maps them to the API.
+//
+// Reads carry no extra header, so the browser sends them without asking the
+// API first (no CORS preflight); writes carry the API key, which makes the
+// browser check the API's allowed origins before it sends them.
 
+import { API_KEY, apiUrl, rememberSignIn, untisUrl } from './backend';
+import { accessToken, signOutEverywhere } from './api-client';
 import { cacheGet, cacheSet, cacheIsStale, cacheClear, cacheDel } from './cache';
 import { pcGetStale, pcIsStale, pcSet, pcDel, pcClear } from './persist-cache';
 import type {
@@ -20,11 +29,22 @@ function log(...args: unknown[]) {
   if (DEBUG) console.log('[api]', ...args);
 }
 
+/** Request options for the API: its cookies along, the API key on writes. */
+function untisInit(opts: RequestInit = {}): RequestInit {
+  const method = (opts.method ?? 'GET').toUpperCase();
+  const write = method !== 'GET' && method !== 'HEAD';
+  return {
+    ...opts,
+    credentials: 'include',
+    headers: { ...(write ? { 'X-API-Key': API_KEY } : {}), ...(opts.headers as Record<string, string> ?? {}) },
+  };
+}
+
 let _logoutInFlight = false;
 async function clearSessionOnce() {
   if (_logoutInFlight) return;
   _logoutInFlight = true;
-  await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
+  await signOutEverywhere();
   cacheClear();
   pcClear();
   if (typeof window !== 'undefined') {
@@ -32,18 +52,17 @@ async function clearSessionOnce() {
   }
 }
 
-// Silent re-login: when WebUntis kills the session, the server signs in again
-// with the sign-in sealed in the session's httpOnly renewal cookie
-// (lib/server/sign-in-cookies.ts). Without the cookies there is nothing to renew.
+// Silent re-login: when WebUntis kills the session, the API signs in again
+// with the sign-in sealed in the session's httpOnly renewal cookie (on the
+// API's address). Without the cookies there is nothing to renew.
 let _reloginInFlight: Promise<boolean> | null = null;
 async function attemptSilentRelogin(): Promise<boolean> {
   if (_reloginInFlight) return _reloginInFlight;
-  _reloginInFlight = fetch('/api/webuntis/login', {
+  _reloginInFlight = fetch(untisUrl('/api/webuntis/login'), untisInit({
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ renewal: true }),
-    credentials: 'same-origin',
-  })
+  }))
     .then(async (r) => {
       if (!r.ok) return false;
       cacheClear();
@@ -53,6 +72,8 @@ async function attemptSilentRelogin(): Promise<boolean> {
       // event would re-run loginWithSession against a stale POKYH token →
       // /auth/me 401 → infinite re-login loop. WebUntis data still works.
       const data = await r.json().catch(() => ({} as { pokyhSynced?: boolean }));
+      // The renewed sign-in's display data (a new loginAt) and access token.
+      rememberSignIn(data as Parameters<typeof rememberSignIn>[0]);
       if (data?.pokyhSynced) {
         window.dispatchEvent(new CustomEvent('pokyh-session-refreshed'));
       }
@@ -83,16 +104,33 @@ function schoolYearEnd(): string {
   return `${endYear}0630`;
 }
 
+/**
+ * The API request behind one of the website's former addresses (the keys of
+ * the data stored on the device): /api/webuntis/… → <API>/webuntis/…, the
+ * Mensa reads → <API>/dishes (the account's own school with its token).
+ */
+async function backendRequest(url: string, opts?: RequestInit): Promise<[string, RequestInit]> {
+  if (!url.startsWith('/api/mensa')) return [untisUrl(url), untisInit(opts)];
+  const { pathname, searchParams } = new URL(url, 'http://local');
+  if (pathname === '/api/mensa/canteens') return [apiUrl('/dishes/canteens'), opts ?? {}];
+  if (pathname === '/api/mensa/mine') {
+    const token = await accessToken();
+    return [apiUrl('/dishes'), { ...opts, cache: 'no-store', headers: { 'X-API-Key': API_KEY, ...(token ? { Authorization: `Bearer ${token}` } : {}) } }];
+  }
+  const school = searchParams.get('school');
+  return [apiUrl(`/dishes${school ? `?school=${encodeURIComponent(school)}` : ''}`), opts ?? {}];
+}
+
 async function apiFetch(url: string, opts?: RequestInit) {
   log('fetch', url);
-  const res = await fetch(url, { credentials: 'same-origin', ...opts });
+  const res = await fetch(...(await backendRequest(url, opts)));
 
   if (res.status === 401) {
     log('401 from', url, '- attempting silent re-login');
     const relogged = await attemptSilentRelogin();
     if (relogged) {
       log('silent re-login ok - retrying', url);
-      const retry = await fetch(url, { credentials: 'same-origin', ...opts });
+      const retry = await fetch(...(await backendRequest(url, opts)));
       if (retry.ok) {
         const json = await retry.json();
         if ((json as { error?: string })?.error === 'session_expired') {
@@ -265,16 +303,13 @@ function markReadInStoredInbox(ids: number[]): void {
 }
 
 export async function markMessageRead(id: number) {
-  await fetch(`/api/webuntis/messages?id=${id}`, {
-    method: 'POST',
-    credentials: 'same-origin',
-  });
+  await fetch(untisUrl(`/api/webuntis/messages?id=${id}`), untisInit({ method: 'POST' }));
   markReadInStoredInbox([id]);
 }
 
 export async function markAllMessagesRead(ids: number[]): Promise<void> {
   if (!ids.length) return;
-  await Promise.allSettled(ids.map((id) => fetch(`/api/webuntis/messages?id=${id}`, { method: 'POST', credentials: 'same-origin' })));
+  await Promise.allSettled(ids.map((id) => fetch(untisUrl(`/api/webuntis/messages?id=${id}`), untisInit({ method: 'POST' }))));
   markReadInStoredInbox(ids);
 }
 
@@ -335,7 +370,9 @@ export function getCanteensStale(): unknown | undefined {
 export function getAttachmentUrl(messageId: number, storageId: string, name: string, attachmentId?: number): string {
   const p = new URLSearchParams({ messageId: String(messageId), storageId, name });
   if (attachmentId != null) p.set('attachmentId', String(attachmentId));
-  return `/api/webuntis/attachment?${p.toString()}`;
+  // Loaded straight from the API (as an image or a download); the browser
+  // sends the session cookie along.
+  return untisUrl(`/api/webuntis/attachment?${p.toString()}`);
 }
 
 // ─── Absence write features + teacher messages ─────────────────────────────────
@@ -481,7 +518,7 @@ export async function deleteAbsences(absenceIds: number[]): Promise<void> {
 export function excuseLetterUrl(start: string, end: string, absenceIds: number[] = [], group: 1 | 2 = 1): string {
   const p = new URLSearchParams({ start, end, group: String(group) });
   if (absenceIds.length) p.set('ids', absenceIds.join(','));
-  return `/api/webuntis/absences/excuse-letter?${p.toString()}`;
+  return untisUrl(`/api/webuntis/absences/excuse-letter?${p.toString()}`);
 }
 
 // ─── Replies ─────────────────────────────────────────────────────────────────
@@ -520,12 +557,11 @@ export async function requestPasswordReset(
   email: string,
   school?: { loginName: string; server: string } | null,
 ): Promise<void> {
-  const res = await fetch('/api/webuntis/password-reset', {
+  const res = await fetch(untisUrl('/api/webuntis/password-reset'), untisInit({
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, email, ...(school ? { school: { loginName: school.loginName, server: school.server } } : {}) }),
-    credentials: 'same-origin',
-  });
+  }));
   if (!res.ok) {
     const data = (await res.json().catch(() => ({}))) as { error?: string };
     throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -533,5 +569,22 @@ export async function requestPasswordReset(
 }
 
 export async function logout() {
-  await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+  await signOutEverywhere();
+}
+
+/**
+ * A WebUntis read that is not one of the helpers above (the lesson details of
+ * the timetable): the API's answer, with the cookies along.
+ */
+export function untisGet(path: string, init?: RequestInit): Promise<Response> {
+  return fetch(untisUrl(path), untisInit(init));
+}
+
+/** Signs in with WebUntis through the API (the sign-in page). */
+export function untisSignIn(body: { username: string; password: string; school: { loginName: string; server: string; name?: string } }): Promise<Response> {
+  return fetch(untisUrl('/api/webuntis/login'), untisInit({
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }));
 }

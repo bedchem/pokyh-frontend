@@ -1,39 +1,12 @@
 'use client';
 
-// Resolve the backend base URL. NEXT_PUBLIC_* values are inlined into the client
-// bundle at build time, so a stale/misconfigured `http://` value gets frozen in.
-//
-// Guard against Mixed Content: when the page is served over HTTPS, an `http://`
-// API base makes the browser block every fetch and EventSource. If the page is
-// HTTPS, force the API onto HTTPS too (the backend serves both schemes).
-function resolveApiBase(): string {
-  const configured = (
-    process.env.NEXT_PUBLIC_API_BACKEND_URL ??
-    process.env.NEXT_PUBLIC_API_URL ??
-    'https://api.pokyh.com'
-  ).replace(/\/$/, '');
-
-  if (
-    typeof window !== 'undefined' &&
-    window.location.protocol === 'https:' &&
-    configured.startsWith('http://')
-  ) {
-    return `https://${configured.slice('http://'.length)}`;
-  }
-  return configured;
-}
-
-const API_BASE = resolveApiBase();
-const API_KEY =
-  process.env.NEXT_PUBLIC_API_BACKEND_KEY ??
-  process.env.NEXT_PUBLIC_API_KEY ??
-  '';
+import { API_BASE, API_KEY, forgetSignIn, rememberAccessToken } from './backend';
 
 // ─── Token storage ────────────────────────────────────────────────────────────
 
-// The tokens live in cookies only, set by the app's own routes: the access
-// token readable for the Authorization header, the refresh token httpOnly.
-// Deleting the site's cookies therefore signs out.
+// The tokens live in cookies only: the access token readable on the website's
+// address for the Authorization header (lib/backend.ts), the refresh token
+// httpOnly on the API's address. Deleting the cookies therefore signs out.
 
 const LEGACY_TOKEN_KEYS = ['pokyh_api_token', 'pokyh_api_refresh'];
 
@@ -97,6 +70,11 @@ function needsRenewal(token: string | null): boolean {
   return typeof exp === 'number' && exp * 1000 - Date.now() < EXPIRY_MARGIN_MS;
 }
 
+/** The access token, renewed first when it is about to expire. */
+export function accessToken(): Promise<string | null> {
+  return currentToken();
+}
+
 async function currentToken(): Promise<string | null> {
   const token = getToken();
   if (!needsRenewal(token) || Date.now() - _refreshFailedAt < RETRY_REFRESH_AFTER_MS) return token;
@@ -106,22 +84,34 @@ async function currentToken(): Promise<string | null> {
 }
 
 async function refreshAccessToken(): Promise<boolean> {
-  // Refresh via the same-origin Next.js route: the refresh token is stored in an
-  // httpOnly cookie that JS cannot read, so we cannot call the backend directly.
-  // The browser sends the httpOnly cookie automatically to /api/auth/refresh,
-  // which exchanges it and sets a fresh pokyh_api_token cookie.
+  // The refresh token is an httpOnly cookie of the API that page scripts cannot
+  // read: the browser sends it along with this request, the API rotates it and
+  // answers a fresh access token, kept in pokyh_api_token.
   try {
-    const res = await fetch('/api/auth/refresh', {
+    const res = await fetch(`${API_BASE}/auth/web/refresh`, {
       method: 'POST',
-      credentials: 'same-origin',
+      credentials: 'include',
+      headers: { 'X-API-Key': API_KEY },
     });
 
     if (!res.ok) return false;
     const data = await res.json() as { token?: string };
-    return !!data.token;
+    if (!data.token) return false;
+    rememberAccessToken(data.token);
+    return true;
   } catch {
     return false;
   }
+}
+
+/** Ends the sign-in everywhere it lives: the API revokes and clears its cookies, the page its own. */
+export async function signOutEverywhere(): Promise<void> {
+  await fetch(`${API_BASE}/auth/web/logout`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'X-API-Key': API_KEY },
+  }).catch(() => {});
+  forgetSignIn();
 }
 
 // Dispatch pokyh-session-expired once per expiry window so SessionProvider
@@ -138,12 +128,23 @@ function notifySessionExpired() {
   setTimeout(() => { _sessionExpiredPending = false; }, 10_000);
 }
 
-/** JSON from one of the app's own routes (same origin, cookies included). */
-async function localJson<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(path, {
-    ...init,
-    credentials: 'same-origin',
-    headers: { Accept: 'application/json', ...(init.body ? { 'Content-Type': 'application/json' } : {}), ...(init.headers as Record<string, string> ?? {}) },
+/**
+ * A Mensa read (comments, ratings). A signed-in account reads its own school's
+ * menu; `guest` reads as nobody, which is what the public Mensa page shows of
+ * a school named with ?school=.
+ */
+async function mensaJson<T>(path: string, init: RequestInit & { guest?: boolean } = {}): Promise<T> {
+  const { guest, ...rest } = init;
+  const token = guest ? null : await currentToken();
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...rest,
+    headers: {
+      Accept: 'application/json',
+      'X-API-Key': API_KEY,
+      ...(rest.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(rest.headers as Record<string, string> ?? {}),
+    },
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json() as Promise<T>;
@@ -276,14 +277,6 @@ export interface CreateReminderData {
   remindAt: string;
 }
 
-// ─── EventSource management ───────────────────────────────────────────────────
-
-function openSse(path: string): EventSource {
-  const token = getToken();
-  const url = `${API_BASE}${path}?token=${encodeURIComponent(token ?? '')}&apiKey=${encodeURIComponent(API_KEY)}`;
-  return new EventSource(url);
-}
-
 // ─── API object ───────────────────────────────────────────────────────────────
 
 export const api = {
@@ -291,12 +284,8 @@ export const api = {
   getToken,
 
   auth: {
-    async loginWithSession(
-      username: string,
-      klasseId: number,
-      klasseName: string
-    ): Promise<{ stableUid: string; classId: string | null; isAdmin: boolean }> {
-      // Called once the sign-in route has set the token cookies: who is signed in.
+    async loginWithSession(): Promise<{ stableUid: string; classId: string | null; isAdmin: boolean }> {
+      // Called once the sign-in has set the token cookies: who is signed in.
       try {
         const user = await apiJson<ApiUser>('/auth/me');
         return {
@@ -315,8 +304,7 @@ export const api = {
     },
 
     async logout(): Promise<void> {
-      // The refresh token is httpOnly: the app's route revokes it and clears the cookies.
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
+      await signOutEverywhere();
     },
 
     async me(): Promise<ApiUser> {
@@ -487,10 +475,9 @@ export const api = {
   },
 
   dishComments: {
-    // Read through the app's own route, so the Mensa backend (MENSA_API_URL)
-    // answers; with `school` what a guest sees of that school's comments.
+    // With `school`: what a guest sees of that school's comments.
     async list(dishId: string, school?: string | null): Promise<ApiComment[]> {
-      return localJson<ApiComment[]>(`/api/mensa/comments?id=${encodeURIComponent(dishId)}${schoolQuery(school, '&')}`);
+      return mensaJson<ApiComment[]>(`/dish-comments/${encodeURIComponent(dishId)}${schoolQuery(school, '?')}`, { guest: !!school });
     },
 
     async create(dishId: string, body: string): Promise<ApiComment> {
@@ -586,13 +573,16 @@ export const api = {
   dishRatings: {
     // With `school`: what a guest sees of that school's ratings.
     async get(dishId: string, school?: string | null): Promise<DishRatingsData> {
-      return localJson<DishRatingsData>(`/api/mensa/ratings?id=${encodeURIComponent(dishId)}${schoolQuery(school, '&')}`);
+      return mensaJson<DishRatingsData>(`/dish-ratings/${encodeURIComponent(dishId)}${schoolQuery(school, '?')}`, { guest: !!school });
     },
 
     async getBatch(dishIds: string[], school?: string | null): Promise<Record<string, DishRatingsData>> {
-      return localJson<Record<string, DishRatingsData>>(`/api/mensa/ratings${schoolQuery(school, '?')}`, {
+      const ids = dishIds.filter((d) => /^[a-z0-9-]{1,120}$/i.test(d)).slice(0, 100);
+      if (!ids.length) return {};
+      return mensaJson<Record<string, DishRatingsData>>(`/dish-ratings/batch${schoolQuery(school, '?')}`, {
         method: 'POST',
-        body: JSON.stringify({ dishIds }),
+        body: JSON.stringify({ dishIds: ids }),
+        guest: !!school,
       });
     },
 
