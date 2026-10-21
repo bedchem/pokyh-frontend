@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight, ArrowUpRight, EnvelopeSimple } from '@phosphor-i
 import LegalToc from '@/components/legal/LegalToc';
 import PageJsonLd from '@/components/site/PageJsonLd';
 import { getLegalIdentity, type LegalIdentity } from '@/lib/legal-identity';
-import { localeAlternates, ogImage, ogLocale } from '@/lib/i18n/seo';
+import { localeAlternates, ogImage, ogLocale, localizedUrl } from '@/lib/i18n/seo';
 import { makeT } from '@/lib/i18n/dictionary';
 import { metaDict } from '@/lib/i18n/dictionaries/meta';
 import {
@@ -19,6 +19,7 @@ import {
   type LegalLocale,
 } from './content';
 import CookieButton from './CookieButton';
+import { SITE_URL } from '@/lib/site-url';
 
 // Imprint, privacy notice, terms of use, cookies and the Pokyh Learn notice:
 // the overview (/legal/) and one page per text (/legal/<text>/), prerendered
@@ -27,7 +28,6 @@ import CookieButton from './CookieButton';
 // the identity and contact details come from the deployment
 // (lib/legal-identity.ts). Legal seat: Italy.
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com';
 export const LEGAL_VIEWS: LegalDocView[] = ['impressum', 'datenschutz', 'nutzungsbedingungen', 'cookies', 'learn'];
 export const isLegalView = (v: string | undefined): v is LegalDocView => !!v && (LEGAL_VIEWS as string[]).includes(v);
 
@@ -65,6 +65,7 @@ export function legalMetadata(locale: LegalLocale, view: LegalDocView | null): M
     alternates: localeAlternates(SITE_URL, locale, view ? `/legal/${view}` : '/legal'),
     openGraph: {
       images: ogImage(locale, 'legal'),
+      url: localizedUrl(SITE_URL, locale, view ? `/legal/${view}` : '/legal'),
       title,
       description,
       type: 'website',

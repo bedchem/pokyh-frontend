@@ -9,8 +9,7 @@ import PageJsonLd from '@/components/site/PageJsonLd';
 import PageIntro, { TONE, type SiteTone } from '@/components/site/PageIntro';
 import RevealScope from '@/components/site/RevealScope';
 import CtaBand from '@/components/site/CtaBand';
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com';
+import { SITE_URL } from '@/lib/site-url';
 
 type PageProps = { params: Promise<{ lang: string }> };
 

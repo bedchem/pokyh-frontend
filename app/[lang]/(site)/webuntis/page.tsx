@@ -8,12 +8,12 @@ import { makeT } from '@/lib/i18n/dictionary';
 import { routeLocale } from '@/lib/i18n/server';
 import { localeAlternates, localizedUrl, ogImage, ogLocale, pageKeywords } from '@/lib/i18n/seo';
 import { webuntisPageDict, WEBUNTIS_FAQ_COUNT, type WebuntisPageKey } from '@/lib/i18n/dictionaries/webuntisPage';
+import { SITE_URL } from '@/lib/site-url';
 
 // For people who search for WebUntis: what POKYH shows from it, how signing in
 // works, who it is for, and the questions they ask (also as FAQPage data).
 // Server-rendered text, so search engines and AI answers read all of it.
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com';
 type PageProps = { params: Promise<{ lang: string }> };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {

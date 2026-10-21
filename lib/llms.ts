@@ -12,8 +12,7 @@ import { toolsDict, GRADE_FAQ_COUNT, ABSENCE_FAQ_COUNT, type ToolsKey } from '@/
 import { ACTIVE_LOCALES, LOCALE_NAMES, type Locale } from '@/lib/i18n/locale';
 import { localizedUrl } from '@/lib/i18n/seo';
 import { SOURCE_URL } from '@/lib/site-links';
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com';
+import { SITE_URL } from '@/lib/site-url';
 
 const PAGES: { path: string; title: string; about: string }[] = [
   { path: '/', title: 'Home', about: 'what POKYH is and what it shows' },

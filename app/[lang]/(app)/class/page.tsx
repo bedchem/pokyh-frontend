@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Exam, NotePencil, XCircle } from '@phosphor-icons/react';
-import { useSession, loginPath } from '@/providers/SessionProvider';
+import { useSession, leaveForLogin } from '@/providers/SessionProvider';
 import AuthGuard from '@/components/AuthGuard';
 import UntisGuard from '@/components/UntisGuard';
 import { Page, PageHeader, Section, SectionLink } from '@/components/app/Page';
@@ -219,7 +219,7 @@ function ClassContent() {
     const now = schoolWeek(0);
     const next = schoolWeek(1);
     const expired = (e: unknown) => {
-      if (e instanceof Error && e.message === 'session_expired') { window.location.replace(loginPath()); return true; }
+      if (e instanceof Error && e.message === 'session_expired') { leaveForLogin(); return true; }
       return false;
     };
 

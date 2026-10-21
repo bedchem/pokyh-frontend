@@ -15,7 +15,7 @@ import { useDateLocale, useLocale, useLocalizeHref, useT } from '@/providers/Loc
 import { gradesDict } from '@/lib/i18n/dictionaries/grades';
 import { shellDict } from '@/lib/i18n/dictionaries/shell';
 import { monthShort } from '@/lib/i18n/dateLocale';
-import { loginPath } from '@/providers/SessionProvider';
+import { leaveForLogin } from '@/providers/SessionProvider';
 import {
   parseGrades,
   fmtNum,
@@ -114,7 +114,7 @@ export default function GradesPage() {
       setSubjects(parsed);
     } catch (e: unknown) {
       if (e instanceof Error && e.message === 'session_expired') {
-        window.location.replace(loginPath());
+        leaveForLogin();
       } else {
         setError(e instanceof Error ? e.message : 'error');
       }

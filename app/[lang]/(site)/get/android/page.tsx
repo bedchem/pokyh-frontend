@@ -6,8 +6,7 @@ import { localeAlternates, localizedUrl, ogLocale, pageKeywords, ogImage } from 
 import { getDict } from '@/lib/i18n/dictionaries/get';
 import { siteDict } from '@/lib/i18n/dictionaries/site';
 import PageJsonLd from '@/components/site/PageJsonLd';
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com';
+import { SITE_URL } from '@/lib/site-url';
 
 type PageProps = { params: Promise<{ lang: string }> };
 

@@ -6,13 +6,13 @@ import { makeT } from '@/lib/i18n/dictionary';
 import type { Locale } from '@/lib/i18n/locale';
 import { localeAlternates, localizedUrl, ogImage, ogLocale, pageKeywords } from '@/lib/i18n/seo';
 import { toolsDict, type ToolsKey } from '@/lib/i18n/dictionaries/tools';
+import { SITE_URL } from '@/lib/site-url';
 
 // The frame of the calculator pages (app/[lang]/(site)/tools): metadata,
 // structured data (breadcrumb, FAQ, the calculator as a free web app), the
 // questions and the way into POKYH. The explanations are server-rendered, so
 // search engines and AI answers read them without running the calculator.
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com';
 export const TOOLS_PATH = '/tools';
 
 type Copy = { title: ToolsKey; description: ToolsKey; ogTitle?: ToolsKey; ogDescription?: ToolsKey };

@@ -10,10 +10,9 @@ import { getDict } from '@/lib/i18n/dictionaries/get';
 import PageIntro, { TONE } from '@/components/site/PageIntro';
 import RevealScope from '@/components/site/RevealScope';
 import { RELEASES } from './AppInstallGuide';
+import { SITE_URL } from '@/lib/site-url';
 
 type PageProps = { params: Promise<{ lang: string }> };
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com';
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const locale = await routeLocale(params);

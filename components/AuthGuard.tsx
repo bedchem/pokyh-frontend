@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useSession, loginPath } from '@/providers/SessionProvider';
+import { useSession, leaveForLogin } from '@/providers/SessionProvider';
 
 // Signed-in pages only: sends a missing session to the sign-in form (coming
 // back here afterwards). The session is read from a cookie, so the check is
@@ -17,7 +17,7 @@ export default function AuthGuard({ children, guests = 'login' }: { children: Re
       window.location.replace(window.location.pathname.replace(/^(\/[a-z]{2,3})?\/canteen(?=\/|$)/, '$1/mensa') + window.location.search);
       return;
     }
-    window.location.replace(loginPath());
+    leaveForLogin();
   }, [isLoading, user, guests]);
 
   if (isLoading || !user) return null;

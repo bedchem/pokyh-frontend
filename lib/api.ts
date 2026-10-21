@@ -40,11 +40,14 @@ function untisInit(opts: RequestInit = {}): RequestInit {
   };
 }
 
+// The sign-in is over: the page's cookies and stored data go at once and the
+// page moves on to the sign-in (SessionProvider); the API's cookies follow
+// without being waited for, so no request is left hanging on it.
 let _logoutInFlight = false;
 async function clearSessionOnce() {
   if (_logoutInFlight) return;
   _logoutInFlight = true;
-  await signOutEverywhere();
+  void signOutEverywhere();
   cacheClear();
   pcClear();
   if (typeof window !== 'undefined') {

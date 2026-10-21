@@ -7,12 +7,16 @@
 // in development the requests are same-origin and the API's cookies land on
 // localhost; NEXT_PUBLIC_API_DIRECT=true talks to the API directly instead.
 
+// A production build never talks to a local API unless asked to
+// (next.config.ts, NEXT_PUBLIC_API_LOCAL).
+export const DEFAULT_API_URL = 'https://api.pokyh.com';
+
 function resolveApiBase(): string {
   if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_API_DIRECT !== 'true') return '';
   const configured = (
     process.env.NEXT_PUBLIC_API_BACKEND_URL ??
     process.env.NEXT_PUBLIC_API_URL ??
-    'https://api.pokyh.com'
+    DEFAULT_API_URL
   ).replace(/\/$/, '');
   // NEXT_PUBLIC_* values are frozen into the bundle at build time: on an
   // HTTPS page an http:// API would be blocked as mixed content.

@@ -5,10 +5,9 @@ import { makeT } from '@/lib/i18n/dictionary';
 import { routeLocale } from '@/lib/i18n/server';
 import { metaDict } from '@/lib/i18n/dictionaries/meta';
 import { localeAlternates, ogLocale, pageKeywords, ogImage } from '@/lib/i18n/seo';
+import { SITE_URL } from '@/lib/site-url';
 
 type PageProps = { params: Promise<{ lang: string }> };
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com';
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const locale = await routeLocale(params);

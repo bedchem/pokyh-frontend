@@ -137,8 +137,9 @@ built** and frozen into the pages. There are no server-side secrets any more.
 
 | Variable                       | Purpose                                                                 |
 | ------------------------------ | ----------------------------------------------------------------------- |
-| `NEXT_PUBLIC_SITE_URL`         | Canonical site URL for SEO/metadata. **Prod:** `https://pokyh.com`.   |
-| `NEXT_PUBLIC_API_BACKEND_URL`  | The POKYH API, `https://api.pokyh.com`. Must be on the same site as the website, or the browser does not send the API's sign-in cookies. |
+| `NEXT_PUBLIC_SITE_URL`         | Canonical site URL for SEO/metadata. **Prod:** `https://pokyh.com`. A production build never names a local address (`localhost`, private networks): it uses `https://pokyh.com` instead and warns (`lib/site-url.ts`). |
+| `NEXT_PUBLIC_API_BACKEND_URL`  | The POKYH API, `https://api.pokyh.com`. Must be on the same site as the website, or the browser does not send the API's sign-in cookies. A local address here is replaced by `https://api.pokyh.com` in a production build (`lib/backend.ts`). |
+| `NEXT_PUBLIC_API_LOCAL`        | `true` keeps a local API address in a production build, to test the built site against a local backend. |
 | `NEXT_PUBLIC_API_KEY`          | `X-API-Key`, must match the backend's `API_KEY`.                    |
 | `API_DEV_PROXY_TARGET`         | Development: where `npm run dev` passes the API's paths (default: the API above). |
 | `NEXT_PUBLIC_API_DIRECT`       | Development: `true` talks to the API directly instead of through the proxy. |

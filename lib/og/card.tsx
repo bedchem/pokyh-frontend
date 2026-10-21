@@ -4,6 +4,7 @@ import { ImageResponse } from 'next/og';
 import { makeT } from '@/lib/i18n/dictionary';
 import { ogDict, type OgKey } from '@/lib/i18n/dictionaries/og';
 import type { Locale } from '@/lib/i18n/locale';
+import { SITE_URL } from '@/lib/site-url';
 
 // The link preview (Open Graph / social card) of the public pages: the name
 // on the logo's indigo, a line about the page and the four category tones.
@@ -39,7 +40,7 @@ function loadFonts() {
 export async function ogCard(locale: Locale, title: OgKey, line: OgKey) {
   const t = makeT(ogDict, locale);
   const chips = t('chips').split('|');
-  const host = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com').replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const host = SITE_URL.replace(/^https?:\/\//, '');
   return new ImageResponse(
     (
       <div

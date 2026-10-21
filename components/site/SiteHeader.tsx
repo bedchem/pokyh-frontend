@@ -6,6 +6,7 @@ import { useLocalizeHref, useRoutePath, useT } from '@/providers/LocaleProvider'
 import { useSession } from '@/providers/SessionProvider';
 import { siteDict, type SiteKey } from '@/lib/i18n/dictionaries/site';
 import { useGsap } from '@/lib/motion';
+import { isPWA } from '@/lib/pwa';
 import { useSiteDark } from '@/lib/site-theme';
 import Image from 'next/image';
 import MobileMenu from './MobileMenu';
@@ -77,8 +78,11 @@ export default function SiteHeader() {
     };
   }, [path]);
 
+  // The bar's items arrive one after another; not in the installed app, where
+  // the bar of the page it opens on (the sign-in) is drawn already and would
+  // vanish for a moment to arrive again.
   useGsap(({ gsap, reduced }) => {
-    if (reduced) return;
+    if (reduced || isPWA()) return;
     gsap.from('[data-bar-item]', { y: -18, opacity: 0, duration: 1, stagger: 0.06, delay: 0.4, ease: 'expo.out' });
   }, root);
 

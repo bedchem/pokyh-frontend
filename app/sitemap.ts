@@ -2,8 +2,7 @@ import type { MetadataRoute } from 'next';
 import { ACTIVE_LOCALES, FALLBACK_LOCALE } from '@/lib/i18n/locale';
 import { localizedUrl, ogImage } from '@/lib/i18n/seo';
 import { SITE_PAGES } from '@/lib/seo/pages';
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com';
+import { SITE_URL } from '@/lib/site-url';
 
 // Written when the website is built (it is a static page): the menu page
 // carries the build's date.

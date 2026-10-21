@@ -1,5 +1,6 @@
 import { ACTIVE_LOCALES } from '@/lib/i18n/locale';
 import { PROTECTED_APP_ROUTES } from '@/lib/routes';
+import { SITE_URL } from '@/lib/site-url';
 
 // robots.txt, written by hand so it can carry content signals
 // (https://contentsignals.org), which the metadata route cannot express.
@@ -9,7 +10,6 @@ import { PROTECTED_APP_ROUTES } from '@/lib/routes';
 
 export const dynamic = 'force-static';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com';
 /** What crawlers may do with the content (search, AI answers, AI training). */
 const SIGNALS = process.env.CONTENT_SIGNALS ?? 'search=yes, ai-input=yes, ai-train=yes';
 

@@ -5,6 +5,7 @@ import { metaDict } from '@/lib/i18n/dictionaries/meta';
 import { notFoundDict } from '@/lib/i18n/dictionaries/notFound';
 import { ACTIVE_LOCALES, DEFAULT_LOCALE, htmlLang, type Locale } from '@/lib/i18n/locale';
 import { localeRedirectScript } from '@/lib/locale-redirect';
+import { SITE_URL } from '@/lib/site-url';
 
 // The website is static: every address that is no page gets this one
 // document (404.html), from the web server. An address without a language
@@ -32,10 +33,9 @@ a.p{background:var(--indigo);color:#fff}a.s{background:var(--lilac);color:var(--
 // chosen before, else German. Also sets the document's language.
 const SHOW_SCRIPT = `(function(a,d){var l=location.pathname.split('/')[1];if(a.indexOf(l)<0){var m=document.cookie.match(/(?:^|;\\s*)pokyh_locale=([^;]*)/);l=m&&a.indexOf(m[1])>=0?m[1]:d}var h=document.documentElement;h.setAttribute('data-l',l);h.lang=l})(${JSON.stringify(ACTIVE_LOCALES)},${JSON.stringify(DEFAULT_LOCALE)});`;
 
-// The site's address, as in app/[lang]/layout.tsx: the social preview images
-// of this document resolve against it, not against the build machine.
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com';
-
+// The social preview images of this document resolve against the site's
+// address (lib/site-url.ts), as in app/[lang]/layout.tsx, not against the
+// build machine.
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: `${makeT(metaDict, DEFAULT_LOCALE)('notFound')} | POKYH`,

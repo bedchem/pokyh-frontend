@@ -1,14 +1,13 @@
 import type { Locale } from '@/lib/i18n/locale';
 import { localizedUrl } from '@/lib/i18n/seo';
 import { pageModified } from '@/lib/seo/pages';
+import { SITE_URL } from '@/lib/site-url';
 
 // Structured data of a public page: what kind of page it is, where it sits
 // (breadcrumb from the homepage), when it last changed, and that it belongs
 // to the POKYH website and describes the POKYH app (the @ids of the site-wide
 // graph in app/[lang]/layout.tsx). `extra` adds page-specific entities, such
 // as the questions of a FAQ that the page shows.
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com';
 
 export type PageType = 'WebPage' | 'AboutPage' | 'FAQPage' | 'CollectionPage' | 'ContactPage';
 

@@ -12,7 +12,9 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'Stundenplan, Noten, Abwesenheiten und Nachrichten aus WebUntis in einer App. Für jede Schule mit WebUntis.',
     lang: 'de',
     dir: 'ltr',
-    start_url: '/login',
+    // Straight into the app: a device without a sign-in is sent to the
+    // sign-in page before anything is drawn (components/SessionScript.tsx).
+    start_url: '/home/',
     scope: '/',
     display: 'standalone',
     orientation: 'any',

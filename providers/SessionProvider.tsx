@@ -53,6 +53,18 @@ export function loginPath(comeBack = true): string {
   return comeBack && isProtectedAppRoute(stripLocale(window.location.pathname)) ? `${path}?next=${encodeURIComponent(here)}` : path;
 }
 
+/** How long a sign-in lasts (pokyh-backend's session cookies, pokyh_user). */
+export const SESSION_MS = 4 * 60 * 60 * 1000;
+
+// Off to the sign-in page once, whichever part of the page notices first: a
+// second navigation would start the sign-in page loading all over again.
+let leaving = false;
+export function leaveForLogin(comeBack = true): void {
+  if (leaving) return;
+  leaving = true;
+  window.location.replace(loginPath(comeBack));
+}
+
 /** The account's school data kept on the device for quick display goes with the sign-in. */
 function forgetSignedInData() {
   cacheClear();
@@ -102,16 +114,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setIsLoading(false);
       forgetSignedInData();
-      // The API's sign-in cookies and the page's own go, so the sign-in page
-      // shows the form instead of sending straight back.
-      signOutEverywhere()
-        .catch(() => {})
-        .finally(() => {
-          // Pages that need a sign-in send to it; public ones stay, for a guest.
-          if (isProtectedAppRoute(stripLocale(window.location.pathname))) {
-            window.location.replace(loginPath());
-          }
-        });
+      // The page's own sign-in cookies go at once, so the sign-in page shows
+      // the form instead of sending straight back; the API's follow on the
+      // way (an expired sign-in has nothing to wait for).
+      void signOutEverywhere();
+      // Pages that need a sign-in send to it; public ones stay, for a guest.
+      if (isProtectedAppRoute(stripLocale(window.location.pathname))) leaveForLogin();
     };
     window.addEventListener('pokyh-session-expired', handler);
     return () => window.removeEventListener('pokyh-session-expired', handler);
@@ -132,7 +140,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     try { await apiLogout(); } catch { /* best effort */ }
     forgetSignedInData();
     setUser(null);
-    window.location.replace(loginPath(false));
+    leaveForLogin(false);
   }, []);
 
   // Signed in means the cookies are there. When they go (deleted in the
@@ -156,18 +164,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user]);
 
-  // Proactive timer: fire logout when the 4 h POKYH session is about to expire
+  // When the 4 h sign-in runs out, the page treats it as expired: straight to
+  // the sign-in page, without waiting for the API (a phone back from hours in
+  // the background may not have its connection yet).
   useEffect(() => {
     if (!user?.loginAt) return;
-    const SESSION_MS = 4 * 60 * 60 * 1000;
-    const remaining = user.loginAt + SESSION_MS - Date.now();
-    if (remaining <= 0) {
-      const t = setTimeout(() => logout(), 0);
-      return () => clearTimeout(t);
-    }
-    const t = setTimeout(() => logout(), remaining);
+    const expire = () => window.dispatchEvent(new CustomEvent('pokyh-session-expired'));
+    const t = setTimeout(expire, Math.max(0, user.loginAt + SESSION_MS - Date.now()));
     return () => clearTimeout(t);
-  }, [user, logout]);
+  }, [user]);
 
   return (
     <Ctx.Provider value={{ user, isLoading, logout, refreshUser }}>

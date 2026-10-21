@@ -3,11 +3,10 @@ import { Suspense } from 'react';
 import LoginForm from './LoginForm';
 import { makeT } from '@/lib/i18n/dictionary';
 import { routeLocale } from '@/lib/i18n/server';
-import { localeAlternates, ogLocale, pageKeywords, ogImage } from '@/lib/i18n/seo';
+import { localeAlternates, localizedUrl, ogLocale, pageKeywords, ogImage } from '@/lib/i18n/seo';
 import PageJsonLd from '@/components/site/PageJsonLd';
 import { metaDict } from '@/lib/i18n/dictionaries/meta';
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com';
+import { SITE_URL } from '@/lib/site-url';
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   const locale = await routeLocale(params);
@@ -18,6 +17,7 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
   keywords: pageKeywords(locale),
   openGraph: {
       images: ogImage(locale, 'login'),
+      url: localizedUrl(SITE_URL, locale, '/login'),
     title: t('loginOgTitle'),
     description: t('loginOgDescription'),
     type: 'website',

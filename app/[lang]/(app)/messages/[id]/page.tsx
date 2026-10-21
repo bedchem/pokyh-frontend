@@ -42,7 +42,7 @@ import { useDateLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider
 import { messagesDict, type MessagesKey } from '@/lib/i18n/dictionaries/messages';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
 import { formatDateTime } from '@/lib/i18n/dateLocale';
-import { loginPath } from '@/providers/SessionProvider';
+import { leaveForLogin } from '@/providers/SessionProvider';
 import { ROUTE_PLACEHOLDER, useRouteId } from '@/lib/route-id';
 
 const MediaViewer = dynamic(() => import('@/components/ui/MediaViewer'), { ssr: false });
@@ -426,7 +426,7 @@ function MessageDetailView({ id }: { id: string }) {
       show(await fetchMessageDetail(msgId));
       if (!sent) markOpenedMessageRead(msgId);
     } catch (e: unknown) {
-      if (e instanceof Error && e.message === 'session_expired') window.location.replace(loginPath());
+      if (e instanceof Error && e.message === 'session_expired') leaveForLogin();
       else if (!shown) setError(e instanceof Error ? e.message : 'error');
     } finally {
       setLoading(false);

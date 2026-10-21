@@ -39,7 +39,7 @@ import { shellDict } from '@/lib/i18n/dictionaries/shell';
 import PixelState, { PixelSpriteArt, holidaySprite } from '@/components/app/PixelState';
 import { Button } from '@/components/ui/Button';
 import { formatDate, formatTime } from '@/lib/i18n/dateLocale';
-import { loginPath } from '@/providers/SessionProvider';
+import { leaveForLogin } from '@/providers/SessionProvider';
 
 type WeekPageState =
   | { status: 'loading' }
@@ -134,7 +134,7 @@ function TimetableContent() {
       setPage(offset, { status: 'data', entries, savedAt: Date.now(), stale: false });
       if (entries.length) import('@/lib/api-client').then(({ api }) => api.subjectImages.reportSubjects(entries)).catch(() => {});
     } catch (e: unknown) {
-      if (e instanceof Error && e.message === 'session_expired') { window.location.replace(loginPath()); return; }
+      if (e instanceof Error && e.message === 'session_expired') { leaveForLogin(); return; }
       const current = pagesRef.current[offset];
       if (current?.status === 'data') {
         // WebUntis unreachable → keep the copy off the disk, but say it's a copy.

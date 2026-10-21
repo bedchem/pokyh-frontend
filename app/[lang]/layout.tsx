@@ -19,10 +19,12 @@ import AnalyticsLoader from '@/components/AnalyticsLoader';
 import PWAInit from '@/components/PWAInit';
 import SubjectImagePreloader from '@/components/SubjectImagePreloader';
 import ThemeScript from '@/components/ThemeScript';
+import SessionScript from '@/components/SessionScript';
 import DevConsoleQuiet from '@/components/DevConsoleQuiet';
 import ViewportScript from '@/components/ViewportScript';
 import AppIconApplier from '@/components/AppIconApplier';
 import ConsoleSecret from '@/components/ConsoleSecret';
+import { SITE_URL } from '@/lib/site-url';
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 const analyticsEnabled = /^G-[A-Z0-9]+$/i.test(GA_ID ?? '');
@@ -47,8 +49,6 @@ const dmMono = DM_Mono({
   display: 'swap',
   preload: false,
 });
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com';
 
 const SOURCE = SOURCE_URL;
 
@@ -199,6 +199,7 @@ export default async function RootLayout({
     <html lang={htmlLang(lang)} className={`${jakarta.variable} ${dmMono.variable}`} suppressHydrationWarning>
       <head>
         {process.env.NODE_ENV === 'development' && <DevConsoleQuiet />}
+        <SessionScript />
         <ThemeScript />
         <ViewportScript />
         <script

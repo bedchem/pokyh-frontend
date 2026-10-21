@@ -1,5 +1,7 @@
 import type { NextConfig } from 'next';
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants';
+import { DEFAULT_API_URL } from './lib/backend';
+import { DEFAULT_SITE_URL, isLocalAddress } from './lib/site-url';
 
 // The website is a static export (`next build` writes out/): plain files that
 // any web server or CDN can serve. Everything dynamic happens in the browser,
@@ -65,6 +67,19 @@ const base: NextConfig = {
   reactStrictMode: true,
 };
 
+// A built site never names a local address. Built with the development
+// settings (.env.local), every canonical link, the sitemap and robots.txt
+// would say localhost, and the pages would ask the visitor's own computer for
+// the API. Such a value is replaced before the build, which still goes
+// through; NEXT_PUBLIC_API_LOCAL=true keeps a local API, to test the built
+// site against a backend on this machine.
+function publicAddress(name: string, fallback: string): void {
+  const value = process.env[name]?.trim();
+  if (!value || !isLocalAddress(value)) return;
+  console.warn(`${name} is a local address (${value}); this build uses ${fallback}.`);
+  process.env[name] = fallback;
+}
+
 export default function nextConfig(phase: string): NextConfig {
   if (phase === PHASE_DEVELOPMENT_SERVER) {
     return {
@@ -80,6 +95,11 @@ export default function nextConfig(phase: string): NextConfig {
         ]);
       },
     };
+  }
+  publicAddress('NEXT_PUBLIC_SITE_URL', DEFAULT_SITE_URL);
+  if (process.env.NEXT_PUBLIC_API_LOCAL !== 'true') {
+    publicAddress('NEXT_PUBLIC_API_BACKEND_URL', DEFAULT_API_URL);
+    publicAddress('NEXT_PUBLIC_API_URL', DEFAULT_API_URL);
   }
   return { ...base, output: 'export' };
 }

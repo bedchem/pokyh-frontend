@@ -1,5 +1,6 @@
 import { ACTIVE_LOCALES, FALLBACK_LOCALE, LOCALE_NAMES } from '@/lib/i18n/locale';
 import { localeRedirectScript } from '@/lib/locale-redirect';
+import { SITE_URL } from '@/lib/site-url';
 
 // The site's root (/): every page lives under a language, so the root only
 // sends on to the right one (lib/locale-redirect.ts). Written as index.html
@@ -8,8 +9,6 @@ import { localeRedirectScript } from '@/lib/locale-redirect';
 // find every language version in its alternate links.
 
 export const dynamic = 'force-static';
-
-const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com').replace(/\/$/, '');
 
 export function GET() {
   const links = ACTIVE_LOCALES.map((l) => `<link rel="alternate" hreflang="${l}" href="${SITE_URL}/${l}/">`).join('');

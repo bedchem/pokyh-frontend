@@ -21,7 +21,7 @@ import { useDateLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider
 import { messagesDict, type MessagesKey } from '@/lib/i18n/dictionaries/messages';
 import { formatDate, formatTime } from '@/lib/i18n/dateLocale';
 import { messageIsRead, messageRecipientNames } from '@/lib/untis-parse';
-import { loginPath } from '@/providers/SessionProvider';
+import { leaveForLogin } from '@/providers/SessionProvider';
 
 type TFn = (key: MessagesKey, vars?: Record<string, string | number>) => string;
 
@@ -128,7 +128,7 @@ export default function MessagesPage() {
       setError('');
     } catch (e: unknown) {
       if (e instanceof Error && e.message === 'session_expired') {
-        window.location.replace(loginPath());
+        leaveForLogin();
       } else {
         setError(e instanceof Error ? e.message : 'error');
       }
@@ -165,7 +165,7 @@ export default function MessagesPage() {
       setComposeInitial({ draftId: id, subject: d.subject, content: d.content, recipients: d.recipients, attachments: d.attachments });
       setShowCompose(true);
     } catch (e) {
-      if (e instanceof Error && e.message === 'session_expired') window.location.replace(loginPath());
+      if (e instanceof Error && e.message === 'session_expired') leaveForLogin();
       else setError(t('draftOpenFailed'));
     } finally {
       setOpeningDraftId(null);
@@ -179,7 +179,7 @@ export default function MessagesPage() {
       await deleteDraft(id);
       setMessages((prev) => prev.filter((m) => m.id !== id));
     } catch (e) {
-      if (e instanceof Error && e.message === 'session_expired') window.location.replace(loginPath());
+      if (e instanceof Error && e.message === 'session_expired') leaveForLogin();
       else setError(t('draftDeleteFailed'));
     } finally {
       setDeletingDraftId(null);

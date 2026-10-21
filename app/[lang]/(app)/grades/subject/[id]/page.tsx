@@ -28,7 +28,7 @@ import { gradesDict } from '@/lib/i18n/dictionaries/grades';
 import { shellDict } from '@/lib/i18n/dictionaries/shell';
 
 import type { GradesKey } from '@/lib/i18n/dictionaries/grades';
-import { loginPath } from '@/providers/SessionProvider';
+import { leaveForLogin } from '@/providers/SessionProvider';
 import { ROUTE_PLACEHOLDER, useRouteId } from '@/lib/route-id';
 
 type DraftState = {
@@ -128,7 +128,7 @@ function SubjectDetailView({ idParam }: { idParam: string }) {
       setSubjects(parseGrades(res));
     } catch (e: unknown) {
       if (e instanceof Error && e.message === 'session_expired') {
-        window.location.replace(loginPath());
+        leaveForLogin();
       } else {
         setError(e instanceof Error ? e.message : 'error');
       }

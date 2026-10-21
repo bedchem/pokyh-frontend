@@ -15,7 +15,7 @@ import { classPagesDict } from '@/lib/i18n/dictionaries/classPages';
 import { shellDict } from '@/lib/i18n/dictionaries/shell';
 import { formatDate } from '@/lib/i18n/dateLocale';
 import { EntryRow, TONE_BAR, categoryTone, dateOf, parseClassregRows, type ClassregEvent } from '@/components/class/ClassregEntry';
-import { loginPath } from '@/providers/SessionProvider';
+import { leaveForLogin } from '@/providers/SessionProvider';
 
 // The class register (Klassenbuch): what teachers noted for the class in a
 // school year. Four figures and how the entries split by category on top,
@@ -51,7 +51,7 @@ function ClassregContent() {
     try {
       setEvents(parseClassregRows(await fetchClassregEvents(selectedYear)));
     } catch (e: unknown) {
-      if (e instanceof Error && e.message === 'session_expired') window.location.replace(loginPath());
+      if (e instanceof Error && e.message === 'session_expired') leaveForLogin();
       else setError(e instanceof Error ? e.message : 'error');
     } finally {
       setLoading(false);

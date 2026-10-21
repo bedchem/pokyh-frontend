@@ -9,8 +9,8 @@ import PageIntro, { TONE } from '@/components/site/PageIntro';
 import RevealScope from '@/components/site/RevealScope';
 import CtaBand from '@/components/site/CtaBand';
 import CodeBlock from '@/components/site/CodeBlock';
+import { SITE_URL } from '@/lib/site-url';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com';
 const FRONTEND_REPO = 'https://github.com/bedchem/pokyh-frontend';
 const BACKEND_REPO = 'https://github.com/bedchem/pokyh-backend';
 

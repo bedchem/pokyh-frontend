@@ -105,14 +105,33 @@ async function refreshAccessToken(): Promise<boolean> {
   }
 }
 
-/** Ends the sign-in everywhere it lives: the API revokes and clears its cookies, the page its own. */
-export async function signOutEverywhere(): Promise<void> {
-  await fetch(`${API_BASE}/auth/web/logout`, {
+// How long signing out waits for the API before going on without its answer.
+const LOGOUT_WAIT_MS = 4_000;
+
+/**
+ * Ends the sign-in everywhere it lives: the page's own cookies at once, then
+ * the API revokes and clears its cookies. The request is kept alive, so it
+ * still arrives when the page moves on to the sign-in page meanwhile.
+ */
+let _signingOut: Promise<void> | null = null;
+export function signOutEverywhere(): Promise<void> {
+  forgetSignIn();
+  const request = (keepalive: boolean) => fetch(`${API_BASE}/auth/web/logout`, {
     method: 'POST',
     credentials: 'include',
+    keepalive,
     headers: { 'X-API-Key': API_KEY },
-  }).catch(() => {});
-  forgetSignIn();
+    signal: AbortSignal.timeout(LOGOUT_WAIT_MS),
+  });
+  // A browser that cannot keep this request alive (the API key makes it a
+  // cross-origin request it has to ask about first) refuses it as a network
+  // error and gets it as usual; a request that ran out of time is not repeated.
+  // Whoever signs out meanwhile shares the one request.
+  _signingOut ??= request(true)
+    .catch((err: unknown) => (err instanceof TypeError ? request(false) : undefined))
+    .then(() => {}, () => {})
+    .finally(() => { _signingOut = null; });
+  return _signingOut;
 }
 
 // Dispatch pokyh-session-expired once per expiry window so SessionProvider

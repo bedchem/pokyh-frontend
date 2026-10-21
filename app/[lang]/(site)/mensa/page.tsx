@@ -9,8 +9,7 @@ import PageJsonLd from '@/components/site/PageJsonLd';
 import { publicCanteens, publicMenu } from '@/lib/server/mensa-api';
 import { canteensFrom, dishesFrom, menuOwner, upcomingDays, type Canteen } from '@/lib/mensa';
 import type { Locale } from '@/lib/i18n/locale';
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pokyh.com';
+import { SITE_URL } from '@/lib/site-url';
 
 type PageProps = { params: Promise<{ lang: string }> };
 
