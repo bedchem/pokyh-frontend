@@ -20,6 +20,7 @@ import type {
   MessageRecipient,
   ReportAbsenceInput,
   SendMessageInput,
+  SentExcuse,
 } from './types';
 import { messageIsRead } from './untis-parse';
 
@@ -199,7 +200,9 @@ async function apiFetch(url: string, opts?: RequestInit) {
       await clearSessionOnce();
       throw new Error('session_expired');
     }
-    throw new Error(errMsg);
+    // The API's reason code rides along, for pages that say it in the reader's language.
+    const code = (data as { code?: unknown }).code;
+    throw Object.assign(new Error(errMsg), typeof code === 'string' ? { code } : {});
   }
 
   const json = await res.json();
@@ -577,20 +580,52 @@ export async function createAbsence(input: ReportAbsenceInput): Promise<unknown>
   return res;
 }
 
+export interface ExcuseResult {
+  ok: true;
+  /**
+   * 'message': written to the class teachers. 'webuntis': the account may write to no
+   * teacher (a guardian, say), so reason and note were saved on the absence in WebUntis.
+   */
+  via: 'message' | 'webuntis';
+  /** The absences it is about (those not excused yet). */
+  absenceIds: number[];
+  /** Class teachers who got it, and those it could not be sent to. */
+  sentTo: string[];
+  failed: string[];
+  excuse: SentExcuse | null;
+}
+
+const EXCUSES_URL = '/api/webuntis/absences/excuses';
+
+/**
+ * Excuses absences that are over: the API writes to the class teachers in
+ * WebUntis (one message each), in the page's language. The dates tell it
+ * where to find the absences.
+ */
 export async function excuseAbsence(
   absenceIds: number[],
-  reasonId?: number,
-  text?: string,
-): Promise<unknown> {
+  reasonId: number,
+  text: string,
+  opts: { locale: string; startDate: number; endDate: number },
+): Promise<ExcuseResult> {
   const res = (await apiFetch('/api/webuntis/absences/excuse', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ absenceIds, reasonId, text }),
-  })) as { ok?: boolean; error?: string };
-  invalidateAbsences();
-  // 207: only some of the absences were saved; report it rather than "done".
-  if (res && res.ok === false) throw new Error(res.error || 'excuse_failed');
+    body: JSON.stringify({ absenceIds, reasonId, text, locale: opts.locale, startDate: String(opts.startDate), endDate: String(opts.endDate) }),
+  })) as ExcuseResult;
+  // The new message is in "Gesendet" now; an excuse saved in WebUntis changed the absence.
+  for (const url of [EXCUSES_URL, '/api/webuntis/messages?folder=sent']) { cacheDel(url); pcDel(url); }
+  if (res.via === 'webuntis') invalidateAbsences();
   return res;
+}
+
+/** Excuses sent so far (see SentExcuse). */
+export function fetchExcuses(): Promise<{ excuses: SentExcuse[] }> {
+  return apiFetchCached(EXCUSES_URL) as Promise<{ excuses: SentExcuse[] }>;
+}
+
+export function getExcusesStale(): { excuses: SentExcuse[] } | undefined {
+  return pcGetStale<{ excuses: SentExcuse[] }>(EXCUSES_URL);
 }
 
 // Build a multipart body so attachments ride along with the message. The browser

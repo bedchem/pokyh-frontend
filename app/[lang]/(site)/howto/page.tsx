@@ -10,9 +10,10 @@ import RevealScope from '@/components/site/RevealScope';
 import CtaBand from '@/components/site/CtaBand';
 import CodeBlock from '@/components/site/CodeBlock';
 import { SITE_URL } from '@/lib/site-url';
+import { REPO_URLS } from '@/lib/site-links';
 
-const FRONTEND_REPO = 'https://github.com/bedchem/pokyh-frontend';
-const BACKEND_REPO = 'https://github.com/bedchem/pokyh-backend';
+const FRONTEND_REPO = REPO_URLS.web;
+const BACKEND_REPO = REPO_URLS.backend;
 
 type PageProps = { params: Promise<{ lang: string }> };
 

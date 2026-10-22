@@ -11,6 +11,7 @@ import { ARRIVE, HERO_LVH, lvh } from './scenes';
 import { SCROLL, sceneHeight } from '@/lib/scroll-pace';
 import type { HeroItem, HeroScene } from './heroScene';
 import { useTileText } from './useTileText';
+import { SOURCE_URL } from '@/lib/site-links';
 
 // The opening: on every visit the name, large, on clean paper, rises letter
 // by letter out of a mask and comes into focus, then the school-day tiles
@@ -435,7 +436,7 @@ export default function Hero() {
           className="absolute inset-x-0 grid grid-cols-[1fr_auto_1fr] items-end gap-4 px-5 pb-6 text-[14px] font-medium md:px-10 md:pb-8 md:text-[15px] lg:px-[6.5vw]"
         >
           <a
-            href="https://github.com/bedchem"
+            href={SOURCE_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="group flex items-center gap-2.5 justify-self-start"

@@ -6,10 +6,11 @@ import { rich } from '@/lib/i18n/rich';
 import type { Locale } from '@/lib/i18n/locale';
 import PageIntro from '@/components/site/PageIntro';
 import RevealScope from '@/components/site/RevealScope';
+import { REPO_URLS } from '@/lib/site-links';
 
 export const RELEASES = {
-  ios: 'https://github.com/bedchem/POKYH_IOS/releases',
-  android: 'https://github.com/bedchem/POKYH_ANDROID/releases',
+  ios: REPO_URLS.iosReleases,
+  android: REPO_URLS.androidReleases,
 } as const;
 
 /** Download guide for the native apps (shared by /get/ios and /get/android). */

@@ -1,47 +1,65 @@
 'use client';
 
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
-import { CaretRight, Check, FloppyDisk, ListBullets, UserMinus } from '@phosphor-icons/react';
-import { useT } from '@/providers/LocaleProvider';
-import { untisActionsDict } from '@/lib/i18n/dictionaries/untisActions';
+import { CaretRight, Check, ListBullets, PaperPlaneTilt, UserMinus, Users } from '@phosphor-icons/react';
+import { useLocale, useT } from '@/providers/LocaleProvider';
+import { untisActionsDict, type UntisActionKey } from '@/lib/i18n/dictionaries/untisActions';
 import { absencesDict } from '@/lib/i18n/dictionaries/absences';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
-import { excuseAbsence, fetchAbsenceMeta } from '@/lib/api';
-import type { AbsenceReason } from '@/lib/types';
+import { excuseAbsence, fetchAbsenceMeta, fetchRecipients, type ExcuseResult } from '@/lib/api';
+import type { AbsenceReason, MessageRecipient } from '@/lib/types';
 import Sheet from '@/components/ui/Sheet';
 import { TextArea, FormStatus } from '@/components/ui/Field';
 import { Button } from '@/components/ui/Button';
 import ReasonList from './ReasonList';
 
-// Reason and note for existing absences, saved in WebUntis (students cannot set
-// the excuse status; the school does). Built like "Mitteilung an Lehrkraft":
-// the absence on top, the reason as a field whose list is a second step in the
-// same sheet, the note, the save button pinned below, a confirmation at the
-// end. Reports success only when WebUntis did.
+// The API's reasons for not sending, in the reader's language.
+const ERROR_KEYS: Record<string, UntisActionKey> = {
+  no_class_teacher: 'exNoTeacher',
+  messages_forbidden: 'exForbidden',
+  already_excused: 'exAlready',
+  send_failed: 'exSendFailed',
+  rate_limited: 'exRateLimited',
+};
+
+// Excusing absences that are over. WebUntis takes no reason for those, so the
+// API writes to the class teachers instead (one WebUntis message each) and
+// they mark the absence excused. Built like "Mitteilung an Lehrkraft": the
+// absence on top, who gets it, the reason as a field whose list is a second
+// step in the same sheet, the note, the send button pinned below, a
+// confirmation at the end. Reports success only when WebUntis sent it.
 export default function ExcuseSheet({
   absenceIds,
   summary,
+  startDate,
+  endDate,
   onClose,
   onSaved,
 }: {
   absenceIds: number[];
   /** The absence in words ("Mittwoch, 17. Dezember · 07:50 – 13:05"). */
   summary?: string;
+  /** Where the absences lie (YYYYMMDD), so the API finds them quickly. */
+  startDate: number;
+  endDate: number;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (result: ExcuseResult) => void;
 }) {
   const t = useT(untisActionsDict);
   const ta = useT(absencesDict);
   const tc = useT(commonDict);
+  const { locale } = useLocale();
   const formId = useId();
   const [view, setView] = useState<'form' | 'reasons'>('form');
   const [reasons, setReasons] = useState<AbsenceReason[] | null>(null);
   const [reasonId, setReasonId] = useState<number | null>(null);
+  // The class teachers it goes to; null while loading, 'failed' when WebUntis won't say.
+  const [teachers, setTeachers] = useState<MessageRecipient[] | 'failed' | null>(null);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [reasonError, setReasonError] = useState(false);
-  const [done, setDone] = useState(false);
+  const [done, setDone] = useState<ExcuseResult | null>(null);
   const reasonButton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -54,10 +72,14 @@ export default function ExcuseSheet({
         if (m.defaultReasonId != null && list.some((r) => r.id === m.defaultReasonId)) setReasonId(m.defaultReasonId);
       })
       .catch(() => { if (alive) setReasons([]); });
+    fetchRecipients()
+      .then((r) => { if (alive) setTeachers((r.recipients ?? []).filter((p) => p.category === 'classTeacher')); })
+      .catch(() => { if (alive) setTeachers('failed'); });
     return () => { alive = false; };
   }, []);
 
   const chosen = reasons?.find((r) => r.id === reasonId) ?? null;
+  const noTeacher = Array.isArray(teachers) && teachers.length === 0;
 
   const backToForm = () => {
     setView('form');
@@ -66,7 +88,7 @@ export default function ExcuseSheet({
 
   async function submit(e?: FormEvent) {
     e?.preventDefault();
-    if (busy || done) return;
+    if (busy || done || noTeacher) return;
     if (reasonId == null) {
       setReasonError(true);
       return;
@@ -74,22 +96,26 @@ export default function ExcuseSheet({
     setBusy(true);
     setError('');
     try {
-      await excuseAbsence(absenceIds, reasonId, text.trim());
-      setDone(true);
-      onSaved();
-      setTimeout(onClose, 1200);
+      const result = await excuseAbsence(absenceIds, reasonId, text.trim(), { locale, startDate, endDate });
+      setDone(result);
+      onSaved(result);
+      // A partial send stays open, so the names it missed can be read.
+      if (result.failed.length === 0) setTimeout(onClose, 1600);
     } catch (err) {
-      setError(err instanceof Error && err.message && err.message !== 'session_expired' && !/^HTTP \d/.test(err.message) ? err.message : t('failed'));
+      const code = (err as { code?: unknown }).code;
+      const key = typeof code === 'string' ? ERROR_KEYS[code] : undefined;
+      const msg = err instanceof Error ? err.message : '';
+      setError(key ? t(key) : msg && msg !== 'session_expired' && !/^HTTP \d/.test(msg) ? msg : t('exSendFailed'));
     } finally {
       setBusy(false);
     }
   }
 
   const footer = done || view === 'reasons' ? undefined : (
-    <Button type="submit" form={formId} disabled={busy} className="w-full">
+    <Button type="submit" form={formId} disabled={busy || noTeacher} className="w-full">
       {busy
         ? <span aria-hidden="true" className="size-[18px] animate-spin rounded-full border-2 border-current border-r-transparent" />
-        : <FloppyDisk size={18} weight="bold" aria-hidden="true" />}
+        : <PaperPlaneTilt size={18} weight="bold" aria-hidden="true" />}
       {busy ? t('exSaving') : t('exSave')}
     </Button>
   );
@@ -109,8 +135,13 @@ export default function ExcuseSheet({
           <span className="grid size-16 place-items-center rounded-[20px] bg-sage text-sage-ink">
             <Check size={30} weight="bold" aria-hidden="true" />
           </span>
-          <p className="mt-5 text-[19px] font-extrabold tracking-[-0.02em]">{t('exDone')}</p>
-          {chosen && <p className="mt-1 max-w-[36ch] text-[15px] text-ink-2">{chosen.name}</p>}
+          <p className="mt-5 text-[19px] font-extrabold tracking-[-0.02em]">{done.via === 'webuntis' ? t('exSavedInUntis') : t('exDone')}</p>
+          <p className="mt-1 max-w-[36ch] text-[15px] text-ink-2">
+            {done.via === 'webuntis' ? chosen?.name : t('exDoneTo', { names: done.sentTo.join(', ') })}
+          </p>
+          {done.failed.length > 0 && (
+            <p className="mt-3 max-w-[36ch] text-[14px] font-medium text-danger-ink">{t('exPartial', { names: done.failed.join(', ') })}</p>
+          )}
         </div>
       ) : view === 'reasons' ? (
         <ReasonList
@@ -132,6 +163,29 @@ export default function ExcuseSheet({
               </div>
             </div>
           )}
+
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[14px] font-semibold text-ink">{t('exTo')}</span>
+            <div className="flex min-h-14 items-center gap-3 rounded-[14px] bg-inset px-3 py-2">
+              {Array.isArray(teachers) && teachers.length > 0 ? (
+                <span aria-hidden="true" className="flex shrink-0 -space-x-2">
+                  {teachers.slice(0, 3).map((r) => (
+                    <span key={r.id} className="grid size-9 place-items-center rounded-full bg-periwinkle text-[12.5px] font-bold text-periwinkle-ink shadow-[0_0_0_2px_var(--inset)]">
+                      {r.initials}
+                    </span>
+                  ))}
+                </span>
+              ) : (
+                <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-surface text-ink-2">
+                  <Users size={18} weight="bold" />
+                </span>
+              )}
+              <span className={`min-w-0 flex-1 text-[15.5px] ${Array.isArray(teachers) && teachers.length > 0 ? 'font-medium text-ink' : 'text-ink-3'}`}>
+                {teachers === null ? '…' : teachers === 'failed' ? t('exToSchool') : teachers.length > 0 ? teachers.map((r) => r.name).join(', ') : ta('unavailable')}
+              </span>
+            </div>
+            {noTeacher && <p className="text-[13px] font-medium text-danger-ink">{t('exNoTeacher')}</p>}
+          </div>
 
           <div className="flex flex-col gap-1.5">
             <span id={`${formId}-reason`} className="text-[14px] font-semibold text-ink">{t('exReason')}</span>

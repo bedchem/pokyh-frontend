@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CalendarBlank, CaretDown, CheckCircle, FilePdf, Plus, XCircle } from '@phosphor-icons/react';
+import { CalendarBlank, CaretDown, CheckCircle, FilePdf, PaperPlaneTilt, Plus, XCircle } from '@phosphor-icons/react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import AuthGuard from '@/components/AuthGuard';
@@ -15,12 +15,12 @@ import ErrorView from '@/components/ui/ErrorView';
 // Abwesenheit-melden deaktiviert (kein funktionierender WebUntis-Schreib-Endpunkt):
 import ReportAbsenceSheet from '@/components/absences/ReportAbsenceSheet';
 import ExcuseSheet from '@/components/absences/ExcuseSheet';
-import { fetchAbsences, fetchTimetableForCalc, getAbsencesStale, excuseLetterUrl } from '@/lib/api';
+import { fetchAbsences, fetchExcuses, fetchTimetableForCalc, getAbsencesStale, getExcusesStale, excuseLetterUrl, type ExcuseResult } from '@/lib/api';
 import { useUntisPermissions } from '@/components/app/hooks';
 import { untisActionsDict } from '@/lib/i18n/dictionaries/untisActions';
 import { useSession, leaveForLogin } from '@/providers/SessionProvider';
-import type { AbsenceEntry } from '@/lib/types';
-import { parseAbsences } from '@/lib/absences';
+import type { AbsenceEntry, SentExcuse } from '@/lib/types';
+import { parseAbsences, sentExcuseFor } from '@/lib/absences';
 import { useDateLocale, useLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { absencesDict } from '@/lib/i18n/dictionaries/absences';
 import { formatDate, monthShort } from '@/lib/i18n/dateLocale';
@@ -257,7 +257,10 @@ export default function AbsencesPage() {
   const canReport = !!perms?.canReportAbsence;
   const personName = perms?.personName ?? null;
   const [showReport, setShowReport] = useState(false);
-  const [excuse, setExcuse] = useState<{ ids: number[]; summary: string } | null>(null);
+  const [excuse, setExcuse] = useState<{ ids: number[]; summary: string; startDate: number; endDate: number } | null>(null);
+  // Excuses sent to the class teachers, from "Gesendet" (stored copy first), and those sent just now.
+  const [excuses, setExcuses] = useState<SentExcuse[]>(() => getExcusesStale()?.excuses ?? []);
+  const [sentNow, setSentNow] = useState<SentExcuse[]>([]);
   const [letterOpen, setLetterOpen] = useState(false);
   const ta = useT(untisActionsDict);
 
@@ -345,6 +348,24 @@ export default function AbsencesPage() {
     const timer = window.setTimeout(() => { void load(); }, 0);
     return () => window.clearTimeout(timer);
   }, [load]);
+
+  // Not needed for the list itself, so it never holds it up; without it the buttons simply stay.
+  const loadExcuses = useCallback(() => {
+    fetchExcuses().then((r) => setExcuses(Array.isArray(r?.excuses) ? r.excuses : [])).catch(() => {});
+  }, []);
+
+  useEffect(() => { loadExcuses(); }, [loadExcuses]);
+
+  const onExcused = (r: ExcuseResult) => {
+    const sent = r.excuse;
+    if (sent) setSentNow((prev) => [...prev, sent]);
+    // Saved in WebUntis instead (no message allowed): the absence itself changed.
+    if (r.via === 'webuntis') void load();
+    else loadExcuses();
+  };
+
+  // What "Gesendet" has wins: it knows the message to open.
+  const allExcuses = [...excuses, ...sentNow.filter((n) => !excuses.some((e) => e.start === n.start && e.end === n.end))];
 
   useEffect(() => {
     function onDown(e: MouseEvent) {
@@ -558,7 +579,12 @@ export default function AbsencesPage() {
                             entry.subjectName,
                             entry.teacherName,
                           ].filter(Boolean).join(' · ');
-                          const tone = entry.isExcused ? 'bg-sage text-sage-ink' : 'bg-blush text-blush-ink';
+                          // Excused in WebUntis, excuse sent and waiting for the class teachers, or open.
+                          const sent = entry.isExcused ? null : sentExcuseFor(entry, allExcuses);
+                          const sentDate = sent && !Number.isNaN(Date.parse(sent.sentAt)) ? formatDate(new Date(sent.sentAt), tag, { day: 'numeric', month: 'short' }) : '';
+                          const sentNames = sent?.recipients.join(', ') ?? '';
+                          const tone = entry.isExcused ? 'bg-sage text-sage-ink' : sent ? 'bg-butter text-butter-ink' : 'bg-blush text-blush-ink';
+                          const sentChip = 'inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-bold';
                           return (
                             <li key={entry.id} className="relative px-3 py-3.5 before:absolute before:inset-x-3.5 before:top-0 before:h-px before:bg-line first:before:hidden">
                               <div className="flex items-start gap-3.5 lg:items-center lg:gap-4">
@@ -580,17 +606,41 @@ export default function AbsencesPage() {
                                         {entry.note}
                                       </p>
                                     )}
+                                    {sent && (sentNames || sentDate) && (
+                                      <p className="mt-1.5 text-[13.5px] leading-snug text-ink-2">
+                                        {sentNames ? (sentDate ? ta('exSentTo', { names: sentNames, date: sentDate }) : ta('exDoneTo', { names: sentNames })) : sentDate}
+                                      </p>
+                                    )}
                                   </div>
                                   <div className="mt-3 flex flex-wrap items-center gap-2 lg:mt-0 lg:shrink-0 lg:justify-end">
-                                    <span className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-bold ${tone}`}>
-                                      {entry.isExcused ? <CheckCircle size={15} weight="bold" aria-hidden="true" /> : <XCircle size={15} weight="bold" aria-hidden="true" />}
-                                      {entry.isExcused ? t('statusExcused') : t('statusOpen')}
-                                    </span>
+                                    {sent ? (
+                                      // Stays until the class teachers mark it excused in WebUntis; opens the message.
+                                      sent.messageId ? (
+                                        <Link
+                                          href={localize(`/messages/${sent.messageId}?folder=sent`)}
+                                          title={sentNames ? ta('exSentLabel', { names: sentNames, date: sentDate }) : undefined}
+                                          className={`${sentChip} ${tone} transition-[filter] hover:brightness-95 dark:hover:brightness-125`}
+                                        >
+                                          <PaperPlaneTilt size={15} weight="bold" aria-hidden="true" />
+                                          {ta('exSent')}
+                                        </Link>
+                                      ) : (
+                                        <span className={`${sentChip} ${tone}`} title={sentNames ? ta('exSentLabel', { names: sentNames, date: sentDate }) : undefined}>
+                                          <PaperPlaneTilt size={15} weight="bold" aria-hidden="true" />
+                                          {ta('exSent')}
+                                        </span>
+                                      )
+                                    ) : (
+                                      <span className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-bold ${tone}`}>
+                                        {entry.isExcused ? <CheckCircle size={15} weight="bold" aria-hidden="true" /> : <XCircle size={15} weight="bold" aria-hidden="true" />}
+                                        {entry.isExcused ? t('statusExcused') : t('statusOpen')}
+                                      </span>
+                                    )}
                                     {/* Like WebUntis: only who may report absences (guardians, students of age) excuses them. */}
-                                    {!entry.isExcused && canReport && (
+                                    {!entry.isExcused && !sent && canReport && (
                                       <button
                                         type="button"
-                                        onClick={() => setExcuse({ ids: [entry.id], summary: [title, entry.startTime || entry.endTime ? `${formatTime(entry.startTime)} – ${formatTime(entry.endTime)}` : ''].filter(Boolean).join(' · ') })}
+                                        onClick={() => setExcuse({ ids: [entry.id], startDate: entry.startDate, endDate: entry.endDate, summary: [title, entry.startTime || entry.endTime ? `${formatTime(entry.startTime)} – ${formatTime(entry.endTime)}` : ''].filter(Boolean).join(' · ') })}
                                         className="inline-flex h-8 items-center rounded-full bg-periwinkle px-3 text-[13px] font-semibold text-periwinkle-ink transition-[filter] hover:brightness-95 dark:hover:brightness-125"
                                       >
                                         {ta('exAction')}
@@ -626,7 +676,14 @@ export default function AbsencesPage() {
           />
         )}
         {excuse && (
-          <ExcuseSheet absenceIds={excuse.ids} summary={excuse.summary} onClose={() => setExcuse(null)} onSaved={load} />
+          <ExcuseSheet
+            absenceIds={excuse.ids}
+            summary={excuse.summary}
+            startDate={excuse.startDate}
+            endDate={excuse.endDate}
+            onClose={() => setExcuse(null)}
+            onSaved={onExcused}
+          />
         )}
         {letterOpen && (
           <MediaViewer

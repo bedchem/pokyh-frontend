@@ -2,7 +2,7 @@
 // Shared by the Abwesenheiten page and the Stundenplan overlay, so the grid knows
 // about an absence without that page ever having been opened.
 
-import type { AbsenceEntry } from './types';
+import type { AbsenceEntry, SentExcuse } from './types';
 
 function toMinutes(t: number): number {
   if (!t) return 0;
@@ -84,6 +84,31 @@ export function parseAbsences(json: unknown): AbsenceEntry[] {
   } catch {
     return [];
   }
+}
+
+// ─── Excuses sent to the class teachers ────────────────────────────────────────
+
+/** Start and end of an absence as YYYYMMDDHHMM, the numbers SentExcuse uses. */
+function absenceSpan(a: AbsenceEntry): { start: number; end: number } {
+  const s = toMinutes(a.startTime);
+  const e = a.startTime > 0 || a.endTime > 0 ? toMinutes(a.endTime) : 23 * 60 + 59;
+  return {
+    start: a.startDate * 10_000 + Math.floor(s / 60) * 100 + (s % 60),
+    end: a.endDate * 10_000 + Math.floor(e / 60) * 100 + (e % 60),
+  };
+}
+
+/**
+ * The newest excuse message that covers this absence, if one was sent. It counts when its span
+ * overlaps the absence, so a school shortening the absence afterwards doesn't lose it.
+ */
+export function sentExcuseFor(a: AbsenceEntry, excuses: SentExcuse[]): SentExcuse | null {
+  const span = absenceSpan(a);
+  let found: SentExcuse | null = null;
+  for (const e of excuses) {
+    if (e.start < span.end && e.end > span.start && (!found || e.sentAt > found.sentAt)) found = e;
+  }
+  return found;
 }
 
 // ─── Timetable marks ──────────────────────────────────────────────────────────

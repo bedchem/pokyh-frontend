@@ -102,6 +102,20 @@ export interface AbsenceReason {
   name: string;
 }
 
+/**
+ * An excuse sent to the class teachers as a WebUntis message, found again in
+ * "Gesendet" (the API's /absences/excuses). Times are YYYYMMDDHHMM.
+ */
+export interface SentExcuse {
+  start: number;
+  end: number;
+  /** ISO date-time WebUntis gives the message. */
+  sentAt: string;
+  recipients: string[];
+  /** The sent message, to open it; null until "Gesendet" has it. */
+  messageId: number | null;
+}
+
 export interface ReportAbsenceInput {
   startDate: string; // YYYYMMDD
   endDate: string; // YYYYMMDD

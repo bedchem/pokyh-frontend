@@ -37,6 +37,22 @@ function configured(name: string, fallback = ''): string {
   return process.env[name]?.trim() || fallback;
 }
 
+/**
+ * The controller's name comes from the deployment only (LEGAL_ENTITY_NAME),
+ * never from the code. A production build without it stops: it would publish
+ * a privacy notice that names no controller.
+ */
+function controllerName(): string {
+  const name = configured('LEGAL_ENTITY_NAME');
+  if (!name && process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'LEGAL_ENTITY_NAME is not set. The privacy notice must name the controller (GDPR Art. 13(1)(a)): ' +
+        'set it in .env.local or in the build environment (a build argument for Docker).',
+    );
+  }
+  return name;
+}
+
 export function getLegalIdentity(): LegalIdentity {
   const legalRepresentative = configured('LEGAL_REPRESENTATIVE');
   const vatId = configured('LEGAL_VAT_ID');
@@ -49,7 +65,7 @@ export function getLegalIdentity(): LegalIdentity {
     // "GmbH" or "S.r.l." (protected designations; claiming one without a
     // registered company would itself be misleading). Registry details
     // intentionally have no invented fallback.
-    name: configured('LEGAL_ENTITY_NAME', 'Felix Plattner'),
+    name: controllerName(),
     addressLines: [
       configured('LEGAL_ADDRESS_LINE_1'),
       configured('LEGAL_ADDRESS_LINE_2'),

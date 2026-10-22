@@ -11,11 +11,13 @@ import {
   Exam,
   FileText,
   MapPin,
+  PaperPlaneTilt,
   UserMinus,
   UsersThree,
 } from '@phosphor-icons/react';
-import type { AbsenceEntry, TimetableEntry } from '@/lib/types';
-import { absenceRangeText, lessonAbsence, type AbsenceMark } from '@/lib/absences';
+import type { AbsenceEntry, SentExcuse, TimetableEntry } from '@/lib/types';
+import { absenceRangeText, lessonAbsence, sentExcuseFor, type AbsenceMark } from '@/lib/absences';
+import { fetchExcuses, getExcusesStale } from '@/lib/api';
 import { useDateLocale, useT } from '@/providers/LocaleProvider';
 import { timetableDict, type TimetableKey } from '@/lib/i18n/dictionaries/timetable';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
@@ -288,20 +290,39 @@ function Change({ from, to }: { from: string; to: string }) {
   );
 }
 
-/** "Abwesend": the status (Vorentschuldigung / Entschuldigt / Unentschuldigt), from when to when and why. */
+/**
+ * "Abwesend": the status (Vorentschuldigung / Entschuldigt / Unentschuldigt), from when to when and why.
+ * An unexcused absence whose excuse went to the class teachers (Abwesenheiten → "Entschuldigen")
+ * says so, as the absences page does, until the school marks it excused.
+ */
 function AbsenceBlock({ mark, covering }: { mark: AbsenceMark; covering: AbsenceEntry[] }) {
   const t = useT(timetableDict);
+  const { tag } = useDateLocale();
+  const [excuses, setExcuses] = useState<SentExcuse[]>(() => (mark === 'absent' ? getExcusesStale()?.excuses ?? [] : []));
+  useEffect(() => {
+    if (mark !== 'absent') return;
+    let alive = true;
+    fetchExcuses().then((r) => { if (alive && Array.isArray(r?.excuses)) setExcuses(r.excuses); }).catch(() => {});
+    return () => { alive = false; };
+  }, [mark]);
+  const sent = mark === 'absent'
+    ? covering.filter((a) => !a.isExcused).map((a) => sentExcuseFor(a, excuses)).find(Boolean) ?? null
+    : null;
+  const sentDate = sent && !Number.isNaN(Date.parse(sent.sentAt)) ? formatDate(new Date(sent.sentAt), tag, { day: 'numeric', month: 'short' }) : '';
   const markLabel = { preExcused: t('markPreExcused'), excused: t('markExcused'), absent: t('markAbsent') } as const;
   const reasons = [...new Set(covering.map((a) => a.reasonName).filter(Boolean))] as string[];
-  const tile = mark === 'absent' ? 'bg-blush text-blush-ink' : 'bg-sage text-sage-ink';
+  const tile = sent ? 'bg-butter text-butter-ink' : mark === 'absent' ? 'bg-blush text-blush-ink' : 'bg-sage text-sage-ink';
   return (
     <div className="flex items-start gap-3 rounded-[18px] bg-inset px-3.5 py-3">
       <span aria-hidden="true" className={`grid size-9 shrink-0 place-items-center rounded-full ${tile}`}>
-        <UserMinus size={18} weight="bold" />
+        {sent ? <PaperPlaneTilt size={18} weight="bold" /> : <UserMinus size={18} weight="bold" />}
       </span>
       <div className="min-w-0">
         <p className="text-[13px] font-medium text-ink-2">{t('absent')}</p>
-        <p className={`text-[15.5px] font-semibold ${mark === 'absent' ? 'text-danger' : 'text-ink'}`}>{markLabel[mark]}</p>
+        <p className={`text-[15.5px] font-semibold ${mark === 'absent' && !sent ? 'text-danger' : 'text-ink'}`}>{sent ? t('markSent') : markLabel[mark]}</p>
+        {sent && sent.recipients.length > 0 && (
+          <p className="mt-0.5 text-[14px] text-ink-2">{sentDate ? t('sentTo', { names: sent.recipients.join(', '), date: sentDate }) : sent.recipients.join(', ')}</p>
+        )}
         <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-[14px] text-ink-2">
           <Clock size={14} weight="bold" aria-hidden="true" className="shrink-0" />
           <span className="visually-hidden">{t('period')}: </span>

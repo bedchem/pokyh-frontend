@@ -26,6 +26,7 @@ import { USAGE_CONSENT_EVENT, fetchPrivacyStatus, setUsageStatsConsent, type Pri
 import { requestPermissionAndSubscribe } from '@/lib/push';
 import { pcClear } from '@/lib/persist-cache';
 import { cacheClear } from '@/lib/cache';
+import { REPO_URLS } from '@/lib/site-links';
 
 // Settings, set out like the public FAQ: each group's name on the left (it
 // stays in view on wide screens), its settings on the right as rows under
@@ -237,7 +238,7 @@ function SettingsContent() {
           <Item title={t('version')}><span className="mono text-[15px] text-ink-2">1.0.0</span></Item>
           <LinkItem href="/legal" title={t('legal')} />
           <LinkItem href="/faq" title={t('faq')} />
-          <LinkItem href="https://github.com/bedchem/pokyh-frontend" title={t('source')} external />
+          <LinkItem href={REPO_URLS.web} title={t('source')} external />
           <Item title={t('logout')} hint={confirmLogout ? t('logoutConfirm') : t('logoutHint')} danger>
             <div className="flex gap-2">
               {confirmLogout && !loggingOut && <Button variant="quiet" onClick={() => setConfirmLogout(false)}>{tc('cancel')}</Button>}

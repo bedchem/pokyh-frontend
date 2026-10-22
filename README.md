@@ -1,171 +1,272 @@
 <div align="center">
 
-# POKYH: Web Frontend
+<img src="public/POKYH_Logo.png" alt="POKYH" width="120" />
 
-**The web app for students and guardians of LBS Brixen, WebUntis, reimagined.**
+# POKYH Web
 
-Stundenplan · Noten · Mensa · Abwesenheiten · Nachrichten · To-dos · Klassen-Erinnerungen, an einem Ort, als installierbare PWA.
+**The better app for WebUntis.** Timetable, grades, absences, messages, the school canteen and
+class tools in one fast, installable web app for students and guardians.
 
-Next.js 16 · React 19 · TypeScript · Tailwind CSS 4 · Framer Motion · Server-Sent Events · Web Push
+Next.js 16 · React 19 · TypeScript · Tailwind CSS 4 · static export · PWA
+
+[Getting started](#getting-started) · [Configuration](#configuration) · [Architecture](#architecture) · [Deployment](#deployment) · [Backend](../pokyh-backend)
 
 </div>
 
+> POKYH is an independent project and is not affiliated with, endorsed by or connected to Untis GmbH.
+> WebUntis is a trademark of Untis GmbH. POKYH acts only with the user's own WebUntis credentials and
+> on their behalf; the school's rules apply.
+
 ---
 
-## Table of contents
+## Contents
 
 - [Overview](#overview)
 - [Features](#features)
 - [Architecture](#architecture)
+- [How sign-in works](#how-sign-in-works)
+- [Excusing absences](#excusing-absences)
 - [Tech stack](#tech-stack)
-- [Quick start](#quick-start)
-- [Environment variables](#environment-variables)
-- [How auth works](#how-auth-works)
-- [Project layout](#project-layout)
+- [Getting started](#getting-started)
+- [Configuration](#configuration)
 - [Scripts](#scripts)
+- [Project layout](#project-layout)
+- [Internationalisation](#internationalisation)
 - [Deployment](#deployment)
-- [Security notes](#security-notes)
+- [Security and privacy](#security-and-privacy)
+- [Quality checks](#quality-checks)
 - [Troubleshooting](#troubleshooting)
+- [License](#license)
 
 ---
 
 ## Overview
 
-A free, fast, mobile-first web app for the students, pupils and guardians of the
-**Landesberufsschule Brixen** (South Tyrol). It wraps the school's [WebUntis](https://www.untis.at/)
-instance in a clean, app-like interface and layers on POKYH's own social features (shared class
-reminders, personal to-dos, the cafeteria menu with ratings & comments).
+POKYH Web is the website and web app of POKYH. It works with **any school on WebUntis**: the
+sign-in page searches all WebUntis schools, and the chosen school is remembered on the device until
+the end of the school year. Students and guardians get their WebUntis data in a clean, mobile-first
+interface, plus POKYH's own features such as class reminders, personal to-dos and canteen ratings.
 
-It is a **Progressive Web App**: installable to the home screen, offline-aware, with push
-notifications. It is built as a **static site** (plain files, no server of its own); everything
-dynamic goes from the browser straight to the POKYH API, WebUntis included. The WebUntis session
-lives only in encrypted, httpOnly cookies of the API that page scripts cannot read.
+The site is a **static export**. `next build` writes plain files to `out/`, which any web server or
+CDN can serve. There is no Node server in production: everything dynamic runs in the browser and
+talks to the [POKYH API](../pokyh-backend), WebUntis included. The WebUntis session lives in
+encrypted, httpOnly cookies of the API, which page scripts cannot read; the API keeps a copy only
+while push notifications for new messages are turned on.
+
+Languages: **German, Italian and English**.
 
 ---
 
 ## Features
 
-- 📅 **Stundenplan**: timetable with lesson details, exams and homework
-- 📊 **Noten**: grades with subject breakdowns and averages
-- 🍽️ **Mensa**: daily menu with star ratings & comments (POKYH backend)
-- 🚫 **Abwesenheiten**: view, self-report and excuse absences (where WebUntis permits)
-- ✉️ **Nachrichten**: WebUntis message center (inbox / sent / drafts, attachments)
-- ✅ **To-dos**: personal tasks, realtime-synced across devices
-- 🔔 **Erinnerungen**: class-wide reminders with threaded comments
-- 👪 **Eltern-Accounts**: guardians retain access to their child's WebUntis data but receive no Pokyh class assignment
-- 📲 **PWA**: installable, offline-aware, Web Push notifications
-- 🔐 **Passkey/credential** save for frictionless re-login
+### In the app (signed in)
+
+| Area | What it does |
+| --- | --- |
+| **Home** | Dashboard with the next lessons, recent grades, messages and what is due |
+| **Timetable** | Week grid with substitutions, cancellations, exams and homework; lesson details; absences drawn over the lessons they cover |
+| **Grades** | Grades per subject, averages and trends |
+| **Absences** | Absence rate (rounded or exact, from the real timetable), per-month chart, report an absence ahead, excuse a past one, excuse letter as PDF |
+| **Messages** | WebUntis message centre: inbox, sent, drafts, attachments, replies, new messages to teachers |
+| **Canteen** | Menu of the school's canteen with star ratings and comments (only for schools with a plan) |
+| **Class and reminders** | The class from WebUntis, class-wide reminders with comments, the class register |
+| **To-dos** | Personal tasks, synced live across devices |
+| **Profile** | Statistics, settings, theme, language, privacy choices |
+| **Notifications** | Bell with new grades, messages, reminders and due items; Web Push when installed |
+| **Search** | Command palette (`/` or Ctrl/⌘ K) across pages and content: lessons, grades, homework, messages, reminders, to-dos, dishes |
+
+Guardian accounts see their child's WebUntis data and get no POKYH class membership.
+
+### Public site (no sign-in)
+
+Landing page, public canteen menu, free tools (absence calculator, grade average), feature
+comparison, FAQ, guides, app downloads and PWA install guides, and the legal pages (imprint,
+privacy, terms, cookies).
+
+### Platform
+
+- **Installable PWA** with a service worker, offline-aware caches and instant pages from the last
+  answer stored on the device (`lib/persist-cache.ts`).
+- **Loading on intent**: when a link into the app is hovered, touched or focused, its data starts
+  loading (`lib/preload.ts`).
+- **SEO**: sitemap, robots.txt, hreflang, structured data, `llms.txt` / `llms-full.txt` and IndexNow.
+- **Consent first**: analytics and third-party media load only after the visitor agrees.
 
 ---
 
 ## Architecture
 
-`next build` writes a **static export** (`out/`): one HTML file per page and language, plus the
-navigation data and assets. Any web server or CDN can serve it; the Docker image uses nginx. The
-browser talks to the POKYH API (`api.pokyh.com`) directly; nothing is proxied twice.
-
 ```
-Browser ──► static files (nginx · deploy/nginx.conf, or a CDN · public/_headers, _redirects)
-   │
-   └─────► POKYH API (api.pokyh.com) ──► WebUntis (the person's own session)
-             /webuntis/*   WebUntis: sign-in, timetable, grades, messages, absences, …
-             /auth/web/*   token refresh, sign-out, POKYH-only accounts
-             /dishes, /users/…, /classes/…, /sse/… — POKYH's own data
+                      ┌──────────────────────────────────────────────┐
+ Browser ───────────► │ Static files (out/)                          │
+    │                 │ nginx (deploy/nginx.conf) or a CDN           │
+    │                 │ (public/_headers, public/_redirects)         │
+    │                 └──────────────────────────────────────────────┘
+    │
+    └───────────────► POKYH API (pokyh-backend) ────► WebUntis of the user's school
+                        /webuntis/*   sign-in, timetable, grades, absences, messages, ...
+                        /auth/web/*   token refresh, sign-out, POKYH-only accounts
+                        /dishes, /users, /classes, /sse, /push, ...   POKYH's own data
 ```
 
-- **`lib/backend.ts`**: the API's address, and the website's own two readable cookies
-  (`pokyh_user`, `pokyh_api_token`).
-- **`lib/api.ts`**: WebUntis through the API's `/webuntis/*`, with the API's cookies along
-  (`credentials: 'include'`), silent renewal on `401`.
-- **`lib/api-client.ts`**: POKYH's own data with `X-API-Key` + `Bearer`, renewing the token on
-  `401` through `/auth/web/refresh` and emitting a clean session-expiry event when it can't.
-- **What a Next server did** now lives with the web server: security headers, the language of an
-  address without one, old links, caching. In two equivalent forms: `deploy/nginx.conf` and
-  `public/_headers` / `public/_redirects` (Cloudflare Pages). The root page and the 404 page
-  pick the language in the browser too (`lib/locale-redirect.ts`), for any other host.
-- **Signed-in pages** check the session in the browser (`components/AuthGuard.tsx`) and send to
-  the sign-in page, coming back afterwards.
-- **Detail pages with an id** (`/messages/123/`, `/mensa/dish/x/`, …) are built once for the id
-  `_`; the web server answers every id with that page and the page reads the real id from the
-  address (`lib/route-id.ts`).
+- **No server of its own.** What a Next.js server would do lives with the web server, in two
+  equivalent forms that are kept in step: `deploy/nginx.conf` for the Docker image and
+  `public/_headers` + `public/_redirects` for Cloudflare Pages and similar hosts. That covers
+  security headers, caching, old links and the language of an address without one.
+- **Pages with an id** (`/de/messages/123/`, `/de/canteen/dish/x/`, ...) are built once for the
+  placeholder id `_`. The web server answers every id with that page and the page reads the real id
+  from the address (`lib/route-id.ts`).
+- **Signed-in pages** check the session in the browser (`components/AuthGuard.tsx`) and send the
+  visitor to the sign-in page and back.
+- **Data access** is split in two clients:
+  - `lib/api.ts`: WebUntis through the API's `/webuntis/*` with the API's cookies
+    (`credentials: 'include'`), stale-while-revalidate caching, silent renewal on `401`.
+  - `lib/api-client.ts`: POKYH's own data with `X-API-Key` and a Bearer token, refreshed through
+    `/auth/web/refresh`.
+- **Development** runs `next dev` on port 3011 and passes the API's paths on to the API
+  (`next.config.ts`, `app/dev-api`), so the API's cookies land on `localhost` exactly as they do on
+  `pokyh.com` in production.
+
+---
+
+## How sign-in works
+
+1. The user picks their school and enters their WebUntis credentials at `/login`.
+2. `POST /webuntis/login` on the API signs in at the school's WebUntis, resolves the student (for a
+   guardian: the child) and creates the POKYH account session. The password goes to WebUntis only;
+   it is never stored or logged.
+3. The API sets its own **httpOnly** cookies on its address:
+   `pokyh_session` (sealed WebUntis session), `pokyh_renew` (sealed sign-in for automatic renewal,
+   sent only to the sign-in path) and `pokyh_api_refresh` (POKYH refresh token).
+4. From the answer the page sets its own readable cookies: `pokyh_api_token` (POKYH access token)
+   and `pokyh_user` (non-sensitive display data).
+5. When WebUntis ends its session early, the API signs in again by itself. When that is not
+   possible, a single `pokyh-session-expired` event signs out cleanly, without retry loops.
+
+---
+
+## Excusing absences
+
+WebUntis lets students of age and guardians report an absence **ahead**, but refuses to add a reason
+to one that is already over. POKYH therefore handles the two cases differently:
+
+| Case | What happens |
+| --- | --- |
+| **Report ahead** | Saved in WebUntis as an absence with reason and note (`/webuntis/absences/create`). |
+| **Excuse afterwards** | The API writes a message to **each class teacher** in WebUntis with the day, the times, the reason and the note, in the user's language. |
+| **Waiting for the school** | The absence shows *Message sent* (on the absences page and in the timetable's lesson popup), with the recipients and the date, until the class teacher marks it excused in WebUntis. |
+| **Account may not message teachers** | For example a guardian: the reason and note are saved on the absence through WebUntis' own excuse, where the school allows it. |
+
+The *Message sent* state is read back from the account's **Sent** folder in WebUntis, so it works on
+every device and POKYH stores nothing about it. Who may excuse follows WebUntis' own permission
+(`showCreateAbsence`).
 
 ---
 
 ## Tech stack
 
-| Concern        | Choice                                            |
-| -------------- | ------------------------------------------------- |
-| Framework      | Next.js 16 (App Router, static export)            |
-| UI             | React 19 · Tailwind CSS 4 · Framer Motion         |
-| 3D / landing   | three.js · @react-three/fiber & drei              |
-| Language       | TypeScript (strict)                               |
-| Realtime       | Server-Sent Events (`EventSource`)                |
-| Offline / PWA  | Service worker + persistent caches (`lib/persist-cache.ts`) |
-| Push           | Web Push (VAPID)                                  |
-| Analytics      | Google Analytics, only after consent              |
-| E2E tests      | Playwright                                        |
+| Concern | Choice |
+| --- | --- |
+| Framework | Next.js 16 (App Router, `output: 'export'`) |
+| UI | React 19, Tailwind CSS 4, Framer Motion, Phosphor icons |
+| 3D and motion on the landing page | three.js, @react-three/fiber and drei, GSAP, Lenis |
+| Language | TypeScript (strict) |
+| Documents | pdf.js for PDFs in the built-in viewer |
+| Realtime | Server-Sent Events (`EventSource`) |
+| Offline and push | Service worker, device caches, Web Push (VAPID) |
+| Serving | nginx (unprivileged, read-only container) or any static host |
 
 ---
 
-## Quick start
+## Getting started
 
 ### Prerequisites
-- Node.js ≥ 20.9
-- A running [POKYH backend](../pokyh-backend) (locally or `https://api.pokyh.com`)
+
+- Node.js **20.9** or newer
+- A running [POKYH backend](../pokyh-backend), locally (port 4000) or a deployed one
+
+### Run it
 
 ```bash
-# 1. Install
 npm install
-
-# 2. Configure
-cp .env.example .env.local     # or create .env.local (see below)
-
-# 3. Run
-npm run dev                    # http://localhost:3011
+cp .env.example .env.local   # adjust NEXT_PUBLIC_API_KEY and, if needed, API_DEV_PROXY_TARGET
+npm run dev                  # http://localhost:3011
 ```
 
-> `npm run dev` listens on port `3011` and passes the API's paths on to the API on its own
-> address (`next.config.ts`), so the API's cookies land on localhost. The backend's `CORS_ORIGIN`
-> must include `http://localhost:3011`.
+The backend's `CORS_ORIGIN` must include `http://localhost:3011`. Devices on the local network can
+open the dev server too (it listens on `0.0.0.0`; allowed origins are in `next.config.ts`).
+
+### Build and preview the static site
+
+```bash
+npm run build                # writes out/
+npx serve out                # or any static file server
+```
+
+A production build always points at public addresses. To test `out/` against a backend on this
+machine, build with `NEXT_PUBLIC_API_LOCAL=true`.
 
 ---
 
-## Environment variables
+## Configuration
 
-Create **`.env.local`** (never commit it). The site is static: every value is read **when it is
-built** and frozen into the pages. There are no server-side secrets any more.
+All values are read **at build time** and frozen into the pages; there are no run-time secrets.
+[`.env.example`](.env.example) lists every setting with an explanation. The important ones:
 
-| Variable                       | Purpose                                                                 |
-| ------------------------------ | ----------------------------------------------------------------------- |
-| `NEXT_PUBLIC_SITE_URL`         | Canonical site URL for SEO/metadata. **Prod:** `https://pokyh.com`. A production build never names a local address (`localhost`, private networks): it uses `https://pokyh.com` instead and warns (`lib/site-url.ts`). |
-| `NEXT_PUBLIC_API_BACKEND_URL`  | The POKYH API, `https://api.pokyh.com`. Must be on the same site as the website, or the browser does not send the API's sign-in cookies. A local address here is replaced by `https://api.pokyh.com` in a production build (`lib/backend.ts`). |
-| `NEXT_PUBLIC_API_LOCAL`        | `true` keeps a local API address in a production build, to test the built site against a local backend. |
-| `NEXT_PUBLIC_API_KEY`          | `X-API-Key`, must match the backend's `API_KEY`.                    |
-| `API_DEV_PROXY_TARGET`         | Development: where `npm run dev` passes the API's paths (default: the API above). |
-| `NEXT_PUBLIC_API_DIRECT`       | Development: `true` talks to the API directly instead of through the proxy. |
-| `MENSA_API_URL`                | Build time: where the prerendered Mensa page reads the menu (default: the API). |
-| `NEXT_PUBLIC_FALLBACK_LOCALE`  | Language for visitors whose browser speaks none of de/it/en (default `en`); also used by nginx. |
-| `NEXT_PUBLIC_DEBUG_API`        | `true` to log API calls in the console.                               |
+### Site and API
 
-WebUntis settings (school, paths, absence rights, …) are configured in **pokyh-backend** now.
+| Variable | Purpose |
+| --- | --- |
+| `NEXT_PUBLIC_SITE_URL` | Canonical address (links, sitemap, metadata). A production build never uses a local address and falls back to `https://pokyh.com`. |
+| `NEXT_PUBLIC_API_BACKEND_URL` | The POKYH API. Must be on the same site as the website (`pokyh.com` and `api.pokyh.com`), or the browser does not send the API's cookies. |
+| `NEXT_PUBLIC_API_KEY` | `X-API-Key` for writes; must match the backend's `API_KEY`. |
+| `NEXT_PUBLIC_API_LOCAL` | `true` keeps a local API address in a production build (testing only). |
+
+### Development
+
+| Variable | Purpose |
+| --- | --- |
+| `API_DEV_PROXY_TARGET` | Where `npm run dev` passes the API's paths (default: the API above). |
+| `NEXT_PUBLIC_API_DIRECT` | `true` calls the API directly instead of through the proxy. |
+| `NEXT_PUBLIC_DEBUG_API` | `true` logs every API call in the console. |
+
+### Behaviour and features
+
+| Variable | Purpose |
+| --- | --- |
+| `NEXT_PUBLIC_FALLBACK_LOCALE` | Language for browsers that ask for none of de/it/en (default `en`); also used by nginx. |
+| `NEXT_PUBLIC_WEEK_ROLLOVER` | When "this week" moves on, as `<weekday> <HH:MM>` (default `6 17:00`, Saturday evening). |
+| `NEXT_STALE_DYNAMIC` · `NEXT_STALE_STATIC` | Router cache lifetime of visited pages, in seconds. |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Web Push public key (the backend's `VAPID_PUBLIC_KEY`). |
+| `NEXT_PUBLIC_GA_ID` | Google Analytics id, loaded only after consent. |
+| `NEXT_PUBLIC_COMMENT_MAX_LENGTH` | Longest comment (the backend's limit). |
+| `NEXT_PUBLIC_WORD_FILTER_BLOCK` · `_ALLOW` | Extra words for the sign-in mascot's name filter. |
+| `NEXT_PUBLIC_SCROLL_TUNING` | JSON to tune the scroll feel of the public pages. |
+| `MENSA_API_URL` · `MENSA_API_KEY` | Source of the menu prerendered into the public canteen page. |
+
+### Links, search engines and legal identity
+
+| Variable | Purpose |
+| --- | --- |
+| `NEXT_PUBLIC_SOURCE_URL` · `NEXT_PUBLIC_SUPPORT_URL` | Source code and support links; an empty support link hides the banner. |
+| `GOOGLE_SITE_VERIFICATION` · `BING_SITE_VERIFICATION` | Search console verification tokens. |
+| `INDEXNOW_KEY` · `INDEXNOW_ENDPOINT` | IndexNow key served at `/indexnow.txt`, used by `npm run indexnow`. |
+| `CONTENT_SIGNALS` | Content-Signal line in `robots.txt`. |
+| `LEGAL_*` | Operator and contact details of the legal pages. The service is offered as **POKYH**; see the comments in `.env.example`. **`LEGAL_ENTITY_NAME` is required**: the privacy notice names the controller (GDPR Art. 13), and a production build stops without it. |
+
+WebUntis settings (default school, school allow-list, internal paths) belong to the backend.
 
 ---
 
-## How auth works
+## Scripts
 
-1. The user enters their **WebUntis** credentials at `/login`.
-2. `POST api.pokyh.com/webuntis/login` authenticates against the chosen school's WebUntis,
-   resolves the student (or, for a guardian, the **child**, including deriving the class from the
-   child's timetable when WebUntis doesn't expose it) and creates the POKYH session.
-3. The API sets its own **httpOnly** cookies on `api.pokyh.com`:
-   - `pokyh_session`: encrypted WebUntis session
-   - `pokyh_renew`: encrypted sign-in for the automatic renewal, sent only to the sign-in address
-   - `pokyh_api_refresh`: POKYH refresh token
-4. From the answer the page sets its own readable cookies on `pokyh.com`:
-   - `pokyh_api_token`: POKYH access token (sent as `Bearer`)
-   - `pokyh_user`: non-sensitive profile for the UI
-5. On `401` the client calls `/auth/web/refresh` (the browser sends the httpOnly refresh cookie
-   along); if that fails, a single `pokyh-session-expired` event signs out cleanly — no retry loops.
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Development server on port 3011 with hot reload and the API proxy |
+| `npm run build` | Static export into `out/` |
+| `npm run lint` | ESLint |
+| `npm test` | Unit tests (`node --test`) |
+| `npm run indexnow` | After a deploy: submits every sitemap URL to IndexNow |
 
 ---
 
@@ -173,82 +274,128 @@ WebUntis settings (school, paths, absence rights, …) are configured in **pokyh
 
 ```
 app/
-├── [lang]/           # every page, per language: landing, legal, login, the app
-├── api/              # two static JSON files: privacy-notice (apps), legal/contact
-├── index.html/       # the root page: on to the visitor's language
-└── global-not-found  # 404.html: also sends addresses without a language on
-deploy/               # nginx.conf + nginx-headers.conf (Docker image)
-providers/            # Session, App, Theme, Locale, ActivityLogger contexts
-lib/                  # backend (API address, sign-in cookies), api (WebUntis),
-│                     # api-client (POKYH data), caches, push, passkey, route-id
-components/           # UI: nav, guards, landing, messages, absences, ui/*
-public/               # PWA assets, icons, models, service worker, _headers, _redirects
+├── [lang]/
+│   ├── (app)/            signed-in app: home, timetable, grades, absences, messages,
+│   │                     canteen, class, reminders, todos, school, profile, settings
+│   ├── (site)/           public site: landing, mensa, tools, comparison, faq, howto,
+│   │                     get (apps and PWA guides), legal, about, webuntis
+│   └── login/            school search and sign-in
+├── api/                  two static JSON answers: privacy-notice (apps), legal/contact
+├── dev-api/              development-only proxy to the API
+├── index.html/           root page: forwards to the visitor's language
+└── global-not-found.tsx  404 page (also forwards addresses without a language)
+components/               UI by area (app shell, absences, messages, timetable, landing, ui, ...)
+providers/                session, locale, theme, app and activity contexts
+lib/                      API clients, caches, parsing, i18n dictionaries, SEO, school logic
+public/                   PWA assets, icons, 3D models, service worker, _headers, _redirects
+deploy/                   nginx configuration of the Docker image
+scripts/                  indexnow.mjs
+tests/                    unit tests
+docs/worklog/             change log of larger pieces of work
 ```
 
 ---
 
-## Scripts
+## Internationalisation
 
-```bash
-npm run dev      # dev server on port 3011 (API paths passed on to the API)
-npm run build    # static export into out/
-npm run lint     # ESLint
-npm test         # unit tests
-```
+Every page exists under `/de/`, `/it/` and `/en/`. Texts live in typed dictionaries in
+`lib/i18n/dictionaries/`; German is complete for every key and is the fallback for a missing
+translation, so a raw key is never shown. The root address and the 404 page pick the visitor's
+language in the browser (`lib/locale-redirect.ts`); nginx does the same for the Docker image. Old
+Ladin addresses (`/lld/...`) redirect to German.
 
 ---
 
 ## Deployment
 
-**Docker** (as before, port `3011`): the image builds the export and serves it with an
-unprivileged nginx that carries the security headers, redirects, language detection and caching
-(`deploy/nginx.conf`). The container needs no environment; the `NEXT_PUBLIC_*` values are build
-arguments:
+### Docker (nginx)
+
+The image builds the export and serves it from an unprivileged nginx on port **3011** with a
+read-only filesystem, all capabilities dropped and a health check. Every setting of `.env.example`
+is a build argument (`.env` files are never copied into the image); one that is not given stays
+unset, so the default in the code applies. The container itself needs no environment.
 
 ```bash
 docker compose up --build -d
 ```
 
-**Any static host / CDN** (Cloudflare Pages, …): `npm ci && npm run build`, publish `out/`.
-`public/_headers` and `public/_redirects` carry the same rules for Cloudflare Pages. The site must
-run on its own domain on the same site as the API (`pokyh.com` → `api.pokyh.com`; a
-`*.pages.dev` address cannot sign in).
+### Any static host or CDN
 
-Either way:
+```bash
+npm ci && npm run build      # publish the out/ folder
+```
 
-- `NEXT_PUBLIC_SITE_URL=https://pokyh.com`, `NEXT_PUBLIC_API_BACKEND_URL=https://api.pokyh.com`
-- `NEXT_PUBLIC_API_KEY` matches the backend `API_KEY`
-- the backend's `CORS_ORIGIN` includes this site's origin (`https://pokyh.com`)
-- the menu prerendered into the Mensa page is as old as the build; the browser loads the current one
+`public/_headers` and `public/_redirects` carry the same rules as nginx for Cloudflare Pages and
+compatible hosts.
+
+### Checklist
+
+- The site runs on its own domain on the same site as the API (`pokyh.com` and `api.pokyh.com`);
+  a `*.pages.dev` address cannot sign in.
+- `NEXT_PUBLIC_SITE_URL=https://pokyh.com` and `NEXT_PUBLIC_API_BACKEND_URL=https://api.pokyh.com`.
+- `NEXT_PUBLIC_API_KEY` matches the backend's `API_KEY`.
+- `LEGAL_ENTITY_NAME` (and the other `LEGAL_*` values) are set in the build environment.
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY` is the backend's `VAPID_PUBLIC_KEY`, for Web Push.
+- The backend's `CORS_ORIGIN` includes the site's origin.
+- After the deploy, `npm run indexnow` (optional).
+
+The menu prerendered into the public canteen page is as old as the build; the browser loads the
+current one.
 
 ---
 
-## Security notes
+## Security and privacy
 
 - WebUntis credentials are sent once, at sign-in, to the API, which passes them to WebUntis and
-  never stores or logs them. The WebUntis session and the renewal live only in **encrypted,
-  httpOnly** cookies of the API; page scripts cannot read them.
-- The POKYH refresh token is an httpOnly cookie of the API, exchanged only at `/auth/web/refresh`.
-- Writes to the API carry `X-API-Key`, so browsers ask the API (CORS preflight against its
-  allowed origins) before sending them; the cookies are `SameSite=Strict`.
-- The site itself holds no secrets: it is plain files.
+  never stores or logs them.
+- The WebUntis session and the renewal live in **encrypted, httpOnly, SameSite=Strict** cookies of
+  the API; page scripts cannot read them. The refresh token is an httpOnly cookie too. Only when
+  push notifications are turned on does the API keep the session, to check for new messages;
+  turning them off removes it.
+- Writes carry `X-API-Key`, so the browser checks the API's allowed origins (CORS preflight) first.
+- The site is plain files and holds no secrets. A production build is checked to contain no local
+  addresses.
+- Security headers come from the web server: HSTS, frame, referrer and permissions policies, and a
+  Content-Security-Policy that forbids plugins, injected `<base>` elements, foreign form targets
+  and framing by other sites.
+- Analytics and third-party media load only after consent; dish photos are loaded without a
+  referrer and can be hidden.
+
+---
+
+## Quality checks
+
+```bash
+npx tsc --noEmit             # type check
+npm run lint                 # ESLint
+npm test                     # unit tests: bell feed, canteens, popup schedule, school choice,
+                             # school math, school week, scroll pace, word filter
+npm run build                # must finish and write out/
+```
 
 ---
 
 ## Troubleshooting
 
-| Symptom                                    | Likely cause / fix                                                                  |
-| ------------------------------------------ | ----------------------------------------------------------------------------------- |
-| Signed in, but every request says `session_expired` | The browser did not send the API's cookies: the site must be on the same site as the API (`pokyh.com` → `api.pokyh.com`) and the API's `CORS_ORIGIN` must list it. |
-| **CORS** error calling `api.pokyh.com`     | Add this app's origin to the backend's `CORS_ORIGIN`.                               |
-| "Klasse nicht gefunden" for a guardian     | WebUntis didn't expose the child's class; the API derives it from the child's timetable. Check the API log line `[webuntis login] resolved`. |
-| CSS preload warning in the console         | Harmless Next.js preload notice, **not an error**, no action needed. |
-| Pushes not arriving                        | VAPID keys must be configured on the backend and the user must grant permission.    |
+| Symptom | Cause and fix |
+| --- | --- |
+| Signed in, but every request answers `session_expired` | The browser did not send the API's cookies. The site must be on the same site as the API, and the API's `CORS_ORIGIN` must list it. |
+| CORS error calling the API | Add the site's origin to the backend's `CORS_ORIGIN`. |
+| A built site calls `localhost` | Not possible by design; a production build replaces local addresses. Use `NEXT_PUBLIC_API_LOCAL=true` only for local tests. |
+| Style changes do not show in development | Restart `npm run dev`; the dev server occasionally keeps an old stylesheet. |
+| Excuse: "no class teacher" | The class has no class teacher in WebUntis; the school sets it there. |
+| Build stops: `LEGAL_ENTITY_NAME is not set` | Set it in `.env.local`, in the host's build environment or as a Docker build argument. |
+| No push notifications | VAPID keys must be set on the backend and in `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, and the user must allow notifications. |
+| CSS preload notice in the console | A harmless Next.js notice, not an error. |
 
 ---
 
+## License
+
+[MIT](LICENSE). WebUntis and Untis are trademarks of Untis GmbH; POKYH is not affiliated with it.
+
 <div align="center">
 
-Part of the **POKYH** project · Frontend (this repo) · iOS (SwiftUI) · Backend (Express/Prisma)
+**POKYH** · Web (this repository) · [Backend](../pokyh-backend) · iOS and Android apps
 
 </div>

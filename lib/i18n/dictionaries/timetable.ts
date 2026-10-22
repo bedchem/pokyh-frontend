@@ -64,7 +64,9 @@ export type TimetableKey =
   | 'markAbsent'
   | 'markPreExcusedShort'
   | 'markExcusedShort'
-  | 'markAbsentShort';
+  | 'markAbsentShort'
+  | 'markSent'
+  | 'sentTo';
 
 export const timetableDict: Dictionary<TimetableKey> = {
   de: {
@@ -129,6 +131,8 @@ export const timetableDict: Dictionary<TimetableKey> = {
     markPreExcusedShort: 'Vorentsch.',
     markExcusedShort: 'Entsch.',
     markAbsentShort: 'Unentsch.',
+    markSent: 'Nachricht an Klassenlehrer gesendet',
+    sentTo: 'An {names} · {date}',
   },
   it: {
     offlineUnknown: 'Sei offline e per questa settimana non è salvato nessun orario. Se ci sono lezioni si potrà sapere solo quando avrai di nuovo Internet.',
@@ -192,6 +196,8 @@ export const timetableDict: Dictionary<TimetableKey> = {
     markPreExcusedShort: 'Giust. ant.',
     markExcusedShort: 'Giust.',
     markAbsentShort: 'Non giust.',
+    markSent: 'Messaggio inviato ai coordinatori',
+    sentTo: 'A {names} · {date}',
   },
   en: {
     offlineUnknown: 'You’re offline and no timetable is saved for this week. Whether there are classes can only be known once you’re back online.',
@@ -255,6 +261,8 @@ export const timetableDict: Dictionary<TimetableKey> = {
     markPreExcusedShort: 'Pre-exc.',
     markExcusedShort: 'Exc.',
     markAbsentShort: 'Unexc.',
+    markSent: 'Message sent to class teachers',
+    sentTo: 'To {names} · {date}',
   },
   lld: {
     offlineUnknown: "Tu ies offline y per chësta ena ne n’ie degun urar salvà. Sce l ie lezion se lascia dì mé canche tu es inò Internet.",

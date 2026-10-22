@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Google's prebuilt Draco decoder (three.js loads it for the 3D models), not our code.
+    "public/draco/**",
   ]),
 ]);
 

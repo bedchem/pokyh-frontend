@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
+import { SOURCE_OWNER, SOURCE_URL } from '@/lib/site-links';
 
 export default function LandingFooter() {
   const t = useT(commonDict);
@@ -16,7 +17,7 @@ export default function LandingFooter() {
         <div className="lp-footer-bar">
           <div>
             © 2026{' '}
-            <a href="https://github.com/bedchem" target="_blank" rel="noopener noreferrer">bedchem</a>
+            <a href={SOURCE_URL} target="_blank" rel="noopener noreferrer">{SOURCE_OWNER}</a>
             {' '}· POKYH · {t('footerMadeBy')}{' '}
             <a href="https://github.com/plattnericus" target="_blank" rel="noopener noreferrer">Plattnericus</a>
             {' '}&amp;{' '}

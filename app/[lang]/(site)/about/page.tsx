@@ -11,6 +11,7 @@ import CtaBand from '@/components/site/CtaBand';
 import GithubCard from '@/components/site/GithubCard';
 import SupportBanner from '@/components/app/SupportBanner';
 import { SITE_URL } from '@/lib/site-url';
+import { SOURCE_URL } from '@/lib/site-links';
 
 type PageProps = { params: Promise<{ lang: string }> };
 
@@ -134,7 +135,7 @@ export default async function AboutPage({ params }: PageProps) {
             </div>
             <a
               data-reveal
-              href="https://github.com/bedchem"
+              href={SOURCE_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="key self-start md:self-auto"
