@@ -156,6 +156,8 @@ export interface RecentGrade {
   markDisplayValue: number;
   date: number;
   examType: string;
+  /** When WebUntis says it was entered (epoch ms), for the order (lib/grade-order.ts). */
+  enteredAt?: number | null;
 }
 
 /** Pass, borderline, fail, as category tones (thresholds of lib/colors.ts). */

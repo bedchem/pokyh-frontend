@@ -16,6 +16,7 @@ export function parseGrades(json: unknown): SubjectGrades[] {
             markValue: (g.markValue as number) ?? 0,
             markDisplayValue: (g.markDisplayValue as number) ?? 0,
             examType: (g.examType as string) ?? '',
+            enteredAt: typeof g.enteredAt === 'number' ? g.enteredAt : null,
           }))
           .filter((g) => g.markValue > 0 && g.date > 0);
 

@@ -15,6 +15,7 @@ import { useDateLocale, useLocale, useLocalizeHref, useT } from '@/providers/Loc
 import { gradesDict } from '@/lib/i18n/dictionaries/grades';
 import { shellDict } from '@/lib/i18n/dictionaries/shell';
 import { monthShort } from '@/lib/i18n/dateLocale';
+import { byEntered, observeGrades } from '@/lib/grade-order';
 import { leaveForLogin } from '@/providers/SessionProvider';
 import {
   parseGrades,
@@ -265,9 +266,11 @@ export default function GradesPage() {
       return { x, y, avg, label: `${MONTH_LABELS[mNum]} ${yShort}` };
     });
 
+    // The grades entered last, newest first (lib/grade-order.ts), not the latest exam dates.
+    observeGrades(allGrades);
     const recent: RecentItem[] = [...allGrades]
       .filter((g) => g.markDisplayValue > 0)
-      .sort((a, b) => b.id - a.id)
+      .sort(byEntered)
       .slice(0, 3)
       .map((g) => ({
         id: g.id,

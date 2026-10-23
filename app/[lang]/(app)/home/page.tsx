@@ -35,6 +35,7 @@ import { messagesDict } from '@/lib/i18n/dictionaries/messages';
 import { shellDict } from '@/lib/i18n/dictionaries/shell';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
 import { formatDate, formatTime } from '@/lib/i18n/dateLocale';
+import { byEntered, observeGrades } from '@/lib/grade-order';
 
 // ── Parsing ───────────────────────────────────────────────────────────────────
 
@@ -79,14 +80,15 @@ function parseGrades(json: unknown): GradeSummary {
           markDisplayValue: v,
           date: g.date as number,
           examType: (g.examType as string) ?? '',
+          enteredAt: typeof g.enteredAt === 'number' ? g.enteredAt : null,
         });
       }
     }
     return {
       avg: values.length ? values.reduce((a, b) => a + b, 0) / values.length : null,
       subjects: subjects.length,
-      // The last ones added, as on the Noten page ("Kürzlich hinzugefügt").
-      recent: recent.sort((a, b) => b.id - a.id).slice(0, 3),
+      // The last ones entered, as on the Noten page ("Kürzlich hinzugefügt", lib/grade-order.ts).
+      recent: (observeGrades(recent), recent.sort(byEntered).slice(0, 3)),
     };
   } catch {
     return { avg: null, subjects: 0, recent: [] };

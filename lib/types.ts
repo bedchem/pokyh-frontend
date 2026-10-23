@@ -67,6 +67,8 @@ export interface GradeEntry {
   markValue: number;
   markDisplayValue: number;
   examType: string;
+  /** When WebUntis says the grade was entered (epoch ms), when its answer carries it (lib/grade-order.ts). */
+  enteredAt?: number | null;
 }
 
 export interface SubjectGrades {
