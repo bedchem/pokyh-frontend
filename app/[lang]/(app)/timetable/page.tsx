@@ -466,10 +466,18 @@ function TimetableContent() {
             }}
           >
             <main className={s.page}>
-              {/* Header: title and menus, then the week in figures */}
+              {/* Header: title and menus (on a phone the menus under the title) */}
               <header className={`${s.inset} ${s.head}`}>
                 <div className={s.headRow}>
-                  <h1 className={`${s.title} min-w-0 text-[30px] font-extrabold leading-[1.04] tracking-[-0.05em] sm:text-[34px] md:text-[46px]`}>{ts('timetable')}</h1>
+                  <div className="min-w-0">
+                    <h1 className={`${s.title} text-[30px] font-extrabold leading-[1.04] tracking-[-0.05em] sm:text-[34px] md:text-[46px]`}>{ts('timetable')}</h1>
+                    {stale && (
+                      <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-butter px-2.5 py-1 text-[12.5px] font-semibold text-butter-ink">
+                        <WifiSlash size={13} weight="bold" aria-hidden="true" />
+                        {t('asOf', { time: asOfText(page.savedAt, tag) })}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <div className={s.menuWrap} ref={yearRef}>
                       <button
@@ -480,8 +488,7 @@ function TimetableContent() {
                         aria-expanded={yearOpen}
                         aria-label={`${t('schoolYear')} ${selectedYear}/${selectedYear + 1}`}
                       >
-                        <span className="sm:hidden">{String(selectedYear).slice(2)}/{String(selectedYear + 1).slice(2)}</span>
-                        <span className="max-sm:hidden">{selectedYear}/{String(selectedYear + 1).slice(2)}</span>
+                        {selectedYear}/{String(selectedYear + 1).slice(2)}
                         <CaretDown size={14} weight="bold" className={`transition-transform duration-200 ${yearOpen ? 'rotate-180' : ''}`} />
                       </button>
                       {yearOpen && (
@@ -532,12 +539,6 @@ function TimetableContent() {
                   </div>
                 </div>
 
-                {stale && (
-                  <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-butter px-2.5 py-1 text-[12.5px] font-semibold text-butter-ink">
-                    <WifiSlash size={13} weight="bold" aria-hidden="true" />
-                    {t('asOf', { time: asOfText(page.savedAt, tag) })}
-                  </span>
-                )}
               </header>
 
               <div className={`${s.inset} ${s.weekBarWrap}`}>
@@ -638,7 +639,7 @@ const WeekPane = memo(function WeekPane({
   const dayEntries = useMemo(() => dayNums.map(n => entries.filter(e => e.date === n)), [dayNums, entries]);
   const retry = useCallback(() => ensureWeek(offset, true), [ensureWeek, offset]);
 
-  if (page.status === 'loading') return <WeekGridSkeleton />;
+  if (page.status === 'loading') return <WeekGridSkeleton fit={fit} />;
   if (page.status === 'error') return <div className={s.stateBox}><ErrorView message={page.message} onRetry={retry} /></div>;
   if (page.entries.length === 0 && page.stale) return <OfflineState onRetry={retry} />;
   const empty = page.entries.length === 0;
@@ -656,10 +657,11 @@ const WeekPane = memo(function WeekPane({
       mark={mark}
       fit={fit}
       empty={empty ? (
-        <div className="rise flex flex-col items-center px-6 py-6 text-center">
+        // Phones as before; fitted, smaller so it never outgrows a short screen.
+        <div className={`rise flex flex-col items-center px-6 text-center ${fit ? 'py-6' : 'py-10'}`}>
           {/* The holidays look like the time of year of the week shown. */}
-          <PixelSpriteArt sprite={holidaySprite(dates[0].getMonth() + 1)} width="min(260px, 56vw, 30vh)" />
-          <p className="mt-5 text-[26px] font-extrabold tracking-[-0.045em] md:text-[34px]">{t('holiday')}</p>
+          <PixelSpriteArt sprite={holidaySprite(dates[0].getMonth() + 1)} width={fit ? 'min(260px, 56vw, 30vh)' : 'min(280px, 60vw)'} />
+          <p className={`${fit ? 'mt-5 text-[26px]' : 'mt-7 text-[28px]'} font-extrabold tracking-[-0.045em] md:text-[34px]`}>{t('holiday')}</p>
           <p className="mt-1 text-[15px] font-semibold opacity-75">{t('noLessons')}</p>
         </div>
       ) : undefined}

@@ -56,11 +56,6 @@
 }
 @media (min-width: 768px) { .headRow { align-items: flex-end; } }
 /* The smallest phones (320px): title and menus still share their line. */
-@media (max-width: 359.98px) {
-  .headRow { column-gap: 8px; }
-  .title { font-size: 23px; }
-  .headRow .pillBtn { padding: 0 9px; }
-}
 
 /* The week in figures: one pill in the week switch's own row (.weekBar),
    between the week and the buttons, each figure in its category's ink. Only
@@ -103,11 +98,10 @@
 .pillBtn {
   height: 44px;
   min-width: 44px;
-  padding: 0 12px;
+  padding: 0 14px;
   border-radius: 14px;
   background: var(--surface);
 }
-@media (min-width: 640px) { .pillBtn { padding: 0 14px; } }
 .pillBtn:hover:not(:disabled) { background: color-mix(in srgb, var(--surface) 92%, var(--ink)); }
 
 .figure {
@@ -565,9 +559,9 @@
   pointer-events: none;
 }
 
+/* Its padding above and below (the gap between two lessons) is set by WeekGrid. */
 .cellSlot {
   position: absolute;
-  padding: calc(1.5px * var(--s)) 0;
 }
 /* A whole special day (Ferien, all cancelled) sits in the column like a lesson. */
 .specialSlot {
@@ -644,6 +638,8 @@
   min-width: 0;
 }
 .cellDense { padding: calc(4px * var(--s)) calc(4px * var(--s)); }
+/* Beside an Entfall on a phone: less padding, so the lines still have room. */
+.cellNarrow { padding-left: calc(3px * var(--s)); padding-right: calc(2px * var(--s)); }
 /* A short cell (a long day on a small screen) keeps all three lines, set
    smaller and closer (GridLessonCell). */
 .cellTight {
@@ -1099,12 +1095,13 @@ button.special { border: 0; background: transparent; font: inherit; cursor: poin
 /* A week without school: the day headers stay, and under the six days one
    sky-coloured panel holds the holiday scene. */
 .emptyWeek {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
   display: grid;
   place-items: center;
-  flex: 1;
-  min-height: 0;
   overflow: hidden;
-  margin: 10px 0 8px;
   border-radius: 24px;
   background: var(--periwinkle);
   color: var(--periwinkle-ink);
@@ -1122,17 +1119,21 @@ button.special { border: 0; background: transparent; font: inherit; cursor: poin
   .pager { flex: none; height: 460px; }
 }
 
-/* Phones (page.tsx PHONE_QUERY): the week keeps its fixed size (WeekGrid
-   without `fit`) and the page scrolls through the day, as before. The week
-   switch stays at the top, the day names right under it; the weeks beside
-   the shown one still wait left and right for a swipe. */
+/* Phones (page.tsx PHONE_QUERY): the page as it was before the fitted
+   layout. The week keeps its fixed size (WeekGrid without `fit`) and the page
+   scrolls through the day; the title has its menus under it; the week switch
+   stays at the top, the day names right under it. Only the swipe is new: the
+   weeks beside the shown one wait left and right. */
 @media (max-width: 639.98px) {
   .wrap { --tt-bar: 60px; }
   .host {
     overflow-y: auto;
     touch-action: pan-y;
   }
-  .page { height: auto; min-height: 100%; padding-bottom: 24px; }
+  .page { height: auto; min-height: 100%; gap: 20px; padding-bottom: 80px; }
+  .head { padding-top: 16px; padding-bottom: 8px; }
+  .headRow { flex-direction: column; align-items: flex-start; gap: 20px; }
+  .title { font-size: 34px; }
   .weekBarWrap {
     position: sticky;
     top: 0;
@@ -1140,7 +1141,7 @@ button.special { border: 0; background: transparent; font: inherit; cursor: poin
     display: flex;
     align-items: center;
     height: var(--tt-bar);
-    margin: -8px 0 -12px;
+    margin-bottom: -8px;
     background: var(--app-bg);
   }
   .weekBar { flex: 1; min-width: 0; }
@@ -1151,7 +1152,7 @@ button.special { border: 0; background: transparent; font: inherit; cursor: poin
   .track { position: relative; inset: auto; }
   .pane:not([aria-hidden]) { position: relative; inset: auto; }
   .pane[aria-hidden] { bottom: auto; }
-  .grid { flex: none; padding-bottom: 24px; }
+  .grid { flex: none; padding-bottom: 32px; }
   .gridHeader {
     position: sticky;
     top: var(--tt-bar);
@@ -1171,8 +1172,7 @@ button.special { border: 0; background: transparent; font: inherit; cursor: poin
   }
   .host[data-scrolled] .gridHeader::after { opacity: 1; }
   .gridView { flex: none; overflow: visible; }
-  .emptyWeek { flex: none; min-height: 420px; }
-  .skelGrid { flex: none; }
+  .skelGrid { flex: none; padding: 8px 12px; }
   .skelBody { flex: none; height: 460px; }
   .stateBox { flex: none; padding: 48px 20px; }
 }
