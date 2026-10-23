@@ -30,6 +30,7 @@ import { parseAbsences } from '@/lib/absences';
 import { absenceSummary, readAbsenceCalc, schoolYearOf } from '@/lib/absence-calc';
 import type { MessagePreview, TimetableEntry } from '@/lib/types';
 import { homeDict } from '@/lib/i18n/dictionaries/home';
+import { gradesDict } from '@/lib/i18n/dictionaries/grades';
 import { messagesDict } from '@/lib/i18n/dictionaries/messages';
 import { shellDict } from '@/lib/i18n/dictionaries/shell';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
@@ -84,7 +85,8 @@ function parseGrades(json: unknown): GradeSummary {
     return {
       avg: values.length ? values.reduce((a, b) => a + b, 0) / values.length : null,
       subjects: subjects.length,
-      recent: recent.sort((a, b) => b.date - a.date).slice(0, 3),
+      // The last ones added, as on the Noten page ("Kürzlich hinzugefügt").
+      recent: recent.sort((a, b) => b.id - a.id).slice(0, 3),
     };
   } catch {
     return { avg: null, subjects: 0, recent: [] };
@@ -149,6 +151,7 @@ function Dashboard() {
   const tm = useT(messagesDict);
   const ts = useT(shellDict);
   const tc = useT(commonDict);
+  const tg = useT(gradesDict);
   const { locale } = useLocale();
   const { tag } = useDateLocale();
   const firstName = useFirstName();
@@ -321,7 +324,6 @@ function Dashboard() {
     return formatDate(date, tag, { day: '2-digit', month: '2-digit' });
   }, [tag, t]);
 
-  const gradeDate = useCallback((d: number) => (d ? formatDate(untisDate(d), tag, { day: 'numeric', month: 'short' }) : ''), [tag]);
   const dishes = (menu?.dishes ?? []).map((d) => ({ ...d, rating: ratings[d.id] ?? null }));
   const menuTitle = menu && !isTodayKey(menu.key) ? `${t('mensaNext')} · ${formatDate(menu.date, tag, { weekday: 'long' })}` : t('mensaToday');
 
@@ -386,17 +388,13 @@ function Dashboard() {
                 />
               </div>
             </Section>
-            <Section className="lg:col-span-7" title={t('recentGrades')} action={<SectionLink href="/grades">{t('all')}</SectionLink>}>
+            <Section className="lg:col-span-7" title={tg('recentTitle')} action={<SectionLink href="/grades">{t('all')}</SectionLink>}>
               <ListCard>
                 <GradeList
                   grades={grades.recent}
-                  dateText={gradeDate}
                   loading={gradesState.loading}
                   failed={gradesState.failed}
                   emptyText={gradesState.failed ? t('loadFailed') : t('noGrades')}
-                  average={grades.avg}
-                  averageLabel={t('gradeAvg')}
-                  subjectsText={grades.subjects === 1 ? t('subjectOne', { n: 1 }) : t('subjectMany', { n: grades.subjects })}
                 />
               </ListCard>
             </Section>

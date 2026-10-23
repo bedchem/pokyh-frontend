@@ -752,6 +752,11 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Sidebar-Status (localStorage, kein Cookie)"
                 },
                 {
+                  "name": "pokyh_grades_sort",
+                  "kind": "setting",
+                  "desc": "Gewählte Sortierung der Fächer bei den Noten (localStorage, kein Cookie)"
+                },
+                {
                   "name": "passkey_declined",
                   "kind": "setting",
                   "desc": "Merkt sich, dass du das Speichern der Anmeldung im Browser abgelehnt hast (Cookie, 1 Jahr)"
@@ -1112,6 +1117,11 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Stato della barra laterale (localStorage, non è un cookie)"
                 },
                 {
+                  "name": "pokyh_grades_sort",
+                  "kind": "setting",
+                  "desc": "Ordinamento scelto delle materie nei voti (localStorage, non è un cookie)"
+                },
+                {
                   "name": "passkey_declined",
                   "kind": "setting",
                   "desc": "Ricorda che hai rifiutato di salvare l’accesso nel browser (cookie, 1 anno)"
@@ -1470,6 +1480,11 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "name": "pokyh_sidebar_collapsed",
                   "kind": "setting",
                   "desc": "Sidebar collapsed/expanded state (localStorage, not a cookie)"
+                },
+                {
+                  "name": "pokyh_grades_sort",
+                  "kind": "setting",
+                  "desc": "Chosen sort order of the subjects on the grades page (localStorage, not a cookie)"
                 },
                 {
                   "name": "passkey_declined",
@@ -2031,6 +2046,11 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Sidebar ein- oder ausgeklappt. Kein Ablaufdatum."
                 },
                 {
+                  "name": "pokyh_grades_sort",
+                  "kind": "setting",
+                  "desc": "Gewählte Sortierung der Fächer bei den Noten. Kein Ablaufdatum."
+                },
+                {
                   "name": "pokyh_cookie_consent_v2",
                   "kind": "setting",
                   "desc": "Deine Auswahl im Cookie-Banner (persönliche Nutzungsstatistik ja/nein, ggf. Google Analytics) mit Datum und dem Konto, für das sie gilt. Nach „Nur notwendige“ fragen wir frühestens nach 6 Monaten erneut. Kein Ablaufdatum."
@@ -2253,6 +2273,11 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Barra laterale espansa o compressa. Nessuna scadenza."
                 },
                 {
+                  "name": "pokyh_grades_sort",
+                  "kind": "setting",
+                  "desc": "Ordinamento scelto delle materie nei voti. Nessuna scadenza."
+                },
+                {
                   "name": "pokyh_cookie_consent_v2",
                   "kind": "setting",
                   "desc": "La tua scelta nel banner dei cookie (statistiche di utilizzo personali sì/no, eventualmente Google Analytics) con la data e l’account a cui si riferisce. Dopo «Solo necessari» la chiediamo di nuovo non prima di 6 mesi. Nessuna scadenza."
@@ -2473,6 +2498,11 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "name": "pokyh_sidebar_collapsed",
                   "kind": "setting",
                   "desc": "Sidebar collapsed or expanded state. No expiry."
+                },
+                {
+                  "name": "pokyh_grades_sort",
+                  "kind": "setting",
+                  "desc": "Chosen sort order of the subjects on the grades page. No expiry."
                 },
                 {
                   "name": "pokyh_cookie_consent_v2",

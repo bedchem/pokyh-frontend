@@ -550,7 +550,7 @@ export interface Tone {
 const SUBJECT_HUES = [10, 30, 50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290, 310, 330, 350];
 
 /** The colours of the week last handed to [registerSubjects]. */
-let subjectHues = new Map<string, number>();
+let subjectHues: ReadonlyMap<string, number> = new Map();
 
 const hueDistance = (a: number, b: number) => {
   const d = Math.abs(a - b) % 360;
@@ -579,6 +579,15 @@ function preferredHue(name: string): number {
  * had met their subjects in a different order.
  */
 export function registerSubjects(names: Iterable<string>): void {
+  subjectHues = subjectHueMap(names);
+}
+
+/**
+ * The colours [registerSubjects] would hand out for a week, without making them the shown week's.
+ * The timetable draws the weeks beside the shown one too (while swiping); each colours its cells
+ * from its own map.
+ */
+export function subjectHueMap(names: Iterable<string>): ReadonlyMap<string, number> {
   // Plain code-unit order (not localeCompare), identical to Kotlin's sorted() in the app.
   const subjects = [...new Set([...names].filter(Boolean))].sort();
   const next = new Map<string, number>();
@@ -604,17 +613,20 @@ export function registerSubjects(names: Iterable<string>): void {
     next.set(name, hue);
     used.push(hue);
   }
-  subjectHues = next;
+  return next;
 }
 
-/** A subject's hue: the one this week gave it, else the one its name asks for. */
-function subjectHue(name: string): number {
-  return subjectHues.get(name) ?? preferredHue(name);
+/** A subject's hue: the one its week gave it, else the one its name asks for. */
+function subjectHue(name: string, hues: ReadonlyMap<string, number>): number {
+  return hues.get(name) ?? preferredHue(name);
 }
 
-/** Pastel subject tone (HSL), light and dark, every subject at the same lightness. */
-export function subjectTone(name: string): Tone {
-  const h = subjectHue(name);
+/**
+ * Pastel subject tone (HSL), light and dark, every subject at the same lightness. Coloured by the
+ * shown week (registerSubjects) unless a week's own map is given.
+ */
+export function subjectTone(name: string, hues: ReadonlyMap<string, number> = subjectHues): Tone {
+  const h = subjectHue(name, hues);
   return {
     // Softer than [statusTone]: a subject is a quiet block of colour, and the loud ones are
     // reserved for what a colour *means*, Entfall, Prüfung, Vertretung.
@@ -641,12 +653,12 @@ export function examTone(): Tone {
   };
 }
 
-export function cellTone(entry: TimetableEntry, kind: SlotKind): Tone {
+export function cellTone(entry: TimetableEntry, kind: SlotKind, hues?: ReadonlyMap<string, number>): Tone {
   if (kind === 'cancelled' || entry.isCancelled) return statusTone(BRAND.danger);
   if (entry.isExam || kind === 'exam') return examTone();
   if (kind === 'event') return statusTone(BRAND.accentSoft);
   if (!entry.subjectName) return statusTone(BRAND.accent);
-  return subjectTone(entry.subjectName);
+  return subjectTone(entry.subjectName, hues);
 }
 
 /** CSS custom properties for a tone; the stylesheet picks light/dark. */

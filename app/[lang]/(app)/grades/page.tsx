@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { CaretDown, CaretRight } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
@@ -58,6 +58,34 @@ type RecentItem = {
 
 type SortMode = 'name' | 'avg-desc' | 'avg-asc' | 'recent';
 
+// The chosen order stays on this device (localStorage "pokyh_grades_sort"),
+// so the list opens the way it was left instead of falling back to "Name".
+const SORT_KEY = 'pokyh_grades_sort';
+const SORT_MODES: readonly SortMode[] = ['name', 'avg-desc', 'avg-asc', 'recent'];
+const sortListeners = new Set<() => void>();
+// Also kept in memory: storage can be blocked, the choice still holds until reload.
+let chosenSort: SortMode | null = null;
+
+function readSort(): SortMode {
+  if (chosenSort) return chosenSort;
+  try {
+    const v = localStorage.getItem(SORT_KEY);
+    if (SORT_MODES.includes(v as SortMode)) return v as SortMode;
+  } catch { /* storage blocked */ }
+  return 'name';
+}
+
+function writeSort(mode: SortMode) {
+  chosenSort = mode;
+  try { localStorage.setItem(SORT_KEY, mode); } catch { /* storage blocked: this visit only */ }
+  sortListeners.forEach((l) => l());
+}
+
+function subscribeSort(cb: () => void) {
+  sortListeners.add(cb);
+  return () => { sortListeners.delete(cb); };
+}
+
 const _now = new Date();
 const CURRENT_SCHOOL_YEAR = _now.getMonth() >= 8 ? _now.getFullYear() : _now.getFullYear() - 1;
 const AVAILABLE_YEARS = Array.from({ length: 4 }, (_, i) => CURRENT_SCHOOL_YEAR - i);
@@ -75,7 +103,7 @@ export default function GradesPage() {
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [hoverSparkIndex, setHoverSparkIndex] = useState<number | null>(null);
   const [hoverDonutGrade, setHoverDonutGrade] = useState<number | null>(null);
-  const [sortMode, setSortMode] = useState<SortMode>('name');
+  const sortMode = useSyncExternalStore(subscribeSort, readSort, () => 'name' as SortMode);
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [selectedYear, setSelectedYear] = useState(CURRENT_SCHOOL_YEAR);
   const [isYearOpen, setIsYearOpen] = useState(false);
@@ -648,7 +676,7 @@ export default function GradesPage() {
                             aria-selected={sortMode === opt.value}
                             className={`custom-select-item ${sortMode === opt.value ? 'selected' : ''}`}
                             onClick={() => {
-                              setSortMode(opt.value);
+                              writeSort(opt.value);
                               setIsSortOpen(false);
                             }}
                           >

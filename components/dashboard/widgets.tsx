@@ -12,6 +12,7 @@ import { initialsOf } from '@/components/app/hooks';
 import { useExternalMedia } from '@/lib/external-media';
 import PixelState from '@/components/app/PixelState';
 import { TONE_CLASS, type AppDestination } from '@/components/app/nav';
+import { fmtDateShort, formatMark, gradeClass } from '@/lib/grades';
 
 // The dashboard's building blocks (home/page.tsx): list cards under plain
 // section headings, the exam as the one coloured block, the Mensa with its
@@ -175,55 +176,46 @@ export function formatGrade(v: number): string {
   return String(Math.round(v * 100) / 100);
 }
 
+/** The mark's chip in the tones of the Noten page (lib/grades.ts gradeClass). */
+const MARK_TONE: Record<ReturnType<typeof gradeClass>, string> = {
+  'v-excellent': 'bg-sage text-sage-ink',
+  'v-positive': 'bg-sage text-sage-ink',
+  'v-negative': 'bg-butter text-butter-ink',
+  'v-critical': 'bg-blush text-blush-ink',
+};
+
+/**
+ * The grades added last, as the Noten page's "Kürzlich hinzugefügt" shows
+ * them: subject and date, the mark on the right. A row opens the subject.
+ */
 export function GradeList({
   grades,
-  dateText,
   loading,
   emptyText,
   failed,
-  average,
-  averageLabel,
-  subjectsText,
 }: {
   grades: RecentGrade[];
-  dateText: (d: number) => string;
   loading: boolean;
   emptyText: string;
   /** Why the grades couldn't be loaded, when they couldn't. */
   failed?: string;
-  average?: number | null;
-  averageLabel?: string;
-  subjectsText?: string;
 }) {
-  const t = useT(homeDict);
   const localize = useLocalizeHref();
-  if (loading) return <RowsSkeleton rows={3} lead="square" bare />;
+  if (loading) return <RowsSkeleton rows={3} lead="none" trailing bare />;
+  if (grades.length === 0) return <Empty failed={failed}>{emptyText}</Empty>;
   return (
-    <div className="rise flex flex-col">
-      {average != null && averageLabel && (
-        <div className={`mx-1 mb-1 flex items-end justify-between gap-4 rounded-[20px] px-4 py-3.5 ${gradeTone(average)}`}>
-          <span>
-            <span className="block text-[13px] font-bold opacity-80">{averageLabel}</span>
-            <span className="block text-[34px] font-extrabold leading-none tracking-[-0.05em] tnum">{average.toFixed(2)}</span>
+    <div className="rise flex flex-col gap-0.5">
+      {grades.map((g) => (
+        <Link key={g.id} href={localize(`/grades/subject/${g.subjectLessonId}`)} className={`flex items-center gap-3.5 rounded-[18px] px-3 py-2.5 ${hoverRow}`}>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[15.5px] font-semibold">{g.subjectName || '–'}</span>
+            <span className="block truncate text-[13.5px] text-ink-3 tnum">{fmtDateShort(g.date)}</span>
           </span>
-          {subjectsText && <span className="pb-1 text-[13.5px] font-bold opacity-80">{subjectsText}</span>}
-        </div>
-      )}
-      {grades.length === 0 ? <Empty failed={failed}>{emptyText}</Empty> : (
-        <div className="flex flex-col gap-0.5">
-          {grades.map((g) => (
-            <Link key={g.id} href={localize(`/grades/subject/${g.subjectLessonId}`)} className={`group flex items-center gap-3.5 rounded-[18px] px-3 py-2 ${hoverRow}`}>
-              <span className={`grid size-11 shrink-0 place-items-center rounded-[13px] text-[16px] font-extrabold tnum ${gradeTone(g.markDisplayValue)}`}>
-                {formatGrade(g.markDisplayValue)}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[15.5px] font-semibold">{g.subjectName || '–'}</span>
-                <span className="block truncate text-[13.5px] text-ink-2">{[g.examType || t('grade'), dateText(g.date)].filter(Boolean).join(' · ')}</span>
-              </span>
-            </Link>
-          ))}
-        </div>
-      )}
+          <span className={`grid h-[38px] min-w-[48px] shrink-0 place-items-center rounded-[12px] px-2 text-[15px] font-extrabold tnum ${MARK_TONE[gradeClass(g.markDisplayValue)]}`}>
+            {formatMark(g.markDisplayValue)}
+          </span>
+        </Link>
+      ))}
     </div>
   );
 }

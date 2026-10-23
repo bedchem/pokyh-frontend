@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowClockwise, CalendarBlank, CaretDown, CaretLeft, CaretRight, Exam, ShareFat, WifiSlash } from '@phosphor-icons/react';
 import { useSearchParams } from 'next/navigation';
@@ -11,7 +11,6 @@ import ErrorView from '@/components/ui/ErrorView';
 import { areAbsencesStale, fetchAbsences, fetchAbsencesRange, fetchTimetable, getAbsencesStale } from '@/lib/api';
 import { parseAbsences } from '@/lib/absences';
 import { pcGetWithTs, pcIsStale } from '@/lib/persist-cache';
-import { useTrackpadSwipe } from '@/lib/use-trackpad-swipe';
 import type { AbsenceEntry, TimetableEntry } from '@/lib/types';
 import {
   TIMETABLE_PERIODS,
@@ -24,12 +23,14 @@ import {
   mondayOf,
   parseTimetable,
   rangeText,
+  registerSubjects,
   schoolMinuteNow,
   toMins,
   weekRolledOver,
   type MergedSlot,
 } from '@/lib/timetable-logic';
-import WeekGrid, { WeekGridSkeleton } from './WeekGrid';
+import WeekGrid, { WeekGridSkeleton, type WeekMark } from './WeekGrid';
+import WeekPager from './WeekPager';
 import LessonDetailSheet from './LessonDetailSheet';
 import s from './timetable.module.css';
 import { useDateLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
@@ -52,6 +53,18 @@ const TIMETABLE_CACHE_TTL_MS = 5 * 60 * 1000;
 const PAGE_SPAN = 260;
 const YEAR_COUNT = 4;
 const LOADING: WeekPageState = { status: 'loading' };
+const NO_ENTRIES: TimetableEntry[] = [];
+const NO_ABSENCES: AbsenceEntry[] = [];
+
+// A mouse: pointing at a figure in the dock marks its lessons. On a touch
+// screen the figures are only read.
+const HOVER_QUERY = '(hover: hover) and (pointer: fine)';
+const subscribeHover = (cb: () => void) => {
+  const mq = window.matchMedia(HOVER_QUERY);
+  mq.addEventListener('change', cb);
+  return () => mq.removeEventListener('change', cb);
+};
+const readHover = () => window.matchMedia(HOVER_QUERY).matches;
 
 const timetableUrl = (iso: string) => `/api/webuntis/timetable?date=${iso}`;
 const clampOffset = (o: number) => Math.max(-PAGE_SPAN, Math.min(PAGE_SPAN, o));
@@ -117,7 +130,11 @@ function TimetableContent() {
   const menuRef = useRef<HTMLDivElement>(null);
   const [yearOpen, setYearOpen] = useState(false);
   const yearRef = useRef<HTMLDivElement>(null);
-  const hostRef = useRef<HTMLDivElement>(null);
+  const canHover = useSyncExternalStore(subscribeHover, readHover, () => false);
+  // Pointed at, or focused from the keyboard (a click focuses it too, so it stays until the next click).
+  const [hoverMark, setHoverMark] = useState<WeekMark | null>(null);
+  const [focusMark, setFocusMark] = useState<WeekMark | null>(null);
+  const pointedMark = canHover ? hoverMark ?? focusMark : null;
 
   const setPage = useCallback((offset: number, state: WeekPageState) => {
     pagesRef.current = { ...pagesRef.current, [offset]: state };
@@ -291,15 +308,11 @@ function TimetableContent() {
 
   // ── Navigation ─────────────────────────────────────────────────────────────
 
+  // One week on or back slides (WeekPager glides when the offset follows); longer jumps fade.
   const goWeek = useCallback((by: number) => {
     setDirection(by);
     setWeekOffset(o => clampOffset(o + by));
   }, []);
-
-  useTrackpadSwipe(hostRef, (direction) => {
-    if (shownSlot) return;
-    goWeek(direction === 'next' ? 1 : -1);
-  });
 
   const goToday = useCallback(() => {
     setDirection(weekOffset > 0 ? -1 : 1);
@@ -327,11 +340,10 @@ function TimetableContent() {
   // ── Derived ────────────────────────────────────────────────────────────────
 
   const page = pages[weekOffset] ?? LOADING;
-  const entries = useMemo(() => (page.status === 'data' ? page.entries : []), [page]);
-  const dates = useMemo(() => Array.from({ length: 6 }, (_, i) => dateOf(weekOffset, i)), [weekOffset]);
-  const dayNums = useMemo(() => dates.map(dateNumOf), [dates]);
-  const dayEntries = useMemo(() => dayNums.map(n => entries.filter(e => e.date === n)), [dayNums, entries]);
+  const entries = page.status === 'data' ? page.entries : NO_ENTRIES;
   const weekNumber = isoWeekNumber(mondayOf(weekOffset));
+  // The shown week's colours are the ones the lesson sheet uses (each grid colours its own week).
+  useMemo(() => registerSubjects(entries.map(e => e.subjectName)), [entries]);
 
   const weekStats = useMemo(() => {
     const todayActive = entries.filter(e => e.date === todayNum && !e.isCancelled);
@@ -344,6 +356,16 @@ function TimetableContent() {
       substitutions: entries.filter(e => e.isSubstitution && !e.isCancelled).length,
     };
   }, [entries, todayNum]);
+
+  // Each figure in its category's ink; pointed at, its fill comes up behind it.
+  const figures: Array<{ mark: WeekMark; count: number; label: string; ink: string; fill: string }> = [
+    { mark: 'today', count: weekStats.todayLessons, label: `${t('hoursUnit')} · ${t('today')}`, ink: 'text-ink', fill: 'bg-inset' },
+    { mark: 'cancelled', count: weekStats.cancellations, label: t('cancellations'), ink: 'text-blush-ink', fill: 'bg-blush' },
+    { mark: 'exam', count: weekStats.exams, label: t('exams'), ink: 'text-butter-ink', fill: 'bg-butter' },
+    { mark: 'substitution', count: weekStats.substitutions, label: t('substitutions'), ink: 'text-periwinkle-ink', fill: 'bg-periwinkle' },
+  ];
+  // Still pointed at after the arrow keys turned to a week without any: nothing to mark.
+  const mark = figures.some((f) => f.mark === pointedMark && f.count > 0) ? pointedMark : null;
 
   // ?open=<lessonId>: derived rather than copied into state, until it is dismissed.
   const autoSlot = useMemo<MergedSlot | null>(() => {
@@ -406,90 +428,33 @@ function TimetableContent() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
-  // A new week glides in a short way and fades up while the old one fades
-  // out quickly in the direction of travel: the grid never sweeps the whole
-  // screen, and the time axis barely moves.
-  const swipeVariants = {
-    enter: (dir: number) => ({ x: dir * 56, opacity: 0 }),
-    center: {
-      x: 0,
-      opacity: 1,
-      transition: { x: { type: 'spring' as const, stiffness: 420, damping: 40, mass: 0.8 }, opacity: { duration: 0.22, ease: 'easeOut' as const } },
-    },
-    exit: (dir: number) => ({ x: dir * -56, opacity: 0, transition: { duration: 0.12, ease: 'easeIn' as const } }),
-  };
+  const renderPane = (offset: number) => (
+    <WeekPane
+      offset={offset}
+      page={pages[offset] ?? LOADING}
+      todayNum={todayNum}
+      minute={minute}
+      scale={scale}
+      absences={absences[schoolYearOfDate(dateOf(offset, 3))] ?? NO_ABSENCES}
+      onTap={setActiveSlot}
+      ensureWeek={ensureWeek}
+      mark={offset === weekOffset ? mark : null}
+    />
+  );
 
-  const retry = () => ensureWeek(weekOffset, true);
-
-  const renderWeek = () => {
-    if (page.status === 'loading') return <WeekGridSkeleton />;
-    if (page.status === 'error') return <div className={s.stateBox}><ErrorView message={page.message} onRetry={retry} /></div>;
-    if (page.entries.length === 0 && page.stale) return <OfflineState onRetry={retry} />;
-    if (page.entries.length === 0) {
-      return (
-        <WeekGrid
-          dayEntries={dayEntries}
-          dates={dates}
-          dayNums={dayNums}
-          todayNum={todayNum}
-          weekNumber={weekNumber}
-          minute={minute}
-          scale={scale}
-          onTap={setActiveSlot}
-          empty={
-            <div className="rise flex flex-col items-center px-6 py-10 text-center">
-              {/* The holidays look like the time of year of the week shown. */}
-              <PixelSpriteArt sprite={holidaySprite(dates[0].getMonth() + 1)} width="min(280px, 60vw)" />
-              <p className="mt-7 text-[28px] font-extrabold tracking-[-0.045em] md:text-[34px]">{t('holiday')}</p>
-              <p className="mt-1 text-[15px] font-semibold opacity-75">{t('noLessons')}</p>
-            </div>
-          }
-        />
-      );
-    }
-    return (
-      <WeekGrid
-        dayEntries={dayEntries}
-        dates={dates}
-        dayNums={dayNums}
-        todayNum={todayNum}
-        weekNumber={weekNumber}
-        minute={minute}
-        scale={scale}
-        onTap={setActiveSlot}
-        absences={absences[absenceYear] ?? []}
-      />
-    );
-  };
+  const stale = page.status === 'data' && page.stale && page.savedAt > 0;
 
   return (
     <AuthGuard>
       <UntisGuard>
         <div className={s.wrap}>
-          <div
-            ref={hostRef}
-            className={s.host}
-            onScroll={(e) => {
-              // Marks the edge under the day names once the week scrolls beneath them.
-              const el = e.currentTarget;
-              if (el.scrollTop > 4) el.dataset.scrolled = '';
-              else delete el.dataset.scrolled;
-            }}
-          >
+          <div className={s.host}>
             <main className={s.page}>
-              {/* Header: title, the week, stepper and menus, then the week in figures */}
+              {/* Header: title and menus, then the week in figures */}
               <header className={`${s.inset} ${s.head}`}>
-                <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-                  <div className="min-w-0">
-                    <h1 className="text-[34px] font-extrabold leading-[1.04] tracking-[-0.05em] md:text-[46px]">{ts('timetable')}</h1>
-                    {page.status === 'data' && page.stale && page.savedAt > 0 && (
-                      <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-butter px-2.5 py-1 text-[12.5px] font-semibold text-butter-ink">
-                        <WifiSlash size={13} weight="bold" aria-hidden="true" />
-                        {t('asOf', { time: asOfText(page.savedAt, tag) })}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
+                <div className={s.headRow}>
+                  <h1 className={`${s.title} min-w-0 text-[30px] font-extrabold leading-[1.04] tracking-[-0.05em] sm:text-[34px] md:text-[46px]`}>{ts('timetable')}</h1>
+                  <div className="flex shrink-0 items-center gap-2">
                     <div className={s.menuWrap} ref={yearRef}>
                       <button
                         type="button"
@@ -497,8 +462,10 @@ function TimetableContent() {
                         onClick={() => setYearOpen((o) => !o)}
                         aria-haspopup="listbox"
                         aria-expanded={yearOpen}
+                        aria-label={`${t('schoolYear')} ${selectedYear}/${selectedYear + 1}`}
                       >
-                        {selectedYear}/{String(selectedYear + 1).slice(2)}
+                        <span className="sm:hidden">{String(selectedYear).slice(2)}/{String(selectedYear + 1).slice(2)}</span>
+                        <span className="max-sm:hidden">{selectedYear}/{String(selectedYear + 1).slice(2)}</span>
                         <CaretDown size={14} weight="bold" className={`transition-transform duration-200 ${yearOpen ? 'rotate-180' : ''}`} />
                       </button>
                       {yearOpen && (
@@ -549,24 +516,17 @@ function TimetableContent() {
                   </div>
                 </div>
 
-                <div className="mt-5 flex flex-wrap gap-2">
-                  <span className={`${s.figure} bg-surface text-ink`}>
-                    <strong>{weekStats.todayLessons}</strong> {t('hoursUnit')} · {t('today')}
+                {stale && (
+                  <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-butter px-2.5 py-1 text-[12.5px] font-semibold text-butter-ink">
+                    <WifiSlash size={13} weight="bold" aria-hidden="true" />
+                    {t('asOf', { time: asOfText(page.savedAt, tag) })}
                   </span>
-                  <span className={`${s.figure} ${weekStats.cancellations > 0 ? 'bg-blush text-blush-ink' : 'bg-surface text-ink-2'}`}>
-                    <strong>{weekStats.cancellations}</strong> {t('cancellations')}
-                  </span>
-                  <span className={`${s.figure} ${weekStats.exams > 0 ? 'bg-butter text-butter-ink' : 'bg-surface text-ink-2'}`}>
-                    <strong>{weekStats.exams}</strong> {t('exams')}
-                  </span>
-                  <span className={`${s.figure} ${weekStats.substitutions > 0 ? 'bg-periwinkle text-periwinkle-ink' : 'bg-surface text-ink-2'}`}>
-                    <strong>{weekStats.substitutions}</strong> {t('substitutions')}
-                  </span>
-                </div>
+                )}
               </header>
 
-              <div className={`${s.inset} ${s.weekBar}`}>
-                <button type="button" className={s.weekArrow} onClick={() => goWeek(-1)} aria-label={t('prevWeek')} disabled={weekOffset <= -PAGE_SPAN}>
+              <div className={`${s.inset} ${s.weekBarWrap}`}>
+              <div className={s.weekBar}>
+                <button type="button" className={`${s.weekArrow} ${s.weekPrev}`} onClick={() => goWeek(-1)} aria-label={t('prevWeek')} disabled={weekOffset <= -PAGE_SPAN}>
                   <CaretLeft size={20} weight="bold" />
                 </button>
                 <div className={s.weekLabel}>
@@ -579,44 +539,48 @@ function TimetableContent() {
                       transition={{ duration: 0.18 }}
                       className="block"
                     >
-                      <span className="block truncate text-[17px] font-bold tracking-[-0.02em] md:text-[19px]">
-                        <span className="sm:hidden">{rangeText(weekOffset, tag, false)}</span>
-                        <span className="max-sm:hidden">{rangeText(weekOffset, tag)}</span>
+                      <span className={`${s.rangeText} block truncate text-[17px] font-bold tracking-[-0.02em] md:text-[19px]`}>
+                        <span className={s.rangeShort}>{rangeText(weekOffset, tag, false)}</span>
+                        <span className={s.rangeLong}>{rangeText(weekOffset, tag)}</span>
                       </span>
                       <span className="mt-0.5 block truncate text-[13.5px] font-semibold text-ink-2">{t('cw')} {weekNumber}{weekOffset === 0 ? ` · ${weekRolledOver() ? t('nextWeek') : t('thisWeek')}` : ''}</span>
                     </motion.span>
                   </AnimatePresence>
                 </div>
+                {/* The week in figures, in the week switch where there is room (CSS). With a
+                    mouse, pointing at one marks its lessons in the week below. */}
+                <div className={s.figures} onPointerLeave={() => setHoverMark(null)}>
+                  {figures.map((f) => {
+                    const on = mark === f.mark;
+                    const cls = `${s.figure} ${f.count === 0 ? 'text-ink-3' : f.ink} ${on ? f.fill : ''}`;
+                    const body = <><strong>{f.count}</strong> <span className={s.figureLabel}>{f.label}</span></>;
+                    if (!canHover || f.count === 0) return <span key={f.mark} className={cls}>{body}</span>;
+                    return (
+                      <button
+                        key={f.mark}
+                        type="button"
+                        className={`${cls} ${s.figurePoint}`}
+                        onPointerEnter={(e) => { if (e.pointerType === 'mouse') setHoverMark(f.mark); }}
+                        onPointerLeave={() => setHoverMark(null)}
+                        onFocus={() => setFocusMark(f.mark)}
+                        onBlur={() => setFocusMark(null)}
+                      >
+                        {body}
+                      </button>
+                    );
+                  })}
+                </div>
                 {weekOffset !== 0 && (
                   <button type="button" className={s.weekToday} onClick={goToday}>{t('toToday')}</button>
                 )}
-                <button type="button" className={s.weekArrow} onClick={() => goWeek(1)} aria-label={t('nextWeek')} disabled={weekOffset >= PAGE_SPAN}>
+                <button type="button" className={`${s.weekArrow} ${s.weekNext}`} onClick={() => goWeek(1)} aria-label={t('nextWeek')} disabled={weekOffset >= PAGE_SPAN}>
                   <CaretRight size={20} weight="bold" />
                 </button>
               </div>
-              <div className={s.pager}>
-                <AnimatePresence initial={false} custom={direction} mode="popLayout">
-                  <motion.div
-                    key={weekOffset}
-                    custom={direction}
-                    variants={swipeVariants}
-                    initial="enter"
-                    animate="center"
-                    exit="exit"
-                    drag="x"
-                    dragDirectionLock
-                    dragConstraints={{ left: 0, right: 0 }}
-                    dragElastic={0.9}
-                    onDragEnd={(_, { offset }) => {
-                      if (offset.x < -50) goWeek(1);
-                      else if (offset.x > 50) goWeek(-1);
-                    }}
-                    className={s.pagerInner}
-                  >
-                    {renderWeek()}
-                  </motion.div>
-                </AnimatePresence>
               </div>
+              <WeekPager offset={weekOffset} min={-PAGE_SPAN} max={PAGE_SPAN} locked={shownSlot !== null} onStep={goWeek}>
+                {renderPane}
+              </WeekPager>
             </main>
           </div>
 
@@ -627,12 +591,69 @@ function TimetableContent() {
   );
 }
 
+/** One week in the pager: its grid, or why there is none. Drawn again only when its own data changes. */
+const WeekPane = memo(function WeekPane({
+  offset,
+  page,
+  todayNum,
+  minute,
+  scale,
+  absences,
+  onTap,
+  ensureWeek,
+  mark,
+}: {
+  offset: number;
+  page: WeekPageState;
+  todayNum: number;
+  minute: number;
+  scale: number;
+  absences: AbsenceEntry[];
+  onTap: (slot: MergedSlot) => void;
+  ensureWeek: (offset: number, force?: boolean) => void;
+  mark: WeekMark | null;
+}) {
+  const t = useT(timetableDict);
+  const entries = page.status === 'data' ? page.entries : NO_ENTRIES;
+  const dates = useMemo(() => Array.from({ length: 6 }, (_, i) => dateOf(offset, i)), [offset]);
+  const dayNums = useMemo(() => dates.map(dateNumOf), [dates]);
+  const dayEntries = useMemo(() => dayNums.map(n => entries.filter(e => e.date === n)), [dayNums, entries]);
+  const retry = useCallback(() => ensureWeek(offset, true), [ensureWeek, offset]);
+
+  if (page.status === 'loading') return <WeekGridSkeleton />;
+  if (page.status === 'error') return <div className={s.stateBox}><ErrorView message={page.message} onRetry={retry} /></div>;
+  if (page.entries.length === 0 && page.stale) return <OfflineState onRetry={retry} />;
+  const empty = page.entries.length === 0;
+  return (
+    <WeekGrid
+      dayEntries={dayEntries}
+      dates={dates}
+      dayNums={dayNums}
+      todayNum={todayNum}
+      weekNumber={isoWeekNumber(dates[0])}
+      minute={minute}
+      scale={scale}
+      onTap={onTap}
+      absences={empty ? NO_ABSENCES : absences}
+      mark={mark}
+      empty={empty ? (
+        <div className="rise flex flex-col items-center px-6 py-6 text-center">
+          {/* The holidays look like the time of year of the week shown. */}
+          <PixelSpriteArt sprite={holidaySprite(dates[0].getMonth() + 1)} width="min(260px, 56vw, 30vh)" />
+          <p className="mt-5 text-[26px] font-extrabold tracking-[-0.045em] md:text-[34px]">{t('holiday')}</p>
+          <p className="mt-1 text-[15px] font-semibold opacity-75">{t('noLessons')}</p>
+        </div>
+      ) : undefined}
+    />
+  );
+});
+
 function OfflineState({ onRetry }: { onRetry: () => void }) {
   const t = useT(timetableDict);
   const tc = useT(commonDict);
   return (
-    <div className={s.inset}>
-      <div className="squircle rounded-[26px] bg-surface">
+    <div className={s.stateBox}>
+      <div className="squircle w-full rounded-[26px] bg-surface">
         <PixelState
           title={t('unknownTitle')}
           detail={t('offlineUnknown')}
@@ -645,7 +666,7 @@ function OfflineState({ onRetry }: { onRetry: () => void }) {
 
 export default function TimetablePage() {
   return (
-    <Suspense fallback={<div className={s.page}><div className={s.pager}><WeekGridSkeleton /></div></div>}>
+    <Suspense fallback={<div className={s.wrap}><div className={s.host}><div className={s.page}><div className={s.pager}><div className={s.pane}><WeekGridSkeleton /></div></div></div></div></div>}>
       <TimetableContent />
     </Suspense>
   );

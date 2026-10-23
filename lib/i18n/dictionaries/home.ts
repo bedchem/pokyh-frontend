@@ -12,7 +12,6 @@ export type HomeKey =
   | 'lessonsEnd'
   | 'startAt'
   | 'noLessons'
-  | 'gradeAvg'
   | 'subjectOne'
   | 'subjectMany'
   | 'lessonsToday'
@@ -30,9 +29,7 @@ export type HomeKey =
   | 'substitution'
   | 'nextExam'
   | 'noExam'
-  | 'recentGrades'
   | 'noGrades'
-  | 'grade'
   | 'now'
   | 'upNext'
   | 'afterThat'
@@ -81,7 +78,6 @@ export const homeDict: Dictionary<HomeKey> = {
     lessonsEnd: 'Unterrichtsende',
     startAt: 'Beginn {time}',
     noLessons: 'Kein Unterricht',
-    gradeAvg: 'Notenschnitt',
     subjectOne: '{n} Fach',
     subjectMany: '{n} Fächer',
     lessonsToday: 'Stunden heute',
@@ -99,9 +95,7 @@ export const homeDict: Dictionary<HomeKey> = {
     substitution: 'Vertretung',
     nextExam: 'Nächste Prüfung',
     noExam: 'Keine Prüfung in den nächsten zwei Wochen',
-    recentGrades: 'Letzte Noten',
     noGrades: 'Noch keine Noten in diesem Schuljahr',
-    grade: 'Note',
     now: 'Jetzt',
     upNext: 'Als Nächstes',
     afterThat: 'Danach',
@@ -149,7 +143,6 @@ export const homeDict: Dictionary<HomeKey> = {
     lessonsEnd: 'Fine lezioni',
     startAt: 'Inizio {time}',
     noLessons: 'Nessuna lezione',
-    gradeAvg: 'Media voti',
     subjectOne: '{n} materia',
     subjectMany: '{n} materie',
     lessonsToday: 'Ore oggi',
@@ -167,9 +160,7 @@ export const homeDict: Dictionary<HomeKey> = {
     substitution: 'Supplenza',
     nextExam: 'Prossima verifica',
     noExam: 'Nessuna verifica nelle prossime due settimane',
-    recentGrades: 'Ultimi voti',
     noGrades: 'Ancora nessun voto quest’anno',
-    grade: 'Voto',
     now: 'Adesso',
     upNext: 'Prossima',
     afterThat: 'Dopo',
@@ -217,7 +208,6 @@ export const homeDict: Dictionary<HomeKey> = {
     lessonsEnd: 'Classes end',
     startAt: 'Starts {time}',
     noLessons: 'No classes',
-    gradeAvg: 'Grade average',
     subjectOne: '{n} subject',
     subjectMany: '{n} subjects',
     lessonsToday: 'Lessons today',
@@ -235,9 +225,7 @@ export const homeDict: Dictionary<HomeKey> = {
     substitution: 'Substitute',
     nextExam: 'Next exam',
     noExam: 'No exams in the next two weeks',
-    recentGrades: 'Recent grades',
     noGrades: 'No grades this school year yet',
-    grade: 'Grade',
     now: 'Now',
     upNext: 'Up next',
     afterThat: 'After that',

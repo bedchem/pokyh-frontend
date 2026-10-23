@@ -1,8 +1,6 @@
 /* Timetable: design ported from the Android app (TimetableScreen / WeekGrid / LessonDetailSheet). */
 
 .wrap {
-  /* Height of the week switch that stays at the top while scrolling. */
-  --tt-bar: 60px;
   height: 100%;
   background: var(--app-bg);
   color: var(--app-text-primary);
@@ -18,28 +16,66 @@
   --tt-inset: var(--app-card-alt);
 }
 
+/* The page is exactly as tall as the screen gives it: the header, the week
+   switch, and the week filling the rest (WeekGrid spreads the day over that
+   height). Nothing scrolls, and the browser takes no gestures here: a touch
+   is either a tap or a swipe through the weeks (WeekPager). */
 .host {
   height: 100%;
-  overflow: auto;
-  touch-action: pan-y;
+  overflow: hidden;
+  touch-action: none;
+  overscroll-behavior: none;
 }
 
-/* Same rhythm as the other app pages (components/app/Page.tsx). */
+/* Same columns as the other app pages (components/app/Page.tsx). */
 .page {
-  padding: 0 0 80px;
+  height: 100%;
+  padding: 0 0 12px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 12px;
   max-width: 1440px;
   margin: 0 auto;
 }
+@media (min-width: 768px) { .page { gap: 18px; padding-bottom: 24px; } }
 
 .inset { padding: 0 20px; }
 @media (min-width: 640px) { .inset { padding: 0 32px; } }
 @media (min-width: 1024px) { .inset { padding: 0 48px; } }
 
-.head { padding-top: 16px; padding-bottom: 8px; }
+.head { flex-shrink: 0; padding-top: 12px; }
 @media (min-width: 768px) { .head { padding-top: 32px; } }
+
+/* Title and menus share a line; on a very narrow phone the menus move under it. */
+.headRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 12px;
+}
+@media (min-width: 768px) { .headRow { align-items: flex-end; } }
+/* The smallest phones (320px): title and menus still share their line. */
+@media (max-width: 359.98px) {
+  .headRow { column-gap: 8px; }
+  .title { font-size: 23px; }
+  .headRow .pillBtn { padding: 0 9px; }
+}
+
+/* The week in figures: one pill in the week switch's own row (.weekBar),
+   between the week and the buttons, each figure in its category's ink. Only
+   where that row has room for it (measured on the switch, not the screen, so
+   an open or folded sidebar counts); never on a line of its own: on a phone
+   or a narrow tablet the week gets the room instead. */
+.figures {
+  grid-area: figs;
+  display: none;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--surface);
+}
 
 .stepBtn,
 .stepToday,
@@ -67,23 +103,38 @@
 .pillBtn {
   height: 44px;
   min-width: 44px;
-  padding: 0 14px;
+  padding: 0 12px;
   border-radius: 14px;
   background: var(--surface);
 }
+@media (min-width: 640px) { .pillBtn { padding: 0 14px; } }
 .pillBtn:hover:not(:disabled) { background: color-mix(in srgb, var(--surface) 92%, var(--ink)); }
 
 .figure {
   display: inline-flex;
   align-items: baseline;
   gap: 5px;
-  padding: 7px 13px;
+  padding: 8px 11px;
+  /* No background of its own: the fill (bg-*) comes from Tailwind's
+     utilities layer, which any unlayered rule here would override. */
+  border: 0;
   border-radius: 999px;
-  font-size: 13.5px;
+  font: inherit;
+  font-size: 13px;
   font-weight: 600;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  line-height: 20px;
+  white-space: nowrap;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
-.figure strong { font-weight: 800; font-variant-numeric: tabular-nums; }
+.figure strong {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.figureLabel { white-space: nowrap; }
+/* With a mouse: pointing at a figure fills it and marks its lessons below. */
+.figurePoint { cursor: pointer; }
+.figurePoint:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 
 /* ── Tone plumbing ─────────────────────────────────────────── */
 
@@ -285,34 +336,51 @@
 
 /* ── Week grid ─────────────────────────────────────────────── */
 
-/* The grid on the canvas, its edges lined up with the page. Clipped only
-   sideways (the weeks glide in and out), so the day names inside can stay
-   at the top while scrolling; older browsers clip both ways. */
+/* The weeks (WeekPager): the shown one fills what is left of the page, the
+   one before and after it wait beside it, a screen width away, so a swipe
+   drags them in edge to edge. Each pane carries the page's side margins. */
 .pager {
-  overflow: hidden;
   position: relative;
-  margin: 0 14px;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
-@supports (overflow: clip) {
-  .pager { overflow: clip visible; }
+.stage,
+.track {
+  position: absolute;
+  inset: 0;
 }
-@media (min-width: 640px) { .pager { margin: 0 26px; } }
-@media (min-width: 1024px) { .pager { margin: 0 42px; } }
-
-/* The week switch, joined to the grid below it. It stays at the top while
-   the week scrolls, the day names right under it (.gridHeader). */
-.weekBar {
-  position: sticky;
-  top: 0;
-  z-index: 6;
+.track { will-change: transform; }
+.pane {
+  position: absolute;
+  inset: 0;
   display: flex;
+  flex-direction: column;
+  padding: 0 14px;
+}
+@media (min-width: 640px) { .pane { padding: 0 26px; } }
+@media (min-width: 1024px) { .pane { padding: 0 42px; } }
+
+/* The week switch, right above the grid: back, the week, the figures,
+   "Zu heute", on. The wrapper is what the figures' place is measured on. */
+.weekBarWrap {
+  flex-shrink: 0;
+  container: weekbar / inline-size;
+}
+.weekBar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-areas: 'prev label today next';
   align-items: center;
   gap: 10px;
-  height: var(--tt-bar);
-  margin-bottom: -8px;
-  background: var(--app-bg);
 }
-.weekLabel { flex: 1; min-width: 0; }
+.weekPrev { grid-area: prev; }
+.weekNext { grid-area: next; }
+.weekLabel { grid-area: label; min-width: 0; }
+.weekToday { grid-area: today; }
 .weekArrow,
 .weekToday {
   display: inline-grid;
@@ -332,34 +400,74 @@
 .weekArrow:hover:not(:disabled),
 .weekToday:hover { background: color-mix(in srgb, var(--surface) 90%, var(--ink)); }
 .weekArrow:disabled { color: var(--ink-3); }
-.pagerInner { width: 100%; }
+
+/* How the row is shared, by the room the switch has:
+   - under 640px (a phone): the week and its buttons alone;
+   - 640-899px: the figures as small pills, number over word, as tall as the
+     buttons beside them;
+   - from 900px: number and word side by side, from 1100px a size larger.
+   The week's dates carry the year wherever it still fits beside them. */
+.rangeLong { display: none; }
+@container weekbar (min-width: 440px) {
+  .rangeLong { display: inline; }
+  .rangeShort { display: none; }
+}
+@container weekbar (min-width: 640px) {
+  .weekBar {
+    grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+    grid-template-areas: 'prev label figs today next';
+  }
+  .figures { display: inline-flex; }
+}
+@container weekbar (min-width: 640px) and (max-width: 779.98px) {
+  .rangeLong { display: none; }
+  .rangeShort { display: inline; }
+}
+@container weekbar (min-width: 640px) and (max-width: 899.98px) {
+  .rangeText { font-size: 15px; }
+  .figures { padding: 3px; }
+  .figure {
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    padding: 3px 9px;
+    font-size: 10.5px;
+    line-height: 14px;
+  }
+  .figure strong { font-size: 14px; line-height: 18px; }
+}
+@container weekbar (min-width: 1100px) {
+  .figure { padding: 8px 15px; font-size: 14px; }
+}
 
 .grid {
-  padding: 0 6px 32px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 6px;
   --s: 1;
 }
 .gridHeader {
-  position: sticky;
-  top: var(--tt-bar);
-  z-index: 5;
+  flex-shrink: 0;
   display: flex;
   gap: 3px;
   align-items: flex-end;
   padding-top: 4px;
-  background: var(--app-bg);
 }
-/* Once the week scrolls under the day names, a soft edge marks where. */
-.gridHeader::after {
-  content: '';
-  position: absolute;
-  inset: 100% 0 auto;
-  height: 12px;
-  background: linear-gradient(var(--app-bg), transparent);
-  opacity: 0;
-  transition: opacity 0.2s ease;
-  pointer-events: none;
+/* The room under the day names that the day is spread over. Only a screen
+   too short for the whole day (a phone held sideways) lets it scroll. */
+.gridView {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
-.host[data-scrolled] .gridHeader::after { opacity: 1; }
+.gridView[data-overflow] {
+  overflow-y: auto;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+}
 .gutterHead {
   display: flex;
   flex-direction: column;
@@ -412,14 +520,21 @@
   background: var(--accent);
   color: #fff;
 }
+/* On a phone the day's name and date share a line, and the month (it is in
+   the week switch) leaves the corner: the room goes to the lessons. */
+@media (max-width: 639.98px) {
+  .gridHeader { padding-top: 2px; }
+  .dayHead { flex-direction: row; justify-content: center; gap: 2px; }
+  .dayHeadLabel { font-size: 10.5px; }
+  .dayDisc { width: 20px; height: 20px; font-size: 11.5px; }
+  .gutterMonth { display: none; }
+}
 
-/* The room above the first lesson sits in the body, not under the day names
-   (their fill would cover the first time on the axis). */
+/* Its margins (WeekGrid) leave room for the first and last time on the axis. */
 .gridBody {
   position: relative;
   display: flex;
   gap: 3px;
-  margin-top: 8px;
 }
 .axis {
   position: relative;
@@ -462,7 +577,31 @@
 
 .cellSlot {
   position: absolute;
-  padding: calc(2px * var(--s)) 0;
+  padding: calc(1.5px * var(--s)) 0;
+}
+/* A whole special day (Ferien, all cancelled) sits in the column like a lesson. */
+.specialSlot {
+  position: absolute;
+  inset: 0;
+}
+
+/* A figure of the dock pointed at (data-mark): its lessons stay, the rest
+   steps back. */
+.cellSlot,
+.specialSlot,
+.absenceBand { transition: opacity 0.2s ease, filter 0.2s ease; }
+.grid[data-mark] .cellSlot,
+.grid[data-mark] .specialSlot {
+  opacity: 0.22;
+  filter: saturate(0.3);
+}
+.grid[data-mark] .absenceBand { opacity: 0.3; }
+.grid[data-mark='today'] [data-today],
+.grid[data-mark='cancelled'] [data-cancelled],
+.grid[data-mark='exam'] [data-exam],
+.grid[data-mark='substitution'] [data-substitution] {
+  opacity: 1;
+  filter: none;
 }
 /* Finished lessons keep their original subject colour with a darkening layer
    over the whole cell, so the rest of the day stands out. In light mode the
@@ -515,6 +654,17 @@
   min-width: 0;
 }
 .cellDense { padding: calc(4px * var(--s)) calc(4px * var(--s)); }
+/* A short cell (a long day on a small screen) keeps all three lines, set
+   smaller and closer (GridLessonCell). */
+.cellTight {
+  gap: 0;
+  padding-top: calc(1.5px * var(--s));
+  padding-bottom: calc(1.5px * var(--s));
+}
+.cellTight .lineSubject { font-size: calc(9px * var(--s)); line-height: calc(9.5px * var(--s)); }
+.cellTight .lineTeacher,
+.cellTight .lineRoom { font-size: calc(7px * var(--s)); line-height: calc(7.5px * var(--s)); }
+.cellTight .partChip { padding: 0 3px; line-height: inherit; }
 
 .line {
   display: flex;
@@ -650,15 +800,17 @@ button.special { border: 0; background: transparent; font: inherit; cursor: poin
   50% { opacity: 0.55; }
 }
 .skelGrid {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 8px 12px;
+  padding: 4px 6px 8px;
 }
 .skelRow { display: flex; gap: 3px; }
+.skelBody { flex: 1; min-height: 0; padding-top: 6px; }
 .skelCol {
   flex: 1;
   position: relative;
-  height: 460px;
 }
 
 /* ── Day mode ─────────────────────────────────────────────── */
@@ -825,10 +977,14 @@ button.special { border: 0; background: transparent; font: inherit; cursor: poin
 }
 
 .stateBox {
-  padding: 48px 20px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 6px 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 12px;
   text-align: center;
 }
@@ -955,8 +1111,10 @@ button.special { border: 0; background: transparent; font: inherit; cursor: poin
 .emptyWeek {
   display: grid;
   place-items: center;
-  min-height: 420px;
-  margin-top: 14px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  margin: 10px 0 8px;
   border-radius: 24px;
   background: var(--periwinkle);
   color: var(--periwinkle-ink);
@@ -965,3 +1123,11 @@ button.special { border: 0; background: transparent; font: inherit; cursor: poin
 /* Day cards without lessons (holiday, all cancelled, …): their pixel scene. */
 .specialSprite { width: min(120px, 80%); }
 .specialSpriteCompact { width: min(80px, 85%); }
+
+/* A phone held sideways has no room for the week under the header: there the
+   page scrolls as a whole and the week keeps a readable height. */
+@media (max-height: 480px) {
+  .host { overflow-y: auto; touch-action: pan-y; }
+  .page { height: auto; }
+  .pager { flex: none; height: 460px; }
+}

@@ -31,7 +31,7 @@ export function RowsSkeleton({
   bare = false,
 }: {
   rows?: number;
-  lead?: 'time' | 'square' | 'round';
+  lead?: 'time' | 'square' | 'round' | 'none';
   trailing?: boolean;
   /** Rows straight on the canvas instead of inside a card. */
   bare?: boolean;

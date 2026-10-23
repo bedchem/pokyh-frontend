@@ -8,11 +8,9 @@ import { timetableDict } from '@/lib/i18n/dictionaries/timetable';
 import { dayLabelsMonSat, monthShort } from '@/lib/i18n/dateLocale';
 import {
   CELL_GAP,
-
   GRID_GUTTER,
   MIN_CELL_HEIGHT,
   MIN_CELL_WIDTH,
-  PX_PER_MINUTE,
   TEXT_MIN_CELL_WIDTH,
   TIMETABLE_PERIODS,
   buildGridCells,
@@ -22,7 +20,7 @@ import {
   dayKind,
   fieldParts,
   hhmm,
-  registerSubjects,
+  subjectHueMap,
   toMins,
   toneVars,
   type GridCell,
@@ -37,11 +35,29 @@ import s from './timetable.module.css';
 const PER_MILLE = 1000;
 /** A pointer resting this long on a lesson asks for its detail ahead of the click; passing over does not. */
 const HOVER_PREFETCH_MS = 140;
+/** Room above the first rule and below the last one, for the times on the axis. */
+const AXIS_ROOM_TOP = 8;
+const AXIS_ROOM_BOTTOM = 7;
+/**
+ * The day is stretched to the height there is, between these. Below the floor (a phone held
+ * sideways) the grid scrolls inside itself; above the ceiling a short day leaves room under it
+ * rather than turning three lessons into posters.
+ */
+const MIN_PX_PER_MINUTE = 0.32;
+const MAX_PX_PER_MINUTE = 2.4;
+/** The minutes a lesson takes at most where the cells' minimum height applies. */
+const SHORT_LESSON_MIN = 45;
+
+/** A figure of the week whose lessons stand out while it is pointed at (page.tsx, the dock). */
+export type WeekMark = 'today' | 'cancelled' | 'exam' | 'substitution';
 
 /**
  * The week grid: six day columns (Mo-Sa) against a time axis built from the week's own lesson
  * times. Untis Mobile's look in POKYH pastels: a lesson is one soft tinted block; an outline
  * means something (red = cancelled, yellow = exam); a changed room/teacher is only a chip.
+ *
+ * It fills the height it is given: the minutes are spread over what is left under the day names,
+ * so the whole school day is on screen and nothing scrolls.
  */
 export default function WeekGrid({
   dayEntries,
@@ -54,6 +70,7 @@ export default function WeekGrid({
   onTap,
   absences = [],
   empty,
+  mark = null,
 }: {
   dayEntries: TimetableEntry[][];
   dates: Date[];
@@ -67,28 +84,33 @@ export default function WeekGrid({
   absences?: AbsenceEntry[];
   /** Shown under the day headers instead of the lessons (a week without school). */
   empty?: ReactNode;
+  /** The lessons of this figure stay as they are, the others step back. */
+  mark?: WeekMark | null;
 }) {
   const t = useT(timetableDict);
   const { locale } = useLocale();
   const DAY_LABELS = dayLabelsMonSat(locale);
-  const bodyRef = useRef<HTMLDivElement>(null);
-  const [bodyWidth, setBodyWidth] = useState(0);
+  const viewRef = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState({ width: 0, height: 0 });
+  const hasBody = !empty;
 
+  // The room under the day names, measured before the first paint and on every resize.
   useLayoutEffect(() => {
-    const el = bodyRef.current;
+    const el = viewRef.current;
     if (!el) return;
-    const update = () => setBodyWidth(el.clientWidth);
+    const update = () => setBox(b => (
+      b.width === el.clientWidth && b.height === el.clientHeight ? b : { width: el.clientWidth, height: el.clientHeight }
+    ));
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [hasBody]);
 
-  const pxPerMin = PX_PER_MINUTE * scale;
   const gutter = Math.round(GRID_GUTTER * Math.min(scale, 1.25));
   // Breathing room between days: tight on a phone, wider where there is width to spend.
   const colGap = scale > 1 ? 8 : 4;
-  const colW = Math.max(0, (bodyWidth - gutter - colGap * 6) / 6);
+  const colW = Math.max(0, (box.width - gutter - colGap * 6) / 6);
 
   const anyDayHasEntries = dayEntries.some(d => d.length > 0);
   const daySlots = useMemo(() => dayEntries.map(d => buildSlots(d)), [dayEntries]);
@@ -97,12 +119,19 @@ export default function WeekGrid({
     [dayEntries, daySlots, anyDayHasEntries],
   );
   const allEntries = useMemo(() => dayEntries.flat(), [dayEntries]);
-  // Colours are handed out for the whole week before any cell asks for one, see registerSubjects.
-  useMemo(() => registerSubjects(allEntries.map(e => e.subjectName)), [allEntries]);
+  // This week's colours, from its own subjects (the weeks beside it are drawn at the same time).
+  const hues = useMemo(() => subjectHueMap(allEntries.map(e => e.subjectName)), [allEntries]);
 
   const minMins = allEntries.length ? Math.min(...allEntries.map(e => toMins(e.startTime))) : TIMETABLE_PERIODS[0].startMinute;
   const maxMins = allEntries.length ? Math.max(...allEntries.map(e => toMins(e.endTime))) : TIMETABLE_PERIODS[TIMETABLE_PERIODS.length - 1].endMinute;
-  const totalHeight = Math.max(380 * scale, (maxMins - minMins) * pxPerMin);
+  const span = Math.max(1, maxMins - minMins);
+  const room = Math.max(0, box.height - AXIS_ROOM_TOP - AXIS_ROOM_BOTTOM);
+  const pxPerMin = Math.min(MAX_PX_PER_MINUTE, Math.max(MIN_PX_PER_MINUTE, room / span));
+  const totalHeight = span * pxPerMin;
+  const overflows = totalHeight > room + 0.5;
+  // Text grows with the room each minute gets, up to the size the width allows.
+  const textScale = Math.min(scale, Math.max(1, pxPerMin / 0.8));
+  const minCellHeight = Math.min(MIN_CELL_HEIGHT * textScale, SHORT_LESSON_MIN * pxPerMin);
 
   // Numbered only when the numbers are this school's.
   const visiblePeriods = useMemo(() => {
@@ -119,12 +148,25 @@ export default function WeekGrid({
     return [...set].filter(m => m >= minMins - 2 && m <= maxMins + 2).sort((a, b) => a - b);
   }, [visiblePeriods, allEntries, minMins, maxMins]);
 
+  // The times written on the axis: where two would overlap (a short break on a short screen),
+  // the later one, where the next lesson starts, stays. Every rule is still drawn.
+  const axisTimes = useMemo(() => {
+    const minGap = 10 * textScale + 1;
+    const kept: number[] = [];
+    for (const m of boundaryTimes) {
+      const prev = kept[kept.length - 1];
+      if (prev !== undefined && (m - prev) * pxPerMin < minGap) kept.pop();
+      kept.push(m);
+    }
+    return kept;
+  }, [boundaryTimes, pxPerMin, textScale]);
+
   const todayIndex = dayNums.indexOf(todayNum);
   const showNow = todayIndex >= 0 && minute >= minMins && minute <= maxMins && colW > 0;
   const nowY = (minute - minMins) * pxPerMin;
 
   return (
-    <div className={s.grid} style={{ ['--s' as string]: scale } as CSSProperties}>
+    <div className={s.grid} style={{ ['--s' as string]: textScale } as CSSProperties} data-mark={mark ?? undefined}>
       {/* Header */}
       <div className={s.gridHeader} style={{ gap: colGap }}>
         <div className={s.gutterHead} style={{ width: gutter }}>
@@ -142,9 +184,10 @@ export default function WeekGrid({
         })}
       </div>
 
-      {empty ? <div className={s.emptyWeek} style={{ marginLeft: gutter + colGap }}>{empty}</div> : (<>
-      {/* Body */}
-      <div ref={bodyRef} className={s.gridBody} style={{ height: totalHeight, gap: colGap }}>
+      {empty ? <div className={s.emptyWeek} style={{ marginLeft: gutter + colGap }}>{empty}</div> : (
+      <div ref={viewRef} className={s.gridView} data-overflow={overflows || undefined}>
+      {box.height > 0 && (
+      <div className={s.gridBody} style={{ height: totalHeight, gap: colGap, marginTop: AXIS_ROOM_TOP, marginBottom: AXIS_ROOM_BOTTOM }}>
         <div className={s.axis} style={{ width: gutter, height: totalHeight }}>
           {visiblePeriods.map(p => (
             <span
@@ -155,7 +198,7 @@ export default function WeekGrid({
               {p.number}.
             </span>
           ))}
-          {boundaryTimes.map(m => (
+          {axisTimes.map(m => (
             <span key={`t${m}`} className={s.axisTime} style={{ top: (m - minMins) * pxPerMin - 6 }}>
               {hhmm(m)}
             </span>
@@ -170,7 +213,9 @@ export default function WeekGrid({
             boundaryTimes={boundaryTimes}
             minMins={minMins}
             pxPerMin={pxPerMin}
-            scale={scale}
+            scale={textScale}
+            minCellHeight={minCellHeight}
+            hues={hues}
             kind={dayKinds[d]}
             slots={daySlots[d]}
             dayNum={dayNums[d]}
@@ -191,7 +236,9 @@ export default function WeekGrid({
           </>
         )}
       </div>
-      </>)}
+      )}
+      </div>
+      )}
     </div>
   );
 }
@@ -203,6 +250,8 @@ function DayColumn({
   minMins,
   pxPerMin,
   scale,
+  minCellHeight,
+  hues,
   kind,
   slots,
   dayNum,
@@ -217,6 +266,8 @@ function DayColumn({
   minMins: number;
   pxPerMin: number;
   scale: number;
+  minCellHeight: number;
+  hues: ReadonlyMap<string, number>;
   kind: ReturnType<typeof dayKind>;
   slots: MergedSlot[];
   dayNum: number;
@@ -253,31 +304,40 @@ function DayColumn({
       ))}
 
       {kind === 'weekend' ? null : kind !== 'normal' ? (
-        <SpecialDayCard
-          kind={kind}
-          month={Math.floor(dayNum / 100) % 100}
-          compact
-          style={{ top: 2, height: height - 4 }}
-          // A day that is cancelled outright opens nothing: the card already says everything the
-          // popup would, and every lesson behind it is an Entfall.
-          onClick={kind !== 'allCancelled' && slots[0] ? () => onTap(slots[0]) : undefined}
-        />
+        <div className={s.specialSlot} data-cancelled={kind === 'allCancelled' || undefined}>
+          <SpecialDayCard
+            kind={kind}
+            month={Math.floor(dayNum / 100) % 100}
+            compact
+            style={{ top: 2, height: height - 4 }}
+            // A day that is cancelled outright opens nothing: the card already says everything the
+            // popup would, and every lesson behind it is an Entfall.
+            onClick={kind !== 'allCancelled' && slots[0] ? () => onTap(slots[0]) : undefined}
+          />
+        </div>
       ) : (
         width > 0 && cells.map(cell => {
           const top = (cell.startMinute - minMins) * pxPerMin;
-          const h = Math.max(MIN_CELL_HEIGHT * scale, (cell.endMinute - cell.startMinute) * pxPerMin);
+          const h = Math.max(minCellHeight, (cell.endMinute - cell.startMinute) * pxPerMin);
           const sharing = cell.width < PER_MILLE;
           const left = (width * cell.start) / PER_MILLE + (cell.start > 0 ? CELL_GAP : 0);
           const right = (width * (cell.start + cell.width)) / PER_MILLE;
           const cellWidth = Math.max(MIN_CELL_WIDTH, right - left);
           const past = dayNum < todayNum || (dayNum === todayNum && cell.endMinute <= minute);
+          // What the lesson counts as in the week's figures (page.tsx, weekStats), for the dock.
+          const { entry } = cell;
+          const cancelled = cell.kind === 'cancelled' || entry.isCancelled;
           return (
             <div
               key={cell.key}
               className={`${s.cellSlot} ${past ? s.cellPast : ''}`}
               style={{ top, left, width: cellWidth, height: h }}
+              data-today={(dayNum === todayNum && !cancelled) || undefined}
+              data-cancelled={cancelled || undefined}
+              data-exam={(entry.isExam || cell.kind === 'exam') || undefined}
+              data-substitution={(entry.isSubstitution && !cancelled) || undefined}
             >
-              <GridLessonCell cell={cell} height={h} width={cellWidth} dense={sharing} scale={scale} onTap={onTap} />
+              <GridLessonCell cell={cell} height={h} width={cellWidth} dense={sharing} scale={scale} hues={hues} onTap={onTap} />
             </div>
           );
         })
@@ -304,19 +364,20 @@ function DayColumn({
 }
 
 /** One lesson block: pastel fill and up to three lines (subject, teacher, room) in that order. */
-function GridLessonCell({ cell, height, width, dense, scale, onTap }: {
+function GridLessonCell({ cell, height, width, dense, scale, hues, onTap }: {
   cell: GridCell;
   height: number;
   width: number;
   dense: boolean;
   scale: number;
+  hues: ReadonlyMap<string, number>;
   onTap: (slot: MergedSlot) => void;
 }) {
   const t = useT(timetableDict);
   const { entry, kind } = cell;
   const cancelled = kind === 'cancelled' || entry.isCancelled;
   const changes = changesOf(entry);
-  const tone = cellTone(entry, kind);
+  const tone = cellTone(entry, kind, hues);
   // Cancelled → red ring, exam → yellow ring. A substitution or room change is carried by its chip alone.
   const exam = !cancelled && (entry.isExam || kind === 'exam');
   const outline = cancelled ? s.cellOutlineDanger : exam ? s.cellOutlineWarning : '';
@@ -326,7 +387,14 @@ function GridLessonCell({ cell, height, width, dense, scale, onTap }: {
     { parts: fieldParts(entry.teacherName, entry.addedTeachers ?? [], entry.originalTeacher, dense), className: s.lineTeacher },
     { parts: fieldParts(entry.roomName, entry.addedRooms ?? [], entry.originalRoom, dense), className: s.lineRoom },
   ].filter(l => l.parts.length > 0);
-  const roomForLines = height > 42 * scale ? 2 : height > 28 * scale ? 1 : 0;
+  // Subject, teacher and room each on a line of their own whenever the cell can hold them: a
+  // shorter cell sets them smaller, a shorter one still puts teacher and room on one line. Only a
+  // sliver keeps the subject alone. (`height` includes the slot's padding of 1.5px a side.)
+  const inner = height - 3 * scale;
+  const fit = inner >= 42 * scale ? 'roomy' : inner >= 27.5 * scale ? 'tight' : inner >= 20 * scale ? 'joined' : 'subject';
+  const lines = fit === 'subject' ? []
+    : fit === 'joined' && secondary.length > 1 ? [{ parts: secondary.flatMap(l => l.parts), className: s.lineTeacher }]
+    : secondary;
   const label = [subjectText, entry.teacherName, entry.roomName, cancelled ? t('cancelled') : ''].filter(Boolean).join(', ');
 
   // The popup's detail is asked for before the tap lands (lessonDetail.ts).
@@ -352,13 +420,13 @@ function GridLessonCell({ cell, height, width, dense, scale, onTap }: {
       title={label}
     >
       {width >= TEXT_MIN_CELL_WIDTH && (
-        <span className={`${s.cellBody} ${dense ? s.cellDense : ''}`}>
+        <span className={`${s.cellBody} ${dense ? s.cellDense : ''} ${fit !== 'roomy' ? s.cellTight : ''}`}>
           <ChangeableLine
             parts={[[subjectText, changes.subjectChanged ? 'added' : 'plain']]}
             className={s.lineSubject}
             struck={cancelled}
           />
-          {secondary.slice(0, roomForLines).map((l, i) => (
+          {lines.map((l, i) => (
             <ChangeableLine key={i} parts={l.parts} className={`${l.className} ${s.lineSecondary}`} struck={cancelled} />
           ))}
         </span>
@@ -411,8 +479,8 @@ export function WeekGridSkeleton() {
           </div>
         ))}
       </div>
-      <div className={s.skelRow}>
-        <div style={{ width: 36, display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div className={`${s.skelRow} ${s.skelBody}`}>
+        <div style={{ width: 36, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', paddingBottom: '18%' }}>
           {Array.from({ length: 6 }, (_, i) => <div key={i} className={s.skel} style={{ width: 26, height: 14 }} />)}
         </div>
         {pattern.map((blocks, i) => (
