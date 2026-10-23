@@ -56,15 +56,21 @@ const LOADING: WeekPageState = { status: 'loading' };
 const NO_ENTRIES: TimetableEntry[] = [];
 const NO_ABSENCES: AbsenceEntry[] = [];
 
-// A mouse: pointing at a figure in the dock marks its lessons. On a touch
-// screen the figures are only read.
+// A mouse: pointing at a figure in the week switch marks its lessons. On a
+// touch screen the figures are only read.
 const HOVER_QUERY = '(hover: hover) and (pointer: fine)';
-const subscribeHover = (cb: () => void) => {
-  const mq = window.matchMedia(HOVER_QUERY);
-  mq.addEventListener('change', cb);
-  return () => mq.removeEventListener('change', cb);
-};
-const readHover = () => window.matchMedia(HOVER_QUERY).matches;
+// A phone: the week keeps its fixed size and the page scrolls through the day
+// (timetable.module.css has the same breakpoint).
+const PHONE_QUERY = '(max-width: 639.98px)';
+
+function useMedia(query: string): boolean {
+  const subscribe = useCallback((cb: () => void) => {
+    const mq = window.matchMedia(query);
+    mq.addEventListener('change', cb);
+    return () => mq.removeEventListener('change', cb);
+  }, [query]);
+  return useSyncExternalStore(subscribe, () => window.matchMedia(query).matches, () => false);
+}
 
 const timetableUrl = (iso: string) => `/api/webuntis/timetable?date=${iso}`;
 const clampOffset = (o: number) => Math.max(-PAGE_SPAN, Math.min(PAGE_SPAN, o));
@@ -130,7 +136,8 @@ function TimetableContent() {
   const menuRef = useRef<HTMLDivElement>(null);
   const [yearOpen, setYearOpen] = useState(false);
   const yearRef = useRef<HTMLDivElement>(null);
-  const canHover = useSyncExternalStore(subscribeHover, readHover, () => false);
+  const canHover = useMedia(HOVER_QUERY);
+  const phone = useMedia(PHONE_QUERY);
   // Pointed at, or focused from the keyboard (a click focuses it too, so it stays until the next click).
   const [hoverMark, setHoverMark] = useState<WeekMark | null>(null);
   const [focusMark, setFocusMark] = useState<WeekMark | null>(null);
@@ -439,6 +446,7 @@ function TimetableContent() {
       onTap={setActiveSlot}
       ensureWeek={ensureWeek}
       mark={offset === weekOffset ? mark : null}
+      fit={!phone}
     />
   );
 
@@ -448,7 +456,15 @@ function TimetableContent() {
     <AuthGuard>
       <UntisGuard>
         <div className={s.wrap}>
-          <div className={s.host}>
+          <div
+            className={s.host}
+            onScroll={(e) => {
+              // Phones: marks the edge under the day names once the week scrolls beneath them.
+              const el = e.currentTarget;
+              if (el.scrollTop > 4) el.dataset.scrolled = '';
+              else delete el.dataset.scrolled;
+            }}
+          >
             <main className={s.page}>
               {/* Header: title and menus, then the week in figures */}
               <header className={`${s.inset} ${s.head}`}>
@@ -602,6 +618,7 @@ const WeekPane = memo(function WeekPane({
   onTap,
   ensureWeek,
   mark,
+  fit,
 }: {
   offset: number;
   page: WeekPageState;
@@ -612,6 +629,7 @@ const WeekPane = memo(function WeekPane({
   onTap: (slot: MergedSlot) => void;
   ensureWeek: (offset: number, force?: boolean) => void;
   mark: WeekMark | null;
+  fit: boolean;
 }) {
   const t = useT(timetableDict);
   const entries = page.status === 'data' ? page.entries : NO_ENTRIES;
@@ -636,6 +654,7 @@ const WeekPane = memo(function WeekPane({
       onTap={onTap}
       absences={empty ? NO_ABSENCES : absences}
       mark={mark}
+      fit={fit}
       empty={empty ? (
         <div className="rise flex flex-col items-center px-6 py-6 text-center">
           {/* The holidays look like the time of year of the week shown. */}

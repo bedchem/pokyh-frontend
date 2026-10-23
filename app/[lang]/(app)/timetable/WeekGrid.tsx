@@ -11,6 +11,7 @@ import {
   GRID_GUTTER,
   MIN_CELL_HEIGHT,
   MIN_CELL_WIDTH,
+  PX_PER_MINUTE,
   TEXT_MIN_CELL_WIDTH,
   TIMETABLE_PERIODS,
   buildGridCells,
@@ -56,8 +57,9 @@ export type WeekMark = 'today' | 'cancelled' | 'exam' | 'substitution';
  * times. Untis Mobile's look in POKYH pastels: a lesson is one soft tinted block; an outline
  * means something (red = cancelled, yellow = exam); a changed room/teacher is only a chip.
  *
- * It fills the height it is given: the minutes are spread over what is left under the day names,
- * so the whole school day is on screen and nothing scrolls.
+ * With `fit` (tablets and computers) it fills the height it is given: the minutes are spread over
+ * what is left under the day names, so the whole school day is on screen and nothing scrolls.
+ * Without (phones) a minute has a fixed height and the page scrolls through the day.
  */
 export default function WeekGrid({
   dayEntries,
@@ -71,6 +73,7 @@ export default function WeekGrid({
   absences = [],
   empty,
   mark = null,
+  fit = true,
 }: {
   dayEntries: TimetableEntry[][];
   dates: Date[];
@@ -86,6 +89,8 @@ export default function WeekGrid({
   empty?: ReactNode;
   /** The lessons of this figure stay as they are, the others step back. */
   mark?: WeekMark | null;
+  /** Spread the day over the height there is (no scrolling); else a fixed height per minute. */
+  fit?: boolean;
 }) {
   const t = useT(timetableDict);
   const { locale } = useLocale();
@@ -126,12 +131,14 @@ export default function WeekGrid({
   const maxMins = allEntries.length ? Math.max(...allEntries.map(e => toMins(e.endTime))) : TIMETABLE_PERIODS[TIMETABLE_PERIODS.length - 1].endMinute;
   const span = Math.max(1, maxMins - minMins);
   const room = Math.max(0, box.height - AXIS_ROOM_TOP - AXIS_ROOM_BOTTOM);
-  const pxPerMin = Math.min(MAX_PX_PER_MINUTE, Math.max(MIN_PX_PER_MINUTE, room / span));
-  const totalHeight = span * pxPerMin;
-  const overflows = totalHeight > room + 0.5;
+  const pxPerMin = fit ? Math.min(MAX_PX_PER_MINUTE, Math.max(MIN_PX_PER_MINUTE, room / span)) : PX_PER_MINUTE * scale;
+  const totalHeight = fit ? span * pxPerMin : Math.max(380 * scale, span * pxPerMin);
+  const overflows = fit && totalHeight > room + 0.5;
   // Text grows with the room each minute gets, up to the size the width allows.
-  const textScale = Math.min(scale, Math.max(1, pxPerMin / 0.8));
-  const minCellHeight = Math.min(MIN_CELL_HEIGHT * textScale, SHORT_LESSON_MIN * pxPerMin);
+  const textScale = fit ? Math.min(scale, Math.max(1, pxPerMin / 0.8)) : scale;
+  const minCellHeight = fit ? Math.min(MIN_CELL_HEIGHT * textScale, SHORT_LESSON_MIN * pxPerMin) : MIN_CELL_HEIGHT * scale;
+  // Fitted, the body waits for the height it is spread over; scrolling, only for the width.
+  const measured = fit ? box.height > 0 : box.width > 0;
 
   // Numbered only when the numbers are this school's.
   const visiblePeriods = useMemo(() => {
@@ -186,7 +193,7 @@ export default function WeekGrid({
 
       {empty ? <div className={s.emptyWeek} style={{ marginLeft: gutter + colGap }}>{empty}</div> : (
       <div ref={viewRef} className={s.gridView} data-overflow={overflows || undefined}>
-      {box.height > 0 && (
+      {measured && (
       <div className={s.gridBody} style={{ height: totalHeight, gap: colGap, marginTop: AXIS_ROOM_TOP, marginBottom: AXIS_ROOM_BOTTOM }}>
         <div className={s.axis} style={{ width: gutter, height: totalHeight }}>
           {visiblePeriods.map(p => (
