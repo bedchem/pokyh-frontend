@@ -25,8 +25,10 @@ import { untisSignIn } from '@/lib/api';
 import { useSession } from '@/providers/SessionProvider';
 import { forgetSchoolChoice, readSchoolChoice, saveSchoolChoice, type SchoolChoice } from '@/lib/school-choice';
 import { prefersReducedMotion } from '@/lib/motion';
+import { looksLikeAppKey } from '@/lib/app-access';
 import { closeView, enteringWith, openView, useRoomView } from '@/components/room/route';
 import { HallwayScene, MascotBadge, type MascotEvent, type MascotState } from './Hallway';
+import OfficeSignIn, { MicrosoftMark } from './OfficeSignIn';
 
 // Room A+2/05, behind the hallway's door: a little secret classroom,
 // fetched and built only when someone goes near the door (components/room).
@@ -117,7 +119,48 @@ const ERROR_KEYS: Record<string, LoginKey> = {
   rate_limited: 'errRate',
   school_invalid: 'errSchool',
   missing: 'errMissing',
+  account_refused: 'errAccount',
 };
+
+// The same answers to a sign-in with the app key, in its words.
+const KEY_ERROR_KEYS: Record<string, LoginKey> = {
+  ...ERROR_KEYS,
+  bad_credentials: 'errKeyBad',
+  missing: 'errKeyMissing',
+  key_invalid: 'errKeyInvalid',
+};
+
+type Credential = { password: string } | { key: string };
+
+/** How a school signs in, as its WebUntis sign-in page offers it. */
+interface LoginOptions {
+  password: boolean;
+  office365: boolean;
+}
+
+/**
+ * The sign-in options of the chosen school (the API reads them from the
+ * school's own WebUntis page); null until they are known or when they cannot
+ * be, which leaves the password form as it always was.
+ */
+function useLoginOptions(loginName: string | undefined, server: string | undefined): LoginOptions | null {
+  const id = loginName && server ? `${server}/${loginName}` : '';
+  const [answer, setAnswer] = useState<{ id: string; options: LoginOptions | null } | null>(null);
+  useEffect(() => {
+    if (!loginName || !server) return;
+    const ctrl = new AbortController();
+    const at = `${server}/${loginName}`;
+    fetch(untisUrl(`/api/webuntis/login-options?school=${encodeURIComponent(loginName)}&server=${encodeURIComponent(server)}`), { signal: ctrl.signal })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: Partial<LoginOptions> | null) => setAnswer({
+        id: at,
+        options: data && typeof data.office365 === 'boolean' ? { office365: data.office365, password: data.password !== false } : null,
+      }))
+      .catch((e: Error) => { if (e.name !== 'AbortError') setAnswer({ id: at, options: null }); });
+    return () => ctrl.abort();
+  }, [loginName, server]);
+  return answer?.id === id ? answer.options : null;
+}
 
 /** Search results for a query; each answer is kept with the query it belongs to. */
 function useSchoolSearch(query: string): SearchState {
@@ -196,6 +239,9 @@ export default function LoginForm() {
   const [cookieError, setCookieError] = useState(false);
   const [autoFilling, setAutoFilling] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
+  const [officeOpen, setOfficeOpen] = useState(false);
+  const [officeError, setOfficeError] = useState('');
+  const options = useLoginOptions(school?.loginName, school?.server);
   // What the mascot answers: the focused field, each key, and events.
   const [focus, setFocus] = useState<MascotState['focus']>(null);
   const [keys, setKeys] = useState(0);
@@ -392,23 +438,46 @@ export default function LoginForm() {
       setError(t('errMissing'));
       return;
     }
+    // The browser filling in the key it saved for the Office 365 sign-in.
+    const credential: Credential = options?.office365 && looksLikeAppKey(password) ? { key: password.trim() } : { password };
+    await signIn(username.trim(), credential, setError);
+  }
 
+  const openOffice = () => {
+    setOfficeError('');
+    setOfficeOpen(true);
+  };
+
+  // The Office 365 sign-in, with the account's app key (lib/app-access.ts).
+  function handleOffice(user: string, key: string) {
+    if (!consentGiven) {
+      setOfficeError(t('cookieError'));
+      return;
+    }
+    void signIn(user, { key }, setOfficeError);
+  }
+
+  // Signs in with the password or the app key; `fail` says what went wrong
+  // where the person is looking (the form or the Office 365 sheet).
+  async function signIn(user: string, credential: Credential, fail: (message: string) => void) {
+    if (!school) return;
     // The notice was shown next to the form; recorded right after signing in (PrivacyGate).
     rememberPendingAck();
     setLoading(true);
     setLoadingMsg(t('loggingIn'));
-    setError('');
+    fail('');
 
     // Read at the moment of signing in (the address is final by then), not
     // with useSearchParams: that would keep the whole form out of the page's
     // prerendered HTML, which search engines and slow phones see first.
     const raw = new URLSearchParams(window.location.search).get('next') ?? '';
     const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : localize('/home');
+    const withKey = 'key' in credential;
 
     try {
       const untisRes = await untisSignIn({
-        username: username.trim(),
-        password,
+        username: user,
+        ...credential,
         school: { loginName: school.loginName, server: school.server, name: school.name },
       });
       const untisData = (await untisRes.json().catch(() => ({}))) as { ok?: boolean; code?: string } & SignInAnswer;
@@ -418,7 +487,7 @@ export default function LoginForm() {
         setLoadingMsg(t('almostDone'));
         happen('success');
         if (isPasswordCredentialSupported() && !hasDeclinedPasskey()) {
-          storePasswordCredential(username.trim(), password).catch(() => {});
+          storePasswordCredential(user, withKey ? credential.key : credential.password).catch(() => {});
         }
         window.location.replace(next);
         return;
@@ -427,15 +496,16 @@ export default function LoginForm() {
         forgetSchoolChoice();
         setRemembered(null);
         setPicked(null);
+        setOfficeOpen(false);
       }
 
       // Wrong WebUntis credentials may still be a POKYH-only account.
-      if (untisData.code === 'bad_credentials' || untisData.code === 'refused') {
+      if (!withKey && (untisData.code === 'bad_credentials' || untisData.code === 'refused')) {
         setLoadingMsg(t('checkingPokyh'));
         const pokyhRes = await fetch(`${API_BASE}/auth/web/local-login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
-          body: JSON.stringify({ username: username.trim().toLowerCase(), password }),
+          body: JSON.stringify({ username: user.toLowerCase(), password: credential.password }),
           credentials: 'include',
         });
         const pokyhData = (await pokyhRes.json().catch(() => ({}))) as { ok?: boolean } & SignInAnswer;
@@ -448,11 +518,11 @@ export default function LoginForm() {
         }
       }
 
-      const key = untisData.code ? ERROR_KEYS[untisData.code] : undefined;
-      setError(t(key ?? 'errFailed'));
+      const key = untisData.code ? (withKey ? KEY_ERROR_KEYS : ERROR_KEYS)[untisData.code] : undefined;
+      fail(t(key ?? 'errFailed'));
       happen('error');
     } catch {
-      setError(t('errNetwork'));
+      fail(t('errNetwork'));
       happen('error');
     }
     setLoading(false);
@@ -621,7 +691,30 @@ export default function LoginForm() {
                 </p>
               )}
 
-              <form onSubmit={handleLogin} className="mt-4 flex flex-col gap-2.5" noValidate>
+              {/* As on the school's own WebUntis page: Office 365 first, then the password. */}
+              {options?.office365 && (
+                <div className="mt-4 flex flex-col gap-2.5">
+                  <button
+                    type="button"
+                    onClick={openOffice}
+                    disabled={loading || autoFilling}
+                    className="key key-lg w-full [--key-bg:var(--surface)] [--key-fg:var(--ink)] disabled:opacity-60"
+                  >
+                    <MicrosoftMark />
+                    {t('office')}
+                  </button>
+                  {options.password && (
+                    <p aria-hidden="true" className="flex items-center gap-3 text-[12.5px] font-semibold text-ink-3">
+                      <span className="h-px flex-1 bg-[var(--line)]" />
+                      {t('or')}
+                      <span className="h-px flex-1 bg-[var(--line)]" />
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {options?.password !== false && (
+              <form onSubmit={handleLogin} className={`${options?.office365 ? 'mt-2.5' : 'mt-4'} flex flex-col gap-2.5`} noValidate>
                 <label htmlFor="login-user" className="visually-hidden">{t('username')}</label>
                 <div className="login-field flex h-[54px] items-center gap-3 rounded-[16px] bg-[var(--surface)] px-4 transition-shadow focus-within:shadow-[0_0_0_2px_var(--accent-ink)]">
                   <input
@@ -681,12 +774,29 @@ export default function LoginForm() {
                   {ta('forgot')}
                 </button>
               </form>
+              )}
 
               <Sheet open={forgotOpen} onClose={() => setForgotOpen(false)} title={ta('resetTitle')} description={ta('resetLead')} closeLabel={ta('close')}>
                 <div className="pb-2">
                   <ForgotPasswordForm initialUsername={username} school={school} />
                 </div>
               </Sheet>
+
+              {options?.office365 && (
+                <Sheet open={officeOpen} onClose={() => setOfficeOpen(false)} title={t('office')} description={t('officeLead')} closeLabel={ta('close')}>
+                  <OfficeSignIn
+                    key={`${school.server}/${school.loginName}`}
+                    school={school}
+                    initialUser={username.trim()}
+                    initialKey={looksLikeAppKey(password) ? password.trim() : ''}
+                    busy={loading}
+                    busyLabel={loadingMsg || t('loggingIn')}
+                    error={officeError}
+                    onSubmit={handleOffice}
+                    onInvalid={setOfficeError}
+                  />
+                </Sheet>
+              )}
             </div>
           )}
         </section>

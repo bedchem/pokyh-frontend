@@ -43,6 +43,22 @@ export type LoginKey =
   | 'errUnavailable'
   | 'errRate'
   | 'errSchool'
+  | 'errAccount'
+  | 'office'
+  | 'or'
+  | 'officeLead'
+  | 'officeStep1'
+  | 'officeStep2'
+  | 'officeStep3'
+  | 'officeOpenLogin'
+  | 'officeOpenProfile'
+  | 'officeAdmin'
+  | 'officeUser'
+  | 'officeKey'
+  | 'officeKeyHint'
+  | 'errKeyMissing'
+  | 'errKeyBad'
+  | 'errKeyInvalid'
   | 'imprint'
   | 'privacy'
   | 'terms'
@@ -106,6 +122,22 @@ export const loginDict: Dictionary<LoginKey> = {
     errUnavailable: 'WebUntis ist gerade nicht erreichbar. Versuch es später noch einmal.',
     errRate: 'Zu viele Versuche. Bitte warte 5 Minuten.',
     errSchool: 'Diese Schule ist nicht verfügbar. Wähle sie bitte neu aus.',
+    errAccount: 'Dein Konto konnte bei POKYH nicht eingerichtet werden. Bitte wende dich an den Support.',
+    office: 'Mit Office 365 anmelden',
+    or: 'oder',
+    officeLead: 'Dein Microsoft-Passwort braucht POKYH nicht. WebUntis gibt dir dafür einen Schlüssel für Apps:',
+    officeStep1: 'Melde dich bei WebUntis mit „Office 365 Anmeldung“ an.',
+    officeStep2: 'Öffne dein Profil, Reiter „Freigaben“. Tippe bei „Zugriff über Untis Mobile“ auf „Anzeigen“.',
+    officeStep3: 'Übernimm „Benutzer“ und „Schlüssel“ hier. Du kannst auch alles auf einmal kopieren und einfügen.',
+    officeOpenLogin: 'WebUntis öffnen',
+    officeOpenProfile: 'Profil öffnen',
+    officeAdmin: 'Steht dort, dass der Zugriff erst freigeschaltet werden muss, kann das nur deine Schule ändern.',
+    officeUser: 'Benutzer',
+    officeKey: 'Schlüssel',
+    officeKeyHint: 'Geht nur an den WebUntis-Server deiner Schule.',
+    errKeyMissing: 'Bitte Benutzer und Schlüssel eingeben.',
+    errKeyBad: 'Benutzer oder Schlüssel ist falsch.',
+    errKeyInvalid: 'Das ist kein gültiger Schlüssel. Kopiere ihn genau so, wie WebUntis ihn zeigt.',
     imprint: 'Impressum',
     privacy: 'Datenschutz',
     terms: 'Nutzungsbedingungen',
@@ -160,6 +192,22 @@ export const loginDict: Dictionary<LoginKey> = {
     errUnavailable: 'WebUntis non è raggiungibile al momento. Riprova più tardi.',
     errRate: 'Troppi tentativi. Attendi 5 minuti.',
     errSchool: 'Questa scuola non è disponibile. Selezionala di nuovo.',
+    errAccount: 'Non è stato possibile configurare il tuo account su POKYH. Contatta il supporto.',
+    office: 'Accedi con Office 365',
+    or: 'oppure',
+    officeLead: 'POKYH non ha bisogno della tua password Microsoft. WebUntis ti dà una chiave per le app:',
+    officeStep1: 'Accedi a WebUntis con “Login Office 365”.',
+    officeStep2: 'Apri il tuo profilo, scheda “Attivazioni”. In “Accesso da Untis Mobile” tocca “Mostrare”.',
+    officeStep3: 'Riporta qui “Utente” e “Chiave”. Puoi anche copiare e incollare tutto in una volta.',
+    officeOpenLogin: 'Apri WebUntis',
+    officeOpenProfile: 'Apri il profilo',
+    officeAdmin: 'Se lì c’è scritto che l’accesso deve prima essere attivato, solo la tua scuola può farlo.',
+    officeUser: 'Utente',
+    officeKey: 'Chiave',
+    officeKeyHint: 'Va solo al server WebUntis della tua scuola.',
+    errKeyMissing: 'Inserisci utente e chiave.',
+    errKeyBad: 'Utente o chiave errati.',
+    errKeyInvalid: 'Questa non è una chiave valida. Copiala esattamente come la mostra WebUntis.',
     imprint: 'Note legali',
     privacy: 'Privacy',
     terms: 'Condizioni d’uso',
@@ -214,6 +262,22 @@ export const loginDict: Dictionary<LoginKey> = {
     errUnavailable: 'WebUntis is not reachable right now. Try again later.',
     errRate: 'Too many attempts. Please wait 5 minutes.',
     errSchool: 'This school is not available. Please pick it again.',
+    errAccount: 'Your account could not be set up at POKYH. Please contact support.',
+    office: 'Sign in with Office 365',
+    or: 'or',
+    officeLead: 'POKYH does not need your Microsoft password. WebUntis gives you a key for apps instead:',
+    officeStep1: 'Sign in to WebUntis with “Office 365 login”.',
+    officeStep2: 'Open your profile, tab “Data access”. Under “Access via Untis Mobile”, tap “Display”.',
+    officeStep3: 'Copy “User” and “Key” here. You can also copy and paste everything at once.',
+    officeOpenLogin: 'Open WebUntis',
+    officeOpenProfile: 'Open profile',
+    officeAdmin: 'If it says the access has to be activated first, only your school can do that.',
+    officeUser: 'User',
+    officeKey: 'Key',
+    officeKeyHint: 'Only sent to your school’s WebUntis server.',
+    errKeyMissing: 'Please enter your user and key.',
+    errKeyBad: 'Wrong user or key.',
+    errKeyInvalid: 'That is not a valid key. Copy it exactly as WebUntis shows it.',
     imprint: 'Imprint',
     privacy: 'Privacy',
     terms: 'Terms of use',

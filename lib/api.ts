@@ -771,8 +771,11 @@ export function untisGet(path: string, init?: RequestInit): Promise<Response> {
   return fetch(untisUrl(path), untisInit(init));
 }
 
-/** Signs in with WebUntis through the API (the sign-in page). */
-export function untisSignIn(body: { username: string; password: string; school: { loginName: string; server: string; name?: string } }): Promise<Response> {
+/**
+ * Signs in with WebUntis through the API (the sign-in page): with the password,
+ * or with the account's app key (Office 365 schools, lib/app-access.ts).
+ */
+export function untisSignIn(body: { username: string; school: { loginName: string; server: string; name?: string } } & ({ password: string } | { key: string })): Promise<Response> {
   return fetch(untisUrl('/api/webuntis/login'), untisInit({
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
