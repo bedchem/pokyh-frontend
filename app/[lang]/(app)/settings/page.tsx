@@ -1,14 +1,16 @@
 'use client';
 
-import { Suspense, useEffect, useState, useSyncExternalStore } from 'react';
+import { Suspense, useEffect, useState, useSyncExternalStore, type FormEvent } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Check } from '@phosphor-icons/react';
+import { Check, DownloadSimple } from '@phosphor-icons/react';
 import AuthGuard from '@/components/AuthGuard';
 import Sheet from '@/components/ui/Sheet';
 import Spinner from '@/components/ui/Spinner';
 import { Button } from '@/components/ui/Button';
+import { FormStatus, TextField } from '@/components/ui/Field';
 import ChangePasswordForm from '@/components/account/ChangePasswordForm';
 import ForgotPasswordForm from '@/components/account/ForgotPasswordForm';
+import TwoFactorSheet from '@/components/account/TwoFactorSheet';
 import { COOKIE_SETTINGS_EVENT } from '@/components/CookieSettingsButton';
 import { Page, PageHeader, Segmented, Switch } from '@/components/app/Page';
 import { Group, Item, LinkItem } from '@/components/app/SettingsRows';
@@ -22,6 +24,9 @@ import { ACTIVE_LOCALES, LOCALE_NAMES, type Locale } from '@/lib/i18n/locale';
 import { settingsDict } from '@/lib/i18n/dictionaries/settings';
 import { untisActionsDict } from '@/lib/i18n/dictionaries/untisActions';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
+import { securityDict } from '@/lib/i18n/dictionaries/security';
+import { fetchUntisAccount, saveUntisAccount, type UntisAccount } from '@/lib/api';
+import { api } from '@/lib/api-client';
 import { USAGE_CONSENT_EVENT, fetchPrivacyStatus, setUsageStatsConsent, type PrivacyStatus } from '@/lib/privacy-consent';
 import { requestPermissionAndSubscribe } from '@/lib/push';
 import { pcClear } from '@/lib/persist-cache';
@@ -30,9 +35,25 @@ import { REPO_URLS } from '@/lib/site-links';
 
 // Settings, set out like the public FAQ: each group's name on the left (it
 // stays in view on wide screens), its settings on the right as rows under
-// thin rules — no boxes around them.
+// thin rules — no boxes around them. In order: how POKYH looks, the account
+// (its WebUntis settings), its security (devices, two-factor sign-in,
+// password), notifications, privacy (with the data download), storage, about.
 
 type Theme = 'light' | 'dark' | 'system';
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Saves the file the browser received under its own name. */
+function saveFile(blob: Blob, name: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
 
 const noopSubscribe = () => () => {};
 const readPush = (): NotificationPermission | 'unsupported' =>
@@ -89,6 +110,65 @@ function SettingsContent() {
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const untis = user?.isUntisUser !== false;
+  const ts = useT(securityDict);
+  // The WebUntis account's own settings; null while loading, false when it could not be read.
+  const [account, setAccount] = useState<UntisAccount | null | false>(null);
+  const [accountSaving, setAccountSaving] = useState<string | null>(null);
+  const [accountError, setAccountError] = useState('');
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailDraft, setEmailDraft] = useState('');
+  const [emailStatus, setEmailStatus] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+  const [twoFactor, setTwoFactor] = useState<'setup' | 'disable' | null>(null);
+  const [deviceCount, setDeviceCount] = useState<number | null>(null);
+  const [exporting, setExporting] = useState<'idle' | 'busy' | 'done'>('idle');
+  const [exportError, setExportError] = useState('');
+
+  useEffect(() => {
+    let alive = true;
+    api.account.devices().then((d) => { if (alive) setDeviceCount(d.length); }).catch(() => {});
+    if (untis) fetchUntisAccount().then((a) => { if (alive) setAccount(a); }).catch(() => { if (alive) setAccount(false); });
+    return () => { alive = false; };
+  }, [untis]);
+
+  async function saveAccount(key: string, change: Parameters<typeof saveUntisAccount>[0]) {
+    if (!account) return false;
+    setAccountSaving(key);
+    setAccountError('');
+    try {
+      await saveUntisAccount(change);
+      setAccount({ ...account, profile: { ...account.profile, ...change } });
+      return true;
+    } catch (err) {
+      setAccountError(err instanceof Error && err.message && err.message !== 'session_expired' ? err.message : t('saveError'));
+      return false;
+    } finally {
+      setAccountSaving(null);
+    }
+  }
+
+  async function saveEmail(e: FormEvent) {
+    e.preventDefault();
+    const email = emailDraft.trim();
+    if (email && !EMAIL.test(email)) {
+      setEmailStatus({ kind: 'error', text: ts('emailInvalid') });
+      return;
+    }
+    setEmailStatus(null);
+    if (await saveAccount('email', { email })) setEmailStatus({ kind: 'success', text: ts('emailSaved') });
+  }
+
+  async function downloadData() {
+    setExporting('busy');
+    setExportError('');
+    try {
+      const blob = await api.account.exportData();
+      saveFile(blob, `pokyh-daten-${new Date().toISOString().slice(0, 10)}.json`);
+      setExporting('done');
+    } catch (err) {
+      setExportError(err instanceof Error && err.message ? err.message : ts('failed'));
+      setExporting('idle');
+    }
+  }
 
   useEffect(() => {
     let alive = true;
@@ -171,16 +251,81 @@ function SettingsContent() {
         </Group>
 
         {untis && (
-          <Group id="account" title={t('account')}>
-            <Item title={t('password')} hint={t('passwordHint')}>
-              <Button variant="quiet" onClick={() => setSheet('password')}>{ta('pwSave')}</Button>
-            </Item>
-            <Item title={t('forgot')} hint={t('forgotHint')}>
-              <Button variant="quiet" onClick={() => setSheet('forgot')}>{ta('resetSend')}</Button>
-            </Item>
+          <Group id="account" title={ts('account')}>
             <LinkItem href="/profile" title={t('profile')} hint={t('profileHint')} />
+            {account === null ? (
+              <div className="flex flex-col gap-3 border-t border-line py-5" aria-hidden="true">
+                <Bone className="h-4 w-40" />
+                <Bone className="h-3.5 w-64" />
+              </div>
+            ) : account === false ? (
+              <Item title={ts('email')} hint={ts('accountError')} />
+            ) : (
+              <>
+                <Item title={ts('email')} hint={account.profile.email || ts('emailNone')}>
+                  <Button
+                    variant="quiet"
+                    onClick={() => { setEmailDraft(account.profile.email); setEmailStatus(null); setEmailOpen(true); }}
+                  >
+                    {account.profile.email ? ts('emailChange') : ts('emailAdd')}
+                  </Button>
+                </Item>
+                <Item title={ts('forward')} hint={account.profile.email ? ts('forwardHint') : ts('forwardNeedsEmail')}>
+                  <Switch
+                    label={ts('forward')}
+                    checked={account.profile.forwardMessageToEmail}
+                    disabled={!account.profile.email || accountSaving !== null}
+                    onChange={(v) => void saveAccount('forward', { forwardMessageToEmail: v })}
+                  />
+                </Item>
+                {account.languages.length > 0 && (
+                  <Item title={ts('untisLanguage')} hint={ts('untisLanguageHint')}>
+                    <select
+                      aria-label={ts('untisLanguage')}
+                      value={account.profile.languageCode}
+                      disabled={accountSaving !== null}
+                      onChange={(e) => void saveAccount('language', { languageCode: e.target.value })}
+                      className="h-11 max-w-[220px] rounded-[14px] bg-inset px-3.5 text-[15px] font-semibold text-ink outline-none transition-shadow focus:shadow-[0_0_0_2px_var(--accent)] disabled:opacity-50"
+                    >
+                      {account.languages.map((l) => <option key={l.key} value={l.key}>{l.name}</option>)}
+                    </select>
+                  </Item>
+                )}
+                {accountError && <p role="alert" className="border-t border-line py-3 text-[14px] font-semibold text-danger-ink">{accountError}</p>}
+              </>
+            )}
           </Group>
         )}
+
+        <Group id="security" title={ts('security')}>
+          <LinkItem
+            href="/settings/devices"
+            title={ts('devices')}
+            hint={deviceCount === null ? ts('devicesHint') : deviceCount <= 1 ? ts('devicesOne') : ts('devicesCount', { n: deviceCount })}
+          />
+          {untis && account && account.twoFactor.available && (
+            <Item
+              title={ts('twoFactor')}
+              hint={!account.twoFactor.enabled ? ts('twoFactorOff') : account.twoFactor.required ? ts('twoFactorRequired') : ts('twoFactorOn')}
+            >
+              {!account.twoFactor.enabled ? (
+                <Button variant="tone" onClick={() => setTwoFactor('setup')}>{ts('twoFactorSetup')}</Button>
+              ) : !account.twoFactor.required ? (
+                <Button variant="quiet" onClick={() => setTwoFactor('disable')}>{ts('twoFactorDisable')}</Button>
+              ) : null}
+            </Item>
+          )}
+          {untis && (
+            <>
+              <Item title={t('password')} hint={t('passwordHint')}>
+                <Button variant="quiet" onClick={() => setSheet('password')}>{ta('pwSave')}</Button>
+              </Item>
+              <Item title={t('forgot')} hint={t('forgotHint')}>
+                <Button variant="quiet" onClick={() => setSheet('forgot')}>{ta('resetSend')}</Button>
+              </Item>
+            </>
+          )}
+        </Group>
 
         <Group id="notifications" title={t('notifications')}>
           <Item
@@ -215,6 +360,22 @@ function SettingsContent() {
           />
           <Item title={t('cookies')} hint={t('cookiesHint')}>
             <Button variant="quiet" onClick={() => window.dispatchEvent(new Event(COOKIE_SETTINGS_EVENT))}>{tc('cookieOpenSettings')}</Button>
+          </Item>
+          <Item
+            title={ts('exportTitle')}
+            hint={<>{ts('exportHint')}{exportError && <span role="alert" className="mt-1 block font-semibold text-danger-ink">{exportError}</span>}</>}
+          >
+            {exporting === 'done' ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-sage px-3 py-1.5 text-[14px] font-bold text-sage-ink">
+                <Check size={15} weight="bold" aria-hidden="true" />
+                {ts('exportDone')}
+              </span>
+            ) : (
+              <Button variant="quiet" disabled={exporting === 'busy'} onClick={() => void downloadData()}>
+                {exporting === 'busy' ? <Spinner size={16} /> : <DownloadSimple size={17} weight="bold" aria-hidden="true" />}
+                {exporting === 'busy' ? ts('exporting') : ts('exportButton')}
+              </Button>
+            )}
           </Item>
           <LinkItem href="/legal/datenschutz" title={t('policy')} />
         </Group>
@@ -264,6 +425,28 @@ function SettingsContent() {
       <Sheet open={sheet === 'forgot'} onClose={() => setSheet(null)} title={ta('resetTitle')} description={ta('resetLead')} closeLabel={tc('close')}>
         <div className="pb-4"><ForgotPasswordForm initialUsername={user?.username ?? ''} /></div>
       </Sheet>
+      <Sheet open={emailOpen} onClose={() => setEmailOpen(false)} title={ts('email')} description={ts('emailLead')} closeLabel={tc('close')}>
+        <form onSubmit={saveEmail} className="flex flex-col gap-4 pb-4" noValidate>
+          <TextField
+            label={ts('email')}
+            type="email"
+            autoComplete="email"
+            inputMode="email"
+            maxLength={200}
+            value={emailDraft}
+            onChange={(e) => { setEmailDraft(e.target.value); setEmailStatus(null); }}
+          />
+          {emailStatus && <FormStatus kind={emailStatus.kind}>{emailStatus.text}</FormStatus>}
+          <Button type="submit" disabled={accountSaving !== null} className="self-start">
+            {accountSaving === 'email' ? ts('emailSaving') : ts('emailSave')}
+          </Button>
+        </form>
+      </Sheet>
+      <TwoFactorSheet
+        mode={twoFactor}
+        onClose={() => setTwoFactor(null)}
+        onChanged={(enabled) => setAccount((a) => (a ? { ...a, twoFactor: { ...a.twoFactor, enabled } } : a))}
+      />
     </Page>
   );
 }

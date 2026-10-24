@@ -33,6 +33,18 @@ export const API_KEY = process.env.NEXT_PUBLIC_API_BACKEND_KEY ?? process.env.NE
 export const apiUrl = (path: string) => `${API_BASE}${path}`;
 
 /**
+ * Sent with sign-ins and token renewals: "pwa" when the website runs installed
+ * to the home screen, so the account's device list says so (the API tells
+ * browser and system from the User-Agent itself).
+ */
+export function clientHeaders(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  const standalone = window.matchMedia?.('(display-mode: standalone)').matches
+    || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  return standalone ? { 'X-Pokyh-Client': 'pwa' } : {};
+}
+
+/**
  * The website's former /api/… addresses (still the keys of the data stored
  * on the device) mapped to the API: /api/webuntis/x → <API>/webuntis/x.
  */

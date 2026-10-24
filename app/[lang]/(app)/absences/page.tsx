@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarBlank, CaretDown, CheckCircle, FilePdf, PaperPlaneTilt, Plus, XCircle } from '@phosphor-icons/react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -15,7 +15,7 @@ import ErrorView from '@/components/ui/ErrorView';
 // Abwesenheit-melden deaktiviert (kein funktionierender WebUntis-Schreib-Endpunkt):
 import ReportAbsenceSheet from '@/components/absences/ReportAbsenceSheet';
 import ExcuseSheet from '@/components/absences/ExcuseSheet';
-import { fetchAbsences, fetchExcuses, fetchTimetableForCalc, getAbsencesStale, getExcusesStale, excuseLetterUrl, type ExcuseResult } from '@/lib/api';
+import { fetchAbsences, fetchAbsenceTimes, fetchExcuses, fetchTimetableForCalc, getAbsencesStale, getAbsenceTimesStale, getExcusesStale, excuseLetterUrl, type AbsenceTimes, type ExcuseResult } from '@/lib/api';
 import { useUntisPermissions } from '@/components/app/hooks';
 import { untisActionsDict } from '@/lib/i18n/dictionaries/untisActions';
 import { useSession, leaveForLogin } from '@/providers/SessionProvider';
@@ -263,6 +263,21 @@ export default function AbsencesPage() {
   const [sentNow, setSentNow] = useState<SentExcuse[]>([]);
   const [letterOpen, setLetterOpen] = useState(false);
   const ta = useT(untisActionsDict);
+  // The missed lessons as the school counts them (WebUntis "Fehlzeiten"):
+  // the minutes of each absence and the sums per subject. Where they are
+  // there, they are what the page shows; the timetable is only needed for
+  // the rate's whole (all lessons of the year).
+  const [liveTimes, setLiveTimes] = useState<{ year: number; data: AbsenceTimes } | null>(null);
+  const times = useMemo(
+    () => (liveTimes?.year === selectedYear ? liveTimes.data : getAbsenceTimesStale(selectedYear) ?? null),
+    [liveTimes, selectedYear],
+  );
+
+  useEffect(() => {
+    let alive = true;
+    fetchAbsenceTimes(selectedYear).then((data) => { if (alive) setLiveTimes({ year: selectedYear, data }); }).catch(() => {});
+    return () => { alive = false; };
+  }, [selectedYear]);
 
   const fmt = (m: number) => exact ? formatMinutes(m) : roundHours(m);
 
@@ -375,7 +390,20 @@ export default function AbsencesPage() {
     return () => document.removeEventListener('mousedown', onDown);
   }, []);
 
-  const getMin = (e: AbsenceEntry) => minutesMap.get(e.id) ?? e.hours * 50;
+  // The school's own minutes per absence first, the worked-out ones where it has none.
+  const minutesFor = useMemo(() => {
+    const merged = new Map(minutesMap);
+    if (times?.lessons?.length) {
+      const official = new Map<number, number>();
+      for (const l of times.lessons) official.set(l.absenceId, (official.get(l.absenceId) ?? 0) + l.minutes);
+      for (const [id, m] of official) merged.set(id, m);
+    }
+    return merged;
+  }, [minutesMap, times]);
+
+  const getMin = (e: AbsenceEntry) => minutesFor.get(e.id) ?? e.hours * 50;
+  const subjects = times?.bySubject.filter((s) => s.minutes > 0) ?? [];
+  const subjectMax = Math.max(1, ...subjects.map((s) => s.minutes));
 
   const totalMinutes    = absences.reduce((a, e) => a + getMin(e), 0);
   const excusedMinutes  = absences.filter((e) => e.isExcused).reduce((a, e) => a + getMin(e), 0);
@@ -383,7 +411,7 @@ export default function AbsencesPage() {
 
   const rate      = totalPossibleMins > 0 ? Math.min((totalMinutes / totalPossibleMins) * 100, 100) : 0;
 
-  const groups = groupByMonth(absences, minutesMap, tag);
+  const groups = groupByMonth(absences, minutesFor, tag);
 
   const rateInk = rate < 5 ? 'text-success-ink' : rate < 15 ? 'text-butter-ink' : 'text-danger-ink';
   const unexcusedIds = absences.filter((a) => !a.isExcused).map((a) => a.id);
@@ -538,6 +566,39 @@ export default function AbsencesPage() {
                   </div>
                 </div>
                 </div>
+
+                {subjects.length > 0 && (
+                  <div className="squircle flex flex-col rounded-[24px] bg-surface p-5 md:p-6">
+                    <p className="text-[14px] font-semibold text-ink-2">{t('perSubject')}</p>
+                    <p className="mt-0.5 text-[13px] text-ink-3">{t('perSubjectHint')}</p>
+                    <ul className="mt-4 grid gap-x-8 gap-y-4 md:grid-cols-2">
+                      {subjects.map((s, i) => (
+                        <li key={s.subject} className="min-w-0">
+                          <div className="flex items-baseline justify-between gap-3">
+                            <span className="min-w-0 truncate text-[15px] font-semibold">
+                              {s.subject}
+                              {s.teacher && <span className="font-normal text-ink-3"> · {s.teacher}</span>}
+                            </span>
+                            <span className="shrink-0 text-[15px] font-bold tnum">{fmt(s.minutes)}</span>
+                          </div>
+                          <span className="mt-1.5 flex h-2 gap-[3px] overflow-hidden rounded-full bg-inset">
+                            <span
+                              className="rounded-full bg-accent transition-[width] duration-700 ease-[var(--ease-out)]"
+                              style={{ width: `${((s.minutes - s.unexcusedMinutes) / subjectMax) * 100}%`, transitionDelay: `${Math.min(i, 10) * 30}ms` }}
+                            />
+                            {s.unexcusedMinutes > 0 && (
+                              <span className="rounded-full bg-danger" style={{ width: `${(s.unexcusedMinutes / subjectMax) * 100}%` }} />
+                            )}
+                          </span>
+                          <p className="mt-1 text-[12.5px] text-ink-3 tnum">
+                            {t('subjectLessons', { n: s.hours })}
+                            {s.unexcusedMinutes > 0 && <span className="text-danger-ink"> · {t('subjectUnexcused', { time: fmt(s.unexcusedMinutes) })}</span>}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
                 {unexcusedIds.length > 0 && (
                   // Opens in the viewer, with its download button beside it.

@@ -27,14 +27,16 @@
   overscroll-behavior: none;
 }
 
-/* Same columns as the other app pages (components/app/Page.tsx). */
+/* The other app pages' margins (components/app/Page.tsx), on a narrower
+   column: on a wide screen the week stays in the middle at a width it reads
+   well at, instead of stretching every lesson into a long flat bar. */
 .page {
   height: 100%;
   padding: 0 0 12px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-width: 1440px;
+  max-width: 1200px;
   margin: 0 auto;
 }
 @media (min-width: 768px) { .page { gap: 18px; padding-bottom: 24px; } }
@@ -514,6 +516,15 @@
   background: var(--accent);
   color: #fff;
 }
+/* Tablets and computers (data-wide): the day's name and date side by side and
+   a size larger, so the lessons under them keep the height. */
+.grid[data-wide] .dayHead {
+  flex-direction: row;
+  justify-content: center;
+  gap: 6px;
+}
+.grid[data-wide] .dayHeadLabel { font-size: 13px; line-height: 16px; font-weight: 600; }
+.grid[data-wide] .dayDisc { width: 28px; height: 28px; font-size: 14px; }
 /* Its margins (WeekGrid) leave room for the first and last time on the axis. */
 .gridBody {
   position: relative;
@@ -651,6 +662,10 @@
 .cellTight .lineTeacher,
 .cellTight .lineRoom { font-size: calc(7px * var(--s)); line-height: calc(7.5px * var(--s)); }
 .cellTight .partChip { padding: 0 3px; line-height: inherit; }
+/* With width to spend (WeekGrid's PAIR_HEIGHT): the subject at full size over
+   teacher and room on one line. */
+.cellPair .line { gap: calc(4px * var(--s)); }
+.cellPair .lineTeacher { font-size: calc(8.5px * var(--s)); line-height: calc(10.5px * var(--s)); }
 
 .line {
   display: flex;

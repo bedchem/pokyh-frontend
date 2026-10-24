@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { addDays, format } from 'date-fns';
-import { PencilSimple, UserMinus, WifiSlash } from '@phosphor-icons/react';
+import { PencilSimple, Umbrella, UserMinus, WifiSlash } from '@phosphor-icons/react';
 import AuthGuard from '@/components/AuthGuard';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { Page, Section, SectionLink } from '@/components/app/Page';
@@ -36,6 +36,12 @@ import { shellDict } from '@/lib/i18n/dictionaries/shell';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
 import { formatDate, formatTime } from '@/lib/i18n/dateLocale';
 import { byEntered, observeGrades } from '@/lib/grade-order';
+import { useHolidayName, useHolidays } from '@/components/app/useHolidays';
+import { currentOrNextHoliday } from '@/lib/holidays';
+import { holidaysDict } from '@/lib/i18n/dictionaries/holidays';
+
+// The holidays shown under the date once they are this close.
+const HOLIDAY_AHEAD_DAYS = 45;
 
 // ── Parsing ───────────────────────────────────────────────────────────────────
 
@@ -160,6 +166,9 @@ function Dashboard() {
   const localize = useLocalizeHref();
   const { openCompose, openReport } = useAppActions();
   const untis = user?.isUntisUser !== false;
+  const th = useT(holidaysDict);
+  const holidays = useHolidays(untis);
+  const holidayName = useHolidayName();
 
   const [exams, setExams] = useState<TimetableEntry[]>([]);
   const [grades, setGrades] = useState<GradeSummary>({ avg: null, subjects: 0, recent: [] });
@@ -314,6 +323,15 @@ function Dashboard() {
   const hour = new Date().getHours();
   const greeting = hour < 11 ? t('morning') : hour < 17 ? t('day') : t('evening');
   const dateLine = [formatDate(new Date(), tag, { weekday: 'long', day: 'numeric', month: 'long' }), user?.klasseName].filter(Boolean).join(' · ');
+  // The holidays going on, or the next ones once they are close.
+  const holidayLine = (() => {
+    const today = isoDate(new Date());
+    const h = currentOrNextHoliday(holidays, today);
+    if (!h || (!h.now && h.inDays > HOLIDAY_AHEAD_DAYS)) return '';
+    const name = holidayName(h.holiday);
+    if (h.now) return th('nowUntil', { name, date: formatDate(new Date(`${h.holiday.end}T12:00:00`), tag, { day: 'numeric', month: 'long' }) });
+    return h.inDays === 1 ? th('tomorrow', { name }) : th('inDays', { name, n: h.inDays });
+  })();
 
   const messageDate = useCallback((s: string) => {
     if (!s) return '';
@@ -359,6 +377,12 @@ function Dashboard() {
             ) : null}
           </h1>
           <p className="mt-2 text-[15px] text-ink-2 md:text-[17px]">{dateLine}</p>
+          {holidayLine && (
+            <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-sage px-3.5 py-1.5 text-[13.5px] font-semibold text-sage-ink">
+              <Umbrella size={16} weight="bold" aria-hidden="true" />
+              {holidayLine}
+            </p>
+          )}
         </div>
         {actions && <div className={`grid gap-2 md:flex md:shrink-0 ${openReport ? 'grid-cols-2' : 'grid-cols-1'}`}>{actions}</div>}
       </header>

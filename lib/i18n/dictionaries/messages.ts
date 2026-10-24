@@ -21,6 +21,15 @@ export type MessagesKey =
   | 'deleteDraft'
   | 'draftOpenFailed'
   | 'draftDeleteFailed'
+  | 'select'
+  | 'selectDone'
+  | 'selected'
+  | 'selectAll'
+  | 'deleteSelected'
+  | 'deleteConfirm'
+  | 'deleteFailed'
+  | 'deleteMessage'
+  | 'deleteMessageConfirm'
   // Detail page
   | 'message'
   | 'attachment'
@@ -92,6 +101,15 @@ export const messagesDict: Dictionary<MessagesKey> = {
     deleteDraft: 'Entwurf löschen',
     draftOpenFailed: 'Der Entwurf konnte nicht geöffnet werden.',
     draftDeleteFailed: 'Der Entwurf konnte nicht gelöscht werden.',
+    select: 'Auswählen',
+    selectDone: 'Fertig',
+    selected: '{n} ausgewählt',
+    selectAll: 'Alle auswählen',
+    deleteSelected: 'Löschen',
+    deleteConfirm: 'Wirklich löschen?',
+    deleteFailed: 'Nicht alle Nachrichten konnten gelöscht werden.',
+    deleteMessage: 'Löschen',
+    deleteMessageConfirm: 'Wirklich löschen?',
     message: 'Nachricht',
     attachment: 'Anhang',
     attachmentsLoading: 'Anhänge werden geladen…',
@@ -156,6 +174,15 @@ export const messagesDict: Dictionary<MessagesKey> = {
     deleteDraft: 'Elimina bozza',
     draftOpenFailed: 'Impossibile aprire la bozza.',
     draftDeleteFailed: 'Impossibile eliminare la bozza.',
+    select: 'Seleziona',
+    selectDone: 'Fine',
+    selected: '{n} selezionati',
+    selectAll: 'Seleziona tutti',
+    deleteSelected: 'Elimina',
+    deleteConfirm: 'Eliminare davvero?',
+    deleteFailed: 'Non tutti i messaggi sono stati eliminati.',
+    deleteMessage: 'Elimina',
+    deleteMessageConfirm: 'Eliminare davvero?',
     message: 'Messaggio',
     attachment: 'Allegato',
     attachmentsLoading: 'Caricamento allegati…',
@@ -220,6 +247,15 @@ export const messagesDict: Dictionary<MessagesKey> = {
     deleteDraft: 'Delete draft',
     draftOpenFailed: 'The draft couldn’t be opened.',
     draftDeleteFailed: 'The draft couldn’t be deleted.',
+    select: 'Select',
+    selectDone: 'Done',
+    selected: '{n} selected',
+    selectAll: 'Select all',
+    deleteSelected: 'Delete',
+    deleteConfirm: 'Really delete?',
+    deleteFailed: 'Not all messages could be deleted.',
+    deleteMessage: 'Delete',
+    deleteMessageConfirm: 'Really delete?',
     message: 'Message',
     attachment: 'Attachment',
     attachmentsLoading: 'Loading attachments…',
@@ -281,6 +317,15 @@ export const messagesDict: Dictionary<MessagesKey> = {
     deleteDraft: "Scancelé la sboza",
     draftOpenFailed: "La sboza ne n’à nia pudù vester giaurida.",
     draftDeleteFailed: "La sboza ne n’à nia pudù vester scancelëda.",
+    select: "Cerni",
+    selectDone: "Fat",
+    selected: "{n} cernudes",
+    selectAll: "Cerni dutes",
+    deleteSelected: "Scancelé",
+    deleteConfirm: "Propi scancelé?",
+    deleteFailed: "Nia dutes la nutizies ne n’à pudù vester scancelëdes.",
+    deleteMessage: "Scancelé",
+    deleteMessageConfirm: "Propi scancelé?",
     message: "Nutizia",
     attachment: "Alegat",
     attachmentsLoading: "I alegac se cëria…",

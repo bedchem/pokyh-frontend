@@ -21,7 +21,7 @@ import {
 import { readCookieChoice, COOKIE_CONSENT_EVENT } from '@/lib/cookie-consent';
 import { rememberPendingAck } from '@/lib/privacy-consent';
 import { API_BASE, API_KEY, rememberSignIn, untisUrl, type SignInAnswer } from '@/lib/backend';
-import { untisSignIn } from '@/lib/api';
+import { SIGNED_OUT_ELSEWHERE_KEY, untisSignIn } from '@/lib/api';
 import { useSession } from '@/providers/SessionProvider';
 import { forgetSchoolChoice, readSchoolChoice, saveSchoolChoice, type SchoolChoice } from '@/lib/school-choice';
 import { prefersReducedMotion } from '@/lib/motion';
@@ -120,6 +120,7 @@ const ERROR_KEYS: Record<string, LoginKey> = {
   school_invalid: 'errSchool',
   missing: 'errMissing',
   account_refused: 'errAccount',
+  two_factor_invalid: 'errCodeWrong',
 };
 
 // The same answers to a sign-in with the app key, in its words.
@@ -211,6 +212,19 @@ function rememberedSnapshot(): SchoolChoice | null {
   if (!rememberedCache) rememberedCache = { value: readSchoolChoice() };
   return rememberedCache.value;
 }
+// Signed out from another device (lib/api.ts): said once, then forgotten.
+let signedOutElsewhere: boolean | null = null;
+function signedOutElsewhereSnapshot(): boolean {
+  if (signedOutElsewhere === null) {
+    try {
+      signedOutElsewhere = sessionStorage.getItem(SIGNED_OUT_ELSEWHERE_KEY) === '1';
+      sessionStorage.removeItem(SIGNED_OUT_ELSEWHERE_KEY);
+    } catch {
+      signedOutElsewhere = false;
+    }
+  }
+  return signedOutElsewhere;
+}
 
 export default function LoginForm() {
   const t = useT(loginDict);
@@ -220,6 +234,7 @@ export default function LoginForm() {
 
   const ready = useSyncExternalStore(noop, () => true, () => false);
   const storedSchool = useSyncExternalStore(noop, rememberedSnapshot, () => null);
+  const signedOutHere = useSyncExternalStore(noop, signedOutElsewhereSnapshot, () => false);
   // undefined: nothing picked on this page yet, the remembered school applies.
   const [picked, setPicked] = useState<SchoolChoice | null | undefined>(undefined);
   const [remembered, setRemembered] = useState<SchoolChoice | null | undefined>(undefined);
@@ -231,6 +246,11 @@ export default function LoginForm() {
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  // Accounts with two-factor authentication: after the password, the code of
+  // the authenticator app (WebUntis answered `two_factor_required`).
+  const [codeStep, setCodeStep] = useState(false);
+  const [code, setCode] = useState('');
+  const codeInput = useRef<HTMLInputElement>(null);
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState('');
@@ -405,7 +425,20 @@ export default function LoginForm() {
     setQuery('');
     setActive(0);
     setError('');
+    setCodeStep(false);
+    setCode('');
   });
+
+  const leaveCodeStep = () => {
+    setCodeStep(false);
+    setCode('');
+    setError('');
+  };
+
+  // The code field takes the focus as soon as it is there.
+  useEffect(() => {
+    if (codeStep) codeInput.current?.focus({ preventScroll: true });
+  }, [codeStep]);
 
   // Picking a school: the row flies up into the chip above the form.
   const choose = (s: SchoolChoice, row?: HTMLElement | null) => {
@@ -438,6 +471,15 @@ export default function LoginForm() {
       setError(t('errMissing'));
       return;
     }
+    if (codeStep) {
+      const digits = code.replace(/\s+/g, '');
+      if (!/^\d{6}$/.test(digits)) {
+        setError(t('errCodeFormat'));
+        return;
+      }
+      await signIn(username.trim(), { password }, setError, digits);
+      return;
+    }
     // The browser filling in the key it saved for the Office 365 sign-in.
     const credential: Credential = options?.office365 && looksLikeAppKey(password) ? { key: password.trim() } : { password };
     await signIn(username.trim(), credential, setError);
@@ -458,8 +500,9 @@ export default function LoginForm() {
   }
 
   // Signs in with the password or the app key; `fail` says what went wrong
-  // where the person is looking (the form or the Office 365 sheet).
-  async function signIn(user: string, credential: Credential, fail: (message: string) => void) {
+  // where the person is looking (the form or the Office 365 sheet). `token`:
+  // the authenticator app's code, for accounts with two-factor authentication.
+  async function signIn(user: string, credential: Credential, fail: (message: string) => void, token?: string) {
     if (!school) return;
     // The notice was shown next to the form; recorded right after signing in (PrivacyGate).
     rememberPendingAck();
@@ -479,8 +522,17 @@ export default function LoginForm() {
         username: user,
         ...credential,
         school: { loginName: school.loginName, server: school.server, name: school.name },
+        ...(token ? { token } : {}),
       });
       const untisData = (await untisRes.json().catch(() => ({}))) as { ok?: boolean; code?: string } & SignInAnswer;
+
+      // The password was right; WebUntis wants the authenticator app's code too.
+      if (untisData.code === 'two_factor_required') {
+        setCodeStep(true);
+        setLoading(false);
+        setLoadingMsg('');
+        return;
+      }
 
       if (untisRes.ok && untisData.ok) {
         rememberSignIn(untisData);
@@ -500,7 +552,7 @@ export default function LoginForm() {
       }
 
       // Wrong WebUntis credentials may still be a POKYH-only account.
-      if (!withKey && (untisData.code === 'bad_credentials' || untisData.code === 'refused')) {
+      if (!withKey && !token && (untisData.code === 'bad_credentials' || untisData.code === 'refused')) {
         setLoadingMsg(t('checkingPokyh'));
         const pokyhRes = await fetch(`${API_BASE}/auth/web/local-login`, {
           method: 'POST',
@@ -518,6 +570,7 @@ export default function LoginForm() {
         }
       }
 
+      if (untisData.code === 'two_factor_invalid') setCode('');
       const key = untisData.code ? (withKey ? KEY_ERROR_KEYS : ERROR_KEYS)[untisData.code] : undefined;
       fail(t(key ?? 'errFailed'));
       happen('error');
@@ -585,6 +638,11 @@ export default function LoginForm() {
           <div className="mb-5 lg:hidden"><MascotBadge state={mascot} /></div>
           <h1 id="login-title" className="font-display text-[clamp(38px,5vw,52px)] leading-[0.95]">{t('title')}</h1>
           <p className="mt-2 text-[15px] text-ink-3">{t('subtitle')}</p>
+          {signedOutHere && (
+            <p role="status" className="mt-4 rounded-[12px] bg-[var(--butter)] px-3.5 py-2.5 text-[13.5px] font-medium leading-[1.45] text-[var(--butter-ink)]">
+              {t('signedOutElsewhere')}
+            </p>
+          )}
 
           {!ready ? (
             <div className="mt-8 h-[180px]" aria-hidden="true" />
@@ -715,6 +773,31 @@ export default function LoginForm() {
 
               {options?.password !== false && (
               <form onSubmit={handleLogin} className={`${options?.office365 ? 'mt-2.5' : 'mt-4'} flex flex-col gap-2.5`} noValidate>
+                {codeStep ? (
+                  <>
+                    <div className="px-1">
+                      <p className="text-[17px] font-bold tracking-[-0.015em]">{t('codeTitle')}</p>
+                      <p className="mt-1 text-[14px] leading-[1.5] text-ink-2">{t('codeHint')}</p>
+                    </div>
+                    <label htmlFor="login-code" className="visually-hidden">{t('codeLabel')}</label>
+                    <div className="login-field flex h-[54px] items-center gap-3 rounded-[16px] bg-[var(--surface)] px-4 transition-shadow focus-within:shadow-[0_0_0_2px_var(--accent-ink)]">
+                      <input
+                        ref={codeInput}
+                        id="login-code"
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        pattern="[0-9 ]*"
+                        placeholder="123 456"
+                        value={code}
+                        onChange={(e) => { setCode(e.target.value.replace(/[^\d ]/g, '').slice(0, 7)); typed(); }}
+                        maxLength={7}
+                        className="h-full min-w-0 flex-1 bg-transparent text-[20px] font-semibold tracking-[0.18em] outline-none placeholder:text-ink-3 placeholder:tracking-[0.18em]"
+                      />
+                    </div>
+                  </>
+                ) : (
+                <>
                 <label htmlFor="login-user" className="visually-hidden">{t('username')}</label>
                 <div className="login-field flex h-[54px] items-center gap-3 rounded-[16px] bg-[var(--surface)] px-4 transition-shadow focus-within:shadow-[0_0_0_2px_var(--accent-ink)]">
                   <input
@@ -758,6 +841,8 @@ export default function LoginForm() {
                     {showPw ? <EyeSlash size={17} weight="bold" aria-hidden="true" /> : <Eye size={17} weight="bold" aria-hidden="true" />}
                   </button>
                 </div>
+                </>
+                )}
 
                 {error && (
                   <p role="alert" className="px-1 text-[13.5px] font-medium leading-[1.45] text-[var(--blush-ink)]">{error}</p>
@@ -770,9 +855,15 @@ export default function LoginForm() {
                     <>{t('login')}<span aria-hidden="true" className="key-arrow">→</span></>
                   )}
                 </button>
-                <button type="button" onClick={() => setForgotOpen(true)} className="mt-1 self-center rounded-full px-3 py-1.5 text-[13px] font-semibold text-ink-3 transition-colors hover:text-ink">
-                  {ta('forgot')}
-                </button>
+                {codeStep ? (
+                  <button type="button" onClick={leaveCodeStep} disabled={loading} className="mt-1 self-center rounded-full px-3 py-1.5 text-[13px] font-semibold text-ink-3 transition-colors hover:text-ink">
+                    {t('codeBack')}
+                  </button>
+                ) : (
+                  <button type="button" onClick={() => setForgotOpen(true)} className="mt-1 self-center rounded-full px-3 py-1.5 text-[13px] font-semibold text-ink-3 transition-colors hover:text-ink">
+                    {ta('forgot')}
+                  </button>
+                )}
               </form>
               )}
 

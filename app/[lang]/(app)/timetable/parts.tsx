@@ -77,10 +77,12 @@ const DAY_SPRITE: Partial<Record<DayKind, PixelSprite>> = {
 };
 
 /** Shown instead of lessons when a whole day has none, glyph disc, title, one line. No plate. */
-export function SpecialDayCard({ kind, month, compact = false, style, onClick }: {
+export function SpecialDayCard({ kind, month, title, compact = false, style, onClick }: {
   kind: DayKind;
   /** The day's month (1–12), for the season of a holiday. */
   month: number;
+  /** The holiday's own name ("Herbstferien") instead of the plain "Ferien". */
+  title?: string | null;
   compact?: boolean;
   style?: CSSProperties;
   onClick?: () => void;
@@ -99,7 +101,7 @@ export function SpecialDayCard({ kind, month, compact = false, style, onClick }:
           <spec.Icon size={compact ? 16 : 32} />
         </div>
       )}
-      <p className={s.specialTitle}>{spec.title ? t(spec.title) : ''}</p>
+      <p className={s.specialTitle}>{kind === 'holiday' && title ? title : spec.title ? t(spec.title) : ''}</p>
       <p className={s.specialSub}>{spec.subtitle ? t(spec.subtitle) : ''}</p>
     </div>
   );

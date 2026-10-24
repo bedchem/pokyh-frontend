@@ -37,9 +37,9 @@ export interface LegalDocument {
 }
 
 export const LEGAL_UPDATED: Record<LegalLocale, string> = {
-  "de": "19. Oktober 2026",
-  "it": "19 ottobre 2026",
-  "en": "19 October 2026"
+  "de": "24. Oktober 2026",
+  "it": "24 ottobre 2026",
+  "en": "24 October 2026"
 };
 
 export const LEGAL_UI = {
@@ -480,6 +480,14 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Nutzer ohne Schulaccount können sich mit einem POKYH-eigenen Konto registrieren (Benutzername + Passwort). Das Passwort wird bcrypt-gehasht gespeichert. Ein Klartext-Passwort wird niemals gespeichert."
                 },
                 {
+                  "label": "Angemeldete Geräte und Anmeldeverlauf",
+                  "desc": "Damit du siehst, wo du angemeldet bist, und einzelne Geräte abmelden kannst, speichert das POKYH-Backend zu jedem angemeldeten Gerät (App, Website oder installierte Website): eine zufällige Geräte-ID (in der App bzw. im httpOnly-Cookie pokyh_device), die Art des Geräts, Betriebssystem und Browser bzw. App-Version (aus dem User-Agent, in der App zusätzlich das Gerätemodell), die IP-Adresse, das daraus von Cloudflare ermittelte Land (und, sofern übermittelt, Region und Stadt) sowie wann sich das Gerät angemeldet hat und wann es zuletzt genutzt wurde. Jede Anmeldung durch dich (nicht die automatische Erneuerung einer Anmeldung) hält der Anmeldeverlauf mit denselben Angaben und der Art der Anmeldung fest. Beides siehst du unter Einstellungen → Geräte & Anmeldungen und kannst dort jedes Gerät abmelden; Administratoren sehen es, um bei Missbrauch Geräte abzumelden. Zweck: die Sicherheit deines Kontos und das Erkennen fremder Anmeldungen. Rechtsgrundlage: Erbringung des Dienstes (Art. 6 Abs. 1 lit. b DSGVO) und berechtigtes Interesse an der Sicherheit der Konten (Art. 6 Abs. 1 lit. f DSGVO). Ein Gerät wird 60 Tage nach seiner letzten Nutzung oder nach dem Abmelden gelöscht, Einträge des Anmeldeverlaufs nach 90 Tagen."
+                },
+                {
+                  "label": "Zwei-Faktor-Anmeldung und WebUntis-Einstellungen",
+                  "desc": "Richtest du in POKYH die Zwei-Faktor-Anmeldung deines WebUntis-Kontos ein oder schaltest du sie aus, änderst du deine E-Mail-Adresse, die Sprache in WebUntis oder die Weiterleitung von Nachrichten per E-Mail oder löschst du Nachrichten, gibt das POKYH-Backend das nur an den WebUntis-Server deiner Schule weiter; bei POKYH wird davon nichts gespeichert. Den geheimen Schlüssel für deine Authenticator-App zeigt POKYH dir einmal an, ohne ihn zu speichern oder zu protokollieren; den 6-stelligen Code deiner App bei der Anmeldung gibt POKYH nur an WebUntis weiter. Rechtsgrundlage: Erbringung des von dir gewünschten Dienstes (Art. 6 Abs. 1 lit. b DSGVO)."
+                },
+                {
                   "label": "Benutzer-Cookie (pokyh_user)",
                   "desc": "Enthält nicht-sensible Anzeigeinformationen (Benutzername, Klasse, Schule) für die Darstellung in der App. Kein Passwort, kein Token."
                 },
@@ -640,7 +648,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "title": "Speicherdauer",
           "blocks": [
             {
-              "p": "Anmelde-Cookies werden beim Logout gelöscht und laufen sonst automatisch ab (Sitzung 4 Stunden, API-Token 8 Stunden, Refresh-Token 30 Tage). Todos, Erinnerungen, Mensa-Bewertungen und Kommentare werden auf dem POKYH-Backend gespeichert, bis du sie selbst löschst. Server-Protokolle werden nach 30 Tagen, Datenbank-Sicherungen nach 7 Tagen gelöscht. Die Tagesübersicht deines Kontos (aktive Tage, Gerätetyp, Anmeldungen) bleibt bis zum Ende des laufenden Schuljahres gespeichert; die Nutzungsstatistik nennt dein Konto nur mit Einwilligung und höchstens ebenso lange. Beim Schuljahreswechsel (1. August) werden die Zahlen des Jahres je Konto (aktive Tage, Anmeldungen, mit Einwilligung die Nutzungsdauer) zusammen mit den Konten, Klassen, Todos und Erinnerungen des abgelaufenen Schuljahres in ein Schuljahresarchiv übernommen, das nur Administratoren einsehen können; die Einträge des Jahres werden danach gelöscht. Seitenaufrufe werden nach 30 Tagen gelöscht; danach (und bei anonymen Besuchen, sobald die Server-Protokolle gelöscht sind) lässt sich kein Eintrag mehr einer Person zuordnen, und er bleibt nur als anonyme Statistik erhalten. Bei Website- und App-Besuchen werden IP-Adresse, Ort, Kontoschlüssel, Besuchs-ID und (mit Einwilligung) dein Konto nach 30 Tagen entfernt; übrig bleibt eine anonyme Zählung nach Land, Gerätetyp, Seite bzw. App-Version, Tag und Stunde. Abgeschlossene Todos werden nach 24 Stunden automatisch ausgeblendet. Google Analytics-Daten werden, sofern du zugestimmt hast, nach 14 Monaten gelöscht. Meldungen von Inhalten werden aufbewahrt, bis der Fall erledigt ist, danach höchstens 6 Monate. Das Protokoll der Verwaltung wird nach 365 Tagen gelöscht, Fehlerberichte der Apps nach 30 Tagen. Welche Benachrichtigungen der Glocke du gesehen oder entfernt hast, löscht das POKYH-Backend nach 30 Tagen. Der Fortschritt im versteckten Klassenzimmer liegt nur in deinem Browser, bis du ihn dort löschst."
+              "p": "Anmelde-Cookies werden beim Logout gelöscht und laufen sonst automatisch ab (Sitzung 4 Stunden, API-Token 8 Stunden, Refresh-Token 30 Tage). Todos, Erinnerungen, Mensa-Bewertungen und Kommentare werden auf dem POKYH-Backend gespeichert, bis du sie selbst löschst. Server-Protokolle werden nach 30 Tagen, Datenbank-Sicherungen nach 7 Tagen gelöscht. Angemeldete Geräte werden 60 Tage nach ihrer letzten Nutzung oder nach dem Abmelden gelöscht, Einträge des Anmeldeverlaufs nach 90 Tagen. Die Tagesübersicht deines Kontos (aktive Tage, Gerätetyp, Anmeldungen) bleibt bis zum Ende des laufenden Schuljahres gespeichert; die Nutzungsstatistik nennt dein Konto nur mit Einwilligung und höchstens ebenso lange. Beim Schuljahreswechsel (1. August) werden die Zahlen des Jahres je Konto (aktive Tage, Anmeldungen, mit Einwilligung die Nutzungsdauer) zusammen mit den Konten, Klassen, Todos und Erinnerungen des abgelaufenen Schuljahres in ein Schuljahresarchiv übernommen, das nur Administratoren einsehen können; die Einträge des Jahres werden danach gelöscht. Seitenaufrufe werden nach 30 Tagen gelöscht; danach (und bei anonymen Besuchen, sobald die Server-Protokolle gelöscht sind) lässt sich kein Eintrag mehr einer Person zuordnen, und er bleibt nur als anonyme Statistik erhalten. Bei Website- und App-Besuchen werden IP-Adresse, Ort, Kontoschlüssel, Besuchs-ID und (mit Einwilligung) dein Konto nach 30 Tagen entfernt; übrig bleibt eine anonyme Zählung nach Land, Gerätetyp, Seite bzw. App-Version, Tag und Stunde. Abgeschlossene Todos werden nach 24 Stunden automatisch ausgeblendet. Google Analytics-Daten werden, sofern du zugestimmt hast, nach 14 Monaten gelöscht. Meldungen von Inhalten werden aufbewahrt, bis der Fall erledigt ist, danach höchstens 6 Monate. Das Protokoll der Verwaltung wird nach 365 Tagen gelöscht, Fehlerberichte der Apps nach 30 Tagen. Welche Benachrichtigungen der Glocke du gesehen oder entfernt hast, löscht das POKYH-Backend nach 30 Tagen. Der Fortschritt im versteckten Klassenzimmer liegt nur in deinem Browser, bis du ihn dort löschst."
             },
             {
               "p": "Die gewählte Schule bleibt in deinem Browser bis zum 31. August des laufenden Schuljahres, mindestens 30 Tage. Die für Push-Benachrichtigungen gespeicherte WebUntis-Sitzung ist nur gültig, bis WebUntis sie beendet, und wird mit der Push-Adresse gelöscht. Die Zuordnung deines Kontos zu deiner Schule wird mit deinem Konto gelöscht. Zwischengespeicherte Treffer der Schulsuche verfallen nach 10 Minuten."
@@ -673,6 +681,9 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 "Widerspruch gegen Verarbeitung auf Basis berechtigter Interessen (Art. 21 DSGVO)",
                 "Widerruf einer Einwilligung"
               ]
+            },
+            {
+              "p": "Auskunft und Datenübertragbarkeit kannst du auch selbst ausüben: Unter Einstellungen → Datenschutz → „Meine Daten herunterladen“ erhältst du sofort alle Daten, die POKYH zu deinem Konto speichert, als maschinenlesbare Datei (JSON)."
             },
             {
               "contact": "privacy"
@@ -725,6 +736,11 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "name": "pokyh_api_refresh",
                   "kind": "necessary",
                   "desc": "POKYH Backend Refresh-Token zum automatischen Erneuern des API-Tokens (httpOnly, 30 Tage)"
+                },
+                {
+                  "name": "pokyh_device",
+                  "kind": "necessary",
+                  "desc": "Zufällige Kennung dieses Browsers, damit er in der Liste deiner angemeldeten Geräte wiedererkannt wird (httpOnly, 400 Tage, enthält keine Angaben zu dir)"
                 },
                 {
                   "name": "pokyh_renew",
@@ -843,6 +859,14 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 {
                   "label": "Account POKYH (accesso alternativo)",
                   "desc": "Chi non ha un account scolastico può registrarsi con un account proprio di POKYH (nome utente + password). La password viene memorizzata con hash bcrypt. Una password in chiaro non viene mai salvata."
+                },
+                {
+                  "label": "Dispositivi connessi e cronologia degli accessi",
+                  "desc": "Perché tu veda dove sei connesso e possa disconnettere singoli dispositivi, il backend di POKYH salva per ogni dispositivo connesso (app, sito o sito installato): un ID casuale del dispositivo (nell’app o nel cookie httpOnly pokyh_device), il tipo di dispositivo, il sistema operativo e il browser o la versione dell’app (dallo user agent, nell’app anche il modello del dispositivo), l’indirizzo IP, il paese ricavato da Cloudflare (e, se trasmessi, regione e città) e quando il dispositivo si è connesso e quando è stato usato l’ultima volta. Ogni accesso fatto da te (non il rinnovo automatico di un accesso) viene registrato nella cronologia degli accessi con gli stessi dati e il tipo di accesso. Vedi entrambi in Impostazioni → Dispositivi e accessi e lì puoi disconnettere ogni dispositivo; gli amministratori li vedono per disconnettere dispositivi in caso di abuso. Finalità: la sicurezza del tuo account e il riconoscimento di accessi estranei. Base giuridica: fornitura del servizio (art. 6, par. 1, lett. b GDPR) e legittimo interesse alla sicurezza degli account (art. 6, par. 1, lett. f GDPR). Un dispositivo viene cancellato 60 giorni dopo l’ultimo utilizzo o dopo la disconnessione, le voci della cronologia degli accessi dopo 90 giorni."
+                },
+                {
+                  "label": "Accesso a due fattori e impostazioni di WebUntis",
+                  "desc": "Se in POKYH attivi o disattivi l’accesso a due fattori del tuo account WebUntis, cambi il tuo indirizzo e-mail, la lingua in WebUntis o l’inoltro dei messaggi via e-mail, oppure elimini messaggi, il backend di POKYH lo trasmette solo al server WebUntis della tua scuola; presso POKYH non viene salvato nulla. La chiave segreta per la tua app di autenticazione ti viene mostrata una volta, senza che POKYH la salvi o la registri; il codice di 6 cifre della tua app al momento dell’accesso POKYH lo trasmette solo a WebUntis. Base giuridica: fornitura del servizio da te richiesto (art. 6, par. 1, lett. b GDPR)."
                 },
                 {
                   "label": "Cookie utente (pokyh_user)",
@@ -1005,7 +1029,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "title": "Periodo di conservazione",
           "blocks": [
             {
-              "p": "I cookie di accesso vengono eliminati al logout e altrimenti scadono automaticamente (sessione 4 ore, token API 8 ore, token di refresh 30 giorni). Attività, promemoria, valutazioni e commenti della mensa restano sul backend di POKYH finché non li elimini tu stesso. I log del server vengono cancellati dopo 30 giorni, i backup del database dopo 7 giorni. Il riepilogo giornaliero del tuo account (giorni attivi, tipo di dispositivo, accessi) resta salvato fino alla fine dell’anno scolastico in corso; le statistiche di utilizzo indicano il tuo account solo con il consenso e al massimo per lo stesso periodo. Al cambio di anno scolastico (1° agosto) i dati dell’anno per ogni account (giorni attivi, accessi, con il consenso la durata d’uso) passano, insieme agli account, alle classi, alle attività e ai promemoria dell’anno concluso, in un archivio dell’anno scolastico consultabile solo dagli amministratori; le voci dell’anno vengono poi cancellate. Le visualizzazioni di pagina vengono cancellate dopo 30 giorni. Dopo (e per le visite anonime, non appena i log del server sono stati cancellati) nessuna voce può più essere ricondotta a una persona e resta solo come statistica anonima. Per le visite al sito e alle app indirizzo IP, luogo, chiave dell’account, ID di visita e (con il consenso) il tuo account vengono rimossi dopo 30 giorni; resta un conteggio anonimo per paese, tipo di dispositivo, pagina o versione dell’app, giorno e ora. Le attività completate vengono nascoste automaticamente dopo 24 ore. I dati di Google Analytics vengono cancellati, se hai prestato il consenso, dopo 14 mesi. Le segnalazioni di contenuti vengono conservate fino alla chiusura del caso, poi al massimo 6 mesi. Il registro delle attività di amministrazione viene cancellato dopo 365 giorni, le segnalazioni di errore delle app dopo 30 giorni. Quali notifiche della campanella hai visto o rimosso, il backend di POKYH lo cancella dopo 30 giorni. I progressi nell’aula nascosta restano solo nel tuo browser finché non li cancelli lì."
+              "p": "I cookie di accesso vengono eliminati al logout e altrimenti scadono automaticamente (sessione 4 ore, token API 8 ore, token di refresh 30 giorni). Attività, promemoria, valutazioni e commenti della mensa restano sul backend di POKYH finché non li elimini tu stesso. I log del server vengono cancellati dopo 30 giorni, i backup del database dopo 7 giorni. I dispositivi connessi vengono cancellati 60 giorni dopo l’ultimo utilizzo o dopo la disconnessione, le voci della cronologia degli accessi dopo 90 giorni. Il riepilogo giornaliero del tuo account (giorni attivi, tipo di dispositivo, accessi) resta salvato fino alla fine dell’anno scolastico in corso; le statistiche di utilizzo indicano il tuo account solo con il consenso e al massimo per lo stesso periodo. Al cambio di anno scolastico (1° agosto) i dati dell’anno per ogni account (giorni attivi, accessi, con il consenso la durata d’uso) passano, insieme agli account, alle classi, alle attività e ai promemoria dell’anno concluso, in un archivio dell’anno scolastico consultabile solo dagli amministratori; le voci dell’anno vengono poi cancellate. Le visualizzazioni di pagina vengono cancellate dopo 30 giorni. Dopo (e per le visite anonime, non appena i log del server sono stati cancellati) nessuna voce può più essere ricondotta a una persona e resta solo come statistica anonima. Per le visite al sito e alle app indirizzo IP, luogo, chiave dell’account, ID di visita e (con il consenso) il tuo account vengono rimossi dopo 30 giorni; resta un conteggio anonimo per paese, tipo di dispositivo, pagina o versione dell’app, giorno e ora. Le attività completate vengono nascoste automaticamente dopo 24 ore. I dati di Google Analytics vengono cancellati, se hai prestato il consenso, dopo 14 mesi. Le segnalazioni di contenuti vengono conservate fino alla chiusura del caso, poi al massimo 6 mesi. Il registro delle attività di amministrazione viene cancellato dopo 365 giorni, le segnalazioni di errore delle app dopo 30 giorni. Quali notifiche della campanella hai visto o rimosso, il backend di POKYH lo cancella dopo 30 giorni. I progressi nell’aula nascosta restano solo nel tuo browser finché non li cancelli lì."
             },
             {
               "p": "La scuola scelta resta nel browser fino al 31 agosto dell’anno scolastico in corso, per almeno 30 giorni. La sessione WebUntis salvata per le notifiche push è valida solo finché WebUntis non la chiude e viene cancellata insieme all’indirizzo push. L’associazione del tuo account alla scuola viene cancellata con il tuo account. I risultati della ricerca delle scuole in memoria scadono dopo 10 minuti."
@@ -1038,6 +1062,9 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 "Opposizione al trattamento basato sul legittimo interesse (art. 21 GDPR)",
                 "Revoca del consenso"
               ]
+            },
+            {
+              "p": "Accesso e portabilità puoi esercitarli anche da solo: in Impostazioni → Privacy → «Scarica i miei dati» ricevi subito tutti i dati che POKYH conserva sul tuo account, in un file leggibile da una macchina (JSON)."
             },
             {
               "contact": "privacy"
@@ -1090,6 +1117,11 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "name": "pokyh_api_refresh",
                   "kind": "necessary",
                   "desc": "Token di refresh del backend POKYH per rinnovare automaticamente il token API (httpOnly, 30 giorni)"
+                },
+                {
+                  "name": "pokyh_device",
+                  "kind": "necessary",
+                  "desc": "Identificativo casuale di questo browser, perché venga riconosciuto nell’elenco dei tuoi dispositivi connessi (httpOnly, 400 giorni, non contiene dati su di te)"
                 },
                 {
                   "name": "pokyh_renew",
@@ -1208,6 +1240,14 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 {
                   "label": "POKYH account (alternative sign-in)",
                   "desc": "Users without a school account can register with a POKYH-only account (username + password). The password is stored bcrypt-hashed. A plaintext password is never stored."
+                },
+                {
+                  "label": "Signed-in devices and sign-in history",
+                  "desc": "So that you can see where you are signed in and sign out single devices, the POKYH backend stores for every signed-in device (app, website or installed website): a random device ID (in the app or in the httpOnly cookie pokyh_device), the kind of device, the operating system and browser or app version (from the user agent, in the app also the device model), the IP address, the country Cloudflare derives from it (and, where sent, region and city), and when the device signed in and was last used. Every sign-in by you (not the automatic renewal of a sign-in) is recorded in the sign-in history with the same details and the kind of sign-in. You see both under Settings → Devices & sign-ins and can sign out any device there; administrators see them to sign out devices in case of abuse. Purpose: the security of your account and spotting sign-ins that are not yours. Legal basis: providing the service (Art. 6(1)(b) GDPR) and the legitimate interest in secure accounts (Art. 6(1)(f) GDPR). A device is deleted 60 days after it was last used or after it is signed out, sign-in history entries after 90 days."
+                },
+                {
+                  "label": "Two-factor sign-in and WebUntis settings",
+                  "desc": "If you set up or turn off two-factor sign-in for your WebUntis account in POKYH, change your e-mail address, the language in WebUntis or the forwarding of messages by e-mail, or delete messages, the POKYH backend only passes this on to your school’s WebUntis server; POKYH stores none of it. The secret key for your authenticator app is shown to you once, without POKYH storing or logging it; the 6-digit code from your app at sign-in is only passed on to WebUntis. Legal basis: providing the service you asked for (Art. 6(1)(b) GDPR)."
                 },
                 {
                   "label": "User cookie (pokyh_user)",
@@ -1370,7 +1410,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "title": "Retention",
           "blocks": [
             {
-              "p": "Sign-in cookies are deleted on logout and otherwise expire automatically (session 4 hours, API token 8 hours, refresh token 30 days). To-dos, reminders, canteen ratings, and comments remain on the POKYH backend until you delete them yourself. Server logs are deleted after 30 days, database backups after 7 days. Your account's day-by-day overview (active days, device type, sign-ins) is kept until the end of the current school year; the usage statistics name your account only with consent and for at most as long. At the change of school year (1 August), each account's figures for the year (active days, sign-ins and, with consent, time spent) are moved, together with the accounts, classes, to-dos and reminders of the past school year, into a school-year archive that only administrators can see; the year's entries are then deleted. Page views are deleted after 30 days. After that (and for anonymous visits once the server logs are deleted) no entry can be traced back to a person any more, and it remains only as an anonymous statistic. For website and app visits, IP address, place, account key, visit ID and (with consent) your account are removed after 30 days; an anonymous count by country, device type, page or app version, day and hour remains. Completed to-dos are automatically hidden after 24 hours. Google Analytics data is deleted, where you have consented, after 14 months. Reports of content are kept until the case is closed, then at most 6 months. The administration log is deleted after 365 days, the apps’ error reports after 30 days. Which of the bell’s notifications you have seen or cleared is deleted by the POKYH backend after 30 days. The progress in the hidden classroom stays only in your browser until you delete it there."
+              "p": "Sign-in cookies are deleted on logout and otherwise expire automatically (session 4 hours, API token 8 hours, refresh token 30 days). To-dos, reminders, canteen ratings, and comments remain on the POKYH backend until you delete them yourself. Server logs are deleted after 30 days, database backups after 7 days. Signed-in devices are deleted 60 days after they were last used or after they are signed out, sign-in history entries after 90 days. Your account's day-by-day overview (active days, device type, sign-ins) is kept until the end of the current school year; the usage statistics name your account only with consent and for at most as long. At the change of school year (1 August), each account's figures for the year (active days, sign-ins and, with consent, time spent) are moved, together with the accounts, classes, to-dos and reminders of the past school year, into a school-year archive that only administrators can see; the year's entries are then deleted. Page views are deleted after 30 days. After that (and for anonymous visits once the server logs are deleted) no entry can be traced back to a person any more, and it remains only as an anonymous statistic. For website and app visits, IP address, place, account key, visit ID and (with consent) your account are removed after 30 days; an anonymous count by country, device type, page or app version, day and hour remains. Completed to-dos are automatically hidden after 24 hours. Google Analytics data is deleted, where you have consented, after 14 months. Reports of content are kept until the case is closed, then at most 6 months. The administration log is deleted after 365 days, the apps’ error reports after 30 days. Which of the bell’s notifications you have seen or cleared is deleted by the POKYH backend after 30 days. The progress in the hidden classroom stays only in your browser until you delete it there."
             },
             {
               "p": "The chosen school stays in your browser until 31 August of the current school year, for at least 30 days. The WebUntis session stored for push notifications is only valid until WebUntis ends it and is deleted together with the push address. The assignment of your account to your school is deleted with your account. Cached school search results expire after 10 minutes."
@@ -1403,6 +1443,9 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 "Objection to processing based on legitimate interests (Art. 21 GDPR)",
                 "Withdrawal of consent"
               ]
+            },
+            {
+              "p": "You can also exercise access and data portability yourself: Settings → Privacy → “Download my data” gives you everything POKYH keeps about your account at once, as a machine-readable file (JSON)."
             },
             {
               "contact": "privacy"
@@ -1455,6 +1498,11 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "name": "pokyh_api_refresh",
                   "kind": "necessary",
                   "desc": "POKYH backend refresh token to automatically renew the API token (httpOnly, 30 days)"
+                },
+                {
+                  "name": "pokyh_device",
+                  "kind": "necessary",
+                  "desc": "Random identifier of this browser, so it is recognised in the list of your signed-in devices (httpOnly, 400 days, holds nothing about you)"
                 },
                 {
                   "name": "pokyh_renew",
@@ -1986,6 +2034,11 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Refresh-Token zum automatischen Erneuern des Zugangstokens (httpOnly). Läuft nach 30 Tagen ab."
                 },
                 {
+                  "name": "pokyh_device",
+                  "kind": "necessary",
+                  "desc": "Zufällige Kennung dieses Browsers, damit er in der Liste deiner angemeldeten Geräte wiedererkannt wird (httpOnly, 400 Tage, enthält keine Angaben zu dir)"
+                },
+                {
                   "name": "pokyh_renew",
                   "kind": "necessary",
                   "desc": "Verschlüsselte Zugangsdaten und gewählte Schule (AES-GCM, httpOnly), damit eine von WebUntis beendete Sitzung automatisch erneuert werden kann. Wird nur an die Anmeldeadresse gesendet, gilt nur zusammen mit der Sitzung und wird beim Abmelden gelöscht. Läuft nach 4 Stunden ab."
@@ -2213,6 +2266,11 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Token di refresh per rinnovare automaticamente il token di accesso (httpOnly). Scade dopo 30 giorni."
                 },
                 {
+                  "name": "pokyh_device",
+                  "kind": "necessary",
+                  "desc": "Identificativo casuale di questo browser, perché venga riconosciuto nell’elenco dei tuoi dispositivi connessi (httpOnly, 400 giorni, non contiene dati su di te)"
+                },
+                {
                   "name": "pokyh_renew",
                   "kind": "necessary",
                   "desc": "Credenziali cifrate e scuola scelta (AES-GCM, httpOnly), per rinnovare automaticamente una sessione chiusa da WebUntis. Viene inviato solo all’indirizzo di accesso, vale solo insieme alla sessione e viene eliminato al logout. Scade dopo 4 ore."
@@ -2438,6 +2496,11 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "name": "pokyh_api_refresh",
                   "kind": "necessary",
                   "desc": "Refresh token to renew the access token automatically (httpOnly). Expires after 30 days."
+                },
+                {
+                  "name": "pokyh_device",
+                  "kind": "necessary",
+                  "desc": "Random identifier of this browser, so it is recognised in the list of your signed-in devices (httpOnly, 400 days, holds nothing about you)"
                 },
                 {
                   "name": "pokyh_renew",

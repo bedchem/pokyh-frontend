@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LayoutGroup, motion } from 'framer-motion';
-import { Checks, Paperclip, PencilSimple, Trash } from '@phosphor-icons/react';
+import { Check, CheckSquare, Checks, Paperclip, PencilSimple, Trash } from '@phosphor-icons/react';
 import Link from 'next/link';
 import AuthGuard from '@/components/AuthGuard';
 import UntisGuard from '@/components/UntisGuard';
@@ -15,7 +15,7 @@ import PixelState from '@/components/app/PixelState';
 import Fab from '@/components/app/Fab';
 import { initialsOf } from '@/components/app/hooks';
 import ComposeMessageSheet, { type ComposeInitial } from '@/components/messages/ComposeMessageSheet';
-import { fetchMessages, getMessagesStale, markAllMessagesRead, fetchDraft, deleteDraft, type MessageFolder } from '@/lib/api';
+import { fetchMessages, getMessagesStale, markAllMessagesRead, fetchDraft, deleteDraft, deleteMessages, type MessageFolder } from '@/lib/api';
 import type { MessagePreview } from '@/lib/types';
 import { useDateLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { messagesDict, type MessagesKey } from '@/lib/i18n/dictionaries/messages';
@@ -111,6 +111,12 @@ export default function MessagesPage() {
   const [folder, setFolder] = useState<MessageFolder>('inbox');
   // When the list was loaded; "Heute" and "Diese Woche" are counted from it.
   const [loadedAt, setLoadedAt] = useState(0);
+  // Choosing inbox messages to delete: tapping a row picks it instead of opening it.
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState<Set<number>>(new Set());
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   // Fetches the folder; the caller shows the loading state first.
   const load = useCallback(async () => {
@@ -148,12 +154,56 @@ export default function MessagesPage() {
     void load();
   };
 
+  const stopSelecting = () => {
+    setSelecting(false);
+    setPicked(new Set());
+    setConfirmDelete(false);
+    setDeleteError('');
+  };
+
   const switchFolder = (next: MessageFolder) => {
     if (next === folder) return;
+    stopSelecting();
     setLoading(true);
     setError('');
     setFolder(next);
   };
+
+  const togglePick = (id: number) => {
+    setConfirmDelete(false);
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  async function handleDeleteSelected() {
+    if (picked.size === 0 || deleting) return;
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
+    setDeleting(true);
+    setDeleteError('');
+    const ids = [...picked];
+    try {
+      const deleted = new Set(await deleteMessages(ids));
+      setMessages((prev) => prev.filter((m) => !deleted.has(m.id)));
+      if (deleted.size < ids.length) {
+        setPicked(new Set(ids.filter((id) => !deleted.has(id))));
+        setDeleteError(t('deleteFailed'));
+      } else {
+        stopSelecting();
+      }
+    } catch (e) {
+      if (e instanceof Error && e.message === 'session_expired') leaveForLogin();
+      else setDeleteError(t('deleteFailed'));
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  }
 
   const unreadIds = messages.filter((m) => !m.isRead).map((m) => m.id);
 
@@ -226,8 +276,17 @@ export default function MessagesPage() {
     const isDraft = folder === 'drafts';
     // Inbox rows name the sender; sent and draft rows name the recipients.
     const who = folder === 'inbox' ? msg.senderName : msg.senderName ? t('to', { names: msg.senderName }) : '';
+    const isPicked = picked.has(msg.id);
     const inner = (
       <span className="flex items-center gap-3.5 px-3 py-3">
+        {selecting && !isDraft ? (
+          <span
+            aria-hidden="true"
+            className={`grid size-11 shrink-0 place-items-center rounded-full transition-colors ${isPicked ? 'bg-accent text-on-accent' : 'bg-inset text-transparent'}`}
+          >
+            <Check size={20} weight="bold" />
+          </span>
+        ) : (
         <span
           aria-hidden="true"
           className={`relative grid size-11 shrink-0 place-items-center rounded-full text-[14px] font-bold ${msg.isRead ? 'bg-inset text-ink-2' : 'bg-periwinkle text-periwinkle-ink'}`}
@@ -235,6 +294,7 @@ export default function MessagesPage() {
           {msg.senderName ? initialsOf(msg.senderName) : <PencilSimple size={18} weight="bold" />}
           {!msg.isRead && <span className="absolute -right-0.5 -top-0.5 size-3 rounded-full bg-accent shadow-[0_0_0_2px_var(--surface)]" />}
         </span>
+        )}
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline justify-between gap-3">
             <span className={`truncate text-[15.5px] text-ink ${msg.isRead ? 'font-medium' : 'font-bold'}`}>{msg.subject}</span>
@@ -251,6 +311,21 @@ export default function MessagesPage() {
       </span>
     );
     const cls = 'block rounded-[18px] transition-colors duration-200 hover:bg-[color-mix(in_srgb,var(--surface)_92%,var(--ink))]';
+    if (selecting && !isDraft) {
+      return (
+        <li key={msg.id} className="relative before:pointer-events-none before:absolute before:inset-x-3.5 before:top-0 before:h-px before:bg-line before:transition-opacity first:before:hidden hover:before:opacity-0 [&:hover+li]:before:opacity-0">
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={isPicked}
+            onClick={() => togglePick(msg.id)}
+            className={`${cls} w-full text-left ${isPicked ? 'bg-[color-mix(in_srgb,var(--accent)_9%,transparent)]' : ''}`}
+          >
+            {inner}
+          </button>
+        </li>
+      );
+    }
     if (!isDraft) {
       return <li key={msg.id} className="relative before:pointer-events-none before:absolute before:inset-x-3.5 before:top-0 before:h-px before:bg-line before:transition-opacity first:before:hidden hover:before:opacity-0 [&:hover+li]:before:opacity-0"><Link href={localize(folder === 'sent' ? `/messages/${msg.id}?folder=sent` : `/messages/${msg.id}`)} className={cls}>{inner}</Link></li>;
     }
@@ -279,37 +354,61 @@ export default function MessagesPage() {
           <PageHeader
             title={t('title')}
             mobileAside={
-              folder === 'inbox' && unreadIds.length > 0 && (
-                <button
-                  type="button"
-                  onClick={handleMarkAllRead}
-                  disabled={markingAll}
-                  aria-label={t('markAllRead')}
-                  title={t('markAllRead')}
-                  className="grid size-11 place-items-center rounded-full bg-surface text-ink transition-colors hover:bg-inset disabled:opacity-50"
-                >
-                  {markingAll ? <Spinner size={16} /> : <Checks size={20} weight="bold" aria-hidden="true" />}
-                </button>
+              folder === 'inbox' && messages.length > 0 && (
+                <span className="flex gap-2">
+                  {unreadIds.length > 0 && !selecting && (
+                    <button
+                      type="button"
+                      onClick={handleMarkAllRead}
+                      disabled={markingAll}
+                      aria-label={t('markAllRead')}
+                      title={t('markAllRead')}
+                      className="grid size-11 place-items-center rounded-full bg-surface text-ink transition-colors hover:bg-inset disabled:opacity-50"
+                    >
+                      {markingAll ? <Spinner size={16} /> : <Checks size={20} weight="bold" aria-hidden="true" />}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => (selecting ? stopSelecting() : setSelecting(true))}
+                    aria-pressed={selecting}
+                    aria-label={selecting ? t('selectDone') : t('select')}
+                    title={selecting ? t('selectDone') : t('select')}
+                    className={`grid size-11 place-items-center rounded-full transition-colors ${selecting ? 'bg-periwinkle text-periwinkle-ink' : 'bg-surface text-ink hover:bg-inset'}`}
+                  >
+                    <CheckSquare size={20} weight="bold" aria-hidden="true" />
+                  </button>
+                </span>
               )
             }
             actions={
               <span className="hidden md:contents">
-                {folder === 'inbox' && unreadIds.length > 0 && (
+                {folder === 'inbox' && unreadIds.length > 0 && !selecting && (
                   <Button variant="quiet" onClick={handleMarkAllRead} disabled={markingAll}>
                     {markingAll ? <Spinner size={16} /> : <Checks size={18} weight="bold" aria-hidden="true" />}
                     {t('markAllRead')}
                   </Button>
                 )}
-                <Button onClick={newCompose}>
-                  <PencilSimple size={18} weight="bold" aria-hidden="true" />
-                  {t('compose')}
-                </Button>
+                {folder === 'inbox' && messages.length > 0 && (
+                  <Button variant={selecting ? 'tone' : 'quiet'} onClick={() => (selecting ? stopSelecting() : setSelecting(true))} aria-pressed={selecting}>
+                    <CheckSquare size={18} weight="bold" aria-hidden="true" />
+                    {selecting ? t('selectDone') : t('select')}
+                  </Button>
+                )}
+                {!selecting && (
+                  <Button onClick={newCompose}>
+                    <PencilSimple size={18} weight="bold" aria-hidden="true" />
+                    {t('compose')}
+                  </Button>
+                )}
               </span>
             }
           />
-          <Fab label={t('compose')} onClick={newCompose}>
-            <PencilSimple size={24} weight="bold" aria-hidden="true" />
-          </Fab>
+          {!selecting && (
+            <Fab label={t('compose')} onClick={newCompose}>
+              <PencilSimple size={24} weight="bold" aria-hidden="true" />
+            </Fab>
+          )}
 
           <LayoutGroup id="message-folders">
             <div role="tablist" aria-label={t('title')} className="rise mb-8 inline-flex max-w-full gap-1 rounded-[16px] bg-surface p-1">
@@ -357,6 +456,29 @@ export default function MessagesPage() {
           )}
           {/* Room for the floating button over the last row */}
           <div className="h-20 lg:hidden" aria-hidden="true" />
+
+          {selecting && folder === 'inbox' && (
+            <div
+              role="toolbar"
+              aria-label={t('selected', { n: picked.size })}
+              className="sheet-in sticky bottom-4 z-30 mx-auto mt-2 flex w-full max-w-[640px] flex-wrap items-center gap-2 rounded-[20px] bg-surface p-2 pl-4 shadow-[var(--shadow-float)]"
+              style={{ marginBottom: 'var(--safe-bottom)' }}
+            >
+              <span className="mr-auto text-[14.5px] font-semibold tnum" aria-live="polite">{t('selected', { n: picked.size })}</span>
+              {deleteError && <span role="alert" className="w-full text-[13px] font-semibold text-danger-ink sm:order-last">{deleteError}</span>}
+              <Button
+                variant="quiet"
+                size="sm"
+                onClick={() => { setConfirmDelete(false); setPicked(picked.size === messages.length ? new Set() : new Set(messages.map((m) => m.id))); }}
+              >
+                {t('selectAll')}
+              </Button>
+              <Button variant="danger" size="sm" disabled={picked.size === 0 || deleting} onClick={() => void handleDeleteSelected()}>
+                {deleting ? <Spinner size={15} /> : <Trash size={16} weight="bold" aria-hidden="true" />}
+                {confirmDelete ? t('deleteConfirm') : t('deleteSelected')}
+              </Button>
+            </div>
+          )}
         </Page>
         {showCompose && (
           <ComposeMessageSheet

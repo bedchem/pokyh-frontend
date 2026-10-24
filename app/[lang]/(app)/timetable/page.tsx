@@ -42,6 +42,8 @@ import PixelState, { PixelSpriteArt, holidaySprite } from '@/components/app/Pixe
 import { Button } from '@/components/ui/Button';
 import { formatDate, formatTime } from '@/lib/i18n/dateLocale';
 import { leaveForLogin } from '@/providers/SessionProvider';
+import { useHolidayName, useHolidays } from '@/components/app/useHolidays';
+import { holidayOn } from '@/lib/holidays';
 
 type WeekPageState =
   | { status: 'loading' }
@@ -118,6 +120,13 @@ function TimetableContent() {
   const ts = useT(shellDict);
   const { tag } = useDateLocale();
   const localize = useLocalizeHref();
+  // The school's breaks by name ("Herbstferien") on the days without lessons.
+  const holidays = useHolidays();
+  const holidayName = useHolidayName();
+  const holidayTitle = useCallback((dayNum: number) => {
+    const h = holidayOn(holidays, dayNum);
+    return h ? holidayName(h) : null;
+  }, [holidays, holidayName]);
 
   const [weekOffset, setWeekOffset] = useState(() => offsetForDateParam(searchParams.get('date')));
   const [direction, setDirection] = useState(0);
@@ -435,6 +444,7 @@ function TimetableContent() {
       onTap={setActiveSlot}
       ensureWeek={ensureWeek}
       mark={offset === weekOffset ? mark : null}
+      holidayTitle={holidayTitle}
     />
   );
 
@@ -580,6 +590,7 @@ const WeekPane = memo(function WeekPane({
   onTap,
   ensureWeek,
   mark,
+  holidayTitle,
 }: {
   offset: number;
   page: WeekPageState;
@@ -590,6 +601,7 @@ const WeekPane = memo(function WeekPane({
   onTap: (slot: MergedSlot) => void;
   ensureWeek: (offset: number, force?: boolean) => void;
   mark: WeekMark | null;
+  holidayTitle: (dayNum: number) => string | null;
 }) {
   const t = useT(timetableDict);
   const entries = page.status === 'data' ? page.entries : NO_ENTRIES;
@@ -614,12 +626,13 @@ const WeekPane = memo(function WeekPane({
       onTap={onTap}
       absences={empty ? NO_ABSENCES : absences}
       mark={mark}
+      holidayTitle={holidayTitle}
       empty={empty ? (
         // Small enough that it never outgrows a short screen.
         <div className="rise flex flex-col items-center px-6 py-6 text-center">
           {/* The holidays look like the time of year of the week shown. */}
           <PixelSpriteArt sprite={holidaySprite(dates[0].getMonth() + 1)} width="min(260px, 56vw, 30vh)" />
-          <p className="mt-5 text-[26px] font-extrabold tracking-[-0.045em] md:text-[34px]">{t('holiday')}</p>
+          <p className="mt-5 text-[26px] font-extrabold tracking-[-0.045em] md:text-[34px]">{dayNums.map(holidayTitle).find(Boolean) ?? t('holiday')}</p>
           <p className="mt-1 text-[15px] font-semibold opacity-75">{t('noLessons')}</p>
         </div>
       ) : undefined}

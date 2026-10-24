@@ -21,8 +21,10 @@ import {
   FileXls,
   PaperPlaneTilt,
   Paperclip,
+  Trash,
   WarningCircle,
 } from '@phosphor-icons/react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import type { MediaItem } from '@/components/ui/MediaViewer';
@@ -35,7 +37,7 @@ import { Page } from '@/components/app/Page';
 import { Bone, Line } from '@/components/app/Skeleton';
 import { initialsOf } from '@/components/app/hooks';
 import ErrorView from '@/components/ui/ErrorView';
-import { fetchMessageDetail, fetchMessageAttachments, markOpenedMessageRead, getAttachmentUrl, getMessageDetailStale, getMessagesStale } from '@/lib/api';
+import { fetchMessageDetail, fetchMessageAttachments, markOpenedMessageRead, getAttachmentUrl, getMessageDetailStale, getMessagesStale, deleteMessages } from '@/lib/api';
 import { messageRecipientNames } from '@/lib/untis-parse';
 import type { MessageDetail, MessageAttachment } from '@/lib/types';
 import { useDateLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
@@ -391,6 +393,34 @@ function MessageDetailView({ id }: { id: string }) {
   const [attachmentsFetchFailed, setAttachmentsFetchFailed] = useState(false);
 
   const [linkWarning, setLinkWarning] = useState<string | null>(null);
+  const router = useRouter();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
+  async function handleDelete() {
+    if (!msg || deleting) return;
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      const deleted = await deleteMessages([msg.id]);
+      if (deleted.includes(msg.id)) {
+        router.replace(localize('/messages'));
+        return;
+      }
+      setDeleteError(t('deleteFailed'));
+    } catch (e) {
+      if (e instanceof Error && e.message === 'session_expired') leaveForLogin();
+      else setDeleteError(t('deleteFailed'));
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  }
 
   const fetchFallbackAttachments = useCallback(async (msgId: number) => {
     setAttachmentsLoading(true);
@@ -497,13 +527,26 @@ function MessageDetailView({ id }: { id: string }) {
                   </span>
                 </div>
                 {!outgoing && (
-                  <Button variant="tone" onClick={openReply} disabled={replyBusy} className="w-full sm:w-auto">
-                    {replyBusy ? <Spinner size={16} /> : <ArrowUUpLeft size={18} weight="bold" aria-hidden="true" />}
-                    {ta('reply')}
-                  </Button>
+                  <div className="flex w-full gap-2 sm:w-auto">
+                    <Button variant="tone" onClick={openReply} disabled={replyBusy} className="flex-1 sm:flex-none">
+                      {replyBusy ? <Spinner size={16} /> : <ArrowUUpLeft size={18} weight="bold" aria-hidden="true" />}
+                      {ta('reply')}
+                    </Button>
+                    <Button
+                      variant={confirmDelete ? 'danger' : 'quiet'}
+                      onClick={() => void handleDelete()}
+                      disabled={deleting}
+                      aria-label={confirmDelete ? t('deleteMessageConfirm') : t('deleteMessage')}
+                      onBlur={() => setConfirmDelete(false)}
+                    >
+                      {deleting ? <Spinner size={16} /> : <Trash size={18} weight="bold" aria-hidden="true" />}
+                      <span className={confirmDelete ? '' : 'max-sm:sr-only'}>{confirmDelete ? t('deleteMessageConfirm') : t('deleteMessage')}</span>
+                    </Button>
+                  </div>
                 )}
               </div>
               {replyError && <p role="alert" className="-mt-3 text-[13.5px] font-semibold text-danger-ink">{replyError}</p>}
+              {deleteError && <p role="alert" className="-mt-3 text-[13.5px] font-semibold text-danger-ink">{deleteError}</p>}
 
               {msg.body && (
                 <div className="squircle rounded-[24px] bg-surface px-5 py-5 md:px-7 md:py-6">

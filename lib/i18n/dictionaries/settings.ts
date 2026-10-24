@@ -58,7 +58,7 @@ export type SettingsKey =
 export const settingsDict: Dictionary<SettingsKey> = {
   de: {
     title: 'Einstellungen',
-    lead: 'Darstellung, Konto, Mitteilungen und Datenschutz.',
+    lead: 'Darstellung, Konto, Sicherheit, Mitteilungen und Datenschutz.',
     appearance: 'Darstellung',
     theme: 'Farbschema',
     themeHint: 'System folgt der Einstellung deines Geräts.',
@@ -112,7 +112,7 @@ export const settingsDict: Dictionary<SettingsKey> = {
   },
   it: {
     title: 'Impostazioni',
-    lead: 'Aspetto, account, notifiche e privacy.',
+    lead: 'Aspetto, account, sicurezza, notifiche e privacy.',
     appearance: 'Aspetto',
     theme: 'Tema',
     themeHint: 'Sistema segue l’impostazione del dispositivo.',
@@ -166,7 +166,7 @@ export const settingsDict: Dictionary<SettingsKey> = {
   },
   en: {
     title: 'Settings',
-    lead: 'Appearance, account, notifications and privacy.',
+    lead: 'Appearance, account, security, notifications and privacy.',
     appearance: 'Appearance',
     theme: 'Colour scheme',
     themeHint: 'System follows your device’s setting.',

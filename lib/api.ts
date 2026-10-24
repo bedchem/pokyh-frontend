@@ -10,7 +10,7 @@
 // API first (no CORS preflight); writes carry the API key, which makes the
 // browser check the API's allowed origins before it sends them.
 
-import { API_KEY, apiUrl, rememberSignIn, untisUrl } from './backend';
+import { API_KEY, apiUrl, clientHeaders, rememberSignIn, untisUrl } from './backend';
 import { accessToken, signOutEverywhere } from './api-client';
 import { cacheGet, cacheSet, cacheIsStale, cacheClear, cacheDel } from './cache';
 import { pcGetStale, pcIsStale, pcSet, pcDel, pcClear, pcUrls } from './persist-cache';
@@ -41,6 +41,18 @@ function untisInit(opts: RequestInit = {}): RequestInit {
   };
 }
 
+/**
+ * This browser was signed out from another device (its device session
+ * revoked, `session_revoked`): the sign-in page says so once
+ * (app/[lang]/login/LoginForm.tsx).
+ */
+export const SIGNED_OUT_ELSEWHERE_KEY = 'pokyh_signed_out_elsewhere';
+
+function noteSignedOutElsewhere(code: unknown): void {
+  if (code !== 'session_revoked') return;
+  try { sessionStorage.setItem(SIGNED_OUT_ELSEWHERE_KEY, '1'); } catch { /* storage blocked */ }
+}
+
 // The sign-in is over: the page's cookies and stored data go at once and the
 // page moves on to the sign-in (SessionProvider); the API's cookies follow
 // without being waited for, so no request is left hanging on it.
@@ -64,11 +76,14 @@ async function attemptSilentRelogin(): Promise<boolean> {
   if (_reloginInFlight) return _reloginInFlight;
   _reloginInFlight = fetch(untisUrl('/api/webuntis/login'), untisInit({
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...clientHeaders() },
     body: JSON.stringify({ renewal: true }),
   }))
     .then(async (r) => {
-      if (!r.ok) return false;
+      if (!r.ok) {
+        noteSignedOutElsewhere(((await r.json().catch(() => ({}))) as { code?: unknown }).code);
+        return false;
+      }
       cacheClear();
       // Only signal a session refresh when the POKYH backend layer was actually
       // re-synced (fresh token issued). If the WebUntis session was renewed but
@@ -169,6 +184,8 @@ async function apiFetch(url: string, opts?: RequestInit) {
   const res = await fetch(...(await backendRequest(url, opts)));
 
   if (res.status === 401) {
+    // Signed out from another device: the WebUntis routes say so themselves.
+    noteSignedOutElsewhere(((await res.clone().json().catch(() => ({}))) as { code?: unknown }).code);
     log('401 from', url, '- attempting silent re-login');
     const relogged = await attemptSilentRelogin();
     if (relogged) {
@@ -460,6 +477,35 @@ export async function markAllMessagesRead(ids: number[]): Promise<void> {
   markReadInStoredInbox(ids);
 }
 
+/** Leaves deleted messages out of the stored inbox and tells the badges the new count. */
+function dropFromStoredInbox(ids: number[]): void {
+  const stored = cacheGet<unknown>(INBOX_URL) ?? pcGetStale<unknown>(INBOX_URL);
+  if (!stored || typeof stored !== 'object') return;
+  const gone = new Set(ids);
+  const keep = (list: unknown) => Array.isArray(list)
+    ? list.filter((m) => !(m && typeof m === 'object' && gone.has((m as { id?: number }).id ?? -1)))
+    : list;
+  const root = stored as Record<string, unknown>;
+  const data = root.data && typeof root.data === 'object' ? root.data as Record<string, unknown> : null;
+  const next: Record<string, unknown> = data?.incomingMessages
+    ? { ...root, data: { ...data, incomingMessages: keep(data.incomingMessages) } }
+    : { ...root, incomingMessages: keep(root.incomingMessages) };
+  cacheSet(INBOX_URL, next);
+  pcSet(INBOX_URL, next);
+  for (const id of ids) pcDel(`/api/webuntis/messages?id=${id}`);
+  const list = (next.incomingMessages ?? (next.data as Record<string, unknown> | undefined)?.incomingMessages ?? []) as Array<Record<string, unknown>>;
+  window.dispatchEvent(new CustomEvent('pokyh-messages-updated', { detail: { unread: list.filter((m) => m && !messageIsRead(m)).length } }));
+}
+
+/** Deletes messages of the inbox in WebUntis; the ids WebUntis actually deleted. */
+export async function deleteMessages(ids: number[]): Promise<number[]> {
+  if (!ids.length) return [];
+  const answer = await apiFetch(`/api/webuntis/messages?ids=${ids.join(',')}`, { method: 'DELETE' }) as { deleted?: string[] };
+  const deleted = (answer.deleted ?? []).map(Number).filter((id) => ids.includes(id));
+  dropFromStoredInbox(deleted);
+  return deleted;
+}
+
 export function fetchHomework() {
   const start = todayFormatted().replace(/-/g, '');
   const future = new Date();
@@ -731,6 +777,115 @@ export function sendReply(messageId: number, input: { subject: string; content: 
   return apiFetch(`/api/webuntis/messages/reply?id=${messageId}`, { method: 'POST', body: fd });
 }
 
+// ─── Missed lessons and holidays ─────────────────────────────────────────────
+
+export interface AbsenceTimeTotals {
+  minutes: number;
+  hours: number;
+  days: number;
+  countingMinutes: number;
+  unexcusedMinutes: number;
+  lessons: number;
+}
+
+export interface SubjectAbsence {
+  subject: string;
+  teacher: string;
+  minutes: number;
+  hours: number;
+  lessons: number;
+  countingMinutes: number;
+  unexcusedMinutes: number;
+}
+
+export interface AbsenceTimes {
+  startDate: string;
+  endDate: string;
+  totals: AbsenceTimeTotals;
+  bySubject: SubjectAbsence[];
+  /** Every missed lesson, with the absence it belongs to. */
+  lessons: { absenceId: number; minutes: number; subject: string; excused: boolean; counting: boolean }[];
+}
+
+function absenceTimesUrl(year?: number): string {
+  const start = year ? `${year}0901` : schoolYearStart();
+  const end = year ? `${year + 1}0630` : schoolYearEnd();
+  return `/api/webuntis/absences/times?startDate=${start}&endDate=${end}`;
+}
+
+/** The missed lessons of a school year as the school counts them, per subject ("Fehlzeiten"). */
+export function fetchAbsenceTimes(year?: number): Promise<AbsenceTimes> {
+  return apiFetchCached(absenceTimesUrl(year)) as Promise<AbsenceTimes>;
+}
+
+export function getAbsenceTimesStale(year?: number): AbsenceTimes | undefined {
+  return pcGetStale<AbsenceTimes>(absenceTimesUrl(year));
+}
+
+/** A break of the school (YYYY-MM-DD), with the names WebUntis gives it, if any. */
+export interface SchoolHoliday {
+  start: string;
+  end: string;
+  names: string[];
+}
+
+const HOLIDAYS_URL = '/api/webuntis/holidays';
+
+export function fetchHolidays(): Promise<SchoolHoliday[]> {
+  return (apiFetchCached(HOLIDAYS_URL) as Promise<{ holidays?: SchoolHoliday[] }>).then((r) => r.holidays ?? []);
+}
+
+export function getHolidaysStale(): SchoolHoliday[] | undefined {
+  return pcGetStale<{ holidays?: SchoolHoliday[] }>(HOLIDAYS_URL)?.holidays;
+}
+
+// ─── The WebUntis account: settings and two-factor authentication ────────────
+
+export interface UntisAccount {
+  profile: {
+    name: string;
+    email: string;
+    languageCode: string;
+    userGroup: string;
+    department: string;
+    forwardMessageToEmail: boolean;
+    userTaskNotifications: boolean;
+    passwordChangeAllowed: boolean;
+  };
+  languages: { key: string; name: string }[];
+  twoFactor: { available: boolean; enabled: boolean; required: boolean };
+}
+
+export function fetchUntisAccount(): Promise<UntisAccount> {
+  return apiFetch('/api/webuntis/account') as Promise<UntisAccount>;
+}
+
+export async function saveUntisAccount(change: Partial<Pick<UntisAccount['profile'], 'email' | 'languageCode' | 'forwardMessageToEmail'>>): Promise<void> {
+  await apiFetch('/api/webuntis/account', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(change),
+  });
+}
+
+/** A new secret for the authenticator app (as text and as QR code); nothing is on yet. */
+export function startTwoFactorSetup(): Promise<{ secret: string; qrSvg: string | null; account: string }> {
+  return apiFetch('/api/webuntis/account/two-factor/setup', { method: 'POST' }) as Promise<{ secret: string; qrSvg: string | null; account: string }>;
+}
+
+/** Turns two-factor authentication on with the app's current code. */
+export async function enableTwoFactor(secret: string, code: string): Promise<void> {
+  await apiFetch('/api/webuntis/account/two-factor', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ secret, code }),
+  });
+}
+
+export async function disableTwoFactor(): Promise<void> {
+  await apiFetch('/api/webuntis/account/two-factor', { method: 'DELETE' });
+}
+
 // ─── WebUntis password ───────────────────────────────────────────────────────
 
 /** Changes the WebUntis password; the error text is WebUntis' own reason. */
@@ -775,10 +930,10 @@ export function untisGet(path: string, init?: RequestInit): Promise<Response> {
  * Signs in with WebUntis through the API (the sign-in page): with the password,
  * or with the account's app key (Office 365 schools, lib/app-access.ts).
  */
-export function untisSignIn(body: { username: string; school: { loginName: string; server: string; name?: string } } & ({ password: string } | { key: string })): Promise<Response> {
+export function untisSignIn(body: { username: string; school: { loginName: string; server: string; name?: string }; token?: string } & ({ password: string } | { key: string })): Promise<Response> {
   return fetch(untisUrl('/api/webuntis/login'), untisInit({
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...clientHeaders() },
     body: JSON.stringify(body),
   }));
 }

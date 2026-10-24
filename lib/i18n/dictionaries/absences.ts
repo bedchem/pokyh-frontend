@@ -19,6 +19,10 @@ export type AbsencesKey =
   | 'report'
   | 'ofLessons'
   | 'perMonth'
+  | 'perSubject'
+  | 'perSubjectHint'
+  | 'subjectLessons'
+  | 'subjectUnexcused'
   // ReportAbsenceSheet
   | 'choose'
   | 'errChooseRange'
@@ -74,6 +78,10 @@ export const absencesDict: Dictionary<AbsencesKey> = {
     report: 'Abwesenheit melden',
     ofLessons: '{missed} von {total} Unterricht',
     perMonth: 'Pro Monat',
+    perSubject: 'Pro Fach',
+    perSubjectHint: 'So zählt deine Schule in WebUntis.',
+    subjectLessons: '{n} Std.',
+    subjectUnexcused: 'davon {time} offen',
     choose: 'Wählen',
     errChooseRange: 'Bitte Start und Ende wählen.',
     errEndAfterStart: 'Ende muss nach dem Start liegen.',
@@ -125,6 +133,10 @@ export const absencesDict: Dictionary<AbsencesKey> = {
     report: 'Segnala assenza',
     ofLessons: '{missed} su {total} di lezione',
     perMonth: 'Per mese',
+    perSubject: 'Per materia',
+    perSubjectHint: 'Come conta la tua scuola in WebUntis.',
+    subjectLessons: '{n} ore',
+    subjectUnexcused: 'di cui {time} da giustificare',
     choose: 'Scegli',
     errChooseRange: 'Scegli inizio e fine.',
     errEndAfterStart: 'La fine deve essere dopo l’inizio.',
@@ -176,6 +188,10 @@ export const absencesDict: Dictionary<AbsencesKey> = {
     report: 'Report absence',
     ofLessons: '{missed} of {total} of lessons',
     perMonth: 'Per month',
+    perSubject: 'Per subject',
+    perSubjectHint: 'As your school counts it in WebUntis.',
+    subjectLessons: '{n} lessons',
+    subjectUnexcused: '{time} not excused',
     choose: 'Choose',
     errChooseRange: 'Please choose a start and an end.',
     errEndAfterStart: 'The end must be after the start.',
@@ -217,6 +233,10 @@ export const absencesDict: Dictionary<AbsencesKey> = {
     excused: "Giustificades",
     unexcused: "Nia giustificades",
     rate: "Cuota de assënza",
+    perSubject: "Per materia",
+    perSubjectHint: "Coche tia scola conta te WebUntis.",
+    subjectLessons: "{n} ëures",
+    subjectUnexcused: "de chëstes {time} nia giustificà",
     emptyTitle: "Deguna assënza",
     emptySubtitle: "Tu ne n’ies nia stat assënt.",
     statusExcused: "giustificà",

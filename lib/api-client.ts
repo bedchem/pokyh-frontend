@@ -1,6 +1,6 @@
 'use client';
 
-import { API_BASE, API_KEY, forgetSignIn, rememberAccessToken } from './backend';
+import { API_BASE, API_KEY, clientHeaders, forgetSignIn, rememberAccessToken } from './backend';
 import type { BellMarks } from './bell-feed';
 
 // ─── Token storage ────────────────────────────────────────────────────────────
@@ -92,7 +92,7 @@ async function refreshAccessToken(): Promise<boolean> {
     const res = await fetch(`${API_BASE}/auth/web/refresh`, {
       method: 'POST',
       credentials: 'include',
-      headers: { 'X-API-Key': API_KEY },
+      headers: { 'X-API-Key': API_KEY, ...clientHeaders() },
     });
 
     if (!res.ok) return false;
@@ -343,6 +343,47 @@ export interface ApiComment {
   stars?: number | null;
 }
 
+/** "app" (phone app), "pwa" (website on the home screen), "web" (browser), "other". */
+export type DeviceClient = 'app' | 'pwa' | 'web' | 'other';
+
+/** A device signed in to the account (the API's device sessions). */
+export interface DeviceSession {
+  id: string;
+  /** The device this page runs on. */
+  current: boolean;
+  client: DeviceClient;
+  /** "android" | "ios" | "windows" | "macos" | "linux" | "chromeos" | "other" */
+  platform: string;
+  /** "Android 15", "Windows", "iOS 18.1" */
+  os: string;
+  /** "Chrome 130", "POKYH App 2.1.0" */
+  browser: string;
+  model: string;
+  ip: string | null;
+  country: string;
+  region: string | null;
+  city: string | null;
+  createdAt: string;
+  lastUsedAt: string;
+}
+
+/** One sign-in of the account (its login history). */
+export interface LoginEntry {
+  id: string;
+  at: string;
+  /** "webuntis" (password), "office" (app key), "local" (POKYH account), "register" */
+  method: string;
+  client: DeviceClient;
+  platform: string;
+  os: string;
+  browser: string;
+  model: string;
+  ip: string | null;
+  country: string;
+  region: string | null;
+  city: string | null;
+}
+
 export interface CreateTodoData {
   title: string;
   details?: string;
@@ -393,6 +434,31 @@ export const api = {
   users: {
     async get(userId: string): Promise<ApiUser> {
       return apiJson<ApiUser>(`/users/${encodeURIComponent(userId)}`);
+    },
+  },
+
+  // Where the account is signed in and when it signed in; any device can sign
+  // out any other. "Daten anfordern": everything POKYH keeps, as one file.
+  account: {
+    async devices(): Promise<DeviceSession[]> {
+      return (await apiJson<{ sessions: DeviceSession[] }>('/auth/sessions')).sessions;
+    },
+    async signOutDevice(id: string): Promise<void> {
+      await apiJson<{ ok: boolean }>(`/auth/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    },
+    async signOutOthers(): Promise<number> {
+      return (await apiJson<{ count: number }>('/auth/sessions/sign-out-others', { method: 'POST' })).count;
+    },
+    async loginHistory(): Promise<{ logins: LoginEntry[]; keptDays: number }> {
+      return apiJson<{ logins: LoginEntry[]; keptDays: number }>('/auth/login-history');
+    },
+    async exportData(): Promise<Blob> {
+      const res = await apiFetch('/users/me/export', { headers: { Accept: 'application/json' } });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      return res.blob();
     },
   },
 

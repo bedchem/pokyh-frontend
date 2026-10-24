@@ -59,6 +59,13 @@ export type LoginKey =
   | 'errKeyMissing'
   | 'errKeyBad'
   | 'errKeyInvalid'
+  | 'codeTitle'
+  | 'codeHint'
+  | 'codeLabel'
+  | 'codeBack'
+  | 'errCodeWrong'
+  | 'errCodeFormat'
+  | 'signedOutElsewhere'
   | 'imprint'
   | 'privacy'
   | 'terms'
@@ -138,6 +145,13 @@ export const loginDict: Dictionary<LoginKey> = {
     errKeyMissing: 'Bitte Benutzer und Schlüssel eingeben.',
     errKeyBad: 'Benutzer oder Schlüssel ist falsch.',
     errKeyInvalid: 'Das ist kein gültiger Schlüssel. Kopiere ihn genau so, wie WebUntis ihn zeigt.',
+    codeTitle: 'Code eingeben',
+    codeHint: 'Dein Konto ist mit Zwei-Faktor-Anmeldung geschützt. Gib den 6-stelligen Code aus deiner Authenticator-App ein.',
+    codeLabel: 'Code',
+    codeBack: 'Zurück',
+    errCodeWrong: 'Der Code stimmt nicht oder ist abgelaufen. Nimm den neuen Code aus der App.',
+    errCodeFormat: 'Der Code hat 6 Ziffern.',
+    signedOutElsewhere: 'Dieses Gerät wurde in deinem Konto abgemeldet. Melde dich neu an, wenn du es weiter nutzen willst.',
     imprint: 'Impressum',
     privacy: 'Datenschutz',
     terms: 'Nutzungsbedingungen',
@@ -208,6 +222,13 @@ export const loginDict: Dictionary<LoginKey> = {
     errKeyMissing: 'Inserisci utente e chiave.',
     errKeyBad: 'Utente o chiave errati.',
     errKeyInvalid: 'Questa non è una chiave valida. Copiala esattamente come la mostra WebUntis.',
+    codeTitle: 'Inserisci il codice',
+    codeHint: 'Il tuo account è protetto con l’accesso a due fattori. Inserisci il codice a 6 cifre della tua app di autenticazione.',
+    codeLabel: 'Codice',
+    codeBack: 'Indietro',
+    errCodeWrong: 'Il codice non è corretto o è scaduto. Usa il nuovo codice dell’app.',
+    errCodeFormat: 'Il codice ha 6 cifre.',
+    signedOutElsewhere: 'Questo dispositivo è stato disconnesso dal tuo account. Accedi di nuovo se vuoi continuare a usarlo.',
     imprint: 'Note legali',
     privacy: 'Privacy',
     terms: 'Condizioni d’uso',
@@ -278,8 +299,25 @@ export const loginDict: Dictionary<LoginKey> = {
     errKeyMissing: 'Please enter your user and key.',
     errKeyBad: 'Wrong user or key.',
     errKeyInvalid: 'That is not a valid key. Copy it exactly as WebUntis shows it.',
+    codeTitle: 'Enter code',
+    codeHint: 'Your account is protected with two-factor sign-in. Enter the 6-digit code from your authenticator app.',
+    codeLabel: 'Code',
+    codeBack: 'Back',
+    errCodeWrong: 'The code is wrong or has expired. Use the new code from the app.',
+    errCodeFormat: 'The code has 6 digits.',
+    signedOutElsewhere: 'This device was signed out from your account. Sign in again if you want to keep using it.',
     imprint: 'Imprint',
     privacy: 'Privacy',
     terms: 'Terms of use',
+  },
+  // Only the step for accounts with two-factor sign-in so far; the rest falls back to German.
+  lld: {
+    codeTitle: 'Scrij l codesc',
+    codeHint: 'Ti account ie prutegì cun l azes a doi fatores. Scrij l codesc de 6 zifres de tia app de autenticazion.',
+    codeLabel: 'Codesc',
+    codeBack: 'Zeruch',
+    errCodeWrong: 'L codesc ne va nia o ie scadù. Tol l codesc nuef dla app.',
+    errCodeFormat: 'L codesc à 6 zifres.',
+    signedOutElsewhere: 'Chësc aparat ie unì fat jì ora da ti account. Va inò ite, sce tu ues l adurvé inant.',
   },
 };

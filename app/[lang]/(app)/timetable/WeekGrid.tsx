@@ -50,6 +50,10 @@ const MAX_PX_PER_MINUTE = 2.4;
 const SHORT_LESSON_MIN = 45;
 /** Narrower than TEXT_MIN_CELL_WIDTH a cell still carries its lines, with less padding; below this, none. */
 const NARROW_TEXT_MIN_WIDTH = 20;
+/** Where there is width to spend (scale > 1): the room above and below each lesson, so two in a row read as two. */
+const WIDE_SLOT_PAD = 3;
+/** The height (in units of the text scale) a cell needs for its subject over teacher and room, at full size. */
+const PAIR_HEIGHT = 32;
 
 /** A figure of the week whose lessons stand out while it is pointed at (page.tsx, the dock). */
 export type WeekMark = 'today' | 'cancelled' | 'exam' | 'substitution';
@@ -76,7 +80,10 @@ export default function WeekGrid({
   empty,
   mark = null,
   fit = true,
+  holidayTitle,
 }: {
+  /** The name of the school's break on a day (YYYYMMDD), for its card. */
+  holidayTitle?: (dayNum: number) => string | null;
   dayEntries: TimetableEntry[][];
   dates: Date[];
   dayNums: number[];
@@ -113,9 +120,11 @@ export default function WeekGrid({
     return () => ro.disconnect();
   }, []);
 
+  // Tablets and computers: more room between days and lessons, and text sized for the screen.
+  const wide = scale > 1;
   const gutter = Math.round(GRID_GUTTER * Math.min(scale, 1.25));
   // Breathing room between days: tight on a phone, wider where there is width to spend.
-  const colGap = scale > 1 ? 8 : 4;
+  const colGap = wide ? Math.round(8 * scale) : 4;
   const colW = Math.max(0, (box.width - gutter - colGap * 6) / 6);
 
   const anyDayHasEntries = dayEntries.some(d => d.length > 0);
@@ -135,14 +144,23 @@ export default function WeekGrid({
   const pxPerMin = fit ? Math.min(MAX_PX_PER_MINUTE, Math.max(MIN_PX_PER_MINUTE, room / span)) : PX_PER_MINUTE * scale;
   const totalHeight = fit ? span * pxPerMin : Math.max(380 * scale, span * pxPerMin);
   const overflows = fit && totalHeight > room + 0.5;
-  // Text grows with the room each minute gets, up to the size the width allows.
-  const textScale = fit ? Math.min(scale, Math.max(1, pxPerMin / 0.8)) : scale;
+  // The length of most of the week's lessons (the middle one), for the size of their text.
+  const lessonMins = useMemo(() => {
+    const lengths = allEntries.map(e => toMins(e.endTime) - toMins(e.startTime)).sort((a, b) => a - b);
+    return lengths.length ? lengths[lengths.length >> 1] : SHORT_LESSON_MIN;
+  }, [allEntries]);
+  // A cell's padding above and below: the gap between two lessons (a little less where the
+  // day is fitted to a phone's screen).
+  const slotPad = wide ? WIDE_SLOT_PAD : (fit ? 1.5 : 2) * scale;
+  // Text grows with the room each minute gets, up to the size the width allows. With width to
+  // spend, as large as lets a usual lesson still hold its subject over teacher and room (rounded
+  // down, so it does).
+  const textScale = !fit ? scale
+    : wide ? Math.min(scale, Math.max(1, Math.floor(((lessonMins * pxPerMin - 2 * slotPad) / PAIR_HEIGHT) * 100) / 100))
+    : Math.min(scale, Math.max(1, pxPerMin / 0.8));
   const minCellHeight = fit ? Math.min(MIN_CELL_HEIGHT * textScale, SHORT_LESSON_MIN * pxPerMin) : MIN_CELL_HEIGHT * scale;
   // Fitted, the body waits for the height it is spread over; scrolling, only for the width.
   const measured = fit ? box.height > 0 : box.width > 0;
-  // A cell's padding above and below: the gap between two lessons (a little less where the
-  // day is fitted to the screen).
-  const slotPad = (fit ? 1.5 : 2) * textScale;
 
   // Numbered only when the numbers are this school's.
   const visiblePeriods = useMemo(() => {
@@ -177,7 +195,7 @@ export default function WeekGrid({
   const nowY = (minute - minMins) * pxPerMin;
 
   return (
-    <div className={s.grid} style={{ ['--s' as string]: textScale } as CSSProperties} data-mark={mark ?? undefined}>
+    <div className={s.grid} style={{ ['--s' as string]: textScale } as CSSProperties} data-mark={mark ?? undefined} data-wide={wide || undefined}>
       {/* Header */}
       <div className={s.gridHeader} style={{ gap: colGap }}>
         <div className={s.gutterHead} style={{ width: gutter }}>
@@ -226,10 +244,12 @@ export default function WeekGrid({
             minMins={minMins}
             pxPerMin={pxPerMin}
             scale={textScale}
+            wide={wide}
             minCellHeight={minCellHeight}
             slotPad={slotPad}
             hues={hues}
             kind={dayKinds[d]}
+            holidayTitle={dayKinds[d] === 'holiday' ? holidayTitle?.(dayNums[d]) ?? null : null}
             slots={daySlots[d]}
             dayNum={dayNums[d]}
             todayNum={todayNum}
@@ -263,10 +283,12 @@ function DayColumn({
   minMins,
   pxPerMin,
   scale,
+  wide,
   minCellHeight,
   slotPad,
   hues,
   kind,
+  holidayTitle,
   slots,
   dayNum,
   todayNum,
@@ -274,12 +296,14 @@ function DayColumn({
   onTap,
   absences,
 }: {
+  holidayTitle: string | null;
   width: number;
   height: number;
   boundaryTimes: number[];
   minMins: number;
   pxPerMin: number;
   scale: number;
+  wide: boolean;
   minCellHeight: number;
   slotPad: number;
   hues: ReadonlyMap<string, number>;
@@ -323,6 +347,7 @@ function DayColumn({
           <SpecialDayCard
             kind={kind}
             month={Math.floor(dayNum / 100) % 100}
+            title={holidayTitle}
             compact
             style={{ top: 2, height: height - 4 }}
             // A day that is cancelled outright opens nothing: the card already says everything the
@@ -352,7 +377,7 @@ function DayColumn({
               data-exam={(entry.isExam || cell.kind === 'exam') || undefined}
               data-substitution={(entry.isSubstitution && !cancelled) || undefined}
             >
-              <GridLessonCell cell={cell} height={h} width={cellWidth} dense={sharing} scale={scale} slotPad={slotPad} hues={hues} onTap={onTap} />
+              <GridLessonCell cell={cell} height={h} width={cellWidth} dense={sharing} scale={scale} wide={wide} slotPad={slotPad} hues={hues} onTap={onTap} />
             </div>
           );
         })
@@ -379,12 +404,13 @@ function DayColumn({
 }
 
 /** One lesson block: pastel fill and up to three lines (subject, teacher, room) in that order. */
-function GridLessonCell({ cell, height, width, dense, scale, slotPad, hues, onTap }: {
+function GridLessonCell({ cell, height, width, dense, scale, wide, slotPad, hues, onTap }: {
   cell: GridCell;
   height: number;
   width: number;
   dense: boolean;
   scale: number;
+  wide: boolean;
   slotPad: number;
   hues: ReadonlyMap<string, number>;
   onTap: (slot: MergedSlot) => void;
@@ -405,15 +431,18 @@ function GridLessonCell({ cell, height, width, dense, scale, slotPad, hues, onTa
   ].filter(l => l.parts.length > 0);
   // Subject, teacher and room each on a line of their own whenever the cell can hold them: a
   // shorter cell sets them smaller, a shorter one still puts teacher and room on one line. Only a
-  // sliver keeps the subject alone. (`height` includes the slot's padding.)
+  // sliver keeps the subject alone. Where there is width, a cell too short for three lines puts
+  // teacher and room on one line at full size first. (`height` includes the slot's padding.)
   const inner = height - 2 * slotPad;
   // Beside an Entfall a lesson gets only part of the column: on a phone too narrow for the
   // usual padding, but still wide enough to say what it is.
   const showText = width >= NARROW_TEXT_MIN_WIDTH;
   const narrow = width < TEXT_MIN_CELL_WIDTH;
-  const fit = inner >= 42 * scale ? 'roomy' : inner >= 27.5 * scale ? 'tight' : inner >= 20 * scale ? 'joined' : 'subject';
+  const fit = inner >= 42 * scale ? 'roomy'
+    : wide && inner >= PAIR_HEIGHT * scale ? 'pair'
+    : inner >= 27.5 * scale ? 'tight' : inner >= 20 * scale ? 'joined' : 'subject';
   const lines = fit === 'subject' ? []
-    : fit === 'joined' && secondary.length > 1 ? [{ parts: secondary.flatMap(l => l.parts), className: s.lineTeacher }]
+    : (fit === 'joined' || fit === 'pair') && secondary.length > 1 ? [{ parts: secondary.flatMap(l => l.parts), className: s.lineTeacher }]
     : secondary;
   const label = [subjectText, entry.teacherName, entry.roomName, cancelled ? t('cancelled') : ''].filter(Boolean).join(', ');
 
@@ -440,7 +469,7 @@ function GridLessonCell({ cell, height, width, dense, scale, slotPad, hues, onTa
       title={label}
     >
       {showText && (
-        <span className={`${s.cellBody} ${dense ? s.cellDense : ''} ${narrow ? s.cellNarrow : ''} ${fit !== 'roomy' ? s.cellTight : ''}`}>
+        <span className={`${s.cellBody} ${dense ? s.cellDense : ''} ${narrow ? s.cellNarrow : ''} ${fit === 'pair' ? s.cellPair : fit !== 'roomy' ? s.cellTight : ''}`}>
           <ChangeableLine
             parts={[[subjectText, changes.subjectChanged ? 'added' : 'plain']]}
             className={s.lineSubject}
