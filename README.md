@@ -1,21 +1,28 @@
 <div align="center">
 
-<img src="public/POKYH_Logo.png" alt="POKYH" width="120" />
+<img src="public/POKYH_Logo.png" alt="POKYH" width="112" />
 
 # POKYH Web
 
-**The better app for WebUntis.** Timetable, grades, absences, messages, the school canteen and
-class tools in one fast, installable web app for students and guardians.
+**The better app for WebUntis.**<br />
+Timetable, grades, absences, messages, the school canteen and class tools in one fast,
+installable web app for students and guardians.
 
-Next.js 16 · React 19 · TypeScript · Tailwind CSS 4 · static export · PWA
+[![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org)
+[![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![Static export](https://img.shields.io/badge/build-static_export-534AB7)](#static-export-a-hard-rule)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-[Getting started](#getting-started) · [Configuration](#configuration) · [Architecture](#architecture) · [Deployment](#deployment) · [Backend](../pokyh-backend)
+[Getting started](#getting-started) · [Architecture](#architecture) · [Configuration](#configuration) · [Deployment](#deployment) · [Contributing](#contributing) · [Backend](https://github.com/bedchem/pokyh-backend)
 
 </div>
 
+> [!NOTE]
 > POKYH is an independent project and is not affiliated with, endorsed by or connected to Untis GmbH.
-> WebUntis is a trademark of Untis GmbH. POKYH acts only with the user's own WebUntis credentials and
-> on their behalf; the school's rules apply.
+> WebUntis is a trademark of Untis GmbH. POKYH acts only with the user's own WebUntis credentials
+> and on their behalf; the school's rules apply.
 
 ---
 
@@ -24,6 +31,7 @@ Next.js 16 · React 19 · TypeScript · Tailwind CSS 4 · static export · PWA
 - [Overview](#overview)
 - [Features](#features)
 - [Architecture](#architecture)
+- [Static export: a hard rule](#static-export-a-hard-rule)
 - [How sign-in works](#how-sign-in-works)
 - [Excusing absences](#excusing-absences)
 - [Tech stack](#tech-stack)
@@ -35,6 +43,7 @@ Next.js 16 · React 19 · TypeScript · Tailwind CSS 4 · static export · PWA
 - [Deployment](#deployment)
 - [Security and privacy](#security-and-privacy)
 - [Quality checks](#quality-checks)
+- [Contributing](#contributing)
 - [Troubleshooting](#troubleshooting)
 - [License](#license)
 
@@ -47,13 +56,13 @@ sign-in page searches all WebUntis schools, and the chosen school is remembered 
 the end of the school year. Students and guardians get their WebUntis data in a clean, mobile-first
 interface, plus POKYH's own features such as class reminders, personal to-dos and canteen ratings.
 
-The site is a **static export**. `next build` writes plain files to `out/`, which any web server or
-CDN can serve. There is no Node server in production: everything dynamic runs in the browser and
-talks to the [POKYH API](../pokyh-backend), WebUntis included. The WebUntis session lives in
-encrypted, httpOnly cookies of the API, which page scripts cannot read; the API keeps a copy only
-while push notifications for new messages are turned on.
-
-Languages: **German, Italian and English**.
+| | |
+| --- | --- |
+| **Delivery** | A static export: `next build` writes plain files to `out/`, served by nginx or any CDN. No Node server in production. |
+| **Data** | Everything dynamic runs in the browser and talks to the [POKYH API](https://github.com/bedchem/pokyh-backend), WebUntis included. |
+| **Session** | The WebUntis session lives in encrypted, httpOnly cookies of the API, which page scripts cannot read. |
+| **Languages** | German, Italian and English. |
+| **Platforms** | Every modern browser, installable as a PWA; native iOS and Android apps are available as well. |
 
 ---
 
@@ -64,7 +73,7 @@ Languages: **German, Italian and English**.
 | Area | What it does |
 | --- | --- |
 | **Home** | Dashboard with the next lessons, recent grades, messages and what is due |
-| **Timetable** | Week grid with substitutions, cancellations, exams and homework; lesson details; absences drawn over the lessons they cover |
+| **Timetable** | Week grid that always fits the screen, on phones too: substitutions, cancellations, exams and homework, lesson details, absences drawn over the lessons they cover, swipe between weeks, school-year switch, calendar export (`.ics`) |
 | **Grades** | Grades per subject, averages and trends |
 | **Absences** | Absence rate (rounded or exact, from the real timetable), per-month chart, report an absence ahead, excuse a past one, excuse letter as PDF |
 | **Messages** | WebUntis message centre: inbox, sent, drafts, attachments, replies, new messages to teachers |
@@ -86,11 +95,13 @@ privacy, terms, cookies).
 ### Platform
 
 - **Installable PWA** with a service worker, offline-aware caches and instant pages from the last
-  answer stored on the device (`lib/persist-cache.ts`).
+  answer stored on the device (`lib/persist-cache.ts`). When WebUntis cannot be reached, the last
+  copy stays on screen and says how old it is.
 - **Loading on intent**: when a link into the app is hovered, touched or focused, its data starts
   loading (`lib/preload.ts`).
 - **SEO**: sitemap, robots.txt, hreflang, structured data, `llms.txt` / `llms-full.txt` and IndexNow.
 - **Consent first**: analytics and third-party media load only after the visitor agrees.
+- **Accessible**: keyboard navigation, focus states, reduced-motion support, light and dark theme.
 
 ---
 
@@ -114,11 +125,11 @@ privacy, terms, cookies).
   `public/_headers` + `public/_redirects` for Cloudflare Pages and similar hosts. That covers
   security headers, caching, old links and the language of an address without one.
 - **Pages with an id** (`/de/messages/123/`, `/de/canteen/dish/x/`, ...) are built once for the
-  placeholder id `_`. The web server answers every id with that page and the page reads the real id
-  from the address (`lib/route-id.ts`).
+  placeholder id `_`. The web server answers every id with that page, and the page reads the real
+  id from the address (`lib/route-id.ts`).
 - **Signed-in pages** check the session in the browser (`components/AuthGuard.tsx`) and send the
   visitor to the sign-in page and back.
-- **Data access** is split in two clients:
+- **Data access** is split into two clients:
   - `lib/api.ts`: WebUntis through the API's `/webuntis/*` with the API's cookies
     (`credentials: 'include'`), stale-while-revalidate caching, silent renewal on `401`.
   - `lib/api-client.ts`: POKYH's own data with `X-API-Key` and a Bearer token, refreshed through
@@ -126,6 +137,29 @@ privacy, terms, cookies).
 - **Development** runs `next dev` on port 3011 and passes the API's paths on to the API
   (`next.config.ts`, `app/dev-api`), so the API's cookies land on `localhost` exactly as they do on
   `pokyh.com` in production.
+
+---
+
+## Static export: a hard rule
+
+The website **must always build as a static export** (`output: 'export'` in `next.config.ts`).
+Every change has to keep `npm run build` finishing and writing a complete `out/`. In practice:
+
+| Do | Don't |
+| --- | --- |
+| Load data in the browser through `lib/api.ts` / `lib/api-client.ts` | Fetch data per request on the server (`cookies()`, `headers()`, uncached `fetch` in a page) |
+| Guard pages in the browser (`AuthGuard`, `UntisGuard`) | Use middleware / proxy, Server Actions or route handlers that need a running server |
+| Build pages with an id once for the placeholder `_` (`generateStaticParams`) | Add dynamic routes without static params |
+| Keep redirects and headers in `deploy/nginx.conf` **and** `public/_headers` / `public/_redirects` | Rely on `redirects()` / `headers()` in `next.config.ts` (ignored by a static export) |
+| Ship images as they are (`images.unoptimized`) | Depend on the Next.js image optimiser |
+| Read settings at build time (`NEXT_PUBLIC_*`) | Expect environment variables at run time |
+
+Route handlers under `app/` are allowed only when they are fully static (`dynamic = 'force-static'`),
+like `app/api/privacy-notice` or the Open Graph images. Files ending in `.dev.ts` exist in
+development only.
+
+A production build never contains a local address: `next.config.ts` replaces `localhost` values of
+`NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_API_BACKEND_URL` with the public defaults.
 
 ---
 
@@ -167,8 +201,8 @@ every device and POKYH stores nothing about it. Who may excuse follows WebUntis'
 
 | Concern | Choice |
 | --- | --- |
-| Framework | Next.js 16 (App Router, `output: 'export'`) |
-| UI | React 19, Tailwind CSS 4, Framer Motion, Phosphor icons |
+| Framework | Next.js 16 (App Router, `output: 'export'`, Turbopack in development) |
+| UI | React 19, Tailwind CSS 4, CSS Modules, Framer Motion, Phosphor icons |
 | 3D and motion on the landing page | three.js, @react-three/fiber and drei, GSAP, Lenis |
 | Language | TypeScript (strict) |
 | Documents | pdf.js for PDFs in the built-in viewer |
@@ -182,8 +216,9 @@ every device and POKYH stores nothing about it. Who may excuse follows WebUntis'
 
 ### Prerequisites
 
-- Node.js **20.9** or newer
-- A running [POKYH backend](../pokyh-backend), locally (port 4000) or a deployed one
+- **Node.js** `^22.23.4`, `^24.22.1` or `>=26.12.1` (see `engines` in `package.json`)
+- A running [POKYH backend](https://github.com/bedchem/pokyh-backend), locally on port 4000 or a
+  deployed one
 
 ### Run it
 
@@ -194,7 +229,8 @@ npm run dev                  # http://localhost:3011
 ```
 
 The backend's `CORS_ORIGIN` must include `http://localhost:3011`. Devices on the local network can
-open the dev server too (it listens on `0.0.0.0`; allowed origins are in `next.config.ts`).
+open the dev server too, which is the easiest way to try the app on a real phone (it listens on
+`0.0.0.0`; allowed origins are in `next.config.ts`).
 
 ### Build and preview the static site
 
@@ -204,14 +240,16 @@ npx serve out                # or any static file server
 ```
 
 A production build always points at public addresses. To test `out/` against a backend on this
-machine, build with `NEXT_PUBLIC_API_LOCAL=true`.
+machine, build with `NEXT_PUBLIC_API_LOCAL=true`. For a preview with the production web server
+rules (headers, redirects, id pages), use the [Docker image](#docker-nginx).
 
 ---
 
 ## Configuration
 
 All values are read **at build time** and frozen into the pages; there are no run-time secrets.
-[`.env.example`](.env.example) lists every setting with an explanation. The important ones:
+[`.env.example`](.env.example) lists every setting with an explanation. Local values go into
+`.env.local`, which is never committed.
 
 ### Site and API
 
@@ -234,13 +272,13 @@ All values are read **at build time** and frozen into the pages; there are no ru
 
 | Variable | Purpose |
 | --- | --- |
-| `NEXT_PUBLIC_FALLBACK_LOCALE` | Language for browsers that ask for none of de/it/en (default `en`); also used by nginx. |
+| `NEXT_PUBLIC_FALLBACK_LOCALE` | Language for browsers that ask for none of de/it/en (default `en`); also hreflang `x-default` and nginx. |
 | `NEXT_PUBLIC_WEEK_ROLLOVER` | When "this week" moves on, as `<weekday> <HH:MM>` (default `6 17:00`, Saturday evening). |
 | `NEXT_STALE_DYNAMIC` · `NEXT_STALE_STATIC` | Router cache lifetime of visited pages, in seconds. |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Web Push public key (the backend's `VAPID_PUBLIC_KEY`). |
 | `NEXT_PUBLIC_GA_ID` | Google Analytics id, loaded only after consent. |
 | `NEXT_PUBLIC_COMMENT_MAX_LENGTH` | Longest comment (the backend's limit). |
-| `NEXT_PUBLIC_WORD_FILTER_BLOCK` · `_ALLOW` | Extra words for the sign-in mascot's name filter. |
+| `NEXT_PUBLIC_WORD_FILTER_BLOCK` · `NEXT_PUBLIC_WORD_FILTER_ALLOW` | Extra words for the sign-in mascot's name filter. |
 | `NEXT_PUBLIC_SCROLL_TUNING` | JSON to tune the scroll feel of the public pages. |
 | `MENSA_API_URL` · `MENSA_API_KEY` | Source of the menu prerendered into the public canteen page. |
 
@@ -268,6 +306,9 @@ WebUntis settings (default school, school allow-list, internal paths) belong to 
 | `npm test` | Unit tests (`node --test`) |
 | `npm run indexnow` | After a deploy: submits every sitemap URL to IndexNow |
 
+`npm start` (`next start`) does not apply: a static export has no Next.js server. Serve `out/`
+instead.
+
 ---
 
 ## Project layout
@@ -276,15 +317,18 @@ WebUntis settings (default school, school allow-list, internal paths) belong to 
 app/
 ├── [lang]/
 │   ├── (app)/            signed-in app: home, timetable, grades, absences, messages,
-│   │                     canteen, class, reminders, todos, school, profile, settings
+│   │                     canteen, class, classregevents, reminders, todos, school,
+│   │                     profile, settings
 │   ├── (site)/           public site: landing, mensa, tools, comparison, faq, howto,
 │   │                     get (apps and PWA guides), legal, about, webuntis
-│   └── login/            school search and sign-in
-├── api/                  two static JSON answers: privacy-notice (apps), legal/contact
-├── dev-api/              development-only proxy to the API
+│   ├── login/            school search and sign-in
+│   └── legal/            Open Graph image of the legal pages
+├── api/                  static JSON answers: privacy-notice (apps), legal/contact
+├── dev-api/              development-only proxy to the API (*.dev.ts)
 ├── index.html/           root page: forwards to the visitor's language
-└── global-not-found.tsx  404 page (also forwards addresses without a language)
-components/               UI by area (app shell, absences, messages, timetable, landing, ui, ...)
+├── global-not-found.tsx  404 page (also forwards addresses without a language)
+└── sitemap.ts, robots.txt, manifest.ts, llms.txt, ...
+components/               UI by area (app shell, absences, messages, landing, ui, ...)
 providers/                session, locale, theme, app and activity contexts
 lib/                      API clients, caches, parsing, i18n dictionaries, SEO, school logic
 public/                   PWA assets, icons, 3D models, service worker, _headers, _redirects
@@ -328,16 +372,16 @@ npm ci && npm run build      # publish the out/ folder
 `public/_headers` and `public/_redirects` carry the same rules as nginx for Cloudflare Pages and
 compatible hosts.
 
-### Checklist
+### Release checklist
 
-- The site runs on its own domain on the same site as the API (`pokyh.com` and `api.pokyh.com`);
-  a `*.pages.dev` address cannot sign in.
-- `NEXT_PUBLIC_SITE_URL=https://pokyh.com` and `NEXT_PUBLIC_API_BACKEND_URL=https://api.pokyh.com`.
-- `NEXT_PUBLIC_API_KEY` matches the backend's `API_KEY`.
-- `LEGAL_ENTITY_NAME` (and the other `LEGAL_*` values) are set in the build environment.
-- `NEXT_PUBLIC_VAPID_PUBLIC_KEY` is the backend's `VAPID_PUBLIC_KEY`, for Web Push.
-- The backend's `CORS_ORIGIN` includes the site's origin.
-- After the deploy, `npm run indexnow` (optional).
+- [ ] The site runs on its own domain on the same site as the API (`pokyh.com` and
+      `api.pokyh.com`); a `*.pages.dev` address cannot sign in.
+- [ ] `NEXT_PUBLIC_SITE_URL=https://pokyh.com` and `NEXT_PUBLIC_API_BACKEND_URL=https://api.pokyh.com`.
+- [ ] `NEXT_PUBLIC_API_KEY` matches the backend's `API_KEY`.
+- [ ] `LEGAL_ENTITY_NAME` (and the other `LEGAL_*` values) are set in the build environment.
+- [ ] `NEXT_PUBLIC_VAPID_PUBLIC_KEY` is the backend's `VAPID_PUBLIC_KEY`, for Web Push.
+- [ ] The backend's `CORS_ORIGIN` includes the site's origin.
+- [ ] After the deploy, `npm run indexnow` (optional).
 
 The menu prerendered into the public canteen page is as old as the build; the browser loads the
 current one.
@@ -361,17 +405,38 @@ current one.
 - Analytics and third-party media load only after consent; dish photos are loaded without a
   referrer and can be hidden.
 
+Please report security issues privately to the contact named on the legal pages rather than in a
+public issue.
+
 ---
 
 ## Quality checks
+
+Run all of these before a pull request; each must pass.
 
 ```bash
 npx tsc --noEmit             # type check
 npm run lint                 # ESLint
 npm test                     # unit tests: bell feed, canteens, popup schedule, school choice,
                              # school math, school week, scroll pace, word filter
-npm run build                # must finish and write out/
+npm run build                # must finish and write out/ (see "Static export: a hard rule")
 ```
+
+For layout changes, check the page at phone width (e.g. 320, 390 and 430 px) and on a computer:
+the timetable, for example, must fit the screen without scrolling on both.
+
+---
+
+## Contributing
+
+1. Branch off `main` and keep the change focused.
+2. Follow the existing style: TypeScript strict, CSS Modules next to the page for layout, Tailwind
+   utilities for typography and spacing, comments that explain *why*.
+3. New texts go into the dictionaries in `lib/i18n/dictionaries/` for **all three languages**.
+4. Web server rules change in both `deploy/nginx.conf` and `public/_headers` / `public/_redirects`.
+5. Keep the [static export](#static-export-a-hard-rule) intact and run the
+   [quality checks](#quality-checks).
+6. Larger pieces of work get a short entry in `docs/worklog/`.
 
 ---
 
@@ -382,6 +447,7 @@ npm run build                # must finish and write out/
 | Signed in, but every request answers `session_expired` | The browser did not send the API's cookies. The site must be on the same site as the API, and the API's `CORS_ORIGIN` must list it. |
 | CORS error calling the API | Add the site's origin to the backend's `CORS_ORIGIN`. |
 | A built site calls `localhost` | Not possible by design; a production build replaces local addresses. Use `NEXT_PUBLIC_API_LOCAL=true` only for local tests. |
+| Build fails after adding a page or route | Something needs a server: see [Static export: a hard rule](#static-export-a-hard-rule). |
 | Style changes do not show in development | Restart `npm run dev`; the dev server occasionally keeps an old stylesheet. |
 | Excuse: "no class teacher" | The class has no class teacher in WebUntis; the school sets it there. |
 | Build stops: `LEGAL_ENTITY_NAME is not set` | Set it in `.env.local`, in the host's build environment or as a Docker build argument. |
@@ -392,10 +458,11 @@ npm run build                # must finish and write out/
 
 ## License
 
-[MIT](LICENSE). WebUntis and Untis are trademarks of Untis GmbH; POKYH is not affiliated with it.
+[MIT](LICENSE) © POKYH contributors. WebUntis and Untis are trademarks of Untis GmbH; POKYH is not
+affiliated with it.
 
 <div align="center">
 
-**POKYH** · Web (this repository) · [Backend](../pokyh-backend) · iOS and Android apps
+**POKYH** · Web (this repository) · [Backend](https://github.com/bedchem/pokyh-backend) · iOS and Android apps
 
 </div>

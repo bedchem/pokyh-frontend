@@ -123,6 +123,16 @@ export function rangeText(offset: number, tag: string, withYear = true): string 
   return `${formatDate(start, tag, { day: 'numeric', month: 'short' })} - ${formatDate(end, tag, { day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' as const } : {}) })}`;
 }
 
+/** The week's dates as short as the language writes a range ("19.–24. Okt."), for the narrowest phones. */
+export function rangeTextTight(offset: number, tag: string): string {
+  if (tag === 'lld') return rangeText(offset, tag, false);
+  try {
+    return new Intl.DateTimeFormat(tag, { day: 'numeric', month: 'short' }).formatRange(mondayOf(offset), dateOf(offset, 5));
+  } catch {
+    return rangeText(offset, tag, false);
+  }
+}
+
 /** Minutes since midnight on the school's clock. */
 export function schoolMinuteNow(): number {
   try {

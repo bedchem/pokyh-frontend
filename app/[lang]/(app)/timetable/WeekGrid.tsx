@@ -59,9 +59,9 @@ export type WeekMark = 'today' | 'cancelled' | 'exam' | 'substitution';
  * times. Untis Mobile's look in POKYH pastels: a lesson is one soft tinted block; an outline
  * means something (red = cancelled, yellow = exam); a changed room/teacher is only a chip.
  *
- * With `fit` (tablets and computers) it fills the height it is given: the minutes are spread over
- * what is left under the day names, so the whole school day is on screen and nothing scrolls.
- * Without (phones) a minute has a fixed height and the page scrolls through the day.
+ * With `fit` (the default, on every screen) it fills the height it is given: the minutes are spread
+ * over what is left under the day names, so the whole school day is on screen and nothing scrolls.
+ * Without, a minute has a fixed height and the page scrolls through the day.
  */
 export default function WeekGrid({
   dayEntries,
@@ -478,7 +478,7 @@ function ChangeableLine({ parts, className, struck }: { parts: Array<[string, Pa
   );
 }
 
-/** `fit`: the times spread over the height there is; else at their fixed spacing (phones). */
+/** `fit`: the times spread over the height there is; else at their fixed spacing. */
 export function WeekGridSkeleton({ fit = true }: { fit?: boolean }) {
   const t = useT(timetableDict);
   const pattern: Array<Array<[number, number]>> = [

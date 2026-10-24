@@ -23,6 +23,7 @@ import {
   mondayOf,
   parseTimetable,
   rangeText,
+  rangeTextTight,
   registerSubjects,
   schoolMinuteNow,
   toMins,
@@ -59,8 +60,8 @@ const NO_ABSENCES: AbsenceEntry[] = [];
 // A mouse: pointing at a figure in the week switch marks its lessons. On a
 // touch screen the figures are only read.
 const HOVER_QUERY = '(hover: hover) and (pointer: fine)';
-// A phone: the week keeps its fixed size and the page scrolls through the day
-// (timetable.module.css has the same breakpoint).
+// A phone: the school year moves into the week switch, where it takes turns
+// with "Zu heute" (timetable.module.css has the same breakpoint).
 const PHONE_QUERY = '(max-width: 639.98px)';
 
 function useMedia(query: string): boolean {
@@ -134,8 +135,6 @@ function TimetableContent() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const [yearOpen, setYearOpen] = useState(false);
-  const yearRef = useRef<HTMLDivElement>(null);
   const canHover = useMedia(HOVER_QUERY);
   const phone = useMedia(PHONE_QUERY);
   // Pointed at, or focused from the keyboard (a click focuses it too, so it stays until the next click).
@@ -304,15 +303,6 @@ function TimetableContent() {
     return () => document.removeEventListener('mousedown', onDown);
   }, [menuOpen]);
 
-  useEffect(() => {
-    if (!yearOpen) return;
-    const onDown = (e: MouseEvent) => {
-      if (yearRef.current && !yearRef.current.contains(e.target as Node)) setYearOpen(false);
-    };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [yearOpen]);
-
   // ── Navigation ─────────────────────────────────────────────────────────────
 
   // One week on or back slides (WeekPager glides when the offset follows); longer jumps fade.
@@ -334,7 +324,6 @@ function TimetableContent() {
 
   /** Same week of the school year, shifted into another year, or today when it's the current one. */
   const jumpToYear = (year: number) => {
-    setYearOpen(false);
     if (year === selectedYear) return;
     if (year === currentSchoolYear) { goToday(); return; }
     const shown = mondayOf(weekOffset);
@@ -446,70 +435,38 @@ function TimetableContent() {
       onTap={setActiveSlot}
       ensureWeek={ensureWeek}
       mark={offset === weekOffset ? mark : null}
-      fit={!phone}
     />
   );
 
   const stale = page.status === 'data' && page.stale && page.savedAt > 0;
+  // Under the week: "Diese Woche" for this one. On a phone, where the school year gives way
+  // to "Zu heute", a week of another school year names that year here instead (25/26, as the
+  // switch writes it there).
+  const weekNote = weekOffset === 0 ? (weekRolledOver() ? t('nextWeek') : t('thisWeek'))
+    : phone && selectedYear !== currentSchoolYear ? `${String(selectedYear).slice(2)}/${String(selectedYear + 1).slice(2)}` : '';
 
   return (
     <AuthGuard>
       <UntisGuard>
         <div className={s.wrap}>
-          <div
-            className={s.host}
-            onScroll={(e) => {
-              // Phones: marks the edge under the day names once the week scrolls beneath them.
-              const el = e.currentTarget;
-              if (el.scrollTop > 4) el.dataset.scrolled = '';
-              else delete el.dataset.scrolled;
-            }}
-          >
+          <div className={s.host}>
             <main className={s.page}>
-              {/* Header: title and menus (on a phone the menus under the title) */}
-              <header className={`${s.inset} ${s.head}`}>
+              {/* Header: title and menus. On a phone the school year is in the week switch, and
+                  the header only shows for an old copy of the week (its date, under the switch). */}
+              <header className={`${s.inset} ${s.head} ${stale ? '' : s.headQuiet}`}>
                 <div className={s.headRow}>
                   <div className="min-w-0">
                     <h1 className={`${s.title} text-[30px] font-extrabold leading-[1.04] tracking-[-0.05em] sm:text-[34px] md:text-[46px]`}>{ts('timetable')}</h1>
                     {stale && (
-                      <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-butter px-2.5 py-1 text-[12.5px] font-semibold text-butter-ink">
+                      <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-butter px-2.5 py-1 text-[12.5px] font-semibold text-butter-ink max-sm:mt-0">
                         <WifiSlash size={13} weight="bold" aria-hidden="true" />
                         {t('asOf', { time: asOfText(page.savedAt, tag) })}
                       </span>
                     )}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
-                    <div className={s.menuWrap} ref={yearRef}>
-                      <button
-                        type="button"
-                        className={s.pillBtn}
-                        onClick={() => setYearOpen((o) => !o)}
-                        aria-haspopup="listbox"
-                        aria-expanded={yearOpen}
-                        aria-label={`${t('schoolYear')} ${selectedYear}/${selectedYear + 1}`}
-                      >
-                        {selectedYear}/{String(selectedYear + 1).slice(2)}
-                        <CaretDown size={14} weight="bold" className={`transition-transform duration-200 ${yearOpen ? 'rotate-180' : ''}`} />
-                      </button>
-                      {yearOpen && (
-                        <ul className={`${s.menu} sheet-in`} role="listbox" aria-label={t('schoolYear')}>
-                          {availableYears.map((y) => (
-                            <li key={y}>
-                              <button
-                                type="button"
-                                role="option"
-                                aria-selected={y === selectedYear}
-                                className={`${s.menuItem} ${y === selectedYear ? s.menuItemActive : ''}`}
-                                onClick={() => jumpToYear(y)}
-                              >
-                                {t('schoolYear')} {y}/{y + 1}
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                    <div className={s.menuWrap} ref={menuRef}>
+                    {!phone && <YearSwitch selected={selectedYear} years={availableYears} onPick={jumpToYear} />}
+                    <div className={`${s.menuWrap} ${s.export}`} ref={menuRef}>
                       <button
                         type="button"
                         className={s.pillBtn}
@@ -559,8 +516,9 @@ function TimetableContent() {
                       <span className={`${s.rangeText} block truncate text-[17px] font-bold tracking-[-0.02em] md:text-[19px]`}>
                         <span className={s.rangeShort}>{rangeText(weekOffset, tag, false)}</span>
                         <span className={s.rangeLong}>{rangeText(weekOffset, tag)}</span>
+                        {phone && <span className={s.rangeTight}>{rangeTextTight(weekOffset, tag)}</span>}
                       </span>
-                      <span className="mt-0.5 block truncate text-[13.5px] font-semibold text-ink-2">{t('cw')} {weekNumber}{weekOffset === 0 ? ` · ${weekRolledOver() ? t('nextWeek') : t('thisWeek')}` : ''}</span>
+                      <span className={`${s.weekSub} mt-0.5 block truncate text-[13.5px] font-semibold text-ink-2`}>{t('cw')} {weekNumber}{weekNote && <span> · {weekNote}</span>}</span>
                     </motion.span>
                   </AnimatePresence>
                 </div>
@@ -587,8 +545,11 @@ function TimetableContent() {
                     );
                   })}
                 </div>
-                {weekOffset !== 0 && (
+                {/* Away from this week: back to it. On a phone, this week's place holds the school year. */}
+                {weekOffset !== 0 ? (
                   <button type="button" className={s.weekToday} onClick={goToday}>{t('toToday')}</button>
+                ) : phone && (
+                  <YearSwitch className={s.weekYear} short selected={selectedYear} years={availableYears} onPick={jumpToYear} />
                 )}
                 <button type="button" className={`${s.weekArrow} ${s.weekNext}`} onClick={() => goWeek(1)} aria-label={t('nextWeek')} disabled={weekOffset >= PAGE_SPAN}>
                   <CaretRight size={20} weight="bold" />
@@ -619,7 +580,6 @@ const WeekPane = memo(function WeekPane({
   onTap,
   ensureWeek,
   mark,
-  fit,
 }: {
   offset: number;
   page: WeekPageState;
@@ -630,7 +590,6 @@ const WeekPane = memo(function WeekPane({
   onTap: (slot: MergedSlot) => void;
   ensureWeek: (offset: number, force?: boolean) => void;
   mark: WeekMark | null;
-  fit: boolean;
 }) {
   const t = useT(timetableDict);
   const entries = page.status === 'data' ? page.entries : NO_ENTRIES;
@@ -639,7 +598,7 @@ const WeekPane = memo(function WeekPane({
   const dayEntries = useMemo(() => dayNums.map(n => entries.filter(e => e.date === n)), [dayNums, entries]);
   const retry = useCallback(() => ensureWeek(offset, true), [ensureWeek, offset]);
 
-  if (page.status === 'loading') return <WeekGridSkeleton fit={fit} />;
+  if (page.status === 'loading') return <WeekGridSkeleton />;
   if (page.status === 'error') return <div className={s.stateBox}><ErrorView message={page.message} onRetry={retry} /></div>;
   if (page.entries.length === 0 && page.stale) return <OfflineState onRetry={retry} />;
   const empty = page.entries.length === 0;
@@ -655,19 +614,77 @@ const WeekPane = memo(function WeekPane({
       onTap={onTap}
       absences={empty ? NO_ABSENCES : absences}
       mark={mark}
-      fit={fit}
       empty={empty ? (
-        // Phones as before; fitted, smaller so it never outgrows a short screen.
-        <div className={`rise flex flex-col items-center px-6 text-center ${fit ? 'py-6' : 'py-10'}`}>
+        // Small enough that it never outgrows a short screen.
+        <div className="rise flex flex-col items-center px-6 py-6 text-center">
           {/* The holidays look like the time of year of the week shown. */}
-          <PixelSpriteArt sprite={holidaySprite(dates[0].getMonth() + 1)} width={fit ? 'min(260px, 56vw, 30vh)' : 'min(280px, 60vw)'} />
-          <p className={`${fit ? 'mt-5 text-[26px]' : 'mt-7 text-[28px]'} font-extrabold tracking-[-0.045em] md:text-[34px]`}>{t('holiday')}</p>
+          <PixelSpriteArt sprite={holidaySprite(dates[0].getMonth() + 1)} width="min(260px, 56vw, 30vh)" />
+          <p className="mt-5 text-[26px] font-extrabold tracking-[-0.045em] md:text-[34px]">{t('holiday')}</p>
           <p className="mt-1 text-[15px] font-semibold opacity-75">{t('noLessons')}</p>
         </div>
       ) : undefined}
     />
   );
 });
+
+/**
+ * The school year of the shown week, and the list to jump to another. Its open state is its own,
+ * so on a phone, where it gives way to "Zu heute", it comes back closed. `short` writes it as
+ * 26/27, so the week beside it keeps its dates.
+ */
+function YearSwitch({ selected, years, onPick, short = false, className = '' }: {
+  selected: number;
+  years: number[];
+  onPick: (year: number) => void;
+  short?: boolean;
+  className?: string;
+}) {
+  const t = useT(timetableDict);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [open]);
+
+  return (
+    <div className={`${s.menuWrap} ${className}`} ref={ref}>
+      <button
+        type="button"
+        className={s.pillBtn}
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={`${t('schoolYear')} ${selected}/${selected + 1}`}
+      >
+        {short ? String(selected).slice(2) : selected}/{String(selected + 1).slice(2)}
+        <CaretDown size={14} weight="bold" className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <ul className={`${s.menu} sheet-in`} role="listbox" aria-label={t('schoolYear')}>
+          {years.map((y) => (
+            <li key={y}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={y === selected}
+                className={`${s.menuItem} ${y === selected ? s.menuItemActive : ''}`}
+                onClick={() => { setOpen(false); onPick(y); }}
+              >
+                {t('schoolYear')} {y}/{y + 1}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 function OfflineState({ onRetry }: { onRetry: () => void }) {
   const t = useT(timetableDict);
