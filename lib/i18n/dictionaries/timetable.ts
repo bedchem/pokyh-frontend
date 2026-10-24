@@ -15,6 +15,15 @@ export type TimetableKey =
   | 'thisWeek'
   | 'cw'
   | 'schoolYear'
+  | 'otherTimetables'
+  | 'myTimetable'
+  | 'kindClass'
+  | 'kindTeacher'
+  | 'kindRoom'
+  | 'otherSearch'
+  | 'otherNone'
+  | 'otherFailed'
+  | 'otherBack'
   | 'asOf'
   | 'today'
   | 'hoursUnit'
@@ -84,6 +93,15 @@ export const timetableDict: Dictionary<TimetableKey> = {
     thisWeek: 'Diese Woche',
     cw: 'KW',
     schoolYear: 'Schuljahr',
+    otherTimetables: 'Andere Stundenpläne',
+    myTimetable: 'Mein Stundenplan',
+    kindClass: 'Klassen',
+    kindTeacher: 'Lehrkräfte',
+    kindRoom: 'Räume',
+    otherSearch: 'Suchen …',
+    otherNone: 'Deine Schule zeigt hier nichts an.',
+    otherFailed: 'Konnte gerade nicht geladen werden.',
+    otherBack: 'Zurück zu meinem Stundenplan',
     asOf: 'Stand {time}',
     today: 'Heute',
     hoursUnit: 'Std',
@@ -149,6 +167,15 @@ export const timetableDict: Dictionary<TimetableKey> = {
     thisWeek: 'Questa settimana',
     cw: 'Sett.',
     schoolYear: 'Anno scolastico',
+    otherTimetables: 'Altri orari',
+    myTimetable: 'Il mio orario',
+    kindClass: 'Classi',
+    kindTeacher: 'Docenti',
+    kindRoom: 'Aule',
+    otherSearch: 'Cerca …',
+    otherNone: 'La tua scuola non mostra nulla qui.',
+    otherFailed: 'Impossibile caricare ora.',
+    otherBack: 'Torna al mio orario',
     asOf: 'Aggiornato {time}',
     today: 'Oggi',
     hoursUnit: 'ore',
@@ -214,6 +241,15 @@ export const timetableDict: Dictionary<TimetableKey> = {
     thisWeek: 'This week',
     cw: 'Wk',
     schoolYear: 'School year',
+    otherTimetables: 'Other timetables',
+    myTimetable: 'My timetable',
+    kindClass: 'Classes',
+    kindTeacher: 'Teachers',
+    kindRoom: 'Rooms',
+    otherSearch: 'Search …',
+    otherNone: 'Your school shows nothing here.',
+    otherFailed: 'Could not be loaded right now.',
+    otherBack: 'Back to my timetable',
     asOf: 'As of {time}',
     today: 'Today',
     hoursUnit: 'h',
@@ -279,6 +315,15 @@ export const timetableDict: Dictionary<TimetableKey> = {
     thisWeek: "Chësta ena",
     cw: "Ena",
     schoolYear: "Ann de scola",
+    otherTimetables: "Autri orars",
+    myTimetable: "Mi orar",
+    kindClass: "Tlasses",
+    kindTeacher: "Nseniantes",
+    kindRoom: "Stanzes",
+    otherSearch: "Crì …",
+    otherNone: "Tia scola ne mostra nia chilò.",
+    otherFailed: "Ne n’à nia pudù vester ciarià.",
+    otherBack: "Inò a mi orar",
     asOf: "Stat {time}",
     today: "Ncuei",
     hoursUnit: "ëures",

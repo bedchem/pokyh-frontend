@@ -105,17 +105,42 @@ export default function TwoFactorSheet({ mode, onClose, onChanged }: {
   }
 
   const title = step === 'disable' ? t('tfDisableTitle') : step === 'done' ? t('tfDoneTitle') : t('tfTitle');
+  // Where the setup stands: 1 explain, 2 scan and confirm, 3 done.
+  const stepNo = step === 'intro' ? 1 : step === 'scan' ? 2 : step === 'done' ? 3 : 0;
 
   return (
     <Sheet open={mode !== null} onClose={onClose} title={title} closeLabel={t('close')}>
       <div className="flex flex-col gap-5 pb-4">
+        {stepNo > 0 && (
+          <div role="progressbar" aria-valuemin={1} aria-valuemax={3} aria-valuenow={stepNo} aria-label={t('stepOf', { n: stepNo, total: 3 })} className="flex flex-col gap-2">
+            <span className="flex gap-1.5">
+              {[1, 2, 3].map((n) => (
+                <span key={n} className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${n <= stepNo ? 'bg-accent' : 'bg-inset'}`} />
+              ))}
+            </span>
+            <span className="text-[13px] font-semibold text-ink-3">{t('stepOf', { n: stepNo, total: 3 })}</span>
+          </div>
+        )}
+
         {step === 'intro' && (
           <>
-            <p className="text-[15px] leading-[1.6] text-ink-2">{t('tfIntro')}</p>
-            <p className="text-[15px] leading-[1.6] text-ink-2">{t('tfApps')}</p>
+            <div className="flex items-start gap-3.5 rounded-[18px] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] p-4">
+              <span className="grid size-11 shrink-0 place-items-center rounded-[12px] bg-accent text-on-accent">
+                <ShieldCheck size={22} weight="bold" aria-hidden="true" />
+              </span>
+              <p className="text-[15px] leading-[1.55] text-ink">{t('tfIntro')}</p>
+            </div>
+            <ol className="flex flex-col gap-3">
+              {[t('tfApps'), t('tfScan'), t('tfCodeHint')].map((line, i) => (
+                <li key={i} className="flex items-start gap-3">
+                  <span className="grid size-7 shrink-0 place-items-center rounded-full bg-inset text-[13px] font-bold tnum">{i + 1}</span>
+                  <span className="pt-0.5 text-[14.5px] leading-[1.5] text-ink-2">{line}</span>
+                </li>
+              ))}
+            </ol>
             <p className="rounded-[14px] bg-inset px-4 py-3 text-[14px] leading-[1.55] text-ink-2">{t('tfRenewNote')}</p>
             {error && <FormStatus kind="error">{error}</FormStatus>}
-            <Button onClick={() => void begin()} disabled={busy} className="self-start">
+            <Button size="lg" onClick={() => void begin()} disabled={busy} className="w-full sm:w-auto sm:self-start">
               {busy ? t('tfEnabling') : t('tfStart')}
             </Button>
           </>
@@ -154,7 +179,7 @@ export default function TwoFactorSheet({ mode, onClose, onChanged }: {
               onChange={(e) => setCode(e.target.value.replace(/[^\d ]/g, '').slice(0, 7))}
               error={error || undefined}
             />
-            <Button type="submit" disabled={busy || code.replace(/\s+/g, '').length !== 6} className="self-start">
+            <Button type="submit" size="lg" disabled={busy || code.replace(/\s+/g, '').length !== 6} className="w-full sm:w-auto sm:self-start">
               {busy ? t('tfEnabling') : t('tfEnable')}
             </Button>
           </form>

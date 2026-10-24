@@ -497,6 +497,38 @@ function dropFromStoredInbox(ids: number[]): void {
   window.dispatchEvent(new CustomEvent('pokyh-messages-updated', { detail: { unread: list.filter((m) => m && !messageIsRead(m)).length } }));
 }
 
+/** WebUntis' own search over subject, text and people of a folder (live, not kept). */
+export function searchMessages(folder: 'inbox' | 'sent', q: string): Promise<unknown> {
+  return apiFetch(`/api/webuntis/messages?folder=${folder}&q=${encodeURIComponent(q)}`);
+}
+
+/** Sends the read confirmation a sender asked for. */
+export async function confirmMessageRead(id: number): Promise<void> {
+  await apiFetch(`/api/webuntis/messages/confirm-read?id=${id}`, { method: 'POST' });
+  pcDel(`/api/webuntis/messages?id=${id}`);
+  cacheDel(INBOX_URL);
+  pcDel(INBOX_URL);
+}
+
+export interface ReadStatusRecipient {
+  id: number;
+  name: string;
+  className: string;
+  confirmedAt: string | null;
+  people: { name: string; date: string | null }[];
+}
+
+/** Who has confirmed reading a sent message. */
+export function fetchReadStatus(id: number): Promise<{ recipients: ReadStatusRecipient[] }> {
+  return apiFetch(`/api/webuntis/messages/read-status?id=${id}`) as Promise<{ recipients: ReadStatusRecipient[] }>;
+}
+
+/** Takes a sent message back: its recipients no longer see it. */
+export async function revokeMessage(id: number): Promise<void> {
+  await apiFetch(`/api/webuntis/messages/revoke?id=${id}`, { method: 'POST' });
+  for (const url of ['/api/webuntis/messages?folder=sent', `/api/webuntis/messages?id=${id}`]) { cacheDel(url); pcDel(url); }
+}
+
 /** Deletes messages of the inbox in WebUntis; the ids WebUntis actually deleted. */
 export async function deleteMessages(ids: number[]): Promise<number[]> {
   if (!ids.length) return [];
@@ -837,6 +869,53 @@ export function fetchHolidays(): Promise<SchoolHoliday[]> {
 
 export function getHolidaysStale(): SchoolHoliday[] | undefined {
   return pcGetStale<{ holidays?: SchoolHoliday[] }>(HOLIDAYS_URL)?.holidays;
+}
+
+// ─── Other timetables ("Weitere Stundenpläne") ───────────────────────────────
+
+export type OtherTimetableType = 'CLASS' | 'TEACHER' | 'ROOM' | 'SUBJECT';
+
+export interface TimetableResource {
+  id: number;
+  name: string;
+  longName: string;
+}
+
+/** The classes (teachers, rooms) whose timetable the school shows this account. */
+export function fetchTimetableFilters(type: OtherTimetableType = 'CLASS'): Promise<TimetableResource[]> {
+  return (apiFetchCached(`/api/webuntis/timetable/filters?type=${type}`) as Promise<{ items?: TimetableResource[] }>).then((r) => r.items ?? []);
+}
+
+/** A week of another timetable (Monday, YYYY-MM-DD). */
+export function fetchOtherTimetable(date: string, type: OtherTimetableType, id: number): Promise<unknown> {
+  return apiFetchCached(`/api/webuntis/timetable?date=${date}&type=${type}&id=${id}`);
+}
+
+export function getOtherTimetableStale(date: string, type: OtherTimetableType, id: number): unknown | undefined {
+  return pcGetStale(`/api/webuntis/timetable?date=${date}&type=${type}&id=${id}`);
+}
+
+// ─── Signing in with the POKYH app (QR code) ─────────────────────────────────
+
+/** A new QR code for the sign-in page, and the secret value to ask about it with. */
+export async function startQrSignIn(): Promise<{ poll: string; qrSvg: string; expiresAt: string }> {
+  const res = await fetch(untisUrl('/api/webuntis/qr/start'), untisInit({ method: 'POST', headers: clientHeaders() }));
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json() as Promise<{ poll: string; qrSvg: string; expiresAt: string }>;
+}
+
+/**
+ * Whether the app has confirmed the code. Signed in, the answer is the
+ * sign-in's own (`ok`, `token`, `user`); `two_factor_required`: WebUntis
+ * wants the authenticator app's code too (sent along as `token`).
+ */
+export async function pollQrSignIn(poll: string, token?: string): Promise<{ status: number; body: Record<string, unknown> }> {
+  const res = await fetch(untisUrl('/api/webuntis/qr/poll'), untisInit({
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...clientHeaders() },
+    body: JSON.stringify({ poll, ...(token ? { token } : {}) }),
+  }));
+  return { status: res.status, body: (await res.json().catch(() => ({}))) as Record<string, unknown> };
 }
 
 // ─── The WebUntis account: settings and two-factor authentication ────────────

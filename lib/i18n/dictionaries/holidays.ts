@@ -1,14 +1,8 @@
 import type { Dictionary } from '../dictionary';
 import type { HolidayKey } from '../../holidays';
 
-// The school's breaks and public holidays by name (lib/holidays.ts), and the
-// countdown on the home page.
-export type HolidaysKey =
-  | HolidayKey
-  | 'nowUntil'
-  | 'inDays'
-  | 'tomorrow'
-  | 'nextLabel';
+// The school's breaks and public holidays by name (lib/holidays.ts).
+export type HolidaysKey = HolidayKey;
 
 export const holidaysDict: Dictionary<HolidaysKey> = {
   de: {
@@ -33,10 +27,6 @@ export const holidaysDict: Dictionary<HolidaysKey> = {
     stStephen: 'Stefanstag',
     dayOff: 'Schulfrei',
     break: 'Ferien',
-    nowUntil: '{name} bis {date}',
-    inDays: '{name} in {n} Tagen',
-    tomorrow: '{name} ab morgen',
-    nextLabel: 'Nächste Ferien',
   },
   it: {
     christmas: 'Vacanze di Natale',
@@ -60,10 +50,6 @@ export const holidaysDict: Dictionary<HolidaysKey> = {
     stStephen: 'Santo Stefano',
     dayOff: 'Giorno libero',
     break: 'Vacanze',
-    nowUntil: '{name} fino al {date}',
-    inDays: '{name} tra {n} giorni',
-    tomorrow: '{name} da domani',
-    nextLabel: 'Prossime vacanze',
   },
   en: {
     christmas: 'Christmas holidays',
@@ -87,10 +73,6 @@ export const holidaysDict: Dictionary<HolidaysKey> = {
     stStephen: 'St Stephen’s Day',
     dayOff: 'Day off',
     break: 'Holidays',
-    nowUntil: '{name} until {date}',
-    inDays: '{name} in {n} days',
-    tomorrow: '{name} from tomorrow',
-    nextLabel: 'Next holidays',
   },
   lld: {
     christmas: 'Vacanzes de Nadel',
@@ -114,9 +96,5 @@ export const holidaysDict: Dictionary<HolidaysKey> = {
     stStephen: 'Sant Stefan',
     dayOff: 'Di liede',
     break: 'Vacanzes',
-    nowUntil: '{name} nchin ai {date}',
-    inDays: '{name} danter {n} dis',
-    tomorrow: '{name} da doman',
-    nextLabel: 'Vacanzes che vën',
   },
 };

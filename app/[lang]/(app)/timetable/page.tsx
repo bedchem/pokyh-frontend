@@ -2,13 +2,13 @@
 
 import { Suspense, memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowClockwise, CalendarBlank, CaretDown, CaretLeft, CaretRight, Exam, ShareFat, WifiSlash } from '@phosphor-icons/react';
+import { ArrowClockwise, CalendarBlank, CaretDown, CaretLeft, CaretRight, Exam, ShareFat, UsersThree, WifiSlash, X } from '@phosphor-icons/react';
 import { useSearchParams } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
 import UntisGuard from '@/components/UntisGuard';
 import Spinner from '@/components/ui/Spinner';
 import ErrorView from '@/components/ui/ErrorView';
-import { areAbsencesStale, fetchAbsences, fetchAbsencesRange, fetchTimetable, getAbsencesStale } from '@/lib/api';
+import { areAbsencesStale, fetchAbsences, fetchAbsencesRange, fetchOtherTimetable, fetchTimetable, getAbsencesStale } from '@/lib/api';
 import { parseAbsences } from '@/lib/absences';
 import { pcGetWithTs, pcIsStale } from '@/lib/persist-cache';
 import type { AbsenceEntry, TimetableEntry } from '@/lib/types';
@@ -33,6 +33,7 @@ import {
 import WeekGrid, { WeekGridSkeleton, type WeekMark } from './WeekGrid';
 import WeekPager from './WeekPager';
 import LessonDetailSheet from './LessonDetailSheet';
+import OtherTimetableSheet, { type TimetableSource } from './OtherTimetableSheet';
 import s from './timetable.module.css';
 import { useDateLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { timetableDict } from '@/lib/i18n/dictionaries/timetable';
@@ -75,7 +76,8 @@ function useMedia(query: string): boolean {
   return useSyncExternalStore(subscribe, () => window.matchMedia(query).matches, () => false);
 }
 
-const timetableUrl = (iso: string) => `/api/webuntis/timetable?date=${iso}`;
+const timetableUrl = (iso: string, source: TimetableSource | null = null) =>
+  `/api/webuntis/timetable?date=${iso}${source ? `&type=${source.type}&id=${source.id}` : ''}`;
 const clampOffset = (o: number) => Math.max(-PAGE_SPAN, Math.min(PAGE_SPAN, o));
 
 /**
@@ -150,6 +152,10 @@ function TimetableContent() {
   const [hoverMark, setHoverMark] = useState<WeekMark | null>(null);
   const [focusMark, setFocusMark] = useState<WeekMark | null>(null);
   const pointedMark = canHover ? hoverMark ?? focusMark : null;
+  // Another class's (teacher's, room's) timetable instead of the own one; its weeks replace the own.
+  const [source, setSource] = useState<TimetableSource | null>(null);
+  const sourceRef = useRef<TimetableSource | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const setPage = useCallback((offset: number, state: WeekPageState) => {
     pagesRef.current = { ...pagesRef.current, [offset]: state };
@@ -159,14 +165,19 @@ function TimetableContent() {
   // ── Data ────────────────────────────────────────────────────────────────────
 
   const fetchWeek = useCallback(async (offset: number, silent: boolean) => {
-    if (inFlight.current.has(offset)) return;
-    inFlight.current.add(offset);
+    const flight = inFlight.current;
+    if (flight.has(offset)) return;
+    flight.add(offset);
     try {
-      const entries = parseTimetable(await fetchTimetable(isoDate(mondayOf(offset))));
+      const iso = isoDate(mondayOf(offset));
+      const entries = parseTimetable(await (source ? fetchOtherTimetable(iso, source.type, source.id) : fetchTimetable(iso)));
+      // Another timetable chosen meanwhile: this week belongs to the one before.
+      if (sourceRef.current !== source) return;
       setPage(offset, { status: 'data', entries, savedAt: Date.now(), stale: false });
-      if (entries.length) import('@/lib/api-client').then(({ api }) => api.subjectImages.reportSubjects(entries)).catch(() => {});
+      if (entries.length && !source) import('@/lib/api-client').then(({ api }) => api.subjectImages.reportSubjects(entries)).catch(() => {});
     } catch (e: unknown) {
       if (e instanceof Error && e.message === 'session_expired') { leaveForLogin(); return; }
+      if (sourceRef.current !== source) return;
       const current = pagesRef.current[offset];
       if (current?.status === 'data') {
         // WebUntis unreachable → keep the copy off the disk, but say it's a copy.
@@ -175,9 +186,9 @@ function TimetableContent() {
         setPage(offset, { status: 'error', message: e instanceof Error ? e.message : 'unknown' });
       }
     } finally {
-      inFlight.current.delete(offset);
+      flight.delete(offset);
     }
-  }, [setPage]);
+  }, [setPage, source]);
 
   const ensureWeek = useCallback((offset: number, force = false) => {
     const cached = pagesRef.current[offset];
@@ -189,16 +200,30 @@ function TimetableContent() {
       return;
     }
     if (!cached || force) {
-      const disk = pcGetWithTs<unknown>(timetableUrl(isoDate(mondayOf(offset))));
+      const url = timetableUrl(isoDate(mondayOf(offset)), source);
+      const disk = pcGetWithTs<unknown>(url);
       if (disk && !force) {
         setPage(offset, { status: 'data', entries: parseTimetable(disk.data), savedAt: disk.ts, stale: false });
-        if (pcIsStale(timetableUrl(isoDate(mondayOf(offset))))) void fetchWeek(offset, true);
+        if (pcIsStale(url)) void fetchWeek(offset, true);
         return;
       }
       if (cached?.status !== 'data') setPage(offset, LOADING);
     }
     void fetchWeek(offset, false);
-  }, [fetchWeek, setPage]);
+  }, [fetchWeek, setPage, source]);
+
+  const chooseSource = useCallback((next: TimetableSource | null) => {
+    setPickerOpen(false);
+    if (next?.type === sourceRef.current?.type && next?.id === sourceRef.current?.id) return;
+    sourceRef.current = next;
+    // The weeks loaded so far are another timetable's.
+    inFlight.current = new Set();
+    pagesRef.current = {};
+    setPages({});
+    setActiveSlot(null);
+    setAutoOpenId(null);
+    setSource(next);
+  }, []);
 
   // ── Abwesenheiten (overlay) ─────────────────────────────────────────────────
   // Loaded here on their own, so the grid marks Vorentschuldigung / Entschuldigt /
@@ -440,7 +465,7 @@ function TimetableContent() {
       todayNum={todayNum}
       minute={minute}
       scale={scale}
-      absences={absences[schoolYearOfDate(dateOf(offset, 3))] ?? NO_ABSENCES}
+      absences={source ? NO_ABSENCES : absences[schoolYearOfDate(dateOf(offset, 3))] ?? NO_ABSENCES}
       onTap={setActiveSlot}
       ensureWeek={ensureWeek}
       mark={offset === weekOffset ? mark : null}
@@ -463,18 +488,21 @@ function TimetableContent() {
             <main className={s.page}>
               {/* Header: title and menus. On a phone the school year is in the week switch, and
                   the header only shows for an old copy of the week (its date, under the switch). */}
-              <header className={`${s.inset} ${s.head} ${stale ? '' : s.headQuiet}`}>
+              <header className={`${s.inset} ${s.head} ${stale || source ? '' : s.headQuiet}`}>
                 <div className={s.headRow}>
-                  <div className="min-w-0">
-                    <h1 className={`${s.title} text-[30px] font-extrabold leading-[1.04] tracking-[-0.05em] sm:text-[34px] md:text-[46px]`}>{ts('timetable')}</h1>
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <h1 className={`${s.title} w-full text-[30px] font-extrabold leading-[1.04] tracking-[-0.05em] sm:text-[34px] md:text-[46px]`}>{ts('timetable')}</h1>
+                    {/* On a phone, where the menus are not in the header, another timetable says so here. */}
+                    {phone && source && <SourceSwitch source={source} onOpen={() => setPickerOpen(true)} onClear={() => chooseSource(null)} />}
                     {stale && (
-                      <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-butter px-2.5 py-1 text-[12.5px] font-semibold text-butter-ink max-sm:mt-0">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-butter px-2.5 py-1 text-[12.5px] font-semibold text-butter-ink">
                         <WifiSlash size={13} weight="bold" aria-hidden="true" />
                         {t('asOf', { time: asOfText(page.savedAt, tag) })}
                       </span>
                     )}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
+                    {!phone && <SourceSwitch source={source} onOpen={() => setPickerOpen(true)} onClear={() => chooseSource(null)} />}
                     {!phone && <YearSwitch selected={selectedYear} years={availableYears} onPick={jumpToYear} />}
                     <div className={`${s.menuWrap} ${s.export}`} ref={menuRef}>
                       <button
@@ -495,11 +523,13 @@ function TimetableContent() {
                               <CalendarBlank size={18} weight="bold" />{t('exportWeek')}
                             </button>
                           </li>
-                          <li>
-                            <button type="button" role="menuitem" className={s.menuItem} onClick={exportExams}>
-                              <Exam size={18} weight="bold" />{t('exportExams')}
-                            </button>
-                          </li>
+                          {!source && (
+                            <li>
+                              <button type="button" role="menuitem" className={s.menuItem} onClick={exportExams}>
+                                <Exam size={18} weight="bold" />{t('exportExams')}
+                              </button>
+                            </li>
+                          )}
                         </ul>
                       )}
                     </div>
@@ -559,7 +589,7 @@ function TimetableContent() {
                 {weekOffset !== 0 ? (
                   <button type="button" className={s.weekToday} onClick={goToday}>{t('toToday')}</button>
                 ) : phone && (
-                  <YearSwitch className={s.weekYear} short selected={selectedYear} years={availableYears} onPick={jumpToYear} />
+                  <YearSwitch className={s.weekYear} short selected={selectedYear} years={availableYears} onPick={jumpToYear} onOther={() => setPickerOpen(true)} />
                 )}
                 <button type="button" className={`${s.weekArrow} ${s.weekNext}`} onClick={() => goWeek(1)} aria-label={t('nextWeek')} disabled={weekOffset >= PAGE_SPAN}>
                   <CaretRight size={20} weight="bold" />
@@ -572,7 +602,8 @@ function TimetableContent() {
             </main>
           </div>
 
-          {shownSlot && <LessonDetailSheet key={shownSlot.id} slot={shownSlot} onClose={closeSheet} absences={absences[absenceYear] ?? []} todayNum={todayNum} minute={minute} />}
+          {shownSlot && <LessonDetailSheet key={shownSlot.id} slot={shownSlot} onClose={closeSheet} absences={source ? NO_ABSENCES : absences[absenceYear] ?? NO_ABSENCES} todayNum={todayNum} minute={minute} />}
+          <OtherTimetableSheet open={pickerOpen} source={source} onPick={chooseSource} onClose={() => setPickerOpen(false)} />
         </div>
       </UntisGuard>
     </AuthGuard>
@@ -645,10 +676,38 @@ const WeekPane = memo(function WeekPane({
  * so on a phone, where it gives way to "Zu heute", it comes back closed. `short` writes it as
  * 26/27, so the week beside it keeps its dates.
  */
-function YearSwitch({ selected, years, onPick, short = false, className = '' }: {
+/** Whose timetable is shown: the own one, or the class (teacher, room) picked; X goes back to the own. */
+function SourceSwitch({ source, onOpen, onClear }: {
+  source: TimetableSource | null;
+  onOpen: () => void;
+  onClear: () => void;
+}) {
+  const t = useT(timetableDict);
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <button type="button" className={`${s.pillBtn} ${source ? 'bg-periwinkle! text-periwinkle-ink' : ''}`} onClick={onOpen} aria-haspopup="dialog">
+        <UsersThree size={18} weight="bold" aria-hidden="true" />
+        <span className="max-w-[180px] truncate">{source ? source.name : t('myTimetable')}</span>
+        <CaretDown size={14} weight="bold" aria-hidden="true" />
+      </button>
+      {source && (
+        <button type="button" className={s.pillBtn} onClick={onClear} aria-label={t('otherBack')} title={t('otherBack')}>
+          <X size={16} weight="bold" aria-hidden="true" />
+        </button>
+      )}
+    </span>
+  );
+}
+
+/**
+ * On a phone the school year's list also leads to the other timetables, as the
+ * header with their button is not shown there.
+ */
+function YearSwitch({ selected, years, onPick, onOther, short = false, className = '' }: {
   selected: number;
   years: number[];
   onPick: (year: number) => void;
+  onOther?: () => void;
   short?: boolean;
   className?: string;
 }) {
@@ -679,21 +738,29 @@ function YearSwitch({ selected, years, onPick, short = false, className = '' }: 
         <CaretDown size={14} weight="bold" className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <ul className={`${s.menu} sheet-in`} role="listbox" aria-label={t('schoolYear')}>
-          {years.map((y) => (
-            <li key={y}>
-              <button
-                type="button"
-                role="option"
-                aria-selected={y === selected}
-                className={`${s.menuItem} ${y === selected ? s.menuItemActive : ''}`}
-                onClick={() => { setOpen(false); onPick(y); }}
-              >
-                {t('schoolYear')} {y}/{y + 1}
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className={`${s.menu} sheet-in`}>
+          <ul role="listbox" aria-label={t('schoolYear')}>
+            {years.map((y) => (
+              <li key={y}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={y === selected}
+                  className={`${s.menuItem} ${y === selected ? s.menuItemActive : ''}`}
+                  onClick={() => { setOpen(false); onPick(y); }}
+                >
+                  {t('schoolYear')} {y}/{y + 1}
+                </button>
+              </li>
+            ))}
+          </ul>
+          {onOther && (
+            <button type="button" className={`${s.menuItem} mt-1`} onClick={() => { setOpen(false); onOther(); }}>
+              <UsersThree size={18} weight="bold" aria-hidden="true" />
+              {t('otherTimetables')}
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

@@ -160,11 +160,21 @@ export interface MessagePreview {
   sentDate: string;
   isRead: boolean;
   hasAttachments: boolean;
+  /** Inbox: the sender asks for a read confirmation that is not sent yet. */
+  needsConfirmation?: boolean;
+  /** Sent: how many recipients confirmed reading, of how many asked. */
+  readStatus?: { confirmed: number; total: number } | null;
+  /** Sent: taken back, its recipients no longer see it. */
+  isRevoked?: boolean;
 }
 
 export interface MessageDetail extends MessagePreview {
   body: string;
   attachments: MessageAttachment[];
+  /** Inbox: the sender asked for a read confirmation (sendable, or sent when and by whom). */
+  requestConfirmation?: { canConfirm: boolean; confirmedAt: string | null; confirmedBy: string | null } | null;
+  /** Sent: WebUntis lets the sender take the message back. */
+  canRevoke?: boolean;
 }
 
 export interface MessageAttachment {

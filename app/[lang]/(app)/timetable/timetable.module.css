@@ -23,20 +23,22 @@
 .host {
   height: 100%;
   overflow: hidden;
+  /* The room for a scrollbar the other pages keep (Page.tsx), so the column
+     sits exactly where theirs does. */
+  scrollbar-gutter: stable;
   touch-action: none;
   overscroll-behavior: none;
 }
 
-/* The other app pages' margins (components/app/Page.tsx), on a narrower
-   column: on a wide screen the week stays in the middle at a width it reads
-   well at, instead of stretching every lesson into a long flat bar. */
+/* Same columns as the other app pages (components/app/Page.tsx): 1440px at
+   most, the same margins (.inset), so moving between pages nothing jumps. */
 .page {
   height: 100%;
   padding: 0 0 12px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-width: 1200px;
+  max-width: 1440px;
   margin: 0 auto;
 }
 @media (min-width: 768px) { .page { gap: 18px; padding-bottom: 24px; } }

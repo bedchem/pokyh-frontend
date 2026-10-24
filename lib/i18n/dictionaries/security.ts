@@ -5,6 +5,20 @@ import type { Dictionary } from '../dictionary';
 // app/[lang]/(app)/settings/devices).
 export type SecurityKey =
   | 'security'
+  | 'accountSecurity'
+  | 'passwordTitle'
+  | 'passwordCardHint'
+  | 'passwordChange'
+  | 'passwordForgot'
+  | 'stateOn'
+  | 'stateOff'
+  | 'recommended'
+  | 'missing'
+  | 'devicesView'
+  | 'twoFactorCardOff'
+  | 'twoFactorCardOn'
+  | 'emailCardHint'
+  | 'stepOf'
   | 'account'
   | 'devices'
   | 'devicesHint'
@@ -92,6 +106,20 @@ export type SecurityKey =
 
 export const securityDict: Dictionary<SecurityKey> = {
   de: {
+    accountSecurity: "Konto & Sicherheit",
+    passwordTitle: "Passwort",
+    passwordCardHint: "Dein WebUntis-Passwort. Es gilt auch in der WebUntis-App.",
+    passwordChange: "Ändern",
+    passwordForgot: "Vergessen?",
+    stateOn: "An",
+    stateOff: "Aus",
+    recommended: "Empfohlen",
+    missing: "Fehlt",
+    devicesView: "Ansehen",
+    twoFactorCardOff: "Schützt dein Konto mit einem Code aus einer App, auch wenn jemand dein Passwort kennt.",
+    twoFactorCardOn: "Bei jeder Anmeldung brauchst du den Code aus deiner App.",
+    emailCardHint: "Für das Zurücksetzen deines Passworts und Nachrichten per E-Mail.",
+    stepOf: "Schritt {n} von {total}",
     security: 'Sicherheit',
     account: 'Konto',
     devices: 'Geräte & Anmeldungen',
@@ -179,6 +207,20 @@ export const securityDict: Dictionary<SecurityKey> = {
     close: 'Schließen',
   },
   it: {
+    accountSecurity: "Account e sicurezza",
+    passwordTitle: "Password",
+    passwordCardHint: "La tua password di WebUntis. Vale anche nell’app di WebUntis.",
+    passwordChange: "Cambia",
+    passwordForgot: "Dimenticata?",
+    stateOn: "Attivo",
+    stateOff: "Disattivo",
+    recommended: "Consigliato",
+    missing: "Manca",
+    devicesView: "Vedi",
+    twoFactorCardOff: "Protegge il tuo account con un codice da un’app, anche se qualcuno conosce la tua password.",
+    twoFactorCardOn: "A ogni accesso ti serve il codice della tua app.",
+    emailCardHint: "Per reimpostare la password e ricevere i messaggi via e-mail.",
+    stepOf: "Passo {n} di {total}",
     security: 'Sicurezza',
     account: 'Account',
     devices: 'Dispositivi e accessi',
@@ -266,6 +308,20 @@ export const securityDict: Dictionary<SecurityKey> = {
     close: 'Chiudi',
   },
   en: {
+    accountSecurity: "Account & security",
+    passwordTitle: "Password",
+    passwordCardHint: "Your WebUntis password. It also applies in the WebUntis app.",
+    passwordChange: "Change",
+    passwordForgot: "Forgot it?",
+    stateOn: "On",
+    stateOff: "Off",
+    recommended: "Recommended",
+    missing: "Missing",
+    devicesView: "View",
+    twoFactorCardOff: "Protects your account with a code from an app, even if someone knows your password.",
+    twoFactorCardOn: "Every sign-in needs the code from your app.",
+    emailCardHint: "For resetting your password and getting messages by e-mail.",
+    stepOf: "Step {n} of {total}",
     security: 'Security',
     account: 'Account',
     devices: 'Devices & sign-ins',
@@ -353,6 +409,20 @@ export const securityDict: Dictionary<SecurityKey> = {
     close: 'Close',
   },
   lld: {
+    accountSecurity: "Account y segurëza",
+    passwordTitle: "Password",
+    passwordCardHint: "Tia password de WebUntis. La vel nce tla app de WebUntis.",
+    passwordChange: "Mudé",
+    passwordForgot: "Desmenteda?",
+    stateOn: "Mpià",
+    stateOff: "Destudà",
+    recommended: "Cunsià",
+    missing: "Mancia",
+    devicesView: "Udëi",
+    twoFactorCardOff: "Prutej ti account cun n codesc da na app, nce sce valgugn cunësc tia password.",
+    twoFactorCardOn: "Per uni jida ite te uel l codesc de tia app.",
+    emailCardHint: "Per mëter zeruch la password y per nutizies per e-mail.",
+    stepOf: "Pas {n} de {total}",
     security: 'Segurëza',
     account: 'Account',
     devices: 'Aparac y jides ite',

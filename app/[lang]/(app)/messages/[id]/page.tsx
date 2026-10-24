@@ -9,7 +9,11 @@ import {
   ArrowSquareOut,
   ArrowClockwise,
   ArrowUUpLeft,
+  ArrowCounterClockwise,
+  Check,
+  CheckCircle,
   DownloadSimple,
+  Eye,
   File,
   FileArchive,
   FileAudio,
@@ -37,7 +41,7 @@ import { Page } from '@/components/app/Page';
 import { Bone, Line } from '@/components/app/Skeleton';
 import { initialsOf } from '@/components/app/hooks';
 import ErrorView from '@/components/ui/ErrorView';
-import { fetchMessageDetail, fetchMessageAttachments, markOpenedMessageRead, getAttachmentUrl, getMessageDetailStale, getMessagesStale, deleteMessages } from '@/lib/api';
+import { fetchMessageDetail, fetchMessageAttachments, markOpenedMessageRead, getAttachmentUrl, getMessageDetailStale, getMessagesStale, deleteMessages, confirmMessageRead, fetchReadStatus, revokeMessage, type ReadStatusRecipient } from '@/lib/api';
 import { messageRecipientNames } from '@/lib/untis-parse';
 import type { MessageDetail, MessageAttachment } from '@/lib/types';
 import { useDateLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
@@ -135,13 +139,17 @@ function parseStorageAttachment(a: Record<string, unknown>, fallbackName = 'file
   };
 }
 
-// Recipients of a sent message as the stored "Gesendet" list has them, for when
-// the detail response leaves them out.
-function sentListRecipients(id: number): string {
+// A sent message as the stored "Gesendet" list has it, for what the detail
+// response leaves out (recipients, read confirmations).
+function sentListEntry(id: number): Record<string, unknown> | undefined {
   const root = (getMessagesStale('sent') ?? {}) as Record<string, unknown>;
   const data = (root.data as Record<string, unknown>) ?? {};
   const list = (root.sentMessages ?? data.sentMessages ?? []) as Record<string, unknown>[];
-  const m = Array.isArray(list) ? list.find((x) => x.id === id) : undefined;
+  return Array.isArray(list) ? list.find((x) => x.id === id) : undefined;
+}
+
+function sentListRecipients(id: number): string {
+  const m = sentListEntry(id);
   return m ? messageRecipientNames(m).join(', ') : '';
 }
 
@@ -199,6 +207,11 @@ function parseMessageDetail(json: unknown, t: TFn, outgoing = false): MessageDet
       (msg.hasAttachments as boolean) === true ||
       ((msg.attachmentCount as number) ?? 0) > 0;
 
+    // Read confirmations: asked of this reader (inbox), or how many recipients gave one (sent).
+    const rc = msg.requestConfirmation && typeof msg.requestConfirmation === 'object' ? msg.requestConfirmation as Record<string, unknown> : null;
+    const rawStatus = msg.requestConfirmationStatus ?? (outgoing ? sentListEntry(msg.id as number)?.requestConfirmationStatus : null);
+    const status = rawStatus && typeof rawStatus === 'object' ? rawStatus as Record<string, unknown> : null;
+
     return {
       id: msg.id as number,
       subject: (msg.subject as string) ?? t('noSubject'),
@@ -210,6 +223,14 @@ function parseMessageDetail(json: unknown, t: TFn, outgoing = false): MessageDet
       hasAttachments,
       body: (msg.body as string) ?? (msg.content as string) ?? '',
       attachments,
+      requestConfirmation: rc ? {
+        canConfirm: rc.allowSendRequestConfirmation === true && !rc.confirmationDate,
+        confirmedAt: typeof rc.confirmationDate === 'string' ? rc.confirmationDate : null,
+        confirmedBy: typeof rc.confirmerUserDisplayName === 'string' ? rc.confirmerUserDisplayName : null,
+      } : null,
+      readStatus: status ? { confirmed: Number(status.confirmedRequestCount) || 0, total: Number(status.totalRequestCount) || 0 } : null,
+      canRevoke: outgoing && msg.allowMessageDeletion === true && msg.isRevoked !== true,
+      isRevoked: msg.isRevoked === true,
     };
   } catch {
     return null;
@@ -397,6 +418,63 @@ function MessageDetailView({ id }: { id: string }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [confirming, setConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState('');
+  const [readOpen, setReadOpen] = useState(false);
+  const [readStatus, setReadStatus] = useState<ReadStatusRecipient[] | null>(null);
+  const [readError, setReadError] = useState('');
+  const [revokeArmed, setRevokeArmed] = useState(false);
+  const [revoking, setRevoking] = useState(false);
+  const [revokeError, setRevokeError] = useState('');
+
+  // The read confirmation the sender asked for.
+  async function confirmRead() {
+    if (!msg || confirming) return;
+    setConfirming(true);
+    setConfirmError('');
+    try {
+      await confirmMessageRead(msg.id);
+      setMsg((m) => m && { ...m, requestConfirmation: { canConfirm: false, confirmedAt: new Date().toISOString(), confirmedBy: null } });
+    } catch (e) {
+      if (e instanceof Error && e.message === 'session_expired') leaveForLogin();
+      else setConfirmError(t('confirmFailed'));
+    } finally {
+      setConfirming(false);
+    }
+  }
+
+  // Who of the recipients has confirmed reading, asked for each time it is opened.
+  async function openReadStatus() {
+    if (!msg) return;
+    setReadOpen(true);
+    setReadError('');
+    try {
+      setReadStatus((await fetchReadStatus(msg.id)).recipients);
+    } catch (e) {
+      if (e instanceof Error && e.message === 'session_expired') leaveForLogin();
+      else setReadError(t('readStatusFailed'));
+    }
+  }
+
+  async function handleRevoke() {
+    if (!msg || revoking) return;
+    if (!revokeArmed) {
+      setRevokeArmed(true);
+      return;
+    }
+    setRevoking(true);
+    setRevokeError('');
+    try {
+      await revokeMessage(msg.id);
+      setMsg((m) => m && { ...m, canRevoke: false, isRevoked: true });
+    } catch (e) {
+      if (e instanceof Error && e.message === 'session_expired') leaveForLogin();
+      else setRevokeError(t('revokeFailed'));
+    } finally {
+      setRevoking(false);
+      setRevokeArmed(false);
+    }
+  }
 
   async function handleDelete() {
     if (!msg || deleting) return;
@@ -544,9 +622,70 @@ function MessageDetailView({ id }: { id: string }) {
                     </Button>
                   </div>
                 )}
+                {outgoing && msg.canRevoke && (
+                  <Button
+                    variant={revokeArmed ? 'danger' : 'quiet'}
+                    onClick={() => void handleRevoke()}
+                    disabled={revoking}
+                    onBlur={() => setRevokeArmed(false)}
+                    className="w-full sm:w-auto"
+                  >
+                    {revoking ? <Spinner size={16} /> : <ArrowCounterClockwise size={18} weight="bold" aria-hidden="true" />}
+                    {revokeArmed ? t('revokeConfirm') : t('revoke')}
+                  </Button>
+                )}
               </div>
               {replyError && <p role="alert" className="-mt-3 text-[13.5px] font-semibold text-danger-ink">{replyError}</p>}
               {deleteError && <p role="alert" className="-mt-3 text-[13.5px] font-semibold text-danger-ink">{deleteError}</p>}
+              {revokeArmed && !revokeError && <p className="-mt-3 text-[13.5px] text-ink-2">{t('revokeHint')}</p>}
+              {revokeError && <p role="alert" className="-mt-3 text-[13.5px] font-semibold text-danger-ink">{revokeError}</p>}
+
+              {!outgoing && msg.requestConfirmation?.canConfirm && (
+                <div className="squircle flex flex-col gap-4 rounded-[22px] bg-butter px-5 py-4 text-butter-ink sm:flex-row sm:items-center sm:justify-between">
+                  <span className="min-w-0">
+                    <span className="block text-[15.5px] font-bold">{t('confirmTitle')}</span>
+                    <span className="mt-0.5 block text-[13.5px] font-semibold opacity-80">{t('confirmText', { name: msg.senderName })}</span>
+                    {confirmError && <span role="alert" className="mt-1.5 block text-[13.5px] font-semibold text-danger-ink">{confirmError}</span>}
+                  </span>
+                  <Button onClick={() => void confirmRead()} disabled={confirming} className="shrink-0">
+                    {confirming ? <Spinner size={16} /> : <Check size={18} weight="bold" aria-hidden="true" />}
+                    {t('confirmAction')}
+                  </Button>
+                </div>
+              )}
+              {!outgoing && msg.requestConfirmation && !msg.requestConfirmation.canConfirm && msg.requestConfirmation.confirmedAt && (
+                <p className="-mt-2 flex items-center gap-2 text-[14px] font-semibold text-success-ink">
+                  <CheckCircle size={18} weight="fill" aria-hidden="true" />
+                  {msg.requestConfirmation.confirmedBy
+                    ? t('confirmDoneBy', { name: msg.requestConfirmation.confirmedBy, date: formatDate(msg.requestConfirmation.confirmedAt, tag) })
+                    : t('confirmDone', { date: formatDate(msg.requestConfirmation.confirmedAt, tag) })}
+                </p>
+              )}
+
+              {outgoing && msg.isRevoked && (
+                <p className="squircle flex items-start gap-3 rounded-[18px] bg-inset px-4 py-3 text-[14px] font-semibold text-ink-2">
+                  <ArrowCounterClockwise size={18} weight="bold" className="mt-px shrink-0" aria-hidden="true" />
+                  {t('revokedNotice')}
+                </p>
+              )}
+              {outgoing && msg.readStatus && msg.readStatus.total > 0 && (
+                <button
+                  type="button"
+                  onClick={() => void openReadStatus()}
+                  className="squircle group flex items-center justify-between gap-4 rounded-[22px] bg-surface px-5 py-4 text-left transition-colors hover:bg-[color-mix(in_srgb,var(--surface)_92%,var(--ink))]"
+                >
+                  <span className="flex min-w-0 items-center gap-3.5">
+                    <span aria-hidden="true" className={`grid size-11 shrink-0 place-items-center rounded-[13px] ${msg.readStatus.confirmed >= msg.readStatus.total ? 'bg-sage text-sage-ink' : 'bg-periwinkle text-periwinkle-ink'}`}>
+                      <Eye size={21} weight="bold" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[15px] font-bold">{t('readStatusTitle')}</span>
+                      <span className="block text-[13.5px] text-ink-2 tnum">{t('readStatus', { confirmed: msg.readStatus.confirmed, total: msg.readStatus.total })}</span>
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-[14px] font-semibold text-ink-2 group-hover:text-ink">{t('readStatusOpen')}</span>
+                </button>
+              )}
 
               {msg.body && (
                 <div className="squircle rounded-[24px] bg-surface px-5 py-5 md:px-7 md:py-6">
@@ -597,6 +736,47 @@ function MessageDetailView({ id }: { id: string }) {
 
       {reply && <ComposeMessageSheet reply={reply} onClose={() => setReply(null)} onSent={() => setReply(null)} />}
       {viewing && <MediaViewer item={viewing} onClose={() => setViewing(null)} />}
+
+      <Sheet open={readOpen} onClose={() => setReadOpen(false)} title={t('readStatusTitle')} closeLabel={tc('close')}>
+        {readError ? (
+          <div className="flex flex-col items-start gap-3 pb-2">
+            <p role="alert" className="text-[14.5px] font-semibold text-danger-ink">{readError}</p>
+            <Button variant="quiet" size="sm" onClick={() => void openReadStatus()}>
+              <ArrowClockwise size={16} weight="bold" aria-hidden="true" />
+              {tc('retry')}
+            </Button>
+          </div>
+        ) : !readStatus ? (
+          <div className="grid place-items-center py-10"><Spinner size={22} /></div>
+        ) : (
+          <ul className="flex flex-col pb-2">
+            {readStatus.map((r) => {
+              // A class as one recipient: how many of it have confirmed.
+              const group = r.people.length > 1;
+              const confirmedPeople = r.people.filter((p) => p.date).length;
+              return (
+                <li key={r.id || r.name} className={`${rowLine} flex items-center gap-3.5 py-3`}>
+                  <span aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-full bg-inset text-[14px] font-bold text-ink-2">
+                    {initialsOf(r.name || r.className || '?')}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[15px] font-semibold">
+                      {r.name}
+                      {r.className && <span className="font-normal text-ink-3"> · {r.className}</span>}
+                    </span>
+                    <span className={`block text-[13px] tnum ${(group ? confirmedPeople === r.people.length : r.confirmedAt) ? 'text-success-ink' : 'text-ink-3'}`}>
+                      {group
+                        ? t('readCount', { confirmed: confirmedPeople, total: r.people.length })
+                        : r.confirmedAt ? t('readConfirmedOn', { date: formatDate(r.confirmedAt, tag) }) : t('readPending')}
+                    </span>
+                  </span>
+                  {(group ? confirmedPeople === r.people.length : r.confirmedAt) && <CheckCircle size={20} weight="fill" className="shrink-0 text-success-ink" aria-hidden="true" />}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Sheet>
 
       <Sheet open={!!linkWarning} onClose={() => setLinkWarning(null)} title={t('externalLink')} description={t('leavingApp')} closeLabel={tc('close')}>
         <div className="flex flex-col gap-5 pb-2">

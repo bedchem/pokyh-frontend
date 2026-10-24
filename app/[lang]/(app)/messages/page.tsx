@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LayoutGroup, motion } from 'framer-motion';
-import { Check, CheckSquare, Checks, Paperclip, PencilSimple, Trash } from '@phosphor-icons/react';
+import { Check, CheckSquare, Checks, MagnifyingGlass, Paperclip, PencilSimple, Trash, X } from '@phosphor-icons/react';
 import Link from 'next/link';
 import AuthGuard from '@/components/AuthGuard';
 import UntisGuard from '@/components/UntisGuard';
@@ -15,7 +15,7 @@ import PixelState from '@/components/app/PixelState';
 import Fab from '@/components/app/Fab';
 import { initialsOf } from '@/components/app/hooks';
 import ComposeMessageSheet, { type ComposeInitial } from '@/components/messages/ComposeMessageSheet';
-import { fetchMessages, getMessagesStale, markAllMessagesRead, fetchDraft, deleteDraft, deleteMessages, type MessageFolder } from '@/lib/api';
+import { fetchMessages, getMessagesStale, markAllMessagesRead, fetchDraft, deleteDraft, deleteMessages, searchMessages, type MessageFolder } from '@/lib/api';
 import type { MessagePreview } from '@/lib/types';
 import { useDateLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { messagesDict, type MessagesKey } from '@/lib/i18n/dictionaries/messages';
@@ -24,6 +24,8 @@ import { messageIsRead, messageRecipientNames } from '@/lib/untis-parse';
 import { leaveForLogin } from '@/providers/SessionProvider';
 
 type TFn = (key: MessagesKey, vars?: Record<string, string | number>) => string;
+
+const pill = 'shrink-0 rounded-full px-2 py-0.5 text-[11.5px] font-bold';
 
 const FOLDERS: { key: MessageFolder; label: MessagesKey }[] = [
   { key: 'inbox', label: 'inbox' },
@@ -47,8 +49,14 @@ function parseMessages(json: unknown, t: TFn, folder: MessageFolder): MessagePre
       (data?.draftMessages as unknown[]) ??
       (Array.isArray(root?.data) ? (root.data as unknown[]) : null) ??
       [];
+    // The inbox lists messages waiting for a read confirmation on their own, first.
+    const confirm = folder === 'inbox' ? ((root?.readConfirmationMessages ?? data?.readConfirmationMessages) as unknown[] | undefined) : undefined;
+    const waiting = new Set(Array.isArray(confirm) ? (confirm as Record<string, unknown>[]).map((m) => m.id) : []);
+    const all = [...(Array.isArray(confirm) ? confirm : []), ...(arr as unknown[])] as Record<string, unknown>[];
+    const seen = new Set<unknown>();
+    const list = all.filter((m) => m && !seen.has(m.id) && seen.add(m.id));
 
-    return (arr as Record<string, unknown>[]).map((m) => {
+    return list.map((m) => {
       const sender =
         typeof m.sender === 'object' && m.sender !== null
           ? (m.sender as Record<string, unknown>)
@@ -64,6 +72,8 @@ function parseMessages(json: unknown, t: TFn, folder: MessageFolder): MessagePre
         (m.date as string) ??
         '';
       const isRead = messageIsRead(m);
+      const rc = m.requestConfirmation && typeof m.requestConfirmation === 'object' ? m.requestConfirmation as Record<string, unknown> : null;
+      const status = m.requestConfirmationStatus && typeof m.requestConfirmationStatus === 'object' ? m.requestConfirmationStatus as Record<string, unknown> : null;
       return {
         id: m.id as number,
         subject: (m.subject as string) ?? t('noSubject'),
@@ -73,6 +83,9 @@ function parseMessages(json: unknown, t: TFn, folder: MessageFolder): MessagePre
         sentDate,
         isRead,
         hasAttachments: (m.hasAttachments as boolean) ?? false,
+        needsConfirmation: rc ? rc.allowSendRequestConfirmation === true && !rc.confirmationDate : waiting.has(m.id),
+        readStatus: status ? { confirmed: Number(status.confirmedRequestCount) || 0, total: Number(status.totalRequestCount) || 0 } : null,
+        isRevoked: m.isRevoked === true,
       };
     });
   } catch {
@@ -117,6 +130,35 @@ export default function MessagesPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  // Searching inbox or sent: the loaded list filtered at once, WebUntis' own
+  // search (subject, text, people, also older messages) once typing stops.
+  const [query, setQuery] = useState('');
+  // list null: WebUntis' search failed, the filtered list stays.
+  const [found, setFound] = useState<{ q: string; list: MessagePreview[] | null } | null>(null);
+  const searchSeq = useRef(0);
+  const q = query.trim();
+
+  useEffect(() => {
+    if (q.length < 2 || folder === 'drafts') return;
+    const seq = ++searchSeq.current;
+    const timer = window.setTimeout(() => {
+      searchMessages(folder, q)
+        .then((res) => { if (seq === searchSeq.current) setFound({ q, list: parseMessages(res, t, folder) }); })
+        .catch((e) => {
+          if (e instanceof Error && e.message === 'session_expired') leaveForLogin();
+          else if (seq === searchSeq.current) setFound({ q, list: null });
+        });
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [q, folder, t]);
+
+  const changeQuery = (next: string) => {
+    setQuery(next);
+    if (next.trim().length < 2) {
+      searchSeq.current++;
+      setFound(null);
+    }
+  };
 
   // Fetches the folder; the caller shows the loading state first.
   const load = useCallback(async () => {
@@ -164,6 +206,7 @@ export default function MessagesPage() {
   const switchFolder = (next: MessageFolder) => {
     if (next === folder) return;
     stopSelecting();
+    changeQuery('');
     setLoading(true);
     setError('');
     setFolder(next);
@@ -255,6 +298,16 @@ export default function MessagesPage() {
     }
   }
 
+  const searching = q.length >= 2 && folder !== 'drafts';
+  // While WebUntis' answer is on its way, the loaded messages that match.
+  const shown = useMemo(() => {
+    if (!searching) return messages;
+    if (found?.q === q && found.list) return found.list;
+    const needle = q.toLocaleLowerCase();
+    return messages.filter((m) => `${m.subject} ${m.senderName} ${m.contentPreview}`.toLocaleLowerCase().includes(needle));
+  }, [searching, messages, found, q]);
+  const searchPending = searching && found?.q !== q;
+
   const groups = useMemo(() => {
     const now = loadedAt;
     const out: Array<{ key: 'groupToday' | 'groupWeek' | 'groupOlder'; list: MessagePreview[] }> = [
@@ -262,7 +315,7 @@ export default function MessagesPage() {
       { key: 'groupWeek', list: [] },
       { key: 'groupOlder', list: [] },
     ];
-    for (const m of messages) {
+    for (const m of shown) {
       const d = new Date(m.sentDate);
       const valid = !Number.isNaN(d.getTime());
       const days = valid ? Math.floor((now - d.getTime()) / 86_400_000) : 99;
@@ -270,7 +323,7 @@ export default function MessagesPage() {
       out[sameDay ? 0 : days < 7 ? 1 : 2].list.push(m);
     }
     return out.filter((g) => g.list.length > 0);
-  }, [messages, loadedAt]);
+  }, [shown, loadedAt]);
 
   const row = (msg: MessagePreview) => {
     const isDraft = folder === 'drafts';
@@ -306,6 +359,13 @@ export default function MessagesPage() {
               {msg.contentPreview ? `${who ? ' · ' : ''}${msg.contentPreview}` : ''}
             </span>
             {msg.hasAttachments && <Paperclip size={14} weight="bold" className="shrink-0 text-ink-3" aria-hidden="true" />}
+            {msg.needsConfirmation && <span className={`${pill} bg-butter text-butter-ink`}>{t('needsConfirmation')}</span>}
+            {folder === 'sent' && msg.isRevoked && <span className={`${pill} bg-inset text-ink-2`}>{t('revoked')}</span>}
+            {folder === 'sent' && !msg.isRevoked && msg.readStatus && msg.readStatus.total > 0 && (
+              <span className={`${pill} tnum ${msg.readStatus.confirmed >= msg.readStatus.total ? 'bg-sage text-sage-ink' : 'bg-inset text-ink-2'}`}>
+                {t('readCount', { confirmed: msg.readStatus.confirmed, total: msg.readStatus.total })}
+              </span>
+            )}
           </span>
         </span>
       </span>
@@ -410,8 +470,9 @@ export default function MessagesPage() {
             </Fab>
           )}
 
+          <div className="rise mb-8 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <LayoutGroup id="message-folders">
-            <div role="tablist" aria-label={t('title')} className="rise mb-8 inline-flex max-w-full gap-1 rounded-[16px] bg-surface p-1">
+            <div role="tablist" aria-label={t('title')} className="inline-flex max-w-full gap-1 self-start rounded-[16px] bg-surface p-1">
               {FOLDERS.map((f) => {
                 const active = folder === f.key;
                 return (
@@ -430,11 +491,43 @@ export default function MessagesPage() {
               })}
             </div>
           </LayoutGroup>
+          {folder !== 'drafts' && (
+            <div className="relative w-full md:max-w-[340px]">
+              <MagnifyingGlass size={18} weight="bold" aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-3" />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => changeQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Escape') changeQuery(''); }}
+                placeholder={t('searchLabel')}
+                aria-label={t('searchLabel')}
+                enterKeyHint="search"
+                className="h-12 w-full rounded-[14px] bg-surface pl-11 pr-11 text-[16px] text-ink outline-none transition-shadow placeholder:text-ink-3 focus:shadow-[0_0_0_2px_var(--accent)] [&::-webkit-search-cancel-button]:hidden"
+              />
+              {searchPending ? (
+                <span className="absolute right-4 top-1/2 -translate-y-1/2"><Spinner size={16} /></span>
+              ) : query ? (
+                <button
+                  type="button"
+                  onClick={() => changeQuery('')}
+                  aria-label={t('searchClear')}
+                  className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-ink-3 transition-colors hover:bg-inset hover:text-ink"
+                >
+                  <X size={16} weight="bold" aria-hidden="true" />
+                </button>
+              ) : null}
+            </div>
+          )}
+          </div>
 
           {loading ? (
             <RowsSkeleton rows={6} lead="round" trailing />
           ) : error ? (
             <div className="squircle rounded-[26px] bg-surface"><ErrorView message={error} onRetry={reload} /></div>
+          ) : searching && shown.length === 0 ? (
+            <div className="squircle rounded-[26px] bg-surface px-6 py-12 text-center">
+              <p className="text-[15.5px] font-semibold text-ink-2" aria-live="polite">{searchPending ? t('searchLabel') : t('searchNone', { q })}</p>
+            </div>
           ) : messages.length === 0 ? (
             <div key={folder} className="squircle rounded-[26px] bg-surface">
               <PixelState

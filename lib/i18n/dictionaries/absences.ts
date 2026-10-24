@@ -18,11 +18,14 @@ export type AbsencesKey =
   | 'viewInTimetable'
   | 'report'
   | 'ofLessons'
+  | 'rateCounting'
+  | 'ofLessonsYear'
+  | 'spanLabel'
+  | 'spanSoFar'
+  | 'spanYear'
+  | 'rateMissing'
+  | 'rateRetry'
   | 'perMonth'
-  | 'perSubject'
-  | 'perSubjectHint'
-  | 'subjectLessons'
-  | 'subjectUnexcused'
   // ReportAbsenceSheet
   | 'choose'
   | 'errChooseRange'
@@ -76,12 +79,15 @@ export const absencesDict: Dictionary<AbsencesKey> = {
     text: 'Text',
     viewInTimetable: 'Im Stundenplan ansehen',
     report: 'Abwesenheit melden',
-    ofLessons: '{missed} von {total} Unterricht',
+    ofLessons: '{missed} von {total} Unterricht bisher',
+    ofLessonsYear: '{missed} von {total} Unterricht im ganzen Schuljahr',
+    spanLabel: 'Zeitraum',
+    spanSoFar: 'Bisher',
+    spanYear: 'Ganzes Jahr',
+    rateCounting: 'Wird aus dem Stundenplan berechnet …',
+    rateMissing: 'Noch nicht alle Wochen des Stundenplans geladen.',
+    rateRetry: 'Erneut laden',
     perMonth: 'Pro Monat',
-    perSubject: 'Pro Fach',
-    perSubjectHint: 'So zählt deine Schule in WebUntis.',
-    subjectLessons: '{n} Std.',
-    subjectUnexcused: 'davon {time} offen',
     choose: 'Wählen',
     errChooseRange: 'Bitte Start und Ende wählen.',
     errEndAfterStart: 'Ende muss nach dem Start liegen.',
@@ -131,12 +137,15 @@ export const absencesDict: Dictionary<AbsencesKey> = {
     text: 'Testo',
     viewInTimetable: 'Vedi nell’orario',
     report: 'Segnala assenza',
-    ofLessons: '{missed} su {total} di lezione',
+    ofLessons: '{missed} su {total} di lezione finora',
+    ofLessonsYear: '{missed} su {total} di lezione in tutto l’anno scolastico',
+    spanLabel: 'Periodo',
+    spanSoFar: 'Finora',
+    spanYear: 'Tutto l’anno',
+    rateCounting: 'Calcolo dall’orario in corso …',
+    rateMissing: 'Non tutte le settimane dell’orario sono state caricate.',
+    rateRetry: 'Ricarica',
     perMonth: 'Per mese',
-    perSubject: 'Per materia',
-    perSubjectHint: 'Come conta la tua scuola in WebUntis.',
-    subjectLessons: '{n} ore',
-    subjectUnexcused: 'di cui {time} da giustificare',
     choose: 'Scegli',
     errChooseRange: 'Scegli inizio e fine.',
     errEndAfterStart: 'La fine deve essere dopo l’inizio.',
@@ -186,12 +195,15 @@ export const absencesDict: Dictionary<AbsencesKey> = {
     text: 'Note',
     viewInTimetable: 'View in timetable',
     report: 'Report absence',
-    ofLessons: '{missed} of {total} of lessons',
+    ofLessons: '{missed} of {total} of lessons so far',
+    ofLessonsYear: '{missed} of {total} of lessons in the whole school year',
+    spanLabel: 'Period',
+    spanSoFar: 'So far',
+    spanYear: 'Whole year',
+    rateCounting: 'Working it out from the timetable …',
+    rateMissing: 'Not every week of the timetable has loaded yet.',
+    rateRetry: 'Load again',
     perMonth: 'Per month',
-    perSubject: 'Per subject',
-    perSubjectHint: 'As your school counts it in WebUntis.',
-    subjectLessons: '{n} lessons',
-    subjectUnexcused: '{time} not excused',
     choose: 'Choose',
     errChooseRange: 'Please choose a start and an end.',
     errEndAfterStart: 'The end must be after the start.',
@@ -233,10 +245,14 @@ export const absencesDict: Dictionary<AbsencesKey> = {
     excused: "Giustificades",
     unexcused: "Nia giustificades",
     rate: "Cuota de assënza",
-    perSubject: "Per materia",
-    perSubjectHint: "Coche tia scola conta te WebUntis.",
-    subjectLessons: "{n} ëures",
-    subjectUnexcused: "de chëstes {time} nia giustificà",
+    ofLessons: "{missed} de {total} de lezion nchin a sën",
+    ofLessonsYear: "{missed} de {total} de lezion te dut l ann de scola",
+    spanLabel: "Tëmp",
+    spanSoFar: "Nchin a sën",
+    spanYear: "Dut l ann",
+    rateCounting: "Vën calculà dal orar …",
+    rateMissing: "Nia dutes la edemes dl orar ne n’é mo ciariedes.",
+    rateRetry: "Ciarië de nuef",
     emptyTitle: "Deguna assënza",
     emptySubtitle: "Tu ne n’ies nia stat assënt.",
     statusExcused: "giustificà",

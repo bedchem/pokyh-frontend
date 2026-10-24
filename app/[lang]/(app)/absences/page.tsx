@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Page, PageHeader, Section, Segmented } from '@/components/app/Page';
 import { Bone, Line, RowsSkeleton } from '@/components/app/Skeleton';
 import PixelState from '@/components/app/PixelState';
-import { readAbsenceCalc, writeAbsenceCalc } from '@/lib/absence-calc';
+import { absenceFigures, absenceWeeks, hasWholeYear, readLessonCalendar, refreshLessonCalendar, toMinutes, type LessonCalendar } from '@/lib/absence-calc';
 import ErrorView from '@/components/ui/ErrorView';
 // Abwesenheit-melden deaktiviert (kein funktionierender WebUntis-Schreib-Endpunkt):
 import ReportAbsenceSheet from '@/components/absences/ReportAbsenceSheet';
@@ -28,18 +28,6 @@ import { formatDate, monthShort } from '@/lib/i18n/dateLocale';
 const MediaViewer = dynamic(() => import('@/components/ui/MediaViewer'), { ssr: false });
 
 // ─── Time helpers ─────────────────────────────────────────────────────────────
-
-// Convert WebUntis time value to minutes from midnight.
-// The classreg absences endpoint may return times as minutes-from-midnight
-// (e.g. 475 = 07:55) or as HHMM integers (e.g. 755 = 07:55).
-// Detection: if the last two digits exceed 59, the value cannot be valid HHMM,
-// so it must already be minutes-from-midnight.
-function toMinutes(t: number): number {
-  if (!t) return 0;
-  if (t > 2359) return t; // too large to be HHMM
-  if (t % 100 > 59) return t; // minutes part > 59 → already minutes
-  return Math.floor(t / 100) * 60 + (t % 100);
-}
 
 function formatTime(t: number): string {
   if (!t) return '';
@@ -59,131 +47,6 @@ function formatMinutes(m: number): string {
 
 function roundHours(m: number): string {
   return `${Math.round(m / 60)}h`;
-}
-
-// ─── Timetable helpers for exact absence minutes ───────────────────────────────
-
-type DaySlot = { startMins: number; endMins: number };
-type GridEntry = {
-  status?: string;
-  position2?: Array<{ current?: unknown; removed?: unknown }>;
-  duration?: { start?: string; end?: string };
-};
-
-// Build a map of dateNum → deduplicated lesson slots from a timetable API response.
-// Only counts non-cancelled entries that have an actual subject (no breaks/free periods).
-function mergeTimetableIntoMap(
-  target: Map<number, Map<number, DaySlot>>,
-  json: unknown,
-): void {
-  try {
-    const root = json as { days?: Array<{ date: string; gridEntries?: GridEntry[] }> };
-    if (!root.days) return;
-    for (const day of root.days) {
-      if (!day.gridEntries?.length) continue;
-      const dateNum = parseInt(day.date.replace(/-/g, ''), 10);
-      if (!target.has(dateNum)) target.set(dateNum, new Map());
-      const timeMap = target.get(dateNum)!;
-      for (const ge of day.gridEntries) {
-        if (ge.status === 'CANCELLED') continue;
-        // Skip entries without any subject in position2 (e.g. breaks)
-        const pos2 = ge.position2 ?? [];
-        const hasSub = pos2.some((p) => p.current || p.removed);
-        if (!hasSub) continue;
-        const timePart = ge.duration?.start?.split('T')[1];
-        const endPart  = ge.duration?.end?.split('T')[1];
-        if (!timePart || !endPart) continue;
-        const [startH, startM] = timePart.split(':').map(Number);
-        const [endH, endM]     = endPart.split(':').map(Number);
-        const startMins = startH * 60 + startM;
-        const endMins   = endH   * 60 + endM;
-        // Deduplicate by startMins so parallel subjects count as one period
-        if (!timeMap.has(startMins)) {
-          timeMap.set(startMins, { startMins, endMins });
-        }
-      }
-    }
-  } catch { /* ignore malformed responses */ }
-}
-
-// Returns one Monday date-string per calendar week from school-year start (Sep 1) to today.
-function getWeeksForSchoolYear(now: Date, sep: Date): string[] {
-  const dow = sep.getDay();
-  const mon = new Date(sep);
-  mon.setDate(sep.getDate() - (dow === 0 ? 6 : dow - 1));
-  const mondays: string[] = [];
-  const d = new Date(mon);
-  while (d <= now) {
-    mondays.push(
-      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
-    );
-    d.setDate(d.getDate() + 7);
-  }
-  return mondays;
-}
-
-// Returns one Monday date-string per calendar week that overlaps with any absence.
-function getWeeksForAbsences(absences: AbsenceEntry[]): string[] {
-  const mondays = new Set<string>();
-  function addWeekOf(d: Date) {
-    const dow = d.getDay();
-    const mon = new Date(d);
-    mon.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
-    mondays.add(
-      `${mon.getFullYear()}-${String(mon.getMonth() + 1).padStart(2, '0')}-${String(mon.getDate()).padStart(2, '0')}`,
-    );
-  }
-  for (const entry of absences) {
-    const s = entry.startDate.toString();
-    const e = entry.endDate.toString();
-    const start = new Date(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8));
-    const end   = new Date(+e.slice(0, 4), +e.slice(4, 6) - 1, +e.slice(6, 8));
-    const d = new Date(start);
-    while (d <= end) {
-      addWeekOf(d);
-      d.setDate(d.getDate() + 1);
-    }
-  }
-  return Array.from(mondays);
-}
-
-// Returns the exact lesson minutes for one absence entry by looking up the timetable.
-function calcAbsenceMinutes(
-  entry: AbsenceEntry,
-  dateMap: Map<number, DaySlot[]>,
-): number {
-  let total = 0;
-  const s = entry.startDate.toString();
-  const e = entry.endDate.toString();
-  const start = new Date(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8));
-  const end   = new Date(+e.slice(0, 4), +e.slice(4, 6) - 1, +e.slice(6, 8));
-  const isMultiDay  = entry.startDate !== entry.endDate;
-  const absStartMin = toMinutes(entry.startTime);
-  const absEndMin   = toMinutes(entry.endTime);
-
-  const d = new Date(start);
-  while (d <= end) {
-    const dow = d.getDay();
-    if (dow !== 0 && dow !== 6) {
-      const dateNum = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-      const slots = dateMap.get(dateNum) ?? [];
-      for (const slot of slots) {
-        // Clip the counted duration to the absence window
-        let countStart = slot.startMins;
-        let countEnd   = slot.endMins;
-        if (isMultiDay) {
-          if (absStartMin > 0 && dateNum === entry.startDate) countStart = Math.max(countStart, absStartMin);
-          if (absEndMin   > 0 && dateNum === entry.endDate)   countEnd   = Math.min(countEnd,   absEndMin);
-        } else {
-          if (absStartMin > 0) countStart = Math.max(countStart, absStartMin);
-          if (absEndMin   > 0) countEnd   = Math.min(countEnd,   absEndMin);
-        }
-        if (countEnd > countStart) total += countEnd - countStart;
-      }
-    }
-    d.setDate(d.getDate() + 1);
-  }
-  return total;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -217,7 +80,7 @@ function groupByMonth(
     const [year, month] = key.split('-');
     const long = formatDate(new Date(+year, parseInt(month) - 1, 1), tag, { month: 'long', year: 'numeric' });
     const label = long.charAt(0).toUpperCase() + long.slice(1);
-    const totalMinutes = es.reduce((a, e) => a + (minutesMap.get(e.id) ?? e.hours * 50), 0);
+    const totalMinutes = es.reduce((a, e) => a + (minutesMap.get(e.id) ?? 0), 0);
     result.push({ key, label, entries: es, totalMinutes });
   });
 
@@ -247,8 +110,12 @@ export default function AbsencesPage() {
     const stale = getAbsencesStale(CURRENT_SCHOOL_YEAR);
     return stale ? parseAbsences(stale) : [];
   });
-  const [minutesMap, setMinutesMap] = useState<Map<number, number>>(new Map());
-  const [totalPossibleMins, setTotalPossibleMins] = useState(0);
+  // The lessons of the year the rate is counted against (lib/absence-calc.ts), loaded and kept per week.
+  const [liveCal, setLiveCal] = useState<{ year: number; cal: LessonCalendar } | null>(null);
+  const [calcBusy, setCalcBusy] = useState(false);
+  // The rate against the lessons so far, or against every lesson of the school year.
+  const [span, setSpan] = useState<'sofar' | 'year'>('sofar');
+  const wholeRef = useRef(false);
   const [loading, setLoading] = useState(() => !getAbsencesStale(CURRENT_SCHOOL_YEAR));
   const [error, setError] = useState('');
   const [exact, setExact] = useState(false);
@@ -264,9 +131,9 @@ export default function AbsencesPage() {
   const [letterOpen, setLetterOpen] = useState(false);
   const ta = useT(untisActionsDict);
   // The missed lessons as the school counts them (WebUntis "Fehlzeiten"):
-  // the minutes of each absence and the sums per subject. Where they are
-  // there, they are what the page shows; the timetable is only needed for
-  // the rate's whole (all lessons of the year).
+  // the minutes of each absence. Where they are there, they are what the
+  // page shows; the timetable is only needed for the rate's whole (all
+  // lessons of the year).
   const [liveTimes, setLiveTimes] = useState<{ year: number; data: AbsenceTimes } | null>(null);
   const times = useMemo(
     () => (liveTimes?.year === selectedYear ? liveTimes.data : getAbsenceTimesStale(selectedYear) ?? null),
@@ -282,6 +149,22 @@ export default function AbsencesPage() {
   const fmt = (m: number) => exact ? formatMinutes(m) : roundHours(m);
 
   const studentId = user?.studentId ?? 0;
+  const cal = useMemo(
+    () => (liveCal?.year === selectedYear ? liveCal.cal : readLessonCalendar(studentId, selectedYear)),
+    [liveCal, selectedYear, studentId],
+  );
+
+  // The weeks of the timetable not kept yet, or due again; a few at a time.
+  const refreshCalendar = useCallback(async (year: number, whole: boolean, extra: string[]) => {
+    setCalcBusy(true);
+    try {
+      setLiveCal({ year, cal: await refreshLessonCalendar(studentId, year, fetchTimetableForCalc, extra, new Date(), whole) });
+    } catch (e) {
+      if (e instanceof Error && e.message === 'session_expired') leaveForLogin();
+    } finally {
+      setCalcBusy(false);
+    }
+  }, [studentId]);
 
   const load = useCallback(async () => {
     if (!getAbsencesStale(selectedYear)) setLoading(true);
@@ -290,64 +173,8 @@ export default function AbsencesPage() {
       const res = await fetchAbsences(selectedYear);
       const parsed = parseAbsences(res);
       setAbsences(parsed);
-
-      // Schneller Pfad: lokal gecachtes Berechnungs-Ergebnis verwenden, solange
-      // sich die Anzahl der Abwesenheiten nicht geändert hat → kein Stundenplan-Laden.
-      const cached = readAbsenceCalc(studentId, selectedYear);
-      if (cached && cached.count === parsed.length) {
-        setMinutesMap(cached.minutes);
-        setTotalPossibleMins(Math.max(1, cached.possible));
-        return; // finally setzt loading=false
-      }
-
-      // Compute school year date range for selected year
-      const sep = new Date(selectedYear, 8, 1); // Sept 1 of selected year
-      const schoolYearEndDate = new Date(selectedYear + 1, 5, 30); // June 30 of next year
-      const now = selectedYear === CURRENT_SCHOOL_YEAR ? new Date() : schoolYearEndDate;
-
-      // Fetch timetable for absence weeks + all school-year weeks (for accurate rate denominator)
-      const allWeeks = Array.from(new Set([...getWeeksForAbsences(parsed), ...getWeeksForSchoolYear(now, sep)]));
-      const weekResults = await Promise.allSettled(allWeeks.map((d) => fetchTimetableForCalc(d)));
-
-      // If any timetable fetch was rejected due to session expiry, redirect now.
-      const sessionExpired = weekResults.some(
-        (r) => r.status === 'rejected' && r.reason instanceof Error && r.reason.message === 'session_expired',
-      );
-      if (sessionExpired) {
-        leaveForLogin();
-        return;
-      }
-
-      // Merge all weeks into a single date → slots map
-      const rawMap = new Map<number, Map<number, DaySlot>>();
-      weekResults.forEach((r) => {
-        if (r.status === 'fulfilled') mergeTimetableIntoMap(rawMap, r.value);
-      });
-      const dateMap = new Map<number, DaySlot[]>();
-      for (const [date, timeMap] of rawMap.entries()) {
-        dateMap.set(date, Array.from(timeMap.values()));
-      }
-
-      // Calculate exact lesson minutes per absence entry
-      const mins = new Map<number, number>();
-      for (const entry of parsed) {
-        mins.set(entry.id, calcAbsenceMinutes(entry, dateMap));
-      }
-      setMinutesMap(mins);
-
-      // Sum all lesson minutes since school-year start, accounts for Ferien, Feiertage, personal schedule
-      const nowNum = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
-      const sepNum = sep.getFullYear() * 10000 + (sep.getMonth() + 1) * 100 + sep.getDate();
-      let possibleMins = 0;
-      for (const [dateNum, slots] of dateMap.entries()) {
-        if (dateNum >= sepNum && dateNum <= nowNum) {
-          for (const slot of slots) possibleMins += slot.endMins - slot.startMins;
-        }
-      }
-      setTotalPossibleMins(Math.max(1, possibleMins));
-
-      // Ergebnis lokal cachen → nächster Aufruf rendert sofort.
-      writeAbsenceCalc(studentId, selectedYear, mins, possibleMins, parsed.length);
+      setLoading(false);
+      await refreshCalendar(selectedYear, wholeRef.current && selectedYear === CURRENT_SCHOOL_YEAR, absenceWeeks(parsed));
     } catch (e: unknown) {
       if (e instanceof Error && e.message === 'session_expired') {
         leaveForLogin();
@@ -357,7 +184,7 @@ export default function AbsencesPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedYear, studentId]);
+  }, [selectedYear, refreshCalendar]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void load(); }, 0);
@@ -390,30 +217,29 @@ export default function AbsencesPage() {
     return () => document.removeEventListener('mousedown', onDown);
   }, []);
 
-  // The school's own minutes per absence first, the worked-out ones where it has none.
-  const minutesFor = useMemo(() => {
-    const merged = new Map(minutesMap);
-    if (times?.lessons?.length) {
-      const official = new Map<number, number>();
-      for (const l of times.lessons) official.set(l.absenceId, (official.get(l.absenceId) ?? 0) + l.minutes);
-      for (const [id, m] of official) merged.set(id, m);
-    }
-    return merged;
-  }, [minutesMap, times]);
+  // A year that is over is the same either way.
+  const canWhole = selectedYear === CURRENT_SCHOOL_YEAR;
+  const whole = span === 'year' && canWhole;
+  const chooseSpan = (next: 'sofar' | 'year') => {
+    setSpan(next);
+    wholeRef.current = next === 'year';
+    // The weeks still to come are only loaded for the whole year.
+    if (next === 'year' && !hasWholeYear(cal, selectedYear, undefined, true)) void refreshCalendar(selectedYear, true, absenceWeeks(absences));
+  };
 
-  const getMin = (e: AbsenceEntry) => minutesFor.get(e.id) ?? e.hours * 50;
-  const subjects = times?.bySubject.filter((s) => s.minutes > 0) ?? [];
-  const subjectMax = Math.max(1, ...subjects.map((s) => s.minutes));
+  // The same figures as the home page's tile (lib/absence-calc.ts).
+  const figures = useMemo(() => absenceFigures(absences, cal, times, selectedYear, undefined, whole), [absences, cal, times, selectedYear, whole]);
+  const minutesFor = figures.perAbsence;
+  const getMin = (e: AbsenceEntry) => minutesFor.get(e.id) ?? 0;
 
-  const totalMinutes    = absences.reduce((a, e) => a + getMin(e), 0);
-  const excusedMinutes  = absences.filter((e) => e.isExcused).reduce((a, e) => a + getMin(e), 0);
+  const totalMinutes = figures.minutes;
+  const excusedMinutes = figures.excusedMinutes;
   const unexcusedMinutes = totalMinutes - excusedMinutes;
-
-  const rate      = totalPossibleMins > 0 ? Math.min((totalMinutes / totalPossibleMins) * 100, 100) : 0;
+  const rate = figures.rate;
 
   const groups = groupByMonth(absences, minutesFor, tag);
 
-  const rateInk = rate < 5 ? 'text-success-ink' : rate < 15 ? 'text-butter-ink' : 'text-danger-ink';
+  const rateInk = rate == null ? 'text-ink-3' : rate < 5 ? 'text-success-ink' : rate < 15 ? 'text-butter-ink' : 'text-danger-ink';
   const unexcusedIds = absences.filter((a) => !a.isExcused).map((a) => a.id);
   const excusedShare = totalMinutes > 0 ? (excusedMinutes / totalMinutes) * 100 : 0;
 
@@ -503,9 +329,32 @@ export default function AbsencesPage() {
                 <div className="grid gap-3 md:gap-4 lg:grid-cols-2">
                   <div className="squircle flex flex-col justify-between gap-7 rounded-[24px] bg-surface p-5 md:p-6">
                     <div>
-                      <p className="text-[14px] font-semibold text-ink-2">{t('rate')}</p>
-                      <p className={`mt-2 text-[46px] font-extrabold leading-none tracking-[-0.05em] tnum md:text-[54px] ${rateInk}`}>{rate.toFixed(1).replace('.', locale === 'en' ? '.' : ',')} %</p>
-                      <p className="mt-2.5 text-[14px] text-ink-2">{t('ofLessons', { missed: fmt(totalMinutes), total: fmt(totalPossibleMins) })}</p>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-[14px] font-semibold text-ink-2">{t('rate')}</p>
+                        {canWhole && (
+                          <Segmented<'sofar' | 'year'>
+                            label={t('spanLabel')}
+                            value={span}
+                            onChange={chooseSpan}
+                            options={[{ value: 'sofar', label: t('spanSoFar') }, { value: 'year', label: t('spanYear') }]}
+                          />
+                        )}
+                      </div>
+                      <p className={`mt-2 text-[46px] font-extrabold leading-none tracking-[-0.05em] tnum md:text-[54px] ${rateInk}`}>
+                        {rate != null ? `${rate.toFixed(1).replace('.', locale === 'en' ? '.' : ',')} %` : calcBusy ? <Line w={150} h={44} className="text-ink" /> : '–'}
+                      </p>
+                      <p className="mt-2.5 text-[14px] text-ink-2">
+                        {figures.possible != null ? (
+                          t(whole ? 'ofLessonsYear' : 'ofLessons', { missed: fmt(totalMinutes), total: fmt(figures.possible) })
+                        ) : calcBusy ? (
+                          t('rateCounting')
+                        ) : (
+                          <>
+                            {t('rateMissing')}{' '}
+                            <button type="button" onClick={() => void refreshCalendar(selectedYear, whole, absenceWeeks(absences))} className="font-semibold text-ink underline underline-offset-2">{t('rateRetry')}</button>
+                          </>
+                        )}
+                      </p>
                     </div>
                     <div>
                       <span className="flex h-2.5 gap-[3px] overflow-hidden rounded-full bg-inset">
@@ -566,39 +415,6 @@ export default function AbsencesPage() {
                   </div>
                 </div>
                 </div>
-
-                {subjects.length > 0 && (
-                  <div className="squircle flex flex-col rounded-[24px] bg-surface p-5 md:p-6">
-                    <p className="text-[14px] font-semibold text-ink-2">{t('perSubject')}</p>
-                    <p className="mt-0.5 text-[13px] text-ink-3">{t('perSubjectHint')}</p>
-                    <ul className="mt-4 grid gap-x-8 gap-y-4 md:grid-cols-2">
-                      {subjects.map((s, i) => (
-                        <li key={s.subject} className="min-w-0">
-                          <div className="flex items-baseline justify-between gap-3">
-                            <span className="min-w-0 truncate text-[15px] font-semibold">
-                              {s.subject}
-                              {s.teacher && <span className="font-normal text-ink-3"> · {s.teacher}</span>}
-                            </span>
-                            <span className="shrink-0 text-[15px] font-bold tnum">{fmt(s.minutes)}</span>
-                          </div>
-                          <span className="mt-1.5 flex h-2 gap-[3px] overflow-hidden rounded-full bg-inset">
-                            <span
-                              className="rounded-full bg-accent transition-[width] duration-700 ease-[var(--ease-out)]"
-                              style={{ width: `${((s.minutes - s.unexcusedMinutes) / subjectMax) * 100}%`, transitionDelay: `${Math.min(i, 10) * 30}ms` }}
-                            />
-                            {s.unexcusedMinutes > 0 && (
-                              <span className="rounded-full bg-danger" style={{ width: `${(s.unexcusedMinutes / subjectMax) * 100}%` }} />
-                            )}
-                          </span>
-                          <p className="mt-1 text-[12.5px] text-ink-3 tnum">
-                            {t('subjectLessons', { n: s.hours })}
-                            {s.unexcusedMinutes > 0 && <span className="text-danger-ink"> · {t('subjectUnexcused', { time: fmt(s.unexcusedMinutes) })}</span>}
-                          </p>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
 
                 {unexcusedIds.length > 0 && (
                   // Opens in the viewer, with its download button beside it.

@@ -30,6 +30,29 @@ export type MessagesKey =
   | 'deleteFailed'
   | 'deleteMessage'
   | 'deleteMessageConfirm'
+  | 'searchLabel'
+  | 'searchNone'
+  | 'searchClear'
+  | 'needsConfirmation'
+  | 'readCount'
+  | 'revoked'
+  | 'confirmTitle'
+  | 'confirmText'
+  | 'confirmAction'
+  | 'confirmDone'
+  | 'confirmDoneBy'
+  | 'confirmFailed'
+  | 'readStatus'
+  | 'readStatusTitle'
+  | 'readStatusOpen'
+  | 'readStatusFailed'
+  | 'readPending'
+  | 'readConfirmedOn'
+  | 'revoke'
+  | 'revokeConfirm'
+  | 'revokeHint'
+  | 'revokeFailed'
+  | 'revokedNotice'
   // Detail page
   | 'message'
   | 'attachment'
@@ -110,6 +133,29 @@ export const messagesDict: Dictionary<MessagesKey> = {
     deleteFailed: 'Nicht alle Nachrichten konnten gelöscht werden.',
     deleteMessage: 'Löschen',
     deleteMessageConfirm: 'Wirklich löschen?',
+    searchLabel: 'Nachrichten durchsuchen',
+    searchNone: 'Nichts gefunden für „{q}“.',
+    searchClear: 'Suche leeren',
+    needsConfirmation: 'Bitte bestätigen',
+    readCount: '{confirmed}/{total} gelesen',
+    revoked: 'Zurückgenommen',
+    confirmTitle: 'Lesebestätigung erbeten',
+    confirmText: '{name} möchte wissen, dass du die Nachricht gelesen hast.',
+    confirmAction: 'Lesen bestätigen',
+    confirmDone: 'Lesen bestätigt am {date}',
+    confirmDoneBy: '{name} hat das Lesen am {date} bestätigt',
+    confirmFailed: 'Die Lesebestätigung konnte nicht gesendet werden.',
+    readStatus: '{confirmed} von {total} haben das Lesen bestätigt',
+    readStatusTitle: 'Lesebestätigungen',
+    readStatusOpen: 'Ansehen',
+    readStatusFailed: 'Die Lesebestätigungen konnten gerade nicht geladen werden.',
+    readPending: 'Noch nicht bestätigt',
+    readConfirmedOn: 'Bestätigt am {date}',
+    revoke: 'Zurücknehmen',
+    revokeConfirm: 'Wirklich zurücknehmen?',
+    revokeHint: 'Die Empfänger sehen die Nachricht danach nicht mehr.',
+    revokeFailed: 'Die Nachricht konnte nicht zurückgenommen werden.',
+    revokedNotice: 'Zurückgenommen: Die Empfänger sehen diese Nachricht nicht mehr.',
     message: 'Nachricht',
     attachment: 'Anhang',
     attachmentsLoading: 'Anhänge werden geladen…',
@@ -183,6 +229,29 @@ export const messagesDict: Dictionary<MessagesKey> = {
     deleteFailed: 'Non tutti i messaggi sono stati eliminati.',
     deleteMessage: 'Elimina',
     deleteMessageConfirm: 'Eliminare davvero?',
+    searchLabel: 'Cerca nei messaggi',
+    searchNone: 'Nessun risultato per «{q}».',
+    searchClear: 'Cancella ricerca',
+    needsConfirmation: 'Da confermare',
+    readCount: '{confirmed}/{total} letti',
+    revoked: 'Ritirato',
+    confirmTitle: 'Conferma di lettura richiesta',
+    confirmText: '{name} vuole sapere se hai letto il messaggio.',
+    confirmAction: 'Conferma lettura',
+    confirmDone: 'Lettura confermata il {date}',
+    confirmDoneBy: '{name} ha confermato la lettura il {date}',
+    confirmFailed: 'Non è stato possibile inviare la conferma di lettura.',
+    readStatus: '{confirmed} su {total} hanno confermato la lettura',
+    readStatusTitle: 'Conferme di lettura',
+    readStatusOpen: 'Vedi',
+    readStatusFailed: 'Non è stato possibile caricare le conferme di lettura.',
+    readPending: 'Non ancora confermato',
+    readConfirmedOn: 'Confermato il {date}',
+    revoke: 'Ritira',
+    revokeConfirm: 'Ritirare davvero?',
+    revokeHint: 'I destinatari non vedranno più il messaggio.',
+    revokeFailed: 'Non è stato possibile ritirare il messaggio.',
+    revokedNotice: 'Ritirato: i destinatari non vedono più questo messaggio.',
     message: 'Messaggio',
     attachment: 'Allegato',
     attachmentsLoading: 'Caricamento allegati…',
@@ -256,6 +325,29 @@ export const messagesDict: Dictionary<MessagesKey> = {
     deleteFailed: 'Not all messages could be deleted.',
     deleteMessage: 'Delete',
     deleteMessageConfirm: 'Really delete?',
+    searchLabel: 'Search messages',
+    searchNone: 'Nothing found for “{q}”.',
+    searchClear: 'Clear search',
+    needsConfirmation: 'Please confirm',
+    readCount: '{confirmed}/{total} read',
+    revoked: 'Taken back',
+    confirmTitle: 'Read confirmation requested',
+    confirmText: '{name} would like to know that you have read this message.',
+    confirmAction: 'Confirm reading',
+    confirmDone: 'Reading confirmed on {date}',
+    confirmDoneBy: '{name} confirmed reading on {date}',
+    confirmFailed: 'The read confirmation could not be sent.',
+    readStatus: '{confirmed} of {total} confirmed reading',
+    readStatusTitle: 'Read confirmations',
+    readStatusOpen: 'View',
+    readStatusFailed: 'The read confirmations could not be loaded right now.',
+    readPending: 'Not confirmed yet',
+    readConfirmedOn: 'Confirmed on {date}',
+    revoke: 'Take back',
+    revokeConfirm: 'Really take back?',
+    revokeHint: 'Recipients will no longer see the message.',
+    revokeFailed: 'The message could not be taken back.',
+    revokedNotice: 'Taken back: recipients no longer see this message.',
     message: 'Message',
     attachment: 'Attachment',
     attachmentsLoading: 'Loading attachments…',
@@ -326,6 +418,29 @@ export const messagesDict: Dictionary<MessagesKey> = {
     deleteFailed: "Nia dutes la nutizies ne n’à pudù vester scancelëdes.",
     deleteMessage: "Scancelé",
     deleteMessageConfirm: "Propi scancelé?",
+    searchLabel: "Crì tla nutizies",
+    searchNone: "Nia giapà per «{q}».",
+    searchClear: "Scancelé la crida",
+    needsConfirmation: "Da cunfermé",
+    readCount: "{confirmed}/{total} liei",
+    revoked: "Tut de reviers",
+    confirmTitle: "Cunferma de letura dumandeda",
+    confirmText: "{name} uel savëi che tu es liet la nutizia.",
+    confirmAction: "Cunfermé la letura",
+    confirmDone: "Letura cunfermeda ai {date}",
+    confirmDoneBy: "{name} à cunfermà la letura ai {date}",
+    confirmFailed: "La cunferma de letura ne n’à nia pudù vester mandeda.",
+    readStatus: "{confirmed} de {total} à cunfermà la letura",
+    readStatusTitle: "Cunfermes de letura",
+    readStatusOpen: "Cialé",
+    readStatusFailed: "La cunfermes de letura ne n’à nia pudù vester ciariedes.",
+    readPending: "Mo nia cunfermà",
+    readConfirmedOn: "Cunfermà ai {date}",
+    revoke: "Tò de reviers",
+    revokeConfirm: "Propi tò de reviers?",
+    revokeHint: "I destinatars ne ved plu la nutizia.",
+    revokeFailed: "La nutizia ne n’à nia pudù vester tuta de reviers.",
+    revokedNotice: "Tuta de reviers: i destinatars ne ved plu chësta nutizia.",
     message: "Nutizia",
     attachment: "Alegat",
     attachmentsLoading: "I alegac se cëria…",

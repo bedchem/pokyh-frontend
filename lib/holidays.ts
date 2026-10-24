@@ -111,11 +111,3 @@ export function holidayOn(holidays: readonly SchoolHoliday[], day: string | numb
   const iso = s.length === 8 ? `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` : s;
   return holidays.find((h) => covers(h, iso)) ?? null;
 }
-
-/** The break going on today, else the next one (only breaks of 2+ days count as "the next holidays"). */
-export function currentOrNextHoliday(holidays: readonly SchoolHoliday[], todayIso: string): { holiday: SchoolHoliday; now: boolean; inDays: number } | null {
-  const now = holidays.find((h) => covers(h, todayIso) && days(h) >= 2);
-  if (now) return { holiday: now, now: true, inDays: 0 };
-  const next = holidays.filter((h) => h.start > todayIso && days(h) >= 2).sort((a, b) => a.start.localeCompare(b.start))[0];
-  return next ? { holiday: next, now: false, inDays: Math.round((utc(next.start) - utc(todayIso)) / DAY_MS) } : null;
-}

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { addDays, format } from 'date-fns';
-import { PencilSimple, Umbrella, UserMinus, WifiSlash } from '@phosphor-icons/react';
+import { PencilSimple, UserMinus, WifiSlash } from '@phosphor-icons/react';
 import AuthGuard from '@/components/AuthGuard';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { Page, Section, SectionLink } from '@/components/app/Page';
@@ -19,15 +19,15 @@ import { useApp } from '@/providers/AppProvider';
 import { useDateLocale, useLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { api } from '@/lib/api-client';
 import {
-  fetchAbsences, fetchExams, fetchGrades, fetchMensa, fetchMessages, fetchTimetable,
-  getAbsencesStale, getExamsStale, getGradesStale, getMessagesStale, getTimetableStale,
+  fetchAbsences, fetchAbsenceTimes, fetchExams, fetchGrades, fetchMensa, fetchMessages, fetchTimetable, fetchTimetableForCalc,
+  getAbsencesStale, getAbsenceTimesStale, getExamsStale, getGradesStale, getMessagesStale, getTimetableStale,
 } from '@/lib/api';
 import { dateNumOf, isoDate, mondayOf, nextUpcomingExam, parseTimetable } from '@/lib/timetable-logic';
 import { schoolClock } from '@/lib/school-day';
 import { averageRating, dietOf, dishesFrom, isTodayKey, localized, upcomingDays } from '@/lib/mensa';
 import { messageIsRead, untisDate } from '@/lib/untis-parse';
 import { parseAbsences } from '@/lib/absences';
-import { absenceSummary, readAbsenceCalc, schoolYearOf } from '@/lib/absence-calc';
+import { absenceFigures, readLessonCalendar, refreshLessonCalendar, schoolYearOf } from '@/lib/absence-calc';
 import type { MessagePreview, TimetableEntry } from '@/lib/types';
 import { homeDict } from '@/lib/i18n/dictionaries/home';
 import { gradesDict } from '@/lib/i18n/dictionaries/grades';
@@ -36,12 +36,6 @@ import { shellDict } from '@/lib/i18n/dictionaries/shell';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
 import { formatDate, formatTime } from '@/lib/i18n/dateLocale';
 import { byEntered, observeGrades } from '@/lib/grade-order';
-import { useHolidayName, useHolidays } from '@/components/app/useHolidays';
-import { currentOrNextHoliday } from '@/lib/holidays';
-import { holidaysDict } from '@/lib/i18n/dictionaries/holidays';
-
-// The holidays shown under the date once they are this close.
-const HOLIDAY_AHEAD_DAYS = 45;
 
 // ── Parsing ───────────────────────────────────────────────────────────────────
 
@@ -166,9 +160,6 @@ function Dashboard() {
   const localize = useLocalizeHref();
   const { openCompose, openReport } = useAppActions();
   const untis = user?.isUntisUser !== false;
-  const th = useT(holidaysDict);
-  const holidays = useHolidays(untis);
-  const holidayName = useHolidayName();
 
   const [exams, setExams] = useState<TimetableEntry[]>([]);
   const [grades, setGrades] = useState<GradeSummary>({ avg: null, subjects: 0, recent: [] });
@@ -231,17 +222,27 @@ function Dashboard() {
         .catch(() => {});
     }
     if (untis && user) {
-      const absenceNote = (raw: unknown) => {
-        const { minutes, rate } = absenceSummary(parseAbsences(raw), readAbsenceCalc(user.studentId, schoolYearOf()));
+      // The same figures as the absences page (lib/absence-calc.ts): what is
+      // kept first, then the fresh absences, the school's minutes and the
+      // weeks of the timetable that are due. Without kept weeks (the absences
+      // page was never opened) only the hours show.
+      const year = schoolYearOf();
+      let absencesRaw = getAbsencesStale();
+      let official = getAbsenceTimesStale(year) ?? null;
+      let calendar = readLessonCalendar(user.studentId, year);
+      const absenceNote = () => {
+        if (absencesRaw === undefined) return;
+        const { minutes, rate } = absenceFigures(parseAbsences(absencesRaw), calendar, official, year);
         const hours = String(Math.round(minutes / 6) / 10).replace('.', locale === 'en' ? '.' : ',');
         setQuick((q) => ({
           ...q,
           absences: rate != null ? t('absencesNote', { rate: rate.toFixed(1).replace('.', locale === 'en' ? '.' : ','), hours }) : t('absencesHours', { hours }),
         }));
       };
-      const storedAbsences = getAbsencesStale();
-      if (storedAbsences !== undefined) absenceNote(storedAbsences);
-      fetchAbsences().then(absenceNote).catch(() => {});
+      absenceNote();
+      fetchAbsences().then((r) => { absencesRaw = r; absenceNote(); }).catch(() => {});
+      fetchAbsenceTimes(year).then((r) => { official = r; absenceNote(); }).catch(() => {});
+      if (calendar) refreshLessonCalendar(user.studentId, year, fetchTimetableForCalc).then((c) => { calendar = c; absenceNote(); }).catch(() => {});
     }
 
     if (!untis) return;
@@ -323,15 +324,6 @@ function Dashboard() {
   const hour = new Date().getHours();
   const greeting = hour < 11 ? t('morning') : hour < 17 ? t('day') : t('evening');
   const dateLine = [formatDate(new Date(), tag, { weekday: 'long', day: 'numeric', month: 'long' }), user?.klasseName].filter(Boolean).join(' · ');
-  // The holidays going on, or the next ones once they are close.
-  const holidayLine = (() => {
-    const today = isoDate(new Date());
-    const h = currentOrNextHoliday(holidays, today);
-    if (!h || (!h.now && h.inDays > HOLIDAY_AHEAD_DAYS)) return '';
-    const name = holidayName(h.holiday);
-    if (h.now) return th('nowUntil', { name, date: formatDate(new Date(`${h.holiday.end}T12:00:00`), tag, { day: 'numeric', month: 'long' }) });
-    return h.inDays === 1 ? th('tomorrow', { name }) : th('inDays', { name, n: h.inDays });
-  })();
 
   const messageDate = useCallback((s: string) => {
     if (!s) return '';
@@ -377,12 +369,6 @@ function Dashboard() {
             ) : null}
           </h1>
           <p className="mt-2 text-[15px] text-ink-2 md:text-[17px]">{dateLine}</p>
-          {holidayLine && (
-            <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-sage px-3.5 py-1.5 text-[13.5px] font-semibold text-sage-ink">
-              <Umbrella size={16} weight="bold" aria-hidden="true" />
-              {holidayLine}
-            </p>
-          )}
         </div>
         {actions && <div className={`grid gap-2 md:flex md:shrink-0 ${openReport ? 'grid-cols-2' : 'grid-cols-1'}`}>{actions}</div>}
       </header>
