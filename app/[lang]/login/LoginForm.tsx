@@ -4,7 +4,7 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
 import { flushSync } from 'react-dom';
-import { ArrowRight, Eye, EyeSlash, LockSimple, MagnifyingGlass, X } from '@phosphor-icons/react';
+import { ArrowRight, Eye, EyeSlash, LockSimple, MagnifyingGlass, QrCode, X } from '@phosphor-icons/react';
 import Sheet from '@/components/ui/Sheet';
 import Spinner from '@/components/ui/Spinner';
 import ForgotPasswordForm from '@/components/account/ForgotPasswordForm';
@@ -29,6 +29,7 @@ import { looksLikeAppKey } from '@/lib/app-access';
 import { closeView, enteringWith, openView, useRoomView } from '@/components/room/route';
 import { HallwayScene, MascotBadge, type MascotEvent, type MascotState } from './Hallway';
 import OfficeSignIn, { MicrosoftMark } from './OfficeSignIn';
+import QrSignIn from './QrSignIn';
 
 // Room A+2/05, behind the hallway's door: a little secret classroom,
 // fetched and built only when someone goes near the door (components/room).
@@ -68,6 +69,23 @@ function Highlight({ text, query }: { text: string; query: string }) {
     <>
       {parts.map((part, i) => (i % 2 === 1 ? <mark key={i} className="rounded-[4px] bg-[var(--accent-tint)] text-inherit">{part}</mark> : part))}
     </>
+  );
+}
+
+/** "oder", then the way in with the POKYH app's QR code (QrSignIn). */
+function QrEntry({ label, or, onOpen }: { label: string; or: string; onOpen: () => void }) {
+  return (
+    <div className="mt-5 flex flex-col gap-2.5">
+      <p aria-hidden="true" className="flex items-center gap-3 text-[12.5px] font-semibold text-ink-3">
+        <span className="h-px flex-1 bg-[var(--line)]" />
+        {or}
+        <span className="h-px flex-1 bg-[var(--line)]" />
+      </p>
+      <button type="button" onClick={onOpen} className="key key-lg w-full [--key-bg:var(--surface)] [--key-fg:var(--ink)]">
+        <QrCode size={20} weight="bold" aria-hidden="true" />
+        {label}
+      </button>
+    </div>
   );
 }
 
@@ -261,6 +279,7 @@ export default function LoginForm() {
   const [forgotOpen, setForgotOpen] = useState(false);
   const [officeOpen, setOfficeOpen] = useState(false);
   const [officeError, setOfficeError] = useState('');
+  const [qrOpen, setQrOpen] = useState(false);
   const options = useLoginOptions(school?.loginName, school?.server);
   // What the mascot answers: the focused field, each key, and events.
   const [focus, setFocus] = useState<MascotState['focus']>(null);
@@ -499,6 +518,19 @@ export default function LoginForm() {
     void signIn(user, { key }, setOfficeError);
   }
 
+  // Signed in by the POKYH app (QrSignIn): the school is the one of the app's account.
+  function finishQr(answer: SignInAnswer) {
+    rememberPendingAck();
+    rememberSignIn(answer);
+    setLoading(true);
+    setLoadingMsg(t('almostDone'));
+    happen('success');
+    const raw = new URLSearchParams(window.location.search).get('next') ?? '';
+    window.location.replace(raw.startsWith('/') && !raw.startsWith('//') ? raw : localize('/home'));
+  }
+
+  const describeError = (code: string | undefined) => t((code && ERROR_KEYS[code]) || 'errFailed');
+
   // Signs in with the password or the app key; `fail` says what went wrong
   // where the person is looking (the form or the Office 365 sheet). `token`:
   // the authenticator app's code, for accounts with two-factor authentication.
@@ -725,6 +757,9 @@ export default function LoginForm() {
                   <ArrowRight size={16} weight="bold" aria-hidden="true" className="shrink-0 text-ink-3 transition-transform duration-300 group-hover:translate-x-0.5" />
                 </button>
               )}
+
+              {/* Signed in on the phone already: no school to pick, the app knows it. */}
+              {!query && <QrEntry label={t('qrButton')} or={t('or')} onOpen={() => setQrOpen(true)} />}
             </div>
           ) : (
             /* ── The account ────────────────────────────────────────────── */
@@ -867,6 +902,8 @@ export default function LoginForm() {
               </form>
               )}
 
+              {!codeStep && <QrEntry label={t('qrButton')} or={t('or')} onOpen={() => setQrOpen(true)} />}
+
               <Sheet open={forgotOpen} onClose={() => setForgotOpen(false)} title={ta('resetTitle')} description={ta('resetLead')} closeLabel={ta('close')}>
                 <div className="pb-2">
                   <ForgotPasswordForm initialUsername={username} school={school} />
@@ -890,6 +927,14 @@ export default function LoginForm() {
               )}
             </div>
           )}
+
+          <Sheet open={qrOpen} onClose={() => setQrOpen(false)} title={t('qrButton')} closeLabel={ta('close')}>
+            {qrOpen && (consentGiven ? (
+              <QrSignIn onSignedIn={finishQr} describeError={describeError} />
+            ) : (
+              <p role="alert" className="mb-2 rounded-[12px] bg-[var(--butter)] px-3.5 py-2.5 text-[13.5px] font-medium leading-[1.45] text-[var(--butter-ink)]">{t('cookieError')}</p>
+            ))}
+          </Sheet>
         </section>
 
         {/* The fine print, in one line: age, and the privacy policy where the data is entered (GDPR Art. 13). */}

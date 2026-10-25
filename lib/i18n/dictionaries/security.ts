@@ -98,6 +98,7 @@ export type SecurityKey =
   | 'methodOffice'
   | 'methodLocal'
   | 'methodRegister'
+  | 'methodQr'
   | 'loadError'
   | 'retry'
   | 'failed'
@@ -200,6 +201,7 @@ export const securityDict: Dictionary<SecurityKey> = {
     methodOffice: 'mit Office 365',
     methodLocal: 'mit POKYH-Passwort',
     methodRegister: 'Konto erstellt',
+    methodQr: 'mit der POKYH-App (QR-Code)',
     loadError: 'Konnte gerade nicht geladen werden.',
     retry: 'Nochmal versuchen',
     failed: 'Das hat nicht geklappt. Versuch es noch einmal.',
@@ -301,6 +303,7 @@ export const securityDict: Dictionary<SecurityKey> = {
     methodOffice: 'con Office 365',
     methodLocal: 'con password POKYH',
     methodRegister: 'Account creato',
+    methodQr: 'con l’app POKYH (codice QR)',
     loadError: 'Non è stato possibile caricare.',
     retry: 'Riprova',
     failed: 'Non è andato a buon fine. Riprova.',
@@ -402,6 +405,7 @@ export const securityDict: Dictionary<SecurityKey> = {
     methodOffice: 'with Office 365',
     methodLocal: 'with POKYH password',
     methodRegister: 'Account created',
+    methodQr: 'with the POKYH app (QR code)',
     loadError: 'Could not be loaded right now.',
     retry: 'Try again',
     failed: 'That didn’t work. Please try again.',
@@ -503,6 +507,7 @@ export const securityDict: Dictionary<SecurityKey> = {
     methodOffice: 'cun Office 365',
     methodLocal: 'cun password POKYH',
     methodRegister: 'Account fat',
+    methodQr: 'cun l’app POKYH (code QR)',
     loadError: 'Ne n’à nia pudù vester ciarià.',
     retry: 'Pruvé mo n iede',
     failed: 'Ne n’ie nia jit. Prova mo n iede.',

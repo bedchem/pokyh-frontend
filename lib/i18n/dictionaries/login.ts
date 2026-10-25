@@ -66,6 +66,17 @@ export type LoginKey =
   | 'errCodeWrong'
   | 'errCodeFormat'
   | 'signedOutElsewhere'
+  | 'qrButton'
+  | 'qrStep1'
+  | 'qrStep2'
+  | 'qrStep3'
+  | 'qrWaiting'
+  | 'qrRenew'
+  | 'qrSessionGone'
+  | 'qrError'
+  | 'qrAlt'
+  | 'qrNoApp'
+  | 'qrGetApp'
   | 'imprint'
   | 'privacy'
   | 'terms'
@@ -152,6 +163,17 @@ export const loginDict: Dictionary<LoginKey> = {
     errCodeWrong: 'Der Code stimmt nicht oder ist abgelaufen. Nimm den neuen Code aus der App.',
     errCodeFormat: 'Der Code hat 6 Ziffern.',
     signedOutElsewhere: 'Dieses Gerät wurde in deinem Konto abgemeldet. Melde dich neu an, wenn du es weiter nutzen willst.',
+    qrButton: 'Mit der POKYH-App anmelden',
+    qrStep1: 'Öffne die POKYH-App auf deinem Handy.',
+    qrStep2: 'Tippe in den Einstellungen auf „Am Computer anmelden“.',
+    qrStep3: 'Richte die Kamera auf diesen Code und bestätige in der App.',
+    qrWaiting: 'Warte auf die App …',
+    qrRenew: 'Neuer Code',
+    qrSessionGone: 'Die Anmeldung der App ist abgelaufen. Öffne die App kurz und scanne den Code noch einmal.',
+    qrError: 'Der Code konnte gerade nicht geladen werden.',
+    qrAlt: 'QR-Code zum Anmelden mit der POKYH-App',
+    qrNoApp: 'Noch keine App?',
+    qrGetApp: 'POKYH für Android herunterladen',
     imprint: 'Impressum',
     privacy: 'Datenschutz',
     terms: 'Nutzungsbedingungen',
@@ -229,6 +251,17 @@ export const loginDict: Dictionary<LoginKey> = {
     errCodeWrong: 'Il codice non è corretto o è scaduto. Usa il nuovo codice dell’app.',
     errCodeFormat: 'Il codice ha 6 cifre.',
     signedOutElsewhere: 'Questo dispositivo è stato disconnesso dal tuo account. Accedi di nuovo se vuoi continuare a usarlo.',
+    qrButton: 'Accedi con l’app POKYH',
+    qrStep1: 'Apri l’app POKYH sul telefono.',
+    qrStep2: 'Nelle impostazioni tocca «Accedi sul computer».',
+    qrStep3: 'Inquadra questo codice e conferma nell’app.',
+    qrWaiting: 'In attesa dell’app …',
+    qrRenew: 'Nuovo codice',
+    qrSessionGone: 'L’accesso dell’app è scaduto. Apri brevemente l’app e scansiona di nuovo il codice.',
+    qrError: 'Impossibile caricare il codice ora.',
+    qrAlt: 'Codice QR per accedere con l’app POKYH',
+    qrNoApp: 'Non hai ancora l’app?',
+    qrGetApp: 'Scarica POKYH per Android',
     imprint: 'Note legali',
     privacy: 'Privacy',
     terms: 'Condizioni d’uso',
@@ -306,6 +339,17 @@ export const loginDict: Dictionary<LoginKey> = {
     errCodeWrong: 'The code is wrong or has expired. Use the new code from the app.',
     errCodeFormat: 'The code has 6 digits.',
     signedOutElsewhere: 'This device was signed out from your account. Sign in again if you want to keep using it.',
+    qrButton: 'Sign in with the POKYH app',
+    qrStep1: 'Open the POKYH app on your phone.',
+    qrStep2: 'In the settings, tap “Sign in on a computer”.',
+    qrStep3: 'Point the camera at this code and confirm in the app.',
+    qrWaiting: 'Waiting for the app …',
+    qrRenew: 'New code',
+    qrSessionGone: 'The app’s sign-in has expired. Open the app briefly and scan the code again.',
+    qrError: 'The code could not be loaded right now.',
+    qrAlt: 'QR code for signing in with the POKYH app',
+    qrNoApp: 'No app yet?',
+    qrGetApp: 'Download POKYH for Android',
     imprint: 'Imprint',
     privacy: 'Privacy',
     terms: 'Terms of use',
@@ -319,5 +363,16 @@ export const loginDict: Dictionary<LoginKey> = {
     errCodeWrong: 'L codesc ne va nia o ie scadù. Tol l codesc nuef dla app.',
     errCodeFormat: 'L codesc à 6 zifres.',
     signedOutElsewhere: 'Chësc aparat ie unì fat jì ora da ti account. Va inò ite, sce tu ues l adurvé inant.',
+    qrButton: 'Jì ite cun l’app POKYH',
+    qrStep1: 'Giaurì l’app POKYH sun tie telefonin.',
+    qrStep2: 'Tla mpustazions tuca sun «Jì ite sul computer».',
+    qrStep3: 'Tën la camera sun chësc code y cunferma tl’app.',
+    qrWaiting: 'Aspetan l’app …',
+    qrRenew: 'Code nuef',
+    qrSessionGone: 'L’azes dl’app é passà. Giaurì l’app y scansionëia mo n iede l code.',
+    qrError: 'L code ne n’à nia pudù vester ciarià.',
+    qrAlt: 'Code QR per jì ite cun l’app POKYH',
+    qrNoApp: 'Mo deguna app?',
+    qrGetApp: 'Chëria jù POKYH per Android',
   },
 };
