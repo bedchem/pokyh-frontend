@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import logo from '@/components/brand/pokyh-logo.webp';
 import Link from 'next/link';
 import { useEffect, useRef, useState, type ReactNode, type RefObject, type SyntheticEvent } from 'react';
 import { LayoutGroup, motion } from 'framer-motion';
@@ -33,7 +34,6 @@ const GLIDE = { type: 'spring', stiffness: 520, damping: 42, mass: 0.9 } as cons
 
 
 export default function AppShell({ children }: { children: ReactNode }) {
-  const t = useT(shellDict);
   const path = useRoutePath();
   const [collapsed] = useSidebarCollapsed();
   const [ready, setReady] = useState(false);
@@ -72,7 +72,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
   return (
     <AppActionsProvider>
       <div className={s.shell} data-collapsed={collapsed} data-ready={ready}>
-        <a href="#app-main" className="skip-link">{t('skip')}</a>
         <Sidebar collapsed={collapsed} />
         <div className={s.column}>
           <TopBar onSearch={() => setSearching(true)} />
@@ -224,7 +223,7 @@ function Sidebar({ collapsed }: { collapsed: boolean }) {
         >
           {/* Lazy, not preloaded: on phones the sidebar is closed, and a
               preload nobody uses fills the console with warnings. */}
-          <Image src="/POKYH_Logo.png" alt="" width={34} height={34} loading="lazy" className="size-[34px] shrink-0 rounded-[10px]" />
+          <Image src={logo} alt="" width={34} height={34} loading="lazy" className="size-[34px] shrink-0 rounded-[10px]" />
           <span className={`${s.fold} text-[21px] font-extrabold tracking-[-0.045em]`}>POKYH</span>
         </Link>
       </div>

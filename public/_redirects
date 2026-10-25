@@ -8,9 +8,14 @@
 /datenschutz            /legal/datenschutz/            302
 /nutzungsbedingungen    /legal/nutzungsbedingungen/    302
 
+# A language without its slash, permanently (the host's own fix-up is temporary).
+/de                     /de/                           301
+/it                     /it/                           301
+/en                     /en/                           301
+
 # Ladin is retired: its addresses land on the German page.
-/lld/*                  /de/:splat                     301
 /lld                    /de/                           301
+/lld/*                  /de/:splat                     301
 
 # The message list's own navigation data lives in the same folder as the
 # message pages: served as it is, before the id rule below can catch it.

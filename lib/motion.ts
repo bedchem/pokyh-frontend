@@ -1,62 +1,109 @@
 'use client';
 
-// GSAP setup shared by every animated component: plugins are registered once,
-// animations are scoped to a component and reverted on unmount, and anyone who
-// prefers reduced motion gets the end state without movement.
+// GSAP setup shared by every animated component: GSAP loads when it is first
+// needed (lib/gsap.ts, a chunk of its own), animations are scoped to a
+// component and reverted on unmount, and anyone who prefers reduced motion
+// gets the end state without movement.
 
-import { useLayoutEffect, useEffect, type DependencyList, type RefObject } from 'react';
-import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { SplitText } from 'gsap/SplitText';
-import { ScrambleTextPlugin } from 'gsap/ScrambleTextPlugin';
-import { DrawSVGPlugin } from 'gsap/DrawSVGPlugin';
-import { VIEWPORT_GROW_EVENT } from '@/components/ViewportScript';
+import { useEffect, type DependencyList, type RefObject } from 'react';
+import type { gsap as Gsap } from 'gsap';
+import type { ScrollTrigger as ScrollTriggerClass } from 'gsap/ScrollTrigger';
+import type { SplitText as SplitTextClass } from 'gsap/SplitText';
+import { afterFirstInput } from '@/lib/first-input';
 
-let registered = false;
+export interface Motion {
+  gsap: typeof Gsap;
+  ScrollTrigger: typeof ScrollTriggerClass;
+  SplitText: typeof SplitTextClass;
+}
 
-export function ensureGsap(): typeof gsap {
-  if (!registered && typeof window !== 'undefined') {
-    gsap.registerPlugin(ScrollTrigger, SplitText, ScrambleTextPlugin, DrawSVGPlugin);
-    // A phone's browser bars sliding in and out change only the window's
-    // height: no new measuring of the scroll scenes for that (they are laid
-    // out in viewport heights that stay put, components/ViewportScript.tsx).
-    ScrollTrigger.config({ ignoreMobileResize: true });
-    // ...unless the large viewport turned out taller than first measured.
-    window.addEventListener(VIEWPORT_GROW_EVENT, () => ScrollTrigger.refresh());
-    gsap.defaults({ ease: 'power3.out', duration: 0.8 });
-    registered = true;
-  }
-  return gsap;
+let loading: Promise<Motion> | null = null;
+let loaded: Motion | null = null;
+
+/** GSAP with its plugins, registered once; the same promise for every caller. */
+export function loadGsap(): Promise<Motion> {
+  loading ??= import('./gsap').then((m) => (loaded = { gsap: m.gsap, ScrollTrigger: m.ScrollTrigger, SplitText: m.SplitText }));
+  return loading;
+}
+
+/** GSAP if it has loaded already, else null (nothing is loaded for it). */
+export function gsapIfLoaded(): Motion | null {
+  return loaded;
 }
 
 export function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+type Setup = () => void | (() => void);
+
+export interface GsapSetup extends Motion {
+  reduced: boolean;
+  scope: HTMLElement;
+  near: (build: Setup) => void;
+}
 
 /**
  * Runs `setup` inside a gsap.context scoped to `scope`, so selector strings
  * only match inside the component and everything is reverted on unmount or
- * when `deps` change. `reduced` tells the callback to jump to end states.
+ * when `deps` change. `reduced` tells the callback to jump to end states. It
+ * runs once GSAP has loaded, after the component has been drawn: nothing
+ * set up here may be needed for the first paint.
+ *
+ * `near(build)` runs `build` only once `scope` is within a screen of the
+ * view (at once when it already is, or is past it), in the same context.
+ * Reveals set up there put their faint start on the text only shortly before
+ * it is seen: on the page as loaded, text further down stays at full
+ * strength (contrast checkers read faint text as too pale to read).
+ *
+ * `lazy`: for scroll-driven animations of what is not on the first screen.
+ * They are set up after the visitor's first input (lib/first-input.ts), each
+ * in an idle task of its own, instead of while the page comes alive: nothing
+ * of them shows before the first scroll, and setting them up measures the
+ * whole page.
  */
 export function useGsap(
-  setup: (ctx: { gsap: typeof gsap; reduced: boolean; scope: HTMLElement }) => void | (() => void),
+  setup: (ctx: GsapSetup) => void | (() => void),
   scope: RefObject<HTMLElement | null>,
   deps: DependencyList = [],
+  { lazy = false }: { lazy?: boolean } = {},
 ): void {
-  useIsoLayoutEffect(() => {
+  useEffect(() => {
     const el = scope.current;
     if (!el) return;
-    const g = ensureGsap();
+    let gone = false;
+    let ctx: gsap.Context | null = null;
     let cleanup: void | (() => void);
-    const ctx = g.context(() => {
-      cleanup = setup({ gsap: g, reduced: prefersReducedMotion(), scope: el });
-    }, el);
-    return () => {
-      if (typeof cleanup === 'function') cleanup();
-      ctx.revert();
+    const later: Array<() => void> = [];
+    const run = () => {
+      void loadGsap().then((motion) => {
+        if (gone) return;
+        const near = (build: Setup) => {
+          motion.ScrollTrigger.create({
+            trigger: el,
+            start: 'top bottom+=100%',
+            once: true,
+            onEnter: () => ctx?.add(() => {
+              const done = build();
+              if (typeof done === 'function') later.push(done);
+            }),
+          });
+        };
+        ctx = motion.gsap.context(() => {
+          cleanup = setup({ ...motion, reduced: prefersReducedMotion(), scope: el, near });
+        }, el);
+      });
     };
+    const cancel = lazy ? afterFirstInput(run) : (run(), () => {});
+    return () => {
+      gone = true;
+      cancel();
+      later.forEach((done) => done());
+      if (typeof cleanup === 'function') cleanup();
+      ctx?.revert();
+    };
+    // The caller's dependencies, as with useEffect itself.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 }
 
@@ -64,13 +111,11 @@ export function useGsap(
 // another, as in the manifest, and the rest fades in.
 
 /** Words (or letters) go from faint to full, one after another. */
-export function lightUp(g: typeof gsap, targets: gsap.TweenTarget, vars: gsap.TweenVars = {}) {
+export function lightUp(g: typeof Gsap, targets: gsap.TweenTarget, vars: gsap.TweenVars = {}) {
   return g.fromTo(targets, { opacity: 0.12 }, { opacity: 1, duration: 0.5, stagger: 0.08, ease: 'power1.out', ...vars });
 }
 
 /** A plain fade. */
-export function fadeIn(g: typeof gsap, targets: gsap.TweenTarget, vars: gsap.TweenVars = {}) {
+export function fadeIn(g: typeof Gsap, targets: gsap.TweenTarget, vars: gsap.TweenVars = {}) {
   return g.fromTo(targets, { opacity: 0 }, { opacity: 1, duration: 0.9, stagger: 0.1, ease: 'power2.out', ...vars });
 }
-
-export { gsap, ScrollTrigger, SplitText };

@@ -7,11 +7,15 @@ import { SITE_URL } from '@/lib/site-url';
 // Public pages, the sitemap and llms.txt are open to everyone, search engines
 // and AI assistants alike; the signed-in app is not. The menu the Mensa page
 // shows comes from the API (api.pokyh.com), which has its own address.
+//
+// The Content-Signal line is written only when CONTENT_SIGNALS sets one:
+// Google reports it as an unknown rule (a warning per group in Search
+// Console), and without it every use is allowed anyway, as the rules say.
 
 export const dynamic = 'force-static';
 
-/** What crawlers may do with the content (search, AI answers, AI training). */
-const SIGNALS = process.env.CONTENT_SIGNALS ?? 'search=yes, ai-input=yes, ai-train=yes';
+/** What crawlers may do with the content (search, AI answers, AI training), if limited. */
+const SIGNALS = process.env.CONTENT_SIGNALS?.trim();
 
 // Named so their access is explicit; each also follows the rules for `*`.
 const SEARCH_AND_AI = [
@@ -27,7 +31,7 @@ const DISALLOW = ['/api/', ...ACTIVE_LOCALES.flatMap((l) => PROTECTED_APP_ROUTES
 function group(agents: string[]): string {
   return [
     ...agents.map((a) => `User-agent: ${a}`),
-    `Content-Signal: ${SIGNALS}`,
+    ...(SIGNALS ? [`Content-Signal: ${SIGNALS}`] : []),
     ...ALLOW.map((p) => `Allow: ${p}`),
     ...DISALLOW.map((p) => `Disallow: ${p}`),
   ].join('\n');

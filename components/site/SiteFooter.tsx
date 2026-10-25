@@ -8,7 +8,7 @@ import { siteDict, type SiteKey } from '@/lib/i18n/dictionaries/site';
 import { metaDict } from '@/lib/i18n/dictionaries/meta';
 import { SOURCE_URL } from '@/lib/site-links';
 import { COOKIE_SETTINGS_EVENT } from '@/components/CookieSettingsButton';
-import { ensureGsap, prefersReducedMotion, useGsap } from '@/lib/motion';
+import { loadGsap, prefersReducedMotion, useGsap } from '@/lib/motion';
 import { useLenis } from './SmoothScroll';
 import { ThemeSegments } from './ThemeToggle';
 import { LanguageSegments } from './LanguageButton';
@@ -83,11 +83,11 @@ export default function SiteFooter() {
       stagger: { each: 0.09, from: 'random' },
       scrollTrigger: { trigger: scope.querySelector('[data-floor]'), start: 'top 92%' },
     });
-  }, root);
+  }, root, [], { lazy: true });
 
-  const jump = (el: HTMLElement) => {
+  const jump = async (el: HTMLElement) => {
     if (prefersReducedMotion()) return;
-    const gsap = ensureGsap();
+    const { gsap } = await loadGsap();
     if (gsap.isTweening(el)) return;
     const tilt = Number(el.dataset.tilt ?? 0);
     gsap.timeline()

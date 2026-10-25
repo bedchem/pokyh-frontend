@@ -25,7 +25,7 @@ export default function SupportBanner({ tone = 'butter', className = 'rise' }: {
       <PixelSpriteArt sprite="coffee" className="w-[120px] shrink-0 md:w-[150px]" />
       <div className="min-w-0 flex-1">
         <h2 id="support-title" className="text-[22px] font-extrabold tracking-[-0.03em] md:text-[24px]">{t('supportTitle')}</h2>
-        <p className="mt-1.5 max-w-[56ch] text-[15px] leading-relaxed opacity-85">{t('supportText')}</p>
+        <p className="mt-1.5 max-w-[56ch] text-[15px] leading-relaxed">{t('supportText')}</p>
         <a
           href={SUPPORT_URL}
           target="_blank"

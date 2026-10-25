@@ -14,7 +14,8 @@ import { SessionProvider } from '@/providers/SessionProvider';
 import { AppProvider } from '@/providers/AppProvider';
 import { ActivityLoggerProvider } from '@/providers/ActivityLoggerProvider';
 import GlobalOverlays from '@/components/shell/GlobalOverlays';
-import CookieBanner from '@/components/CookieBanner';
+import CookieBanner, { CookieAskScript } from '@/components/CookieBanner';
+import SkipLink from '@/components/SkipLink';
 import AnalyticsLoader from '@/components/AnalyticsLoader';
 import PWAInit from '@/components/PWAInit';
 import SubjectImagePreloader from '@/components/SubjectImagePreloader';
@@ -25,6 +26,7 @@ import ViewportScript from '@/components/ViewportScript';
 import AppIconApplier from '@/components/AppIconApplier';
 import ConsoleSecret from '@/components/ConsoleSecret';
 import { SITE_URL } from '@/lib/site-url';
+import { getLegalIdentity } from '@/lib/legal-identity';
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 const analyticsEnabled = /^G-[A-Z0-9]+$/i.test(GA_ID ?? '');
@@ -143,17 +145,27 @@ function structuredData(locale: Locale) {
   const t = makeT(metaDict, locale);
   const home = `${SITE_URL}/${locale}/`;
   const org = `${SITE_URL}/#organization`;
+  // The contact of the imprint (LEGAL_CONTACT_EMAIL), in the languages the site speaks.
+  const { operator, contactEmail } = getLegalIdentity();
   return {
     '@context': 'https://schema.org',
     '@graph': [
       {
         '@type': 'Organization',
         '@id': org,
-        name: 'POKYH',
+        name: operator,
         url: SITE_URL,
         logo: { '@type': 'ImageObject', url: `${SITE_URL}/icon-512.png`, width: 512, height: 512 },
         sameAs: [SOURCE],
         description: t('websiteDescription'),
+        email: contactEmail,
+        contactPoint: {
+          '@type': 'ContactPoint',
+          contactType: 'customer support',
+          email: contactEmail,
+          availableLanguage: ACTIVE_LOCALES.map(htmlLang),
+          url: `${SITE_URL}/${locale}/faq/`,
+        },
       },
       {
         '@type': 'WebSite',
@@ -201,6 +213,7 @@ export default async function RootLayout({
         {process.env.NODE_ENV === 'development' && <DevConsoleQuiet />}
         <SessionScript />
         <ThemeScript />
+        <CookieAskScript />
         <ViewportScript />
         <script
           type="application/ld+json"
@@ -212,6 +225,10 @@ export default async function RootLayout({
       </head>
       <body suppressHydrationWarning={true}>
         <LocaleProvider locale={lang}>
+          <SkipLink />
+          {/* Early in the page, so a due cookie choice is drawn with the
+              first paint, before the browser has read the rest. */}
+          <CookieBanner analyticsEnabled={analyticsEnabled} />
           <ThemeProvider>
             <SessionProvider>
               <AppProvider>
@@ -224,7 +241,6 @@ export default async function RootLayout({
             </SessionProvider>
             <ConsoleSecret />
           </ThemeProvider>
-          <CookieBanner analyticsEnabled={analyticsEnabled} />
           <AnalyticsLoader gaId={GA_ID} />
           <PWAInit />
           <AppIconApplier />

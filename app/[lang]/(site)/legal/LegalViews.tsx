@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, ArrowUpRight, EnvelopeSimple } from '@phosphor-icons/react/dist/ssr';
 import LegalToc from '@/components/legal/LegalToc';
-import PageJsonLd from '@/components/site/PageJsonLd';
+import PageJsonLd, { pageList } from '@/components/site/PageJsonLd';
 import { getLegalIdentity, type LegalIdentity } from '@/lib/legal-identity';
 import { localeAlternates, ogImage, ogLocale, localizedUrl } from '@/lib/i18n/seo';
 import { makeT } from '@/lib/i18n/dictionary';
@@ -52,12 +52,15 @@ export function legalMetadata(locale: LegalLocale, view: LegalDocView | null): M
   const named = LEGAL_UI[locale].legal;
   const clash = !doc && Object.values(LEGAL_DOCS).some((d) => d[locale].title === named);
   const title = doc ? doc.title : clash ? `${named} · ${OVERVIEW[locale]}` : named;
-  // The documents' leads are short; the line about POKYH tells search results
-  // what the site is, when it still fits. The lead ends as a sentence.
-  const about = makeT(metaDict, locale)('websiteDescription');
-  const raw = (doc ? doc.lead : LEGAL_UI[locale].lead).trim();
-  const lead = /[.!?…]$/.test(raw) ? raw : `${raw}.`;
-  const description = `${lead} ${about}`.length <= DESCRIPTION_MAX ? `${lead} ${about}` : lead;
+  // The documents' leads are short; a line about POKYH tells search results
+  // what the site is: the long one when it still fits, else the short one.
+  // The lead ends as a sentence.
+  const tm = makeT(metaDict, locale);
+  const sentence = (s: string) => (/[.!?…]$/.test(s) ? s : `${s}.`);
+  const lead = sentence((doc ? doc.lead : LEGAL_UI[locale].lead).trim());
+  const description = [tm('websiteDescription'), sentence(tm('landingOgTitle'))]
+    .map((about) => `${lead} ${about}`)
+    .find((d) => d.length <= DESCRIPTION_MAX) ?? lead;
   return {
     title,
     description,
@@ -90,6 +93,10 @@ export function LegalScreen({ locale, view }: { locale: LegalLocale; view: Legal
           { name: ui.legal, path: '/legal' },
           ...(doc && view ? [{ name: doc.title, path: `/legal/${view}` }] : []),
         ]}
+        {...(view ? {} : {
+          type: 'CollectionPage' as const,
+          main: pageList(locale, LEGAL_VIEWS.map((v) => ({ path: `/legal/${v}`, name: LEGAL_TILES[locale][v].title }))),
+        })}
       />
       {view ? <LegalDocumentView view={view} locale={locale} identity={getLegalIdentity()} /> : <LegalLanding locale={locale} />}
     </div>
@@ -172,7 +179,7 @@ export function LegalDocumentView({ view, locale, identity }: { view: LegalDocVi
         </article>
       </div>
 
-      <nav aria-label={ui.legal} className="mt-16 border-t border-line pt-10">
+      <nav aria-label={ui.otherTexts} className="mt-16 border-t border-line pt-10">
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {LEGAL_VIEWS.filter((v) => v !== view).map((v) => (
             <li key={v}>

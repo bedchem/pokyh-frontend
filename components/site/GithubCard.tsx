@@ -71,7 +71,7 @@ export default function GithubCard({
       <div className="mt-7 flex flex-wrap items-end justify-between gap-4 md:mt-9">
         <div>
           <p className="text-[clamp(40px,5.4vw,76px)] font-extrabold leading-[0.9] tracking-[-0.055em]">{name}</p>
-          <p className="mono mt-3 text-[15px] opacity-80">@{handle}</p>
+          <p className="mono mt-3 text-[15px]">@{handle}</p>
         </div>
         <span className="inline-flex items-center gap-1.5 text-[15px] font-semibold">
           <span className="border-b-2 border-current pb-0.5">{label}</span>

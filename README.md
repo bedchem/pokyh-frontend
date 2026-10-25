@@ -255,7 +255,7 @@ All values are read **at build time** and frozen into the pages; there are no ru
 
 | Variable | Purpose |
 | --- | --- |
-| `NEXT_PUBLIC_SITE_URL` | Canonical address (links, sitemap, metadata). A production build never uses a local address and falls back to `https://pokyh.com`. |
+| `NEXT_PUBLIC_SITE_URL` | Canonical address (links, sitemap, metadata). A production build never uses a local address and falls back to `https://www.pokyh.com`. |
 | `NEXT_PUBLIC_API_BACKEND_URL` | The POKYH API. Must be on the same site as the website (`pokyh.com` and `api.pokyh.com`), or the browser does not send the API's cookies. |
 | `NEXT_PUBLIC_API_KEY` | `X-API-Key` for writes; must match the backend's `API_KEY`. |
 | `NEXT_PUBLIC_API_LOCAL` | `true` keeps a local API address in a production build (testing only). |
@@ -266,6 +266,7 @@ All values are read **at build time** and frozen into the pages; there are no ru
 | --- | --- |
 | `API_DEV_PROXY_TARGET` | Where `npm run dev` passes the API's paths (default: the API above). |
 | `NEXT_PUBLIC_API_DIRECT` | `true` calls the API directly instead of through the proxy. |
+| `DEV_ALLOWED_ORIGINS` | Devices on the local network that may open the dev server (comma-separated hosts, `*` as a wildcard). |
 | `NEXT_PUBLIC_DEBUG_API` | `true` logs every API call in the console. |
 
 ### Behaviour and features
@@ -289,7 +290,7 @@ All values are read **at build time** and frozen into the pages; there are no ru
 | `NEXT_PUBLIC_SOURCE_URL` · `NEXT_PUBLIC_SUPPORT_URL` | Source code and support links; an empty support link hides the banner. |
 | `GOOGLE_SITE_VERIFICATION` · `BING_SITE_VERIFICATION` | Search console verification tokens. |
 | `INDEXNOW_KEY` · `INDEXNOW_ENDPOINT` | IndexNow key served at `/indexnow.txt`, used by `npm run indexnow`. |
-| `CONTENT_SIGNALS` | Content-Signal line in `robots.txt`. |
+| `CONTENT_SIGNALS` | Content-Signal line in `robots.txt`, only to limit a use (unset: none, everything allowed; Google lists the line as an unknown rule). |
 | `LEGAL_*` | Operator and contact details of the legal pages. The service is offered as **POKYH**; see the comments in `.env.example`. **`LEGAL_ENTITY_NAME` is required**: the privacy notice names the controller (GDPR Art. 13), and a production build stops without it. |
 
 WebUntis settings (default school, school allow-list, internal paths) belong to the backend.
@@ -363,20 +364,42 @@ unset, so the default in the code applies. The container itself needs no environ
 docker compose up --build -d
 ```
 
+### Cloudflare Workers
+
+`wrangler.jsonc` deploys the export as a Worker with static assets and no code of its own:
+`npx wrangler deploy` runs `npm run build` and uploads `out/`. Without that file Wrangler takes
+the project for a server-rendered Next.js app and tries to build it with OpenNext, which fails on
+a static export.
+
+In Workers Builds the deploy command is `npx wrangler deploy` (a separate build command is not
+needed). Set the values of `.env.example` as **build variables**, `LEGAL_ENTITY_NAME` and
+`NEXT_PUBLIC_SITE_URL` included; the Worker deploys under the name it is connected to
+(Wrangler's `WRANGLER_CI_OVERRIDE_NAME`). Headers and redirects come from `public/_headers` and
+`public/_redirects`. To check a deploy without uploading: `npx wrangler deploy --dry-run`; to
+serve it locally the way Cloudflare does: `npx wrangler dev`.
+
+### Cloudflare Pages
+
+Build command `npm run build`, build output directory `out`, the same build variables. Pages
+skips `wrangler.jsonc` (it has no `pages_build_output_dir`) and serves `out/` with
+`_headers` and `_redirects`, which use the same rules on Pages and Workers.
+
 ### Any static host or CDN
 
 ```bash
 npm ci && npm run build      # publish the out/ folder
 ```
 
-`public/_headers` and `public/_redirects` carry the same rules as nginx for Cloudflare Pages and
-compatible hosts.
+`public/_headers` and `public/_redirects` carry the same rules as nginx for Cloudflare Pages,
+Cloudflare Workers and compatible hosts.
 
 ### Release checklist
 
 - [ ] The site runs on its own domain on the same site as the API (`pokyh.com` and
       `api.pokyh.com`); a `*.pages.dev` address cannot sign in.
-- [ ] `NEXT_PUBLIC_SITE_URL=https://pokyh.com` and `NEXT_PUBLIC_API_BACKEND_URL=https://api.pokyh.com`.
+- [ ] `NEXT_PUBLIC_SITE_URL` is the address the site is finally served at, without a redirect in
+      between (`https://www.pokyh.com` while `pokyh.com` forwards there): canonical links,
+      hreflang and the sitemap must not point at a redirect. `NEXT_PUBLIC_API_BACKEND_URL=https://api.pokyh.com`.
 - [ ] `NEXT_PUBLIC_API_KEY` matches the backend's `API_KEY`.
 - [ ] `LEGAL_ENTITY_NAME` (and the other `LEGAL_*` values) are set in the build environment.
 - [ ] `NEXT_PUBLIC_VAPID_PUBLIC_KEY` is the backend's `VAPID_PUBLIC_KEY`, for Web Push.

@@ -145,7 +145,8 @@ function pause(): Promise<void> {
  * it never holds up the page (the opening, scrolling, input). Tiles of the
  * same size share their geometry, tiles of the same kind their face, and
  * every texture goes to the GPU while it is built, not all in the first
- * frame. Resolves to null without WebGL or when `cancelled()` turns true.
+ * frame. Resolves to null without WebGL on a graphics card or when
+ * `cancelled()` turns true.
  */
 export async function createHeroScene(
   canvas: HTMLCanvasElement,
@@ -163,7 +164,14 @@ export async function createHeroScene(
 ): Promise<HeroScene | null> {
   let renderer: THREE.WebGLRenderer;
   try {
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
+    renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      alpha: false,
+      powerPreference: 'high-performance',
+      // Never drawn by the processor (Hero.tsx checks before loading this).
+      failIfMajorPerformanceCaveat: true,
+    });
   } catch {
     return null;
   }

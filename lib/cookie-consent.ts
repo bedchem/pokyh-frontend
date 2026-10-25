@@ -23,7 +23,7 @@ const LEGACY_CONSENT_KEYS = ['pokyh_cookie_consent'];
 // Fired on window with the new CookieChoice whenever it changes.
 export const COOKIE_CONSENT_EVENT = 'cookie-consent-changed';
 
-const ASK_AGAIN_AFTER_MS = 182 * 24 * 60 * 60 * 1000;
+export const ASK_AGAIN_AFTER_MS = 182 * 24 * 60 * 60 * 1000;
 
 export interface CookieChoice {
   stats: boolean;

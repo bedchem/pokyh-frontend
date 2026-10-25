@@ -40,7 +40,7 @@ export default function Features() {
         },
       );
     }
-  }, root);
+  }, root, [], { lazy: true });
 
   return (
     <div ref={root} data-features data-scroll-pace="features" className="relative z-10 -mt-[calc(100*var(--lvh))] overflow-clip bg-[var(--night)] motion-reduce:mt-0">

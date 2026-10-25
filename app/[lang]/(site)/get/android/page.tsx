@@ -5,7 +5,8 @@ import { routeLocale } from '@/lib/i18n/server';
 import { localeAlternates, localizedUrl, ogLocale, pageKeywords, ogImage } from '@/lib/i18n/seo';
 import { getDict } from '@/lib/i18n/dictionaries/get';
 import { siteDict } from '@/lib/i18n/dictionaries/site';
-import PageJsonLd from '@/components/site/PageJsonLd';
+import PageJsonLd, { mobileApp } from '@/components/site/PageJsonLd';
+import { RELEASES } from '../AppInstallGuide';
 import { SITE_URL } from '@/lib/site-url';
 
 type PageProps = { params: Promise<{ lang: string }> };
@@ -42,6 +43,14 @@ export default async function AndroidInstallPage({ params }: PageProps) {
         name={t('androidMetaTitle')}
         description={t('androidMetaDescription')}
         trail={[{ name: makeT(siteDict, locale)('navGet'), path: '/get' }, { name: t('androidTitle'), path: '/get/android' }]}
+        main={mobileApp({
+          locale,
+          path: '/get/android',
+          name: `POKYH ${t('androidTitle')}`,
+          description: t('androidMetaDescription'),
+          operatingSystem: 'Android',
+          downloadUrl: RELEASES.android,
+        })}
       />
       <AppInstallGuide platform="android" locale={locale} />
     </>

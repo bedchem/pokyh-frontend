@@ -28,13 +28,15 @@
   --line: #E0D9CE;
   --line-soft: #E9E3D9;
 
-  /* Text ramp */
+  /* Text ramp: every step reads at 4.5:1 or more on canvas, surface and
+     inset (WCAG AA), -3 included */
   --ink: #1C1A17;
   --ink-2: #625B52;
-  --ink-3: #8C8478;
+  --ink-3: #6B655B;
 
-  /* The accent: fills and large glyphs; -ink for small accent text */
-  --accent: #6366F1;
+  /* The accent: fills and large glyphs (white on it reads at 4.6:1); -ink
+     for small accent text */
+  --accent: #6264ED;
   --accent-ink: #4F46E5;
   --accent-tint: #EDECFD;
   --on-accent: #FFFFFF;
@@ -137,7 +139,7 @@
 
   --ink: #F2F2F4;
   --ink-2: #A2A2A8;
-  --ink-3: #74747B;
+  --ink-3: #8D8D93;
 
   --accent-ink: #8B8DF9;
   --accent-tint: #22223E;
@@ -351,6 +353,15 @@
   .skip-link:focus {
     transform: none;
   }
+
+  /* The cookie banner as built shows only on a page its head script marked
+     (CookieBanner.tsx); once the page runs, the banner decides itself. */
+  [data-cookie-banner='pending'] {
+    display: none;
+  }
+  html[data-cookie-ask] [data-cookie-banner='pending'] {
+    display: block;
+  }
 }
 
 /* ═══ Motion ════════════════════════════════════════════════════════════ */
@@ -362,8 +373,11 @@
   transform: scale(0.97);
 }
 
+/* Starts all but invisible rather than invisible: a browser counts a page's
+   largest text as shown only once it is drawn with some opacity, and the
+   titles that rise in are that text. */
 @keyframes rise {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0.01; transform: translateY(10px); }
   to { opacity: 1; transform: none; }
 }
 /* Filled backwards only: once risen, the element holds no animation, so it
@@ -371,6 +385,20 @@
    sort) stay on top of the cards that follow. */
 .rise {
   animation: rise 0.5s var(--ease-out) backwards;
+}
+
+/* The public header's items drop in one after another (--bar-i, SiteHeader),
+   from the first paint. Not in the installed app, where the bar of the page it
+   opens on is drawn already and would vanish for a moment to arrive again. */
+@keyframes bar-in {
+  from { opacity: 0; transform: translateY(-18px); }
+}
+[data-bar-item] {
+  animation: bar-in 1s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation-delay: calc(0.4s + var(--bar-i, 0) * 0.06s);
+}
+@media (display-mode: standalone), (prefers-reduced-motion: reduce) {
+  [data-bar-item] { animation: none; }
 }
 
 @keyframes pulse-dot {
@@ -455,7 +483,7 @@ html.lenis body {
   --line-soft: #ECE7DF;
   --ink: #1C1A17;
   --ink-2: #625B52;
-  --ink-3: #8F877B;
+  --ink-3: #6C665D;
   --accent-ink: #4F46E5;
   --accent-tint: #EDECFD;
   --periwinkle: #DEDDFB;
@@ -512,7 +540,7 @@ html.lenis body {
   --line-soft: #212126;
   --ink: #F2F2F4;
   --ink-2: #ABABB2;
-  --ink-3: #7A7A82;
+  --ink-3: #8A8A91;
   --accent-ink: #9B9DFA;
   --accent-tint: #22223E;
   --periwinkle: #26254F;
@@ -1279,8 +1307,11 @@ html.lenis body {
   0%, 99% { clip-path: inset(-40% -8% 0 -8%); }
   100% { clip-path: none; }
 }
+/* Starts all but invisible (under the mask anyway) rather than invisible, as
+   .rise does: a browser counts the name as shown only from its first frame
+   with some opacity, else not before the letters have finished rising. */
 @keyframes home-letter-in {
-  0% { opacity: 0; transform: translateY(108%) rotate(4deg); }
+  0% { opacity: 0.01; transform: translateY(108%) rotate(4deg); }
   45% { opacity: 1; }
   100% { opacity: 1; transform: none; }
 }

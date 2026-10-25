@@ -1,4 +1,4 @@
-import type { Locale } from '@/lib/i18n/locale';
+import { ACTIVE_LOCALES, htmlLang, type Locale } from '@/lib/i18n/locale';
 import { localizedUrl } from '@/lib/i18n/seo';
 import { pageModified } from '@/lib/seo/pages';
 import { SITE_URL } from '@/lib/site-url';
@@ -70,7 +70,70 @@ export default function PageJsonLd({
   );
 }
 
-/** Questions and answers in the shape of a FAQPage's mainEntity. */
-export function faqEntities(faq: { q: string; a: string }[]) {
-  return faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } }));
+/**
+ * The pages a summary page leads to, as a list of their addresses (Google's
+ * "summary page" pattern: an ItemList of ListItems with a url each).
+ */
+export function pageList(locale: Locale, pages: { path: string; name: string }[]) {
+  return {
+    '@type': 'ItemList',
+    numberOfItems: pages.length,
+    itemListElement: pages.map((p, i) => ({ '@type': 'ListItem', position: i + 1, name: p.name, url: localizedUrl(SITE_URL, locale, p.path) })),
+  };
+}
+
+/**
+ * A native POKYH app as offered on its download page: free, from the
+ * project's releases (lib/site-links.ts), published by the organisation of
+ * the site-wide graph.
+ */
+export function mobileApp({ locale, path, name, description, operatingSystem, downloadUrl }: {
+  locale: Locale;
+  path: string;
+  name: string;
+  description: string;
+  operatingSystem: string;
+  downloadUrl: string;
+}) {
+  const url = localizedUrl(SITE_URL, locale, path);
+  return {
+    '@type': 'MobileApplication',
+    '@id': `${url}#app`,
+    name,
+    description,
+    url,
+    operatingSystem,
+    applicationCategory: 'EducationalApplication',
+    downloadUrl,
+    installUrl: downloadUrl,
+    image: `${SITE_URL}/icon-512.png`,
+    inLanguage: ACTIVE_LOCALES.map(htmlLang),
+    isAccessibleForFree: true,
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
+    publisher: { '@id': `${SITE_URL}/#organization` },
+  };
+}
+
+export interface FaqItem {
+  q: string;
+  a: string;
+  /** The `id` of the question on the page, so it can be linked to. */
+  id?: string;
+}
+
+/**
+ * Questions and answers in the shape of a FAQPage's mainEntity. With the
+ * page's `url`, each question carries the address of its place on the page.
+ */
+export function faqEntities(faq: FaqItem[], url?: string) {
+  return faq.map((f) => {
+    const at = url && f.id ? { url: `${url}#${f.id}` } : {};
+    return {
+      '@type': 'Question',
+      name: f.q,
+      ...at,
+      answerCount: 1,
+      acceptedAnswer: { '@type': 'Answer', text: f.a, ...at },
+    };
+  });
 }

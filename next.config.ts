@@ -1,7 +1,7 @@
 import type { NextConfig } from 'next';
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants';
 import { DEFAULT_API_URL } from './lib/backend';
-import { DEFAULT_SITE_URL, isLocalAddress } from './lib/site-url';
+import { DEFAULT_SITE_URL } from './lib/site-url';
 
 // The website is a static export (`next build` writes out/): plain files that
 // any web server or CDN can serve. Everything dynamic happens in the browser,
@@ -53,8 +53,9 @@ const base: NextConfig = {
     },
   },
 
-  // Allow LAN devices to access the dev server (e.g. mobile testing)
-  allowedDevOrigins: ['192.168.178.90', '192.168.178.*'],
+  // Devices on the local network that may open the dev server (testing on a
+  // phone): DEV_ALLOWED_ORIGINS, comma-separated hosts, `*` as a wildcard.
+  allowedDevOrigins: (process.env.DEV_ALLOWED_ORIGINS ?? '').split(',').map((host) => host.trim()).filter(Boolean),
 
   // No image server in a static site: images are served as they are (the
   // repository's images are already sized and compressed).
@@ -72,10 +73,15 @@ const base: NextConfig = {
 // would say localhost, and the pages would ask the visitor's own computer for
 // the API. Such a value is replaced before the build, which still goes
 // through; NEXT_PUBLIC_API_LOCAL=true keeps a local API, to test the built
-// site against a backend on this machine.
+// site against a backend on this machine. The test runs here only, so it never
+// reaches the browser.
+//
+// localhost, loopback, unspecified, private networks and .local names.
+const LOCAL_ADDRESS = /^https?:\/\/(?:localhost|127\.|0\.0\.0\.0|\[::1?\]|10\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.|[^/:]+\.local(?=[:/]|$))/i;
+
 function publicAddress(name: string, fallback: string): void {
   const value = process.env[name]?.trim();
-  if (!value || !isLocalAddress(value)) return;
+  if (!value || !LOCAL_ADDRESS.test(value)) return;
   console.warn(`${name} is a local address (${value}); this build uses ${fallback}.`);
   process.env[name] = fallback;
 }

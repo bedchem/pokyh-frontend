@@ -73,7 +73,7 @@ export default function AppOpen() {
     });
     window.addEventListener('resize', render);
     return () => window.removeEventListener('resize', render);
-  }, root);
+  }, root, [], { lazy: true });
 
   return (
     <section

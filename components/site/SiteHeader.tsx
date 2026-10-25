@@ -1,15 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useLocalizeHref, useRoutePath, useT } from '@/providers/LocaleProvider';
 import { useSession } from '@/providers/SessionProvider';
 import { siteDict, type SiteKey } from '@/lib/i18n/dictionaries/site';
-import { useGsap } from '@/lib/motion';
-import { isPWA } from '@/lib/pwa';
 import { useSiteDark } from '@/lib/site-theme';
 import Image from 'next/image';
-import MobileMenu from './MobileMenu';
+import logo from '@/components/brand/pokyh-logo.webp';
+import dynamic from 'next/dynamic';
+import { afterFirstInput } from '@/lib/first-input';
 import { ThemeButton } from './ThemeToggle';
 import LanguageButton from './LanguageButton';
 
@@ -38,6 +38,14 @@ function toneAt(x: number, y: number, skip: Element | null): Tone {
 // opposite colour of the section beneath it (dark on paper and pastels, light on the night
 // sections and in the dark theme), and it gets out of the way while you read:
 // scrolling down slides it up, scrolling up or reaching the top brings it back.
+// The phone menu is a closed overlay until opened: it is added with the first
+// input (lib/first-input.ts), in a chunk of its own, so the page comes alive
+// without it.
+const MobileMenu = dynamic(() => import('./MobileMenu'), { ssr: false });
+
+/** Its place in the bar's arrival (globals.css, [data-bar-item]). */
+const barItem = (i: number) => ({ '--bar-i': i }) as CSSProperties;
+
 export default function SiteHeader() {
   const t = useT(siteDict);
   const localize = useLocalizeHref();
@@ -48,6 +56,9 @@ export default function SiteHeader() {
   const [hidden, setHidden] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuReady, setMenuReady] = useState(false);
+  useEffect(() => afterFirstInput(() => setMenuReady(true)), []);
+  const menu = menuReady || menuOpen;
   const root = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -78,14 +89,6 @@ export default function SiteHeader() {
     };
   }, [path]);
 
-  // The bar's items arrive one after another; not in the installed app, where
-  // the bar of the page it opens on (the sign-in) is drawn already and would
-  // vanish for a moment to arrive again.
-  useGsap(({ gsap, reduced }) => {
-    if (reduced || isPWA()) return;
-    gsap.from('[data-bar-item]', { y: -18, opacity: 0, duration: 1, stagger: 0.06, delay: 0.4, ease: 'expo.out' });
-  }, root);
-
   const dark = darkTheme || tone === 'dark';
   const primary = user ? { href: '/home', label: t('openApp') } : { href: '/login', label: t('login') };
   const away = hidden && !menuOpen;
@@ -107,20 +110,24 @@ export default function SiteHeader() {
             bar stays readable over text and photos in any section colour. */}
         <span aria-hidden="true" className="header-blur" data-on={scrolled && !away ? '' : undefined} />
         <div className="mx-auto grid h-[72px] max-w-[1600px] grid-cols-[1fr_auto] items-center gap-x-6 px-5 md:h-[84px] md:px-10 lg:gap-x-8 lg:grid-cols-[minmax(max-content,1fr)_auto_minmax(max-content,1fr)] lg:px-[6.5vw]">
-          <Link href={localize('/')} data-bar-item className="justify-self-start rounded-lg" aria-label={`POKYH, ${t('home')}`}>
+          {/* The bar's items arrive one after another with the first paint
+              (globals.css, [data-bar-item]; --bar-i is the order), not after
+              the scripts. */}
+          <Link href={localize('/')} data-bar-item style={barItem(0)} className="justify-self-start rounded-lg" aria-label={`POKYH, ${t('home')}`}>
             {/* Loaded at once but not preloaded (fetchPriority low): a preload
                 of a 44 px logo only ever produced console warnings. */}
-            <Image src="/POKYH_Logo.png" alt="" width={44} height={44} loading="eager" fetchPriority="low" className="size-10 md:size-11" />
+            <Image src={logo} alt="" width={44} height={44} loading="eager" fetchPriority="low" className="size-10 md:size-11" />
           </Link>
 
           <nav aria-label="POKYH" className="hidden lg:flex items-center justify-self-center gap-8 xl:gap-11">
-            {SITE_NAV.map((item) => {
+            {SITE_NAV.map((item, i) => {
               const route = item.href.split('#')[0] || '/';
               const active = route !== '/' && (path === route || path.startsWith(route + '/'));
               return (
                 <Link
                   key={item.href}
                   data-bar-item
+                  style={barItem(1 + i)}
                   href={localize(item.href)}
                   aria-current={active ? 'page' : undefined}
                   className="group relative py-2 text-[16px] font-semibold tracking-[-0.01em]"
@@ -138,17 +145,18 @@ export default function SiteHeader() {
           </nav>
 
           <div className="flex items-center justify-self-end gap-2 md:gap-3">
-            <span data-bar-item className="hidden sm:block">
+            <span data-bar-item style={barItem(SITE_NAV.length + 1)} className="hidden sm:block">
               <LanguageButton />
             </span>
-            <span data-bar-item className="hidden sm:block">
+            <span data-bar-item style={barItem(SITE_NAV.length + 2)} className="hidden sm:block">
               <ThemeButton className="size-11 rounded-full opacity-80 transition-opacity hover:opacity-100" />
             </span>
-            <Link data-bar-item href={localize(primary.href)} className="key key-sm key-lilac md:h-[48px]">
+            <Link data-bar-item style={barItem(SITE_NAV.length + 3)} href={localize(primary.href)} className="key key-sm key-lilac md:h-[48px]">
               {primary.label}
             </Link>
             <Link
               data-bar-item
+              style={barItem(SITE_NAV.length + 4)}
               href={localize('/get')}
               className={`key key-sm hidden sm:inline-flex md:h-[48px] ${dark ? 'key-glass' : ''}`}
             >
@@ -156,11 +164,12 @@ export default function SiteHeader() {
             </Link>
             <button
               data-bar-item
+              style={barItem(SITE_NAV.length + 5)}
               type="button"
               onClick={() => setMenuOpen(true)}
               aria-label={t('menu')}
               aria-expanded={menuOpen}
-              aria-controls="site-menu"
+              aria-controls={menu ? 'site-menu' : undefined}
               className={`key key-sm lg:hidden !px-0 w-11 ${dark ? 'key-glass' : ''}`}
             >
               <span aria-hidden="true" className="flex w-[18px] flex-col gap-[5px]">
@@ -171,7 +180,7 @@ export default function SiteHeader() {
           </div>
         </div>
       </header>
-      <MobileMenu open={menuOpen} onClose={() => setMenuOpen(false)} cta={primary} />
+      {menu && <MobileMenu open={menuOpen} onClose={() => setMenuOpen(false)} cta={primary} />}
     </>
   );
 }

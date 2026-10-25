@@ -5,7 +5,8 @@ import { routeLocale } from '@/lib/i18n/server';
 import { localeAlternates, localizedUrl, ogLocale, pageKeywords, ogImage } from '@/lib/i18n/seo';
 import { getDict } from '@/lib/i18n/dictionaries/get';
 import { siteDict } from '@/lib/i18n/dictionaries/site';
-import PageJsonLd from '@/components/site/PageJsonLd';
+import PageJsonLd, { mobileApp } from '@/components/site/PageJsonLd';
+import { RELEASES } from '../AppInstallGuide';
 import { SITE_URL } from '@/lib/site-url';
 
 type PageProps = { params: Promise<{ lang: string }> };
@@ -42,6 +43,14 @@ export default async function IosInstallPage({ params }: PageProps) {
         name={t('iosMetaTitle')}
         description={t('iosMetaDescription')}
         trail={[{ name: makeT(siteDict, locale)('navGet'), path: '/get' }, { name: t('iosTitle'), path: '/get/ios' }]}
+        main={mobileApp({
+          locale,
+          path: '/get/ios',
+          name: `POKYH ${t('iosTitle')}`,
+          description: t('iosMetaDescription'),
+          operatingSystem: 'iOS',
+          downloadUrl: RELEASES.ios,
+        })}
       />
       <AppInstallGuide platform="ios" locale={locale} />
     </>

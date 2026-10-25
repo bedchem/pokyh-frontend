@@ -3,14 +3,12 @@
 import dynamic from 'next/dynamic';
 import { useRoutePath } from '@/providers/LocaleProvider';
 import { useSession } from '@/providers/SessionProvider';
-import { DEST } from '@/components/app/nav';
+import { isProtectedAppRoute } from '@/lib/routes';
+import { useIdle } from '@/lib/idle';
 
 const AnnouncementPopup = dynamic(() => import('@/components/AnnouncementPopup'), { ssr: false });
 const PrivacyGate = dynamic(() => import('@/components/PrivacyGate'), { ssr: false });
 const MotionNotice = dynamic(() => import('@/components/MotionNotice'), { ssr: false });
-
-// Routes inside the signed-in frame (its phone tab bar sits at the bottom).
-const APP_ROUTES = Object.values(DEST).map((d) => d.href);
 
 // Overlays that belong to the whole site, rendered once at the root so moving
 // between public pages and the app never remounts them mid-stack.
@@ -24,8 +22,12 @@ const APP_ROUTES = Object.values(DEST).map((d) => d.href);
 export default function GlobalOverlays() {
   const path = useRoutePath();
   const { user, isLoading } = useSession();
+  // Added once the page is idle: none of them shows in the first moments (a
+  // popup waits for the page to settle, the notices for the cookie banner),
+  // so the page comes alive without loading them.
+  const idle = useIdle();
 
-  if (isLoading) return null;
+  if (isLoading || !idle) return null;
 
   return (
     <>
@@ -38,7 +40,8 @@ export default function GlobalOverlays() {
       {user && <PrivacyGate key={user.username} paused={path === '/login' || path === '/legal'} />}
       <MotionNotice
         paused={path === '/login'}
-        inApp={APP_ROUTES.some((href) => path === href || path.startsWith(`${href}/`))}
+        // Inside the signed-in frame (its phone tab bar sits at the bottom).
+        inApp={isProtectedAppRoute(path)}
       />
     </>
   );

@@ -8,13 +8,16 @@ import type * as THREE from 'three';
 import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { homepageDict, type HomepageKey } from '@/lib/i18n/dictionaries/homepage';
 import { frontpageDict, type FrontpageKey } from '@/lib/i18n/dictionaries/frontpage';
-import { ensureGsap, prefersReducedMotion, ScrollTrigger, useGsap } from '@/lib/motion';
+import type { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { gsapIfLoaded, loadGsap, prefersReducedMotion, useGsap } from '@/lib/motion';
 import { SCROLL, largeViewport, sceneHeight } from '@/lib/scroll-pace';
 // Types only: the drawing loads with three.js.
 import type { PosterKind } from '@/lib/landing-art';
 import { useTileText } from '@/components/home/useTileText';
 import { useLenis } from '@/components/site/SmoothScroll';
 import { useSiteDark } from '@/lib/site-theme';
+import { hardwareWebGL } from '@/lib/webgl';
+import { afterFirstInput } from '@/lib/first-input';
 
 // The functions of POKYH on a turning ring, rendered with three.js. The
 // section stays on screen and scrolling turns the ring. With every function
@@ -50,6 +53,12 @@ function stepped(x: number): number {
 }
 
 type Three = typeof import('three');
+
+/** The colour between two #RRGGBB colours at t (0..1). */
+function mix(a: string, b: string, t: number): string {
+  const part = (hex: string, i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+  return `rgb(${[0, 1, 2].map((i) => Math.round(part(a, i) + (part(b, i) - part(a, i)) * t)).join(',')})`;
+}
 
 /** A slightly bent plane: a slice of a cylinder of `radius`, `width` along the arc, centred on the origin. */
 function bentPlane(T: Three, radius: number, width: number, height: number) {
@@ -115,7 +124,6 @@ export default function FeatureCarousel() {
     const back = sky.current;
     const strip = names.current;
     if (!canvas || !host || !section || !back || !strip) return;
-    const gsap = ensureGsap();
     const reduced = prefersReducedMotion();
     let disposed = false;
     let renderer: THREE.WebGLRenderer | null = null;
@@ -126,11 +134,18 @@ export default function FeatureCarousel() {
     let layout = () => {};
     let sized = '';
 
-    trigger.current = ScrollTrigger.create({
-      trigger: section,
-      start: 'top top',
-      end: 'bottom 200%',
-      onUpdate: (self) => { pos.current.target = self.progress * (COUNT - 1); },
+    // Measured from the first input on (lib/first-input.ts): far down the
+    // homepage, it has nothing to do before the visitor scrolls.
+    const cancelTrigger = afterFirstInput(() => {
+      void loadGsap().then(({ ScrollTrigger: Trigger }) => {
+        if (disposed) return;
+        trigger.current = Trigger.create({
+          trigger: section,
+          start: 'top top',
+          end: 'bottom 200%',
+          onUpdate: (self) => { pos.current.target = self.progress * (COUNT - 1); },
+        });
+      });
     });
 
     const frame = () => {
@@ -146,7 +161,7 @@ export default function FeatureCarousel() {
       }
       // The colour of the function in front floods the screen.
       const i = Math.min(COUNT - 2, Math.floor(s));
-      back.style.backgroundColor = gsap.utils.interpolate(colours.current[i], colours.current[i + 1], Math.min(1, s - i)) as string;
+      back.style.backgroundColor = mix(colours.current[i], colours.current[i + 1], Math.min(1, s - i));
       strip.style.transform = `translate3d(${(-s * 100).toFixed(3)}vw,0,0)`;
       if (bar.current) bar.current.style.transform = `scaleX(${(p.current / (COUNT - 1)).toFixed(4)})`;
       if (!renderer || !three || !camera || !ring || !swing) return;
@@ -160,20 +175,39 @@ export default function FeatureCarousel() {
 
     let ticking = false;
     const io = new IntersectionObserver(([e]) => {
-      if (e.isIntersecting && !ticking) { gsap.ticker.add(frame); ticking = true; }
-      if (!e.isIntersecting && ticking) { gsap.ticker.remove(frame); ticking = false; }
+      if (e.isIntersecting && !ticking) {
+        ticking = true;
+        void loadGsap().then(({ gsap }) => { if (ticking && !disposed) gsap.ticker.add(frame); });
+      }
+      if (!e.isIntersecting && ticking) {
+        ticking = false;
+        gsapIfLoaded()?.gsap.ticker.remove(frame);
+      }
     }, { rootMargin: '200px' });
     io.observe(section);
     const ro = new ResizeObserver(() => { layout(); frame(); });
     ro.observe(host);
 
+    // The ring is built once it is within three screens of the view (the
+    // hero's long flight lies before it), when the browser is idle, card by
+    // card with pauses in between; never with WebGL drawn by the processor.
+    // Until then, and without it, names, colours and the link still work.
+    let approach: IntersectionObserver | null = null;
     (async () => {
-      // Built when the browser is idle (the opening of the page comes first),
-      // card by card with pauses in between.
+      if (!(await hardwareWebGL()) || disposed) return;
+      await new Promise<void>((resolve) => {
+        approach = new IntersectionObserver((entries) => {
+          if (!entries.some((e) => e.isIntersecting)) return;
+          approach?.disconnect();
+          resolve();
+        }, { rootMargin: '300% 0px' });
+        approach.observe(section);
+      });
+      if (disposed) return;
       await new Promise<void>((resolve) => {
         const idle = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
-        if (idle) idle(() => resolve(), { timeout: 2500 });
-        else window.setTimeout(resolve, 1200);
+        if (idle) idle(() => resolve(), { timeout: 1000 });
+        else window.setTimeout(resolve, 200);
       });
       if (disposed) return;
       let T: Three;
@@ -263,15 +297,19 @@ export default function FeatureCarousel() {
       layout();
       frame();
       scene.current = { T, camera, cards };
-      gsap.to(canvas, { opacity: 1, duration: 0.6 });
-      ScrollTrigger.refresh();
+      const motion = await loadGsap();
+      if (disposed) return;
+      motion.gsap.to(canvas, { opacity: 1, duration: 0.6 });
+      motion.ScrollTrigger.refresh();
     })();
 
     return () => {
       disposed = true;
+      cancelTrigger();
       io.disconnect();
+      (approach as IntersectionObserver | null)?.disconnect();
       ro.disconnect();
-      gsap.ticker.remove(frame);
+      gsapIfLoaded()?.gsap.ticker.remove(frame);
       trigger.current?.kill();
       trigger.current = null;
       three?.traverse((o) => {
@@ -296,13 +334,14 @@ export default function FeatureCarousel() {
   useEffect(() => {
     const items = caption.current?.querySelectorAll('[data-swap]');
     if (!items) return;
-    const gsap = ensureGsap();
     if (firstShow.current || prefersReducedMotion()) {
       firstShow.current = false;
-      gsap.set(items, { yPercent: 0, opacity: 1 });
+      gsapIfLoaded()?.gsap.set(items, { yPercent: 0, opacity: 1 });
       return;
     }
-    gsap.fromTo(items, { yPercent: 60, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 0.55, stagger: 0.05, ease: 'expo.out', overwrite: true });
+    void loadGsap().then(({ gsap }) => {
+      gsap.fromTo(items, { yPercent: 60, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 0.55, stagger: 0.05, ease: 'expo.out', overwrite: true });
+    });
   }, [index]);
 
   // ── drag turns the ring by scrolling the page; a tap on a side item brings it round ─
@@ -364,7 +403,7 @@ export default function FeatureCarousel() {
       ease: 'expo.out',
       scrollTrigger: { trigger: scope, start: 'top 30%' },
     });
-  }, root);
+  }, root, [], { lazy: true });
 
   return (
     <section

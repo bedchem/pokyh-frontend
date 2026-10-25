@@ -4,13 +4,16 @@ import { useEffect } from 'react';
 import { useRoutePath } from '@/providers/LocaleProvider';
 import { isPWA } from '@/lib/pwa';
 import { registerServiceWorker, requestPermissionAndSubscribe } from '@/lib/push';
+import { whenIdle } from '@/lib/idle';
 
 let _swRegistered = false;
 
 export default function PWAInit() {
   const pathname = useRoutePath();
 
-  useEffect(() => {
+  // Registered once the page has loaded and is idle, as service workers
+  // should be: installing one competes with the page for the network.
+  useEffect(() => whenIdle(() => {
     if (_swRegistered) return;
     _swRegistered = true;
     registerServiceWorker().then((reg) => {
@@ -21,7 +24,7 @@ export default function PWAInit() {
         requestPermissionAndSubscribe();
       }
     });
-  }, []);
+  }), []);
 
   // Ask for permission when user first lands on /home in PWA
   useEffect(() => {

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowRight } from '@phosphor-icons/react/dist/ssr';
 import CtaBand from '@/components/site/CtaBand';
+import type { FaqItem } from '@/components/site/PageJsonLd';
 import { makeT } from '@/lib/i18n/dictionary';
 import type { Locale } from '@/lib/i18n/locale';
 import { localeAlternates, localizedUrl, ogImage, ogLocale, pageKeywords } from '@/lib/i18n/seo';
@@ -84,13 +85,13 @@ export function ToolSection({ id, title, children }: { id: string; title: string
   );
 }
 
-export function FaqSection({ title, faq }: { title: string; faq: { q: string; a: string }[] }) {
+export function FaqSection({ title, faq }: { title: string; faq: FaqItem[] }) {
   return (
     <section aria-labelledby="faq" className="wrap pb-20 md:pb-28">
       <h2 id="faq" className="text-[clamp(28px,3.4vw,44px)] font-extrabold leading-[1.06] tracking-[-0.045em]">{title}</h2>
       <div className="mt-8 flex flex-col gap-3">
         {faq.map((f) => (
-          <details key={f.q} className="card group p-6 md:px-8">
+          <details key={f.q} id={f.id} className="card group scroll-mt-28 p-6 md:px-8">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-6 text-[18px] font-bold tracking-[-0.015em] [&::-webkit-details-marker]:hidden">
               {f.q}
               <ArrowRight size={18} weight="bold" aria-hidden="true" className="shrink-0 text-ink-3 transition-transform group-open:rotate-90" />

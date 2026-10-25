@@ -5,8 +5,9 @@ import { useEffect, useRef } from 'react';
 import { ArrowRight } from '@phosphor-icons/react';
 import { useLocalizeHref, useRoutePath, useT } from '@/providers/LocaleProvider';
 import { siteDict, type SiteKey } from '@/lib/i18n/dictionaries/site';
-import { ensureGsap, prefersReducedMotion } from '@/lib/motion';
+import { loadGsap, prefersReducedMotion } from '@/lib/motion';
 import Image from 'next/image';
+import logo from '@/components/brand/pokyh-logo.webp';
 import { useLenis } from './SmoothScroll';
 import { SITE_NAV } from './SiteHeader';
 import { ThemeSegments } from './ThemeToggle';
@@ -53,42 +54,59 @@ export default function MobileMenu({
   const opener = useRef<Element | null>(null);
   const wasOpen = useRef(false);
 
+  // Smooth scrolling holds still while the menu is open (it may only start
+  // with this very tap, lib/first-input.ts).
+  useEffect(() => {
+    if (open) lenis?.stop();
+    else lenis?.start();
+  }, [open, lenis]);
+
+  // The panel shows and hides at once; its curtain and items move once GSAP
+  // is there (loaded on demand, lib/motion.ts).
   useEffect(() => {
     const el = panel.current;
     if (!el) return;
-    const gsap = ensureGsap();
+    let live = true;
+    const reduced = prefersReducedMotion();
     if (open) {
       wasOpen.current = true;
       opener.current = document.activeElement;
-      lenis?.stop();
       document.documentElement.style.overflow = 'hidden';
       el.querySelector('[data-menu-scroll]')?.scrollTo(0, 0);
-      gsap.set(el, { visibility: 'visible' });
-      if (prefersReducedMotion()) {
-        gsap.set(el, { clipPath: 'inset(0 0 0% 0)' });
+      el.style.visibility = 'visible';
+      if (reduced) {
+        el.style.clipPath = 'inset(0 0 0% 0)';
       } else {
-        gsap.fromTo(el, { clipPath: 'inset(0 0 100% 0)' }, { clipPath: 'inset(0 0 0% 0)', duration: 0.7, ease: 'expo.out' });
-        gsap.fromTo(
-          el.querySelectorAll('[data-menu-item]'),
-          { yPercent: 60, opacity: 0 },
-          { yPercent: 0, opacity: 1, duration: 0.8, stagger: 0.045, delay: 0.1, ease: 'expo.out' },
-        );
+        void loadGsap().then(({ gsap }) => {
+          if (!live) return;
+          gsap.fromTo(el, { clipPath: 'inset(0 0 100% 0)' }, { clipPath: 'inset(0 0 0% 0)', duration: 0.7, ease: 'expo.out' });
+          gsap.fromTo(
+            el.querySelectorAll('[data-menu-item]'),
+            { yPercent: 60, opacity: 0 },
+            { yPercent: 0, opacity: 1, duration: 0.8, stagger: 0.045, delay: 0.1, ease: 'expo.out' },
+          );
+        });
       }
       closeBtn.current?.focus();
     } else if (wasOpen.current) {
-      lenis?.start();
       document.documentElement.style.overflow = '';
-      if (prefersReducedMotion()) gsap.set(el, { visibility: 'hidden' });
-      else
-        gsap.to(el, {
-          clipPath: 'inset(0 0 100% 0)',
-          duration: 0.5,
-          ease: 'expo.inOut',
-          onComplete: () => { gsap.set(el, { visibility: 'hidden' }); },
+      if (reduced) {
+        el.style.visibility = 'hidden';
+      } else {
+        void loadGsap().then(({ gsap }) => {
+          if (!live) return;
+          gsap.to(el, {
+            clipPath: 'inset(0 0 100% 0)',
+            duration: 0.5,
+            ease: 'expo.inOut',
+            onComplete: () => { el.style.visibility = 'hidden'; },
+          });
         });
+      }
       if (opener.current instanceof HTMLElement) opener.current.focus();
     }
-  }, [open, lenis]);
+    return () => { live = false; };
+  }, [open]);
 
   // Grown past the phone layout (a turned tablet), the bar shows the places itself.
   useEffect(() => {
@@ -131,7 +149,7 @@ export default function MobileMenu({
     >
       <div className="flex h-[72px] shrink-0 items-center justify-between px-5 md:h-[84px] md:px-10">
         <Link href={localize('/')} onClick={onClose} aria-label={`POKYH, ${t('home')}`} className="flex items-center gap-3 rounded-lg">
-          <Image src="/POKYH_Logo.png" alt="" width={44} height={44} loading="lazy" className="size-10 md:size-11" />
+          <Image src={logo} alt="" width={44} height={44} loading="lazy" className="size-10 md:size-11" />
           <span className="font-display text-[22px] tracking-[-0.04em]">POKYH</span>
         </Link>
         <button ref={closeBtn} type="button" onClick={onClose} aria-label={t('close')} className="key key-sm key-glass !px-0 w-11">

@@ -53,6 +53,7 @@ export default async function WebuntisPage({ params }: PageProps) {
   const faq = Array.from({ length: WEBUNTIS_FAQ_COUNT }, (_, i) => ({
     q: t(`q${i + 1}` as WebuntisPageKey),
     a: t(`a${i + 1}` as WebuntisPageKey),
+    id: `q${i + 1}`,
   }));
   const howTo = {
     '@type': 'HowTo',
@@ -74,7 +75,7 @@ export default async function WebuntisPage({ params }: PageProps) {
         name={t('metaTitle')}
         description={t('metaDescription')}
         trail={[{ name: t('breadcrumb'), path: '/webuntis' }]}
-        main={faqEntities(faq)}
+        main={faqEntities(faq, localizedUrl(SITE_URL, locale, '/webuntis'))}
         extra={[howTo]}
       />
 
@@ -137,7 +138,7 @@ export default async function WebuntisPage({ params }: PageProps) {
         <h2 id="faq" className="text-[clamp(30px,3.6vw,48px)] font-extrabold leading-[1.04] tracking-[-0.045em]">{t('faqTitle')}</h2>
         <div className="mt-10 flex flex-col gap-3">
           {faq.map((f) => (
-            <details key={f.q} className="card group p-6 md:px-8">
+            <details key={f.q} id={f.id} className="card group scroll-mt-28 p-6 md:px-8">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-6 text-[18px] font-bold tracking-[-0.015em] [&::-webkit-details-marker]:hidden">
                 {f.q}
                 <ArrowRight size={18} weight="bold" aria-hidden="true" className="shrink-0 text-ink-3 transition-transform group-open:rotate-90" />

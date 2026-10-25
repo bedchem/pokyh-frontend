@@ -6,6 +6,7 @@ import { notFoundDict } from '@/lib/i18n/dictionaries/notFound';
 import { ACTIVE_LOCALES, DEFAULT_LOCALE, htmlLang, type Locale } from '@/lib/i18n/locale';
 import { localeRedirectScript } from '@/lib/locale-redirect';
 import { SITE_URL } from '@/lib/site-url';
+import { OG_SIZE, ogAlt } from '@/lib/og/card';
 
 // The website is static: every address that is no page gets this one
 // document (404.html), from the web server. An address without a language
@@ -36,10 +37,14 @@ const SHOW_SCRIPT = `(function(a,d){var l=location.pathname.split('/')[1];if(a.i
 // The social preview images of this document resolve against the site's
 // address (lib/site-url.ts), as in app/[lang]/layout.tsx, not against the
 // build machine.
+const PREVIEW = { url: '/og.png', ...OG_SIZE, type: 'image/png', alt: ogAlt('en', 'homeTitle') };
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: `${makeT(metaDict, DEFAULT_LOCALE)('notFound')} | POKYH`,
   robots: { index: false, follow: true },
+  openGraph: { images: [PREVIEW] },
+  twitter: { card: 'summary_large_image', images: [PREVIEW] },
 };
 
 function Version({ locale }: { locale: Locale }) {

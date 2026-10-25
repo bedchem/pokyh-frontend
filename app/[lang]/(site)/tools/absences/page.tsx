@@ -7,6 +7,7 @@ import PageJsonLd, { faqEntities } from '@/components/site/PageJsonLd';
 import { makeT } from '@/lib/i18n/dictionary';
 import { routeLocale } from '@/lib/i18n/server';
 import { localizedUrl } from '@/lib/i18n/seo';
+import { SITE_URL } from '@/lib/site-url';
 import { toolsDict, ABSENCE_FAQ_COUNT, type ToolsKey } from '@/lib/i18n/dictionaries/tools';
 
 // Absences in percent: the calculator first, then how the share is worked
@@ -31,7 +32,7 @@ export default async function AbsencesToolPage({ params }: PageProps) {
   const locale = await routeLocale(params);
   const t = makeT(toolsDict, locale);
   const href = (path: string) => localizedUrl('', locale, path);
-  const faq = Array.from({ length: ABSENCE_FAQ_COUNT }, (_, i) => ({ q: t(`aq${i + 1}` as ToolsKey), a: t(`aa${i + 1}` as ToolsKey) }));
+  const faq = Array.from({ length: ABSENCE_FAQ_COUNT }, (_, i) => ({ q: t(`aq${i + 1}` as ToolsKey), a: t(`aa${i + 1}` as ToolsKey), id: `aq${i + 1}` }));
 
   return (
     <>
@@ -42,7 +43,7 @@ export default async function AbsencesToolPage({ params }: PageProps) {
         name={t('aMetaTitle')}
         description={t('aMetaDescription')}
         trail={[{ name: t('hBreadcrumb'), path: TOOLS_PATH }, { name: t('aBreadcrumb'), path: PATH }]}
-        main={faqEntities(faq)}
+        main={faqEntities(faq, localizedUrl(SITE_URL, locale, PATH))}
         extra={[calculatorApp(locale, PATH, t('aBreadcrumb'), t('aMetaDescription'))]}
       />
       <ToolHeader

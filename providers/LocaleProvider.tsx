@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useMemo } from 'react';
 import { usePathname } from 'next/navigation';
 import { DEFAULT_LOCALE, LOCALE_COOKIE, localizePath, stripLocale, type Locale } from '@/lib/i18n/locale';
 import { makeT, type Dictionary } from '@/lib/i18n/dictionary';
-import { dateFnsLocale, intlLocaleTag } from '@/lib/i18n/dateLocale';
+import { intlLocaleTag } from '@/lib/i18n/dateLocale';
 
 interface LocaleCtx {
   locale: Locale;
@@ -58,10 +58,10 @@ function localizeHref(href: string, locale: Locale): string {
   return localizePath(match[1], locale) + match[2];
 }
 
-/** Intl tag for toLocaleDateString & co. and the date-fns locale of the current language. */
+/** Intl tag for toLocaleDateString & co. of the current language. */
 export function useDateLocale() {
   const { locale } = useLocale();
-  return useMemo(() => ({ tag: intlLocaleTag(locale), fns: dateFnsLocale(locale) }), [locale]);
+  return useMemo(() => ({ tag: intlLocaleTag(locale) }), [locale]);
 }
 
 export function useT<K extends string>(dict: Dictionary<K>) {

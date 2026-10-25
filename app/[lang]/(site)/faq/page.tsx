@@ -3,7 +3,7 @@ import FaqClient from './FaqClient';
 import { makeT } from '@/lib/i18n/dictionary';
 import { routeLocale } from '@/lib/i18n/server';
 import { localeAlternates, localizedUrl, ogLocale, pageKeywords, ogImage } from '@/lib/i18n/seo';
-import { FAQ_COUNT, faqDict, type FaqKey } from '@/lib/i18n/dictionaries/faq';
+import { FAQ_GROUPS, faqDict, type FaqKey } from '@/lib/i18n/dictionaries/faq';
 import { siteDict } from '@/lib/i18n/dictionaries/site';
 import PageJsonLd, { faqEntities } from '@/components/site/PageJsonLd';
 import { SITE_URL } from '@/lib/site-url';
@@ -33,7 +33,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function FaqPage({ params }: PageProps) {
   const locale = await routeLocale(params);
   const t = makeT(faqDict, locale);
-  const faq = Array.from({ length: FAQ_COUNT }, (_, i) => ({ q: t(`q${i + 1}` as FaqKey), a: t(`a${i + 1}` as FaqKey) }));
+  // In the order the page shows them, each with the address of its place there.
+  const faq = FAQ_GROUPS.flatMap((g) => g.questions).map((n) => ({ q: t(`q${n}` as FaqKey), a: t(`a${n}` as FaqKey), id: `q${n}` }));
   return (
     <>
       <PageJsonLd
@@ -43,7 +44,7 @@ export default async function FaqPage({ params }: PageProps) {
         name={t('metaTitle')}
         description={t('metaDescription')}
         trail={[{ name: makeT(siteDict, locale)('navFaq'), path: '/faq' }]}
-        main={faqEntities(faq)}
+        main={faqEntities(faq, localizedUrl(SITE_URL, locale, '/faq'))}
       />
       <FaqClient />
     </>

@@ -56,6 +56,9 @@ export default function Avatar({
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={SRC}
+          // From the API with the sign-in's cookies, over CORS: the site's
+          // embedder policy loads other sites' images without cookies.
+          crossOrigin="use-credentials"
           alt=""
           // Lazy: React preloads every other image of the page, which a
           // closed sidebar never shows (a console warning each time).

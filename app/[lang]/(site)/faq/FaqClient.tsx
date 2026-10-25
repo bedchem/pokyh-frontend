@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { MagnifyingGlass, Plus } from '@phosphor-icons/react';
 import { useT } from '@/providers/LocaleProvider';
 import { faqDict, FAQ_GROUPS, type FaqKey } from '@/lib/i18n/dictionaries/faq';
@@ -10,11 +10,13 @@ import PixelState from '@/components/app/PixelState';
 
 // Questions as cards, grouped, with a search on top. Answers open in place
 // and are set for reading: one column, comfortable size and line height.
+// Every question has an address of its own (#q5, as in the page's
+// structured data); opened with it, the page shows that answer.
 
-function Item({ q, a, open, onToggle }: { q: string; a: string; open: boolean; onToggle: () => void }) {
+function Item({ n, q, a, open, onToggle }: { n: number; q: string; a: string; open: boolean; onToggle: () => void }) {
   const id = useId();
   return (
-    <li className="card overflow-hidden">
+    <li id={`q${n}`} className="card scroll-mt-28 overflow-hidden">
       <h3>
         <button
           type="button"
@@ -66,6 +68,17 @@ export default function FaqClient() {
     })).filter((g) => g.items.length > 0);
   }, [query, t]);
 
+  // A question's address opens its answer (on arrival and when it changes).
+  useEffect(() => {
+    const show = () => {
+      const n = Number(window.location.hash.match(/^#q(\d+)$/)?.[1]);
+      if (n) setOpen((prev) => (prev.has(n) ? prev : new Set(prev).add(n)));
+    };
+    show();
+    window.addEventListener('hashchange', show);
+    return () => window.removeEventListener('hashchange', show);
+  }, []);
+
   const toggle = (n: number) =>
     setOpen((prev) => {
       const next = new Set(prev);
@@ -100,6 +113,7 @@ export default function FaqClient() {
                 {g.items.map((n) => (
                   <Item
                     key={n}
+                    n={n}
                     q={t(`q${n}` as FaqKey)}
                     a={t(`a${n}` as FaqKey)}
                     open={open.has(n) || query.trim().length > 1}

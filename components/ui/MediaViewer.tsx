@@ -172,6 +172,10 @@ export default function MediaViewer({ item, onClose }: { item: MediaItem; onClos
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={item.src}
+            // Attachments and the profile picture come from the API with the
+            // sign-in's cookies, over CORS (the site's embedder policy loads
+            // other sites' images without cookies).
+            crossOrigin="use-credentials"
             alt={item.name}
             onClick={(e) => e.stopPropagation()}
             className="max-h-full max-w-full rounded-[20px] object-contain shadow-[0_20px_60px_rgb(0_0_0/0.5)]"

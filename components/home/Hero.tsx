@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { useT } from '@/providers/LocaleProvider';
 import { frontpageDict } from '@/lib/i18n/dictionaries/frontpage';
-import { ensureGsap, prefersReducedMotion, ScrollTrigger, useGsap } from '@/lib/motion';
+import type { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { gsapIfLoaded, loadGsap, prefersReducedMotion, useGsap } from '@/lib/motion';
 import { onSiteThemeChange, siteColor } from '@/lib/site-theme';
 import { useLenis } from '@/components/site/SmoothScroll';
 import { ManifestScreen } from './Manifest';
@@ -12,6 +13,8 @@ import { SCROLL, sceneHeight } from '@/lib/scroll-pace';
 import type { HeroItem, HeroScene } from './heroScene';
 import { useTileText } from './useTileText';
 import { SOURCE_URL } from '@/lib/site-links';
+import { hardwareWebGL } from '@/lib/webgl';
+import { afterFirstInput } from '@/lib/first-input';
 
 // The opening: on every visit the name, large, on clean paper, rises letter
 // by letter out of a mask and comes into focus, then the school-day tiles
@@ -125,7 +128,6 @@ export default function Hero() {
     const headline = head.current;
     const portal = screen.current;
     if (!canvas || !section || !box || !headline || !portal) return;
-    const gsap = ensureGsap();
     const reduced = prefersReducedMotion();
     const m = motion.current;
     const chrome = Array.from(section.querySelectorAll<HTMLElement>('[data-chrome]'));
@@ -156,15 +158,27 @@ export default function Hero() {
     // becomes a flight instead of a jump. The hand-over to the section
     // underneath needs both: the camera has arrived and the page has scrolled
     // there, so scrolling back up never shows the section out of place.
-    const st = reduced
-      ? null
-      : ScrollTrigger.create({
+    // Measured and ticked from the first input on (lib/first-input.ts), or
+    // once the tunnel is there: before either, nothing on the first screen
+    // moves, and the page comes alive without measuring it.
+    let st: ScrollTrigger | null = null;
+    let live = false;
+    const goLive = () => {
+      if (live || reduced || disposed) return;
+      live = true;
+      void loadGsap().then(({ gsap, ScrollTrigger: Trigger }) => {
+        if (disposed) return;
+        st = Trigger.create({
           trigger: section,
           start: 'top top',
           end: () => `+=${Math.max(1, section.offsetHeight - box.offsetHeight)}`,
           invalidateOnRefresh: true,
           onUpdate: (self) => { m.progress = self.progress; },
         });
+        window.addEventListener('pointermove', onMove, { passive: true });
+        gsap.ticker.add(tick);
+      });
+    };
 
     let last = 0;
     const tick = (time: number) => {
@@ -270,10 +284,7 @@ export default function Hero() {
     io.observe(section);
     const ro = new ResizeObserver(() => scene?.resize());
     ro.observe(box);
-    if (!reduced) {
-      window.addEventListener('pointermove', onMove, { passive: true });
-      gsap.ticker.add(tick);
-    }
+    const cancelLive = afterFirstInput(goLive);
     canvas.addEventListener('click', onClick);
 
     // The tiles come once the letters have closed up (see the opening below)
@@ -283,7 +294,9 @@ export default function Hero() {
     const arrive = () => {
       if (arrived || !wanted || !scene) return;
       arrived = true;
-      gsap.to(m, { arrive: 1, duration: 2.4, ease: 'power2.out' });
+      void loadGsap().then(({ gsap }) => {
+        if (!disposed) gsap.to(m, { arrive: 1, duration: 2.4, ease: 'power2.out' });
+      });
     };
     opened.current = () => {
       wanted = true;
@@ -291,6 +304,7 @@ export default function Hero() {
     };
 
     (async () => {
+      if (!(await hardwareWebGL()) || disposed) return;
       const [{ createHeroScene }, { resolveFonts }] = await Promise.all([import('./heroScene'), import('@/lib/landing-art')]);
       const fonts = resolveFonts();
       await Promise.all([
@@ -303,22 +317,29 @@ export default function Hero() {
       const list = small ? [...items.slice(0, 15), ...items.slice(4, 10)] : [...items, ...items.slice(0, 12)];
       const built = await createHeroScene(canvas, list, tileText, fonts, { textureSize: small ? 400 : 520, cancelled: () => disposed });
       if (!built || disposed) return;
+      const { gsap } = await loadGsap();
+      if (disposed) {
+        built.dispose();
+        return;
+      }
       scene = built;
       scene.setTheme({ night: colours.night, dark: colours.dark });
       gsap.to(canvas, { opacity: 1, duration: 0.8, ease: 'power2.out' });
       if (reduced) tick(0);
+      else goLive();
       arrive();
     })();
 
     return () => {
       disposed = true;
       opened.current = null;
+      cancelLive();
       offTheme();
-      st?.kill();
+      (st as ScrollTrigger | null)?.kill();
       io.disconnect();
       ro.disconnect();
-      gsap.ticker.remove(tick);
-      gsap.killTweensOf(m);
+      gsapIfLoaded()?.gsap.ticker.remove(tick);
+      gsapIfLoaded()?.gsap.killTweensOf(m);
       window.removeEventListener('pointermove', onMove);
       canvas.removeEventListener('click', onClick);
       scene?.dispose();
@@ -343,36 +364,38 @@ export default function Hero() {
   // first paint instead of waiting for the scripts, so the name is there at
   // once on a slow connection too. Here: the tiles set off 0.6 s into it, and
   // afterwards the letters lean towards the pointer.
-  useGsap(({ gsap, reduced, scope }) => {
-    const letters = Array.from(scope.querySelectorAll<HTMLElement>('[data-letter]'));
-
-    if (reduced) {
+  const introEnds = useRef(Infinity);
+  useEffect(() => {
+    if (prefersReducedMotion()) {
       opened.current?.();
       return;
     }
-
     // The opening may still wait for the font (HeroStart below), or have run
     // a while before the scripts arrived: the tiles follow its own clock.
     const html = document.documentElement;
+    const first = root.current?.querySelector<HTMLElement>('[data-letter]');
     let start = 0;
-    let introEnds = Infinity;
     const begin = () => {
-      const elapsed = Number(letters[0]?.getAnimations?.()[0]?.currentTime ?? 0) || 0;
+      const elapsed = Number(first?.getAnimations?.()[0]?.currentTime ?? 0) || 0;
       start = window.setTimeout(() => opened.current?.(), Math.max(0, 600 - elapsed));
-      introEnds = performance.now() + Math.max(0, 1900 - elapsed);
+      introEnds.current = performance.now() + Math.max(0, 1900 - elapsed);
     };
     if (html.hasAttribute('data-hero-wait')) html.addEventListener(HERO_START_EVENT, begin, { once: true });
     else begin();
-    const stop = () => {
+    return () => {
       html.removeEventListener(HERO_START_EVENT, begin);
       window.clearTimeout(start);
     };
+  }, []);
 
-    if (!window.matchMedia('(pointer: fine)').matches) return stop;
+  // The leaning is set up with the first input (the pointer moving is one).
+  useGsap(({ gsap, reduced, scope }) => {
+    if (reduced || !window.matchMedia('(pointer: fine)').matches) return;
+    const letters = Array.from(scope.querySelectorAll<HTMLElement>('[data-letter]'));
     const lift = letters.map((el) => gsap.quickTo(el, 'yPercent', { duration: 0.7, ease: 'power3' }));
     const tilt = letters.map((el) => gsap.quickTo(el, 'rotation', { duration: 0.7, ease: 'power3' }));
     const onMove = (e: PointerEvent) => {
-      if (window.scrollY > window.innerHeight * 0.3 || performance.now() < introEnds) return;
+      if (window.scrollY > window.innerHeight * 0.3 || performance.now() < introEnds.current) return;
       letters.forEach((el, i) => {
         const r = el.getBoundingClientRect();
         const dx = e.clientX - (r.left + r.width / 2);
@@ -386,11 +409,10 @@ export default function Hero() {
     window.addEventListener('pointermove', onMove, { passive: true });
     document.documentElement.addEventListener('pointerleave', onLeave);
     return () => {
-      stop();
       window.removeEventListener('pointermove', onMove);
       document.documentElement.removeEventListener('pointerleave', onLeave);
     };
-  }, root);
+  }, root, [], { lazy: true });
 
   return (
     <section ref={root} data-tone="light" data-scroll-pace="hero" aria-labelledby="hero-title" className="home-hero relative z-10" style={{ height: sceneHeight('hero', HERO_LVH) }}>

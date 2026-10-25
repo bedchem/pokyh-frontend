@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, type ReactNode } from 'react';
-import { SplitText, useGsap } from '@/lib/motion';
+import { useGsap } from '@/lib/motion';
 
 // A display title and a long sentence whose words light up as you scroll.
 // *Starred* words are highlighted. On night sections the block is pinned
@@ -44,7 +44,7 @@ export default function Statement({
   const lit = dark ? '#C3BDFF' : '#4F46E5';
   const off = dark ? 'rgba(255,255,255,0.09)' : 'rgba(22,21,19,0.1)';
 
-  useGsap(({ gsap, reduced, scope }) => {
+  useGsap(({ gsap, SplitText, reduced, scope }) => {
     const words = gsap.utils.toArray<HTMLElement>(scope.querySelectorAll('[data-w]'));
     if (reduced) return;
     const blur = window.matchMedia('(min-width: 768px)').matches;

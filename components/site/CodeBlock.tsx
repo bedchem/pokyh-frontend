@@ -22,7 +22,8 @@ export default function CodeBlock({ code, copyLabel, copiedLabel }: { code: stri
 
   return (
     <div className="squircle relative rounded-[20px] bg-[var(--night-2)] text-[#F2F2F4]">
-      <pre className="overflow-x-auto px-5 py-5 pr-28 text-[14px] leading-[1.7]">
+      {/* Scrolls sideways on a narrow screen: reachable with the keyboard too. */}
+      <pre tabIndex={0} className="overflow-x-auto rounded-[20px] px-5 py-5 pr-28 text-[14px] leading-[1.7] outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
         <code className="mono">
           {lines.map((line, i) => (
             <span key={i} className={`block ${line.trim().startsWith('#') ? 'text-white/50' : ''}`}>

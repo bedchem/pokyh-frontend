@@ -94,7 +94,8 @@ export default function LanguageButton({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
-        aria-label={`${t('language')}: ${LOCALE_NAMES[locale]}`}
+        // The visible abbreviation (EN) is part of the name, as screen reader and voice control users hear and say it.
+        aria-label={compact ? `${t('language')}: ${LOCALE_NAMES[locale]}` : `${t('language')}: ${LOCALE_NAMES[locale]}, ${LOCALE_LABELS[locale]}`}
         title={compact ? `${t('language')}: ${LOCALE_NAMES[locale]}` : undefined}
         className={buttonClassName ?? 'flex h-10 items-center gap-2 rounded-full px-2.5 text-[14px] font-semibold opacity-85 transition-[opacity,background-color] hover:bg-current/[0.06] hover:opacity-100 aria-expanded:opacity-100'}
       >

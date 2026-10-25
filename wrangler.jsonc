@@ -1,0 +1,28 @@
+// Cloudflare Workers: the website as static files (the static export in out/),
+// served as a Worker with static assets and no code of its own. Without this
+// file `wrangler deploy` takes the project for a server-rendered Next.js app
+// and builds it with OpenNext, which a static export cannot be.
+//
+// The rules of the web server (security headers, caching, old links, the id
+// pages) come with the files: public/_headers and public/_redirects, kept in
+// step with deploy/nginx.conf for the Docker image.
+//
+// Workers Builds deploys under the name of the Worker it is connected to
+// (WRANGLER_CI_OVERRIDE_NAME); `name` is the one for deploys from a machine.
+{
+  "name": "pokyh-frontend",
+  "compatibility_date": "2026-10-01",
+  // `wrangler deploy` builds first, so it always ships a fresh out/. The build
+  // reads its settings (NEXT_PUBLIC_*, LEGAL_*, …) from the environment: the
+  // build variables of the Cloudflare project, see .env.example.
+  "build": {
+    "command": "npm run build"
+  },
+  "assets": {
+    "directory": "./out",
+    // Pages are folders (/de/about/ → de/about/index.html), as Next writes them.
+    "html_handling": "auto-trailing-slash",
+    // Any other address gets the site's 404 document (app/global-not-found.tsx).
+    "not_found_handling": "404-page"
+  }
+}

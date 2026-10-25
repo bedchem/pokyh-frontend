@@ -4,7 +4,7 @@ import { AndroidLogo, AppleLogo, ArrowRight, ArrowUpRight, Globe, DeviceMobile }
 import { makeT } from '@/lib/i18n/dictionary';
 import { routeLocale } from '@/lib/i18n/server';
 import { localeAlternates, localizedUrl, ogLocale, pageKeywords, ogImage } from '@/lib/i18n/seo';
-import PageJsonLd from '@/components/site/PageJsonLd';
+import PageJsonLd, { pageList } from '@/components/site/PageJsonLd';
 import { siteDict } from '@/lib/i18n/dictionaries/site';
 import { getDict } from '@/lib/i18n/dictionaries/get';
 import PageIntro, { TONE } from '@/components/site/PageIntro';
@@ -52,7 +52,21 @@ export default async function GetPage({ params }: PageProps) {
 
   return (
     <>
-      <PageJsonLd locale={locale} path="/get" name={t('metaTitle')} description={t('metaDescription')} trail={[{ name: makeT(siteDict, locale)('navGet'), path: '/get' }]} />
+      <PageJsonLd
+        locale={locale}
+        path="/get"
+        type="CollectionPage"
+        name={t('metaTitle')}
+        description={t('metaDescription')}
+        trail={[{ name: makeT(siteDict, locale)('navGet'), path: '/get' }]}
+        main={pageList(locale, [
+          { path: '/login', name: t('webTitle') },
+          { path: '/get/android', name: t('androidTitle') },
+          { path: '/get/ios', name: t('iosTitle') },
+          { path: '/get/pwa/ios', name: t('pwaIos') },
+          { path: '/get/pwa/android', name: t('pwaAndroid') },
+        ])}
+      />
       <PageIntro title={t('title')} lead={t('lead')} />
 
       <RevealScope>
@@ -62,7 +76,7 @@ export default async function GetPage({ params }: PageProps) {
             <div>
               <Globe size={44} aria-hidden="true" />
               <h2 className="mt-6 text-[clamp(34px,4.6vw,64px)] font-extrabold leading-[1.04] tracking-[-0.05em]">{t('webTitle')}</h2>
-              <p className="mt-4 max-w-[46ch] text-[17px] leading-[1.6] opacity-85 md:text-[19px]">{t('webBody')}</p>
+              <p className="mt-4 max-w-[46ch] text-[17px] leading-[1.6] md:text-[19px]">{t('webBody')}</p>
             </div>
             <Link href={href('/login')} className="key key-lg self-start md:self-auto">
               {t('webCta')}
@@ -75,7 +89,7 @@ export default async function GetPage({ params }: PageProps) {
             <div key={title} data-reveal className={`squircle flex flex-col rounded-[28px] p-7 md:rounded-[40px] md:p-10 ${TONE[tone]}`}>
               <Icon size={40} aria-hidden="true" />
               <h2 className="mt-6 text-[clamp(28px,3vw,40px)] font-extrabold leading-[1.02] tracking-[-0.04em]">{title}</h2>
-              <p className="mt-3 flex-1 text-[16px] leading-[1.6] opacity-85 md:text-[17px]">{body}</p>
+              <p className="mt-3 flex-1 text-[16px] leading-[1.6] md:text-[17px]">{body}</p>
               <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3">
                 <Link href={guide} className="key">
                   {t('guide')}
@@ -94,7 +108,7 @@ export default async function GetPage({ params }: PageProps) {
               <div>
                 <DeviceMobile size={44} aria-hidden="true" />
                 <h2 className="mt-6 text-[clamp(30px,3.6vw,48px)] font-extrabold leading-[1] tracking-[-0.045em]">{t('pwaTitle')}</h2>
-                <p className="mt-4 max-w-[46ch] text-[17px] leading-[1.6] opacity-85 md:text-[18px]">{t('pwaBody')}</p>
+                <p className="mt-4 max-w-[46ch] text-[17px] leading-[1.6] md:text-[18px]">{t('pwaBody')}</p>
               </div>
               <div className="flex flex-col gap-3">
                 {[

@@ -1,7 +1,8 @@
 import type { Dictionary } from '../dictionary';
 
 // The note under photos from other sites (lib/external-media.ts): where they
-// come from, and the switch to hide them (or show them again).
+// come from, and the switch to hide them (or show them again). The link says
+// where it goes (the privacy notice), never just "more".
 export type MediaKey = 'title' | 'text' | 'allow' | 'revoke' | 'on' | 'more';
 
 export const mediaDict: Dictionary<MediaKey> = {
@@ -11,7 +12,7 @@ export const mediaDict: Dictionary<MediaKey> = {
     allow: 'Fotos anzeigen',
     revoke: 'Fotos ausblenden',
     on: 'Fotos von externen Rezeptseiten; diese erhalten beim Laden deine IP-Adresse.',
-    more: 'Mehr dazu',
+    more: 'Datenschutzerklärung',
   },
   it: {
     title: 'Foto nascoste',
@@ -19,7 +20,7 @@ export const mediaDict: Dictionary<MediaKey> = {
     allow: 'Mostra le foto',
     revoke: 'Nascondi le foto',
     on: 'Foto da siti esterni di ricette, che al caricamento ricevono il tuo indirizzo IP.',
-    more: 'Maggiori informazioni',
+    more: 'Informativa sulla privacy',
   },
   en: {
     title: 'Photos hidden',
@@ -27,6 +28,6 @@ export const mediaDict: Dictionary<MediaKey> = {
     allow: 'Show photos',
     revoke: 'Hide photos',
     on: 'Photos from external recipe sites, which receive your IP address when they load.',
-    more: 'Learn more',
+    more: 'Privacy policy',
   },
 };

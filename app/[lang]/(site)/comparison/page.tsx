@@ -163,7 +163,7 @@ export default async function ComparisonPage({ params }: PageProps) {
             {SUMMARY.map((s) => (
               <div key={s.title} data-reveal className={`squircle rounded-[24px] p-7 md:rounded-[32px] md:p-8 ${TONE[s.tone]}`}>
                 <h3 className="text-[22px] font-extrabold tracking-[-0.03em] md:text-[26px]">{t(s.title)}</h3>
-                <p className="mt-3 text-[16px] leading-[1.6] opacity-85 md:text-[17px]">{t(s.body)}</p>
+                <p className="mt-3 text-[16px] leading-[1.6] md:text-[17px]">{t(s.body)}</p>
               </div>
             ))}
           </div>

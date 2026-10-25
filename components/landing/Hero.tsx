@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useT } from '@/providers/LocaleProvider';
 import { homepageDict } from '@/lib/i18n/dictionaries/homepage';
-import { ensureGsap, prefersReducedMotion, useGsap } from '@/lib/motion';
+import { loadGsap, prefersReducedMotion, useGsap } from '@/lib/motion';
 
 // The opening: type only. A line about the school app, and the wordmark set
 // across the full width. Its letters thicken where the pointer is. While you
@@ -24,16 +24,18 @@ function RotatingWords({ words }: { words: string[] }) {
   useEffect(() => {
     const el = box.current;
     if (!el) return;
-    const gsap = ensureGsap();
     const items = el.querySelectorAll<HTMLElement>('[data-word]');
     const prev = (i - 1 + words.length) % words.length;
-    if (first.current || prefersReducedMotion()) {
-      first.current = false;
-      items.forEach((w, n) => gsap.set(w, { yPercent: n === i ? 0 : 110, opacity: n === i ? 1 : 0 }));
-      return;
-    }
-    gsap.to(items[prev], { yPercent: -110, opacity: 0, duration: 0.9, ease: 'expo.inOut' });
-    gsap.fromTo(items[i], { yPercent: 110, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 0.9, ease: 'expo.inOut' });
+    const still = first.current || prefersReducedMotion();
+    first.current = false;
+    void loadGsap().then(({ gsap }) => {
+      if (still) {
+        items.forEach((w, n) => gsap.set(w, { yPercent: n === i ? 0 : 110, opacity: n === i ? 1 : 0 }));
+        return;
+      }
+      gsap.to(items[prev], { yPercent: -110, opacity: 0, duration: 0.9, ease: 'expo.inOut' });
+      gsap.fromTo(items[i], { yPercent: 110, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 0.9, ease: 'expo.inOut' });
+    });
   }, [i, words.length]);
 
   return (

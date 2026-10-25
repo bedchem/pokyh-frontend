@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
+import { startTransition, useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { fetchCanteens, fetchMensa, getCanteensStale, getMensaStale } from '@/lib/api';
 import { mensaAvailableIn } from '@/components/app/hooks';
 import { CHOICE_PARAM, canteenOf, canteensFrom, menuOwner, rememberCanteen, rememberedCanteen, type Canteen } from '@/lib/mensa';
@@ -77,11 +77,17 @@ export interface MenuView {
   retry: () => void;
 }
 
-export function useMenu({ inApp = false, initialRaw, initialCanteens, ask = true }: {
+export function useMenu({ inApp = false, initialRaw, initialCanteens, listed = true, ask = true }: {
   inApp?: boolean;
   /** The public default menu the page was prerendered with. */
   initialRaw?: unknown;
   initialCanteens?: Canteen[];
+  /**
+   * False: the backend had no list of canteens when the page was built (an
+   * older one), so the browser does not ask for it either: one canteen, the
+   * default.
+   */
+  listed?: boolean;
   /** False: never ask, show the default (a dish page reached without a choice). */
   ask?: boolean;
 }): MenuView {
@@ -95,20 +101,22 @@ export function useMenu({ inApp = false, initialRaw, initialCanteens, ask = true
   const [error, setError] = useState('');
   const [request, setRequest] = useState(0);
 
-  // The list of canteens (public page only): the stored one at once, then fresh.
+  // The list of canteens (public page only): the stored one at once, then
+  // fresh. Not needed where nothing is asked and nothing has been chosen.
+  const needList = !inApp && listed && (ask || !!picked);
   useEffect(() => {
-    if (inApp) return;
+    if (!needList) return;
     let alive = true;
     const timer = window.setTimeout(() => {
       const stale = getCanteensStale();
       if (stale !== undefined) setCanteens((c) => c ?? canteensFrom(stale));
       fetchCanteens()
-        .then((raw) => { if (alive) setCanteens(canteensFrom(raw)); })
+        .then((raw) => { if (alive) startTransition(() => setCanteens(canteensFrom(raw))); })
         // No list (an older backend, offline): one canteen, the default.
         .catch(() => { if (alive) setCanteens((c) => c ?? []); });
     }, 0);
     return () => { alive = false; window.clearTimeout(timer); };
-  }, [inApp]);
+  }, [needList]);
 
   // Signed in on the public page: the account's own canteen, to tell it apart.
   useEffect(() => {
@@ -118,7 +126,7 @@ export function useMenu({ inApp = false, initialRaw, initialCanteens, ask = true
       const stale = getMensaStale('account');
       if (stale !== undefined) setOwnRaw(stale);
       fetchMensa('account')
-        .then((raw) => { if (alive) setOwnRaw(raw); })
+        .then((raw) => { if (alive) startTransition(() => setOwnRaw(raw)); })
         .catch(() => { if (alive) setOwnRaw((o: unknown) => (o === undefined ? null : o)); });
     }, 0);
     return () => { alive = false; window.clearTimeout(timer); };
@@ -153,7 +161,9 @@ export function useMenu({ inApp = false, initialRaw, initialCanteens, ask = true
       if (stale !== undefined) setShown({ source, raw: stale });
       setError('');
       fetchMensa(scope, slug)
-        .then((raw) => { if (alive) setShown({ source, raw }); })
+        // A whole plan of dishes is a large render: as a transition React
+        // draws it in slices, so the page stays responsive meanwhile.
+        .then((raw) => { if (alive) startTransition(() => setShown({ source, raw })); })
         .catch((e: unknown) => { if (alive && stale === undefined) setError(e instanceof Error ? e.message : 'error'); });
     }, 0);
     return () => { alive = false; window.clearTimeout(timer); };

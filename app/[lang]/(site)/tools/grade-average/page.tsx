@@ -7,6 +7,7 @@ import PageJsonLd, { faqEntities } from '@/components/site/PageJsonLd';
 import { makeT } from '@/lib/i18n/dictionary';
 import { routeLocale } from '@/lib/i18n/server';
 import { localizedUrl } from '@/lib/i18n/seo';
+import { SITE_URL } from '@/lib/site-url';
 import { toolsDict, GRADE_FAQ_COUNT, type ToolsKey } from '@/lib/i18n/dictionaries/tools';
 
 // Grade average calculator: the calculator first, then how the average works,
@@ -32,7 +33,7 @@ export default async function GradeAveragePage({ params }: PageProps) {
   const locale = await routeLocale(params);
   const t = makeT(toolsDict, locale);
   const href = (path: string) => localizedUrl('', locale, path);
-  const faq = Array.from({ length: GRADE_FAQ_COUNT }, (_, i) => ({ q: t(`gq${i + 1}` as ToolsKey), a: t(`ga${i + 1}` as ToolsKey) }));
+  const faq = Array.from({ length: GRADE_FAQ_COUNT }, (_, i) => ({ q: t(`gq${i + 1}` as ToolsKey), a: t(`ga${i + 1}` as ToolsKey), id: `gq${i + 1}` }));
 
   return (
     <>
@@ -43,7 +44,7 @@ export default async function GradeAveragePage({ params }: PageProps) {
         name={t('gMetaTitle')}
         description={t('gMetaDescription')}
         trail={[{ name: t('hBreadcrumb'), path: TOOLS_PATH }, { name: t('gBreadcrumb'), path: PATH }]}
-        main={faqEntities(faq)}
+        main={faqEntities(faq, localizedUrl(SITE_URL, locale, PATH))}
         extra={[calculatorApp(locale, PATH, t('gBreadcrumb'), t('gMetaDescription'))]}
       />
       <ToolHeader

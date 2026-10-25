@@ -208,10 +208,15 @@ interface Built {
 }
 
 const built: Partial<Record<PlateSize, Built>> = {};
-/** A layer as one SVG path of unit squares. */
+const paths = new WeakMap<Layer, string>();
+/** A layer as one SVG path of unit squares, written once: every plate of a size shares its layers. */
 function d(layer: Layer): string {
-  let out = '';
-  for (let i = 0; i < layer.length; i += 2) out += `M${layer[i]} ${layer[i + 1]}h1v1h-1z`;
+  let out = paths.get(layer);
+  if (out === undefined) {
+    out = '';
+    for (let i = 0; i < layer.length; i += 2) out += `M${layer[i]} ${layer[i + 1]}h1v1h-1z`;
+    paths.set(layer, out);
+  }
   return out;
 }
 
@@ -244,19 +249,14 @@ function random(seed: string) {
   };
 }
 
-/** Keeps only the round food area of the canvas, cut in whole pixels. */
-function cutRound(ctx: CanvasRenderingContext2D, g: Geometry) {
-  const { n } = foodBox(g);
-  // One path for the whole disc: 'destination-in' clears everything outside
-  // each single drawing call.
-  ctx.globalCompositeOperation = 'destination-in';
-  ctx.fillStyle = '#000';
-  ctx.beginPath();
-  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (inFood(g, x, y)) ctx.rect(x, y, 1, 1);
-  ctx.fill();
-  ctx.globalCompositeOperation = 'source-over';
-}
+const rgb = (hex: string): [number, number, number] => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number];
 
+/**
+ * The meal, pixel by pixel, into one buffer that goes onto the canvas in a
+ * single call (hundreds of one-pixel fills per plate added up on a plan of
+ * many plates). The same picture as painting it: opaque spots on the heap, a
+ * white light at 22 % blended on top, and only the round food area kept.
+ */
 function drawMeal(ctx: CanvasRenderingContext2D, g: Geometry, style: FoodStyle, seed: string) {
   const rnd = random(seed);
   const { base, spots } = FOOD_COLORS[style];
@@ -264,15 +264,22 @@ function drawMeal(ctx: CanvasRenderingContext2D, g: Geometry, style: FoodStyle, 
   const c = n / 2;
   // Distances on the meal grow with the plate.
   const k = g.rFood / 19.5;
-  ctx.clearRect(0, 0, n, n);
+  const img = ctx.createImageData(n, n);
+  const px = img.data;
+  const fill = (x: number, y: number, w: number, h: number, [r, gr, b]: [number, number, number]) => {
+    for (let yy = Math.max(0, y); yy < Math.min(n, y + h); yy++) {
+      for (let xx = Math.max(0, x); xx < Math.min(n, x + w); xx++) {
+        const i = (yy * n + xx) * 4;
+        px[i] = r; px[i + 1] = gr; px[i + 2] = b; px[i + 3] = 255;
+      }
+    }
+  };
   // A heap, not a disc: the meal covers the middle, the plate shows around it.
+  const baseRgb = rgb(base);
   for (let y = 0; y < n; y++) {
     for (let x = 0; x < n; x++) {
       const r = Math.hypot(x + 0.5 - c, y + 0.5 - c);
-      if (r <= g.rFood - (3 + rnd() * 2.5) * k) {
-        ctx.fillStyle = base;
-        ctx.fillRect(x, y, 1, 1);
-      }
+      if (r <= g.rFood - (3 + rnd() * 2.5) * k) fill(x, y, 1, 1, baseRgb);
     }
   }
   const count = Math.round((style === 'pasta' ? 90 : 70) * k * k);
@@ -281,25 +288,36 @@ function drawMeal(ctx: CanvasRenderingContext2D, g: Geometry, style: FoodStyle, 
     const r = Math.sqrt(rnd()) * (g.rFood - 6 * k);
     const x = Math.round(c + Math.cos(a) * r);
     const y = Math.round(c + Math.sin(a) * r);
-    const color = spots[Math.floor(rnd() * spots.length)];
-    ctx.fillStyle = color;
+    const color = rgb(spots[Math.floor(rnd() * spots.length)]);
     if (style === 'pasta') {
       // Strands: short diagonal runs.
       const dir = rnd() > 0.5 ? 1 : -1;
-      for (let s = 0; s < 3; s++) ctx.fillRect(x + s, y + s * dir, 1, 1);
+      for (let s = 0; s < 3; s++) fill(x + s, y + s * dir, 1, 1, color);
     } else {
-      ctx.fillRect(x, y, rnd() > 0.5 ? 2 : 1, rnd() > 0.6 ? 2 : 1);
+      const w = rnd() > 0.5 ? 2 : 1;
+      fill(x, y, w, rnd() > 0.6 ? 2 : 1, color);
     }
   }
-  // Light on the top left of the heap.
-  ctx.fillStyle = 'rgb(255 255 255 / 0.22)';
+  // Light on the top left of the heap (white at 22 %, over whatever is there),
+  // and nothing outside the round food area.
+  const LIGHT = 0.22;
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const i = (y * n + x) * 4;
+    if (!inFood(g, x, y)) {
+      px[i + 3] = 0;
+      continue;
+    }
     const dx = x + 0.5 - c;
     const dy = y + 0.5 - c;
     const r = Math.hypot(dx, dy);
-    if (r < g.rFood - 6 * k && r > g.rFood - 9 * k && (dx * LX + dy * LY) / (r || 1) > 0.5) ctx.fillRect(x, y, 1, 1);
+    if (r < g.rFood - 6 * k && r > g.rFood - 9 * k && (dx * LX + dy * LY) / (r || 1) > 0.5) {
+      const da = px[i + 3] / 255;
+      const a = LIGHT + da * (1 - LIGHT);
+      for (let ch = 0; ch < 3; ch++) px[i + ch] = Math.round((255 * LIGHT + px[i + ch] * da * (1 - LIGHT)) / a);
+      px[i + 3] = Math.round(a * 255);
+    }
   }
-  cutRound(ctx, g);
+  ctx.putImageData(img, 0, 0);
 }
 
 // ── On a canvas ───────────────────────────────────────────────────────────

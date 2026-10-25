@@ -6,7 +6,7 @@ import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { useSession } from '@/providers/SessionProvider';
 import { frontpageDict } from '@/lib/i18n/dictionaries/frontpage';
 import { siteDict } from '@/lib/i18n/dictionaries/site';
-import { fadeIn, lightUp, SplitText, useGsap } from '@/lib/motion';
+import { fadeIn, lightUp, useGsap } from '@/lib/motion';
 
 // The opened app: indigo from edge to edge and the name, huge. Below, the
 // ways in as large keys.
@@ -18,14 +18,16 @@ export default function GetIn() {
   const { user } = useSession();
   const root = useRef<HTMLElement>(null);
 
-  useGsap(({ gsap, reduced, scope }) => {
+  useGsap(({ gsap, SplitText, reduced, scope, near }) => {
     if (reduced) return;
-    const split = SplitText.create(scope.querySelector('[data-line]'), { type: 'words' });
-    const tl = gsap.timeline({ scrollTrigger: { trigger: scope, start: 'top 55%' } });
-    tl.add(lightUp(gsap, [...split.words, ...scope.querySelectorAll('[data-letter]')]), 0);
-    tl.add(fadeIn(gsap, scope.querySelectorAll('[data-way]')), 0.5);
-    return () => split.revert();
-  }, root);
+    near(() => {
+      const split = SplitText.create(scope.querySelector('[data-line]'), { type: 'words', aria: 'none' });
+      const tl = gsap.timeline({ scrollTrigger: { trigger: scope, start: 'top 55%' } });
+      tl.add(lightUp(gsap, [...split.words, ...scope.querySelectorAll('[data-letter]')]), 0);
+      tl.add(fadeIn(gsap, scope.querySelectorAll('[data-way]')), 0.5);
+      return () => split.revert();
+    });
+  }, root, [], { lazy: true });
 
   const name = t('getTitleB').replace(/\.$/, '');
   const ways = [
@@ -59,7 +61,7 @@ export default function GetIn() {
             </li>
           ))}
         </ul>
-        <p data-way className="mt-6 max-w-[44ch] text-center text-[15px] leading-[1.5] text-white/65 md:text-[16px]">
+        <p data-way className="mt-6 max-w-[44ch] text-center text-[15px] leading-[1.5] text-white/80 md:text-[16px]">
           {t('getNote')}
         </p>
       </div>

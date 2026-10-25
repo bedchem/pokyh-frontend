@@ -2,7 +2,6 @@
 
 import { DEFAULT_LOCALE, isLocale, stripLocale } from '@/lib/i18n/locale';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { logout as apiLogout } from '@/lib/api';
 import { forgetStoredTokens, signOutEverywhere } from '@/lib/api-client';
 import { cacheClear } from '@/lib/cache';
 import { forgetTabCredentials } from '@/lib/passkey';
@@ -137,7 +136,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     loggingOut.current = true;
-    try { await apiLogout(); } catch { /* best effort */ }
+    // The WebUntis client loads only here: guests (every public page) never need it.
+    try { await (await import('@/lib/api')).logout(); } catch { /* best effort */ }
     forgetSignedInData();
     setUser(null);
     leaveForLogin(false);

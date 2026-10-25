@@ -6,9 +6,10 @@
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
-  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Resource-Policy: same-origin
+  Cross-Origin-Embedder-Policy: credentialless
   X-XSS-Protection: 1; mode=block
   Content-Security-Policy: object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
 
@@ -29,9 +30,6 @@
   Content-Type: application/json
   Cache-Control: public, max-age=300
 
-/opengraph-image
-  Content-Type: image/png
+# The splat covers every depth (/de/opengraph-image, /de/legal/opengraph-image).
 /*/opengraph-image
-  Content-Type: image/png
-/*/*/opengraph-image
   Content-Type: image/png

@@ -1,17 +1,4 @@
-import { de, it as itLocale, enUS, type Locale as DateFnsLocale } from 'date-fns/locale';
 import type { Locale } from './locale';
-
-/**
- * date-fns has no Ladin locale, so `lld` falls back to `de` here. Prefer
- * formatDate()/formatTime() below, which do render Gherdëina names.
- */
-export function dateFnsLocale(locale: Locale): DateFnsLocale {
-  switch (locale) {
-    case 'it': return itLocale;
-    case 'en': return enUS;
-    default: return de;
-  }
-}
 
 /** Intl locale tag for `toLocaleDateString`/`toLocaleTimeString` call sites. */
 export function intlLocaleTag(locale: Locale): string {
@@ -75,13 +62,49 @@ export function monthShort(locale: Locale): string[] {
   return withDeFallback(MONTH_SHORT[locale], locale, MONTH_SHORT);
 }
 
+// Making a formatter is the costly part of formatting a date (every
+// toLocale…String call makes one; a list of dishes or lessons made hundreds),
+// so each language and set of options gets one, kept for the page's life.
+// The defaults are those of the toLocale…String method it stands for
+// (ToDateTimeOptions): a date call without date fields shows the date, a time
+// call without time fields the time, a plain one both.
+const DATE_FIELDS = ['weekday', 'year', 'month', 'day'] as const;
+const TIME_FIELDS = ['dayPeriod', 'hour', 'minute', 'second', 'fractionalSecondDigits'] as const;
+const formatters = new Map<string, Intl.DateTimeFormat>();
+
+function formatter(tag: string, opts: Intl.DateTimeFormatOptions, required: 'date' | 'time' | 'any'): Intl.DateTimeFormat {
+  const key = `${tag}|${required}|${JSON.stringify(opts)}`;
+  let f = formatters.get(key);
+  if (!f) {
+    // As the methods do: a date call cannot take a time style, nor a time call a date style.
+    if ((required === 'date' && opts.timeStyle) || (required === 'time' && opts.dateStyle)) {
+      throw new TypeError(`Invalid option : ${required === 'date' ? 'timeStyle' : 'dateStyle'}`);
+    }
+    let full = opts;
+    if (!opts.dateStyle && !opts.timeStyle) {
+      const date = DATE_FIELDS.some((k) => opts[k] !== undefined);
+      const time = TIME_FIELDS.some((k) => opts[k] !== undefined);
+      if (required === 'date' ? !date : required === 'time' ? !time : !date && !time) {
+        full = {
+          ...opts,
+          ...(required !== 'time' ? { year: 'numeric', month: 'numeric', day: 'numeric' } : {}),
+          ...(required !== 'date' ? { hour: 'numeric', minute: 'numeric', second: 'numeric' } : {}),
+        };
+      }
+    }
+    f = new Intl.DateTimeFormat(tag, full);
+    formatters.set(key, f);
+  }
+  return f;
+}
+
 // Browsers ship no Ladin (lld) locale data, so for 'lld' dates are laid out
 // like de-AT and the weekday/month words are swapped for Gherdëina ones.
 const LLD_WEEKDAYS_SUN_FIRST = ['dumënia', 'lunesc', 'merdi', 'mierculdi', 'juebia', 'vënderdi', 'sada'];
 const LLD_MONTHS_LONG = ['jené', 'fauré', 'merz', 'auril', 'mei', 'jugn', 'lugio', 'aost', 'setëmber', 'utober', 'nuvëmber', 'dezëmber'];
 
 function formatLadin(d: Date, opts: Intl.DateTimeFormatOptions): string {
-  return new Intl.DateTimeFormat('de-AT', opts).formatToParts(d).map((p) => {
+  return formatter('de-AT', opts, 'any').formatToParts(d).map((p) => {
     if (p.type === 'weekday') {
       const w = LLD_WEEKDAYS_SUN_FIRST[d.getDay()];
       return opts.weekday === 'long' ? w[0].toUpperCase() + w.slice(1) : w[0].toUpperCase() + w.slice(1, 3);
@@ -97,17 +120,17 @@ function formatLadin(d: Date, opts: Intl.DateTimeFormatOptions): string {
 /** Like toLocaleDateString(tag, opts), but also handles the 'lld' tag. */
 export function formatDate(d: Date, tag: string, opts: Intl.DateTimeFormatOptions): string {
   if (tag === 'lld') return formatLadin(d, opts);
-  return d.toLocaleDateString(tag, opts);
+  return formatter(tag, opts, 'date').format(d);
 }
 
 /** Like toLocaleTimeString(tag, opts), but also handles the 'lld' tag. */
 export function formatTime(d: Date, tag: string, opts: Intl.DateTimeFormatOptions): string {
-  return d.toLocaleTimeString(tag === 'lld' ? 'de-AT' : tag, opts);
+  return formatter(tag === 'lld' ? 'de-AT' : tag, opts, 'time').format(d);
 }
 
 /** Like toLocaleString(tag, opts) (date + time), but also handles the 'lld' tag. */
 export function formatDateTime(d: Date, tag: string, opts: Intl.DateTimeFormatOptions): string {
-  if (tag !== 'lld') return d.toLocaleString(tag, opts);
+  if (tag !== 'lld') return formatter(tag, opts, 'any').format(d);
   // de-AT's dateStyle/timeStyle output carries German words ("um"), so compose it from parts.
   const { dateStyle, timeStyle, ...rest } = opts;
   const dateOpts: Intl.DateTimeFormatOptions = dateStyle

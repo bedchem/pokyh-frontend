@@ -29,7 +29,7 @@ export default function CtaBand({
       <div className={`squircle flex flex-col gap-8 rounded-[28px] px-7 py-10 md:flex-row md:items-end md:justify-between md:rounded-[40px] md:px-14 md:py-14 ${TONE[tone]}`}>
         <div>
           <h2 className="max-w-[16ch] text-[clamp(34px,4.6vw,64px)] font-extrabold leading-[1.04] tracking-[-0.05em]">{title}</h2>
-          {lead && <p className="mt-4 max-w-[44ch] text-[17px] leading-[1.55] opacity-85 md:text-[19px]">{lead}</p>}
+          {lead && <p className="mt-4 max-w-[44ch] text-[17px] leading-[1.55] md:text-[19px]">{lead}</p>}
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Link href={localize(primaryHref)} className="key key-lg">

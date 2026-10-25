@@ -183,7 +183,12 @@ async function apiFetch(url: string, opts?: RequestInit) {
   }
   const res = await fetch(...(await backendRequest(url, opts)));
 
-  if (res.status === 401) {
+  // Only the reads made with the sign-in (WebUntis, the account's own Mensa)
+  // say anything about it. A public read (the default menu, the list of
+  // canteens) refused with 401 is just not available: no sign-in is renewed
+  // or ended for it, a guest has none.
+  const withSignIn = url.startsWith('/api/webuntis/') || url.startsWith('/api/mensa/mine');
+  if (res.status === 401 && withSignIn) {
     // Signed out from another device: the WebUntis routes say so themselves.
     noteSignedOutElsewhere(((await res.clone().json().catch(() => ({}))) as { code?: unknown }).code);
     log('401 from', url, '- attempting silent re-login');

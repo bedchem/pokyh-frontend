@@ -18,7 +18,7 @@ export default function StatsOffNotice({ className = '' }: { className?: string 
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-[16.5px] font-bold tracking-[-0.015em]">{t('statsOffTitle')}</p>
-        <p className="mt-1 max-w-[62ch] text-[14.5px] leading-relaxed opacity-85">{t('statsOffText')}</p>
+        <p className="mt-1 max-w-[62ch] text-[14.5px] leading-relaxed">{t('statsOffText')}</p>
       </div>
       <ButtonLink href={localize('/settings#privacy')} variant="ink" size="sm" className="self-start sm:self-auto">
         {t('consentLink')}

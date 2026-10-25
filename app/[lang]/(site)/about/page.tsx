@@ -96,7 +96,7 @@ export default async function AboutPage({ params }: PageProps) {
                 {MISSING.map((m) => (
                   <li key={m.title} className={`squircle rounded-[22px] p-6 md:rounded-[30px] md:p-8 ${TONE[m.tone]}`}>
                     <h3 className="text-[21px] font-bold leading-[1.2] tracking-[-0.02em] md:text-[24px]">{t(m.title)}</h3>
-                    <p className="mt-2 max-w-[58ch] text-[16px] leading-[1.6] opacity-85 md:text-[17px]">{t(m.body)}</p>
+                    <p className="mt-2 max-w-[58ch] text-[16px] leading-[1.6] md:text-[17px]">{t(m.body)}</p>
                   </li>
                 ))}
               </ul>

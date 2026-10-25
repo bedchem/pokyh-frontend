@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ChartBar, ClockCountdown } from '@phosphor-icons/react/dist/ssr';
 import { TONE } from '@/components/site/PageIntro';
-import PageJsonLd from '@/components/site/PageJsonLd';
+import PageJsonLd, { pageList } from '@/components/site/PageJsonLd';
 import { TOOLS_PATH, ToolCta, ToolHeader, toolMetadata } from '@/components/tools/ToolPage';
 import { makeT } from '@/lib/i18n/dictionary';
 import { routeLocale } from '@/lib/i18n/server';
@@ -36,7 +36,15 @@ export default async function ToolsPage({ params }: PageProps) {
 
   return (
     <>
-      <PageJsonLd locale={locale} path={TOOLS_PATH} type="CollectionPage" name={t('hMetaTitle')} description={t('hMetaDescription')} trail={[{ name: t('hBreadcrumb'), path: TOOLS_PATH }]} />
+      <PageJsonLd
+        locale={locale}
+        path={TOOLS_PATH}
+        type="CollectionPage"
+        name={t('hMetaTitle')}
+        description={t('hMetaDescription')}
+        trail={[{ name: t('hBreadcrumb'), path: TOOLS_PATH }]}
+        main={pageList(locale, TOOLS.map(({ path, title }) => ({ path, name: t(title) })))}
+      />
       <ToolHeader title={t('hTitle')} lead={t('hLead')} crumbs={[{ label: 'POKYH', href: href('/') }, { label: t('hBreadcrumb') }]} />
       <section className="wrap pb-20 md:pb-28">
         <ul className="grid gap-4 md:grid-cols-2">

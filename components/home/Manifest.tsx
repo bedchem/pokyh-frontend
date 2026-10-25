@@ -100,7 +100,7 @@ export default function Manifest() {
         scrollTrigger: { trigger: scope, start: 'top top', end: '+=35%', scrub: 0.5 },
       },
     );
-  }, root);
+  }, root, [], { lazy: true });
 
   // Starts under the end of the hero (see scenes.ts), so the sentence is in
   // place, stuck to the top, at the moment the hero's dark screen fills the view.

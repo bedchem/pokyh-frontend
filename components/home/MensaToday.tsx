@@ -7,7 +7,7 @@ import { frontpageDict } from '@/lib/i18n/dictionaries/frontpage';
 import { daysFromToday, localized, upcomingDays } from '@/lib/mensa';
 import { formatDate } from '@/lib/i18n/dateLocale';
 import { api } from '@/lib/api-client';
-import { ensureGsap, fadeIn, lightUp, prefersReducedMotion, SplitText, useGsap } from '@/lib/motion';
+import { fadeIn, lightUp, useGsap } from '@/lib/motion';
 import { useMensaDishes } from '@/components/landing/useMensaDishes';
 import ExternalMediaNotice from '@/components/ExternalMediaNotice';
 import { useExternalMedia } from '@/lib/external-media';
@@ -49,8 +49,8 @@ export default function MensaToday() {
   const { locale } = useLocale();
   const { tag } = useDateLocale();
   const localize = useLocalizeHref();
-  const dishes = useMensaDishes();
   const root = useRef<HTMLElement>(null);
+  const dishes = useMensaDishes(root);
   const photo = useRef<HTMLDivElement>(null);
   const [rating, setRating] = useState<{ avg: number; count: number } | null>(null);
 
@@ -77,10 +77,8 @@ export default function MensaToday() {
   }, [pick]);
 
   // The photo leans a little towards the pointer.
-  useEffect(() => {
-    const el = photo.current;
-    if (!el || prefersReducedMotion() || !window.matchMedia('(pointer: fine)').matches) return;
-    const gsap = ensureGsap();
+  useGsap(({ gsap, reduced, scope: el }) => {
+    if (reduced || !window.matchMedia('(pointer: fine)').matches) return;
     const rx = gsap.quickTo(el, 'rotationX', { duration: 0.8, ease: 'power3' });
     const ry = gsap.quickTo(el, 'rotationY', { duration: 0.8, ease: 'power3' });
     gsap.set(el, { transformPerspective: 900 });
@@ -96,7 +94,7 @@ export default function MensaToday() {
       el.removeEventListener('pointermove', move);
       el.removeEventListener('pointerleave', leave);
     };
-  }, [pick]);
+  }, photo, [pick]);
 
   // Rises over the carousel with an arched top that flattens; the carousel
   // sinks back underneath.
@@ -126,7 +124,7 @@ export default function MensaToday() {
         },
       );
     }
-  }, root);
+  }, root, [], { lazy: true });
 
   const name = pick ? localized(pick.dish.name, locale) : '';
 
@@ -143,25 +141,32 @@ export default function MensaToday() {
             ? t('mensaTitleDay', { day: capitalize(formatDate(pick.date, tag, { weekday: 'long' })) })
             : t('mensaTitleDate', { date: formatDate(pick.date, tag, { day: 'numeric', month: 'long' }) });
 
-  useGsap(({ gsap, reduced, scope }) => {
+  useGsap(({ gsap, SplitText, reduced, scope, near }) => {
     if (reduced || pick === undefined) return;
-    const heading = SplitText.create(scope.querySelector('[data-title]'), { type: 'words' });
-    const dish = scope.querySelector('[data-dish]');
-    const name = dish ? SplitText.create(dish, { type: 'words' }) : null;
-    const tl = gsap.timeline({ scrollTrigger: { trigger: scope, start: 'top 62%' } });
-    tl.add(lightUp(gsap, heading.words), 0);
-    if (name) tl.add(lightUp(gsap, name.words), 0.35);
-    tl.add(fadeIn(gsap, scope.querySelectorAll('[data-rise], [data-star]'), { stagger: 0.06 }), 0.6);
-    const frame = scope.querySelector('[data-frame]');
-    if (frame) {
-      gsap.fromTo(frame.querySelector('img'), { scale: 1.4, yPercent: -6 }, {
-        scale: 1,
-        yPercent: 6,
-        ease: 'none',
-        scrollTrigger: { trigger: scope, start: 'top bottom', end: 'bottom top', scrub: 0.6 },
-      });
-    }
-  }, root, [title, name]);
+    near(() => {
+      const heading = SplitText.create(scope.querySelector('[data-title]'), { type: 'words' });
+      const dish = scope.querySelector('[data-dish]');
+      // A paragraph may not carry a label (SplitText's default): its words stay readable instead.
+      const name = dish ? SplitText.create(dish, { type: 'words', aria: 'none' }) : null;
+      const tl = gsap.timeline({ scrollTrigger: { trigger: scope, start: 'top 62%' } });
+      tl.add(lightUp(gsap, heading.words), 0);
+      if (name) tl.add(lightUp(gsap, name.words), 0.35);
+      tl.add(fadeIn(gsap, scope.querySelectorAll('[data-rise], [data-star]'), { stagger: 0.06 }), 0.6);
+      const frame = scope.querySelector('[data-frame]');
+      if (frame) {
+        gsap.fromTo(frame.querySelector('img'), { scale: 1.4, yPercent: -6 }, {
+          scale: 1,
+          yPercent: 6,
+          ease: 'none',
+          scrollTrigger: { trigger: scope, start: 'top bottom', end: 'bottom top', scrub: 0.6 },
+        });
+      }
+      return () => {
+        heading.revert();
+        name?.revert();
+      };
+    });
+  }, root, [title, name], { lazy: true });
 
   const date = pick ? formatDate(pick.date, tag, { weekday: 'long', day: 'numeric', month: 'long' }) : '';
   const votes = rating === null

@@ -1,6 +1,6 @@
 'use client';
 
-import { DEFAULT_SITE_URL, SITE_URL, isLocalAddress } from '@/lib/site-url';
+import { DEFAULT_SITE_URL, SITE_URL } from '@/lib/site-url';
 import { CARD_H, CARD_W } from './ShareCard';
 
 // The recap's card (./ShareCard.tsx) as a picture and its ways out: a PNG
@@ -13,9 +13,13 @@ import { CARD_H, CARD_W } from './ShareCard';
 
 const SCALE = 6;
 
-/** The address the shared text points to: the public website, never a local one. */
+/**
+ * The address the shared text points to: the public website, never a local
+ * one. A built site's address is always public (next.config.ts); `next dev`
+ * runs on this computer and shares the default.
+ */
 export function siteLink(): string {
-  return isLocalAddress(SITE_URL) ? DEFAULT_SITE_URL : SITE_URL;
+  return process.env.NODE_ENV === 'development' ? DEFAULT_SITE_URL : SITE_URL;
 }
 
 /** The card's drawing as a PNG, every colour written out (the sprites use CSS variables). */

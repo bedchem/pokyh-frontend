@@ -81,6 +81,7 @@ export default async function MensaPage({ params }: PageProps) {
       <MensaClient
         initialDays={initialDays}
         initialCanteens={canteens ?? undefined}
+        canteensListed={canteens !== null}
         initialOwner={menu ? menuOwner(menu) : undefined}
       />
     </>

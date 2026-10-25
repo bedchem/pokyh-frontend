@@ -2,9 +2,6 @@
 
 import { useEffect } from 'react';
 import { useSession } from '@/providers/SessionProvider';
-import { fetchTimetable } from '@/lib/api';
-import { preloadSubjectImages } from '@/lib/subject-image-preload';
-import { isoDate, mondayOf, parseTimetable } from '@/lib/timetable-logic';
 
 const REFRESH_MS = 6 * 60 * 60 * 1000;
 
@@ -23,6 +20,13 @@ export default function SubjectImagePreloader() {
     let cancelled = false;
 
     const run = async () => {
+      // Loaded only here: a guest's page (every public page) never needs them.
+      const [{ fetchTimetable }, { preloadSubjectImages }, { isoDate, mondayOf, parseTimetable }] = await Promise.all([
+        import('@/lib/api'),
+        import('@/lib/subject-image-preload'),
+        import('@/lib/timetable-logic'),
+      ]);
+      if (cancelled) return;
       const subjects: Array<{ subjectName: string; subjectLong: string }> = [];
       for (const offset of [0, 1]) {
         try {

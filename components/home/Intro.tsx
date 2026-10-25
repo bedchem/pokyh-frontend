@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useT } from '@/providers/LocaleProvider';
 import { frontpageDict } from '@/lib/i18n/dictionaries/frontpage';
-import { ensureGsap, prefersReducedMotion, SplitText } from '@/lib/motion';
+import { prefersReducedMotion, useGsap } from '@/lib/motion';
 import { schoolClock } from '@/lib/school-day';
 import { useLenis } from '@/components/site/SmoothScroll';
 import { finishIntro } from './shared';
@@ -64,10 +64,8 @@ export default function Intro() {
     };
   }, [playing, lenis]);
 
-  useIsoLayoutEffect(() => {
-    const el = root.current;
-    if (!playing || !el || !greeting) return;
-    const gsap = ensureGsap();
+  useGsap(({ gsap, SplitText, scope: el }) => {
+    if (!playing || !greeting) return;
     el.style.animation = 'none';
     const split = SplitText.create(el.querySelector('[data-greet]'), { type: 'chars', mask: 'chars' });
     const count = el.querySelector<HTMLElement>('[data-count]')!;
@@ -103,7 +101,7 @@ export default function Intro() {
       tl.kill();
       split.revert();
     };
-  }, [playing, greeting]);
+  }, root, [playing, greeting]);
 
   return (
     <div

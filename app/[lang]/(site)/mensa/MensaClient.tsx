@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { startTransition, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import PageIntro from '@/components/site/PageIntro';
 import ExternalMediaNotice from '@/components/ExternalMediaNotice';
@@ -45,12 +45,14 @@ function dayFromKey({ key, dishes }: { key: string; dishes: MenuDish[] }): MenuD
 // Stands for the prerendered menu until the browser has its own answer.
 const PRERENDERED = { prerendered: true };
 
-export default function MensaClient({ inApp = false, initialDays, initialCanteens, initialOwner }: {
+export default function MensaClient({ inApp = false, initialDays, initialCanteens, canteensListed = true, initialOwner }: {
   inApp?: boolean;
   /** The public menu the server prerendered the page with (the public /mensa only). */
   initialDays?: Array<{ key: string; dishes: MenuDish[] }>;
   /** The canteens known when the page was prerendered. */
   initialCanteens?: Canteen[];
+  /** Whether the backend had a list of canteens then (see useMenu's `listed`). */
+  canteensListed?: boolean;
   /** Whose the prerendered menu is. */
   initialOwner?: ReturnType<typeof menuOwner>;
 }) {
@@ -60,7 +62,7 @@ export default function MensaClient({ inApp = false, initialDays, initialCanteen
   const localize = useLocalizeHref();
   const external = useExternalMedia();
   const { stableUid } = useApp();
-  const menu = useMenu({ inApp, initialRaw: initialDays ? PRERENDERED : undefined, initialCanteens });
+  const menu = useMenu({ inApp, initialRaw: initialDays ? PRERENDERED : undefined, initialCanteens, listed: canteensListed });
   const prerendered = menu.raw === PRERENDERED;
 
   const days = useMemo<MenuDay[] | null>(() => {
@@ -89,7 +91,7 @@ export default function MensaClient({ inApp = false, initialDays, initialCanteen
       .then((batch) => {
         const next: Record<string, Record<string, number>> = {};
         for (const [id, data] of Object.entries(batch)) if (Object.keys(data.ratings).length) next[id] = data.ratings;
-        if (alive) setRatings(next);
+        if (alive) startTransition(() => setRatings(next));
       })
       // Ratings are extra: without them the plan still shows (e.g. locally,
       // where the backend refuses the dev origin), so only a warning.

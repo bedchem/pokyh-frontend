@@ -24,6 +24,8 @@ const PAGES: { path: string; title: string; about: string }[] = [
   { path: '/tools/absences', title: 'Absences in percent', about: 'share of lessons missed and hours left before the limit; explains the three-quarter attendance rule in Italy (DPR 122/2009 art. 14(7), Legislative Decree 62/2017 art. 5)' },
   { path: '/comparison', title: 'Comparison', about: 'POKYH and WebUntis compared, feature by feature' },
   { path: '/get', title: 'Get POKYH', about: 'browser, web app, iPhone, Android' },
+  { path: '/get/android', title: 'Android app', about: 'the native Android app as an APK from the project’s releases, how to install it' },
+  { path: '/get/ios', title: 'iPhone app', about: 'the native iOS app as an IPA from the project’s releases, installed with a sideloading tool' },
   { path: '/get/pwa/ios', title: 'Web app on iPhone', about: 'add POKYH to the home screen in Safari, step by step' },
   { path: '/get/pwa/android', title: 'Web app on Android', about: 'install POKYH from Chrome, step by step' },
   { path: '/about', title: 'About', about: 'the story behind POKYH' },
@@ -32,21 +34,22 @@ const PAGES: { path: string; title: string; about: string }[] = [
   { path: '/legal', title: 'Legal', about: 'imprint, privacy policy, terms of use and cookies' },
 ];
 
-type Qa = { q: string; a: string };
+/** A question with its answer and its place on the page (the `id` its page gives it). */
+type Qa = { q: string; a: string; id: string };
 
 function siteFaq(locale: Locale): Qa[] {
   const t = makeT(faqDict, locale);
-  return Array.from({ length: FAQ_COUNT }, (_, i) => ({ q: t(`q${i + 1}` as FaqKey), a: t(`a${i + 1}` as FaqKey) }));
+  return Array.from({ length: FAQ_COUNT }, (_, i) => ({ q: t(`q${i + 1}` as FaqKey), a: t(`a${i + 1}` as FaqKey), id: `q${i + 1}` }));
 }
 
 function webuntisFaq(locale: Locale): Qa[] {
   const t = makeT(webuntisPageDict, locale);
-  return Array.from({ length: WEBUNTIS_FAQ_COUNT }, (_, i) => ({ q: t(`q${i + 1}` as WebuntisPageKey), a: t(`a${i + 1}` as WebuntisPageKey) }));
+  return Array.from({ length: WEBUNTIS_FAQ_COUNT }, (_, i) => ({ q: t(`q${i + 1}` as WebuntisPageKey), a: t(`a${i + 1}` as WebuntisPageKey), id: `q${i + 1}` }));
 }
 
 function toolsFaq(locale: Locale, prefix: 'g' | 'a', count: number): Qa[] {
   const t = makeT(toolsDict, locale);
-  return Array.from({ length: count }, (_, i) => ({ q: t(`${prefix}q${i + 1}` as ToolsKey), a: t(`${prefix}a${i + 1}` as ToolsKey) }));
+  return Array.from({ length: count }, (_, i) => ({ q: t(`${prefix}q${i + 1}` as ToolsKey), a: t(`${prefix}a${i + 1}` as ToolsKey), id: `${prefix}q${i + 1}` }));
 }
 
 /** Every question the site answers, with the page that answers it. */
@@ -89,7 +92,7 @@ export function llmsTxt(full: boolean): string {
     '',
     '## Questions the site answers',
     '',
-    ...questions('en').flatMap(({ path, items }) => items.map((qa) => `- [${qa.q}](${localizedUrl(SITE_URL, 'en', path)})`)),
+    ...questions('en').flatMap(({ path, items }) => items.map((qa) => `- [${qa.q}](${localizedUrl(SITE_URL, 'en', path)}#${qa.id})`)),
     '',
     '## Other languages',
     '',
@@ -99,7 +102,7 @@ export function llmsTxt(full: boolean): string {
     for (const l of ACTIVE_LOCALES) {
       lines.push('', `## Questions and answers (${LOCALE_NAMES[l]})`);
       for (const { path, items } of questions(l)) {
-        lines.push('', `Source: ${localizedUrl(SITE_URL, l, path)}`, '', ...items.flatMap((qa) => [`### ${qa.q}`, '', qa.a, '']));
+        lines.push('', `Source: ${localizedUrl(SITE_URL, l, path)}`, '', ...items.flatMap((qa) => [`### ${qa.q}`, '', qa.a, '', `Source: ${localizedUrl(SITE_URL, l, path)}#${qa.id}`, '']));
       }
     }
   } else {
