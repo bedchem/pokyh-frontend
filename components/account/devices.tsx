@@ -126,6 +126,7 @@ const METHOD_KEY: Record<string, SecurityKey> = {
   local: 'methodLocal',
   register: 'methodRegister',
   qr: 'methodQr',
+  passkey: 'methodPasskey',
 };
 
 /** One sign-in of the login history. */

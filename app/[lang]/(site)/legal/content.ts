@@ -488,6 +488,10 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Wählst du auf der Anmeldeseite „Mit der POKYH-App anmelden“, legt das POKYH-Backend einen Code an, der zwei Minuten und nur einmal gilt, und die Website zeigt ihn als QR-Code. Gespeichert werden nur Prüfwerte (Hashes) des Codes sowie zum Computer, der sich anmelden möchte: die Art des Geräts, Betriebssystem und Browser (aus dem User-Agent), die IP-Adresse und das von Cloudflare ermittelte Land (und, sofern übermittelt, Region und Stadt). Diese Angaben zeigt dir die App beim Scannen, damit du siehst, welcher Computer fragt. Den QR-Code liest der Code-Scanner der Google Play-Dienste auf deinem Handy; die App erhält dabei keinen Zugriff auf die Kamera, nur den gelesenen Text. Bestätigst du in der App, übergibt sie dem POKYH-Backend deinen Benutzernamen, deine Schule, ihre WebUntis-Sitzung und, sofern sie es gespeichert hat, dein WebUntis-Passwort. Das Backend hält diese Angaben verschlüsselt (AES-256-GCM) bereit, bis sich die Website damit angemeldet hat, und löscht sie dann sofort, sonst spätestens eine Minute nach Ablauf des Codes (höchstens drei Minuten nach seinem Anlegen); in eine Datenbank-Sicherung aus diesen Minuten können sie verschlüsselt gelangen (gelöscht nach 7 Tagen). Die Website übernimmt die WebUntis-Sitzung der App; danach gilt dasselbe wie nach einer Anmeldung mit Passwort, und im Anmeldeverlauf steht die Anmeldung als „mit der POKYH-App (QR-Code)“. Zweck: die Anmeldung am Computer, ohne dort das Passwort einzugeben. Rechtsgrundlage: Erbringung des Dienstes (Art. 6 Abs. 1 lit. b DSGVO)."
                 },
                 {
+                  "label": "Anmeldung mit der Gerätesperre (Face ID, Fingerabdruck, PIN)",
+                  "desc": "Nur in der installierten Website (der App auf dem Startbildschirm) kannst du unter Einstellungen einschalten, dass du dich statt mit dem Passwort mit der Sperre deines Geräts anmeldest. Dein Gerät erzeugt dafür einen Passkey (WebAuthn); Face ID, Fingerabdruck oder PIN prüft nur dein Gerät, POKYH erhält davon nichts. Den Passkey selbst verwaltet dein Gerät (je nach Einstellung auch der iCloud-Schlüsselbund oder der Google Passwortmanager). Das POKYH-Backend speichert seinen öffentlichen Schlüssel, seine Kennung, die Adresse, für die er gilt, die Geräte-ID (pokyh_device) sowie wann er eingerichtet und zuletzt verwendet wurde. Deine WebUntis-Zugangsdaten und die gewählte Schule bleiben auf deinem Gerät: AES-GCM-verschlüsselt im httpOnly-Cookie pokyh_unlock, das nur an die Anmeldeadresse gesendet wird und nur zusammen mit einer frischen Bestätigung des Passkeys gilt; damit meldet das Backend dich bei WebUntis an wie mit dem eingegebenen Passwort. Das Cookie gilt 180 Tage ab der letzten Anmeldung und bleibt beim Abmelden erhalten. Schaltest du die Funktion aus, werden das Cookie und der Eintrag im Backend gelöscht; den Passkey selbst kannst du in den Einstellungen deines Geräts löschen. Wird das Gerät von einem anderen Gerät aus abgemeldet oder 180 Tage lang nicht so angemeldet, löscht das Backend den Eintrag. Rechtsgrundlage: Erbringung des von dir gewünschten Dienstes (Art. 6 Abs. 1 lit. b DSGVO)."
+                },
+                {
                   "label": "Zwei-Faktor-Anmeldung und WebUntis-Einstellungen",
                   "desc": "Richtest du in POKYH die Zwei-Faktor-Anmeldung deines WebUntis-Kontos ein oder schaltest du sie aus, änderst du deine E-Mail-Adresse, die Sprache in WebUntis oder die Weiterleitung von Nachrichten per E-Mail oder löschst du Nachrichten, gibt das POKYH-Backend das nur an den WebUntis-Server deiner Schule weiter; bei POKYH wird davon nichts gespeichert. Den geheimen Schlüssel für deine Authenticator-App zeigt POKYH dir einmal an, ohne ihn zu speichern oder zu protokollieren; den 6-stelligen Code deiner App bei der Anmeldung gibt POKYH nur an WebUntis weiter. Rechtsgrundlage: Erbringung des von dir gewünschten Dienstes (Art. 6 Abs. 1 lit. b DSGVO)."
                 },
@@ -752,6 +756,11 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Zugangsdaten und gewählte Schule zur automatischen Sitzungserneuerung, AES-GCM-verschlüsselt (httpOnly, nur an die Anmeldeadresse gesendet, nur zusammen mit der Sitzung gültig, 4 Stunden, beim Abmelden gelöscht)"
                 },
                 {
+                  "name": "pokyh_unlock",
+                  "kind": "necessary",
+                  "desc": "Nur wenn du die Anmeldung mit der Gerätesperre eingeschaltet hast: Konto, Kennung des Passkeys und Zugangsdaten mit gewählter Schule, AES-GCM-verschlüsselt (httpOnly, nur an die Anmeldeadresse gesendet, nur zusammen mit einer Bestätigung durch Face ID, Fingerabdruck oder PIN gültig, 180 Tage ab der letzten Anmeldung, bleibt beim Abmelden, wird beim Ausschalten gelöscht)"
+                },
+                {
                   "name": "pokyh_school",
                   "kind": "setting",
                   "desc": "Die beim Anmelden gewählte Schule (localStorage, bis zum 31. August, mindestens 30 Tage)"
@@ -871,6 +880,10 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 {
                   "label": "Accesso con l’app POKYH (codice QR)",
                   "desc": "Se nella pagina di accesso scegli «Accedi con l’app POKYH», il backend di POKYH crea un codice valido due minuti e una sola volta, che il sito mostra come codice QR. Vengono salvati solo valori di controllo (hash) del codice e, del computer che vuole accedere: il tipo di dispositivo, il sistema operativo e il browser (dallo user agent), l’indirizzo IP e il paese ricavato da Cloudflare (e, se trasmessi, regione e città). L’app ti mostra questi dati durante la scansione, così vedi quale computer chiede l’accesso. Il codice QR viene letto dallo scanner dei servizi Google Play sul tuo telefono; l’app non ottiene accesso alla fotocamera, ma solo il testo letto. Se confermi nell’app, questa trasmette al backend di POKYH il tuo nome utente, la tua scuola, la sua sessione WebUntis e, se l’ha salvata, la tua password WebUntis. Il backend conserva questi dati cifrati (AES-256-GCM) finché il sito non li ha usati per accedere e li cancella subito dopo, altrimenti al più tardi un minuto dopo la scadenza del codice (al massimo tre minuti dalla sua creazione); in un backup del database di quei minuti possono finire in forma cifrata (cancellato dopo 7 giorni). Il sito riprende la sessione WebUntis dell’app; da lì vale lo stesso che dopo un accesso con password, e nella cronologia degli accessi l’accesso compare come «con l’app POKYH (codice QR)». Finalità: accedere sul computer senza digitarvi la password. Base giuridica: fornitura del servizio (art. 6, par. 1, lett. b GDPR)."
+                },
+                {
+                  "label": "Accesso con il blocco del dispositivo (Face ID, impronta, PIN)",
+                  "desc": "Solo nel sito installato (l’app sulla schermata Home) puoi attivare nelle Impostazioni l’accesso con il blocco del tuo dispositivo al posto della password. Il dispositivo crea a questo scopo una passkey (WebAuthn); Face ID, impronta o PIN vengono verificati solo dal tuo dispositivo, POKYH non riceve nulla di essi. La passkey stessa è gestita dal dispositivo (a seconda delle impostazioni anche dal portachiavi iCloud o dal Gestore delle password di Google). Il backend di POKYH salva la sua chiave pubblica, il suo identificativo, l’indirizzo per cui vale, l’ID del dispositivo (pokyh_device) e quando è stata configurata e usata l’ultima volta. Le tue credenziali WebUntis e la scuola scelta restano sul tuo dispositivo: cifrate con AES-GCM nel cookie httpOnly pokyh_unlock, inviato solo all’indirizzo di accesso e valido solo insieme a una nuova conferma della passkey; con esse il backend ti connette a WebUntis come con la password digitata. Il cookie vale 180 giorni dall’ultimo accesso e resta al logout. Se disattivi la funzione, il cookie e la voce nel backend vengono eliminati; la passkey stessa puoi eliminarla nelle impostazioni del dispositivo. Se il dispositivo viene disconnesso da un altro dispositivo o non accede in questo modo per 180 giorni, il backend elimina la voce. Base giuridica: fornitura del servizio da te richiesto (art. 6, par. 1, lett. b GDPR)."
                 },
                 {
                   "label": "Accesso a due fattori e impostazioni di WebUntis",
@@ -1137,6 +1150,11 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Credenziali e scuola scelta per il rinnovo automatico della sessione, cifrate con AES-GCM (httpOnly, inviato solo all’indirizzo di accesso, valido solo insieme alla sessione, 4 ore, eliminato al logout)"
                 },
                 {
+                  "name": "pokyh_unlock",
+                  "kind": "necessary",
+                  "desc": "Solo se hai attivato l’accesso con il blocco del dispositivo: account, identificativo della passkey e credenziali con la scuola scelta, cifrati con AES-GCM (httpOnly, inviato solo all’indirizzo di accesso, valido solo insieme a una conferma con Face ID, impronta o PIN, 180 giorni dall’ultimo accesso, resta al logout, eliminato alla disattivazione)"
+                },
+                {
                   "name": "pokyh_school",
                   "kind": "setting",
                   "desc": "La scuola scelta all’accesso (localStorage, fino al 31 agosto, almeno 30 giorni)"
@@ -1256,6 +1274,10 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 {
                   "label": "Signing in with the POKYH app (QR code)",
                   "desc": "If you choose “Sign in with the POKYH app” on the sign-in page, the POKYH backend creates a code that is valid for two minutes and only once, and the website shows it as a QR code. Only check values (hashes) of the code are stored, and about the computer that wants to sign in: the kind of device, the operating system and browser (from the user agent), the IP address and the country Cloudflare derives from it (and, where sent, region and city). The app shows you these details when you scan, so you can see which computer is asking. The QR code is read by the code scanner of Google Play services on your phone; the app gets no access to the camera, only the text that was read. If you confirm in the app, it hands your username, your school, its WebUntis session and, where it has saved it, your WebUntis password to the POKYH backend. The backend keeps these encrypted (AES-256-GCM) until the website has used them to sign in and deletes them right away, otherwise at the latest one minute after the code runs out (at most three minutes after it was created); they may end up, encrypted, in a database backup taken during those minutes (deleted after 7 days). The website takes over the app’s WebUntis session; from then on the same applies as after a sign-in with password, and the sign-in history lists it as “with the POKYH app (QR code)”. Purpose: signing in on a computer without typing the password there. Legal basis: providing the service (Art. 6(1)(b) GDPR)."
+                },
+                {
+                  "label": "Signing in with the device lock (Face ID, fingerprint, PIN)",
+                  "desc": "Only in the installed website (the app on your home screen) you can turn on in Settings that you sign in with your device’s lock instead of the password. Your device creates a passkey (WebAuthn) for this; Face ID, fingerprint or PIN are checked by your device only, POKYH receives nothing of them. The passkey itself is managed by your device (depending on your settings also by iCloud Keychain or Google Password Manager). The POKYH backend stores its public key, its identifier, the address it is valid for, the device ID (pokyh_device), and when it was set up and last used. Your WebUntis credentials and the chosen school stay on your device: AES-GCM encrypted in the httpOnly cookie pokyh_unlock, which is only sent to the sign-in address and only valid together with a fresh confirmation of the passkey; with them the backend signs you in to WebUntis as with a typed password. The cookie is valid for 180 days from the last sign-in and stays when you sign out. If you turn the feature off, the cookie and the backend’s entry are deleted; you can delete the passkey itself in your device’s settings. If the device is signed out from another device or not signed in this way for 180 days, the backend deletes the entry. Legal basis: providing the service you asked for (Art. 6(1)(b) GDPR)."
                 },
                 {
                   "label": "Two-factor sign-in and WebUntis settings",
@@ -1520,6 +1542,11 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "name": "pokyh_renew",
                   "kind": "necessary",
                   "desc": "Credentials and chosen school for automatic session renewal, AES-GCM encrypted (httpOnly, only sent to the sign-in address, only valid together with the session, 4 hours, deleted when you sign out)"
+                },
+                {
+                  "name": "pokyh_unlock",
+                  "kind": "necessary",
+                  "desc": "Only if you turned on signing in with the device lock: account, passkey identifier and credentials with the chosen school, AES-GCM encrypted (httpOnly, only sent to the sign-in address, only valid together with a confirmation by Face ID, fingerprint or PIN, 180 days from the last sign-in, stays when you sign out, deleted when you turn it off)"
                 },
                 {
                   "name": "pokyh_school",
@@ -2056,6 +2083,11 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Verschlüsselte Zugangsdaten und gewählte Schule (AES-GCM, httpOnly), damit eine von WebUntis beendete Sitzung automatisch erneuert werden kann. Wird nur an die Anmeldeadresse gesendet, gilt nur zusammen mit der Sitzung und wird beim Abmelden gelöscht. Läuft nach 4 Stunden ab."
                 },
                 {
+                  "name": "pokyh_unlock",
+                  "kind": "necessary",
+                  "desc": "Nur wenn du die Anmeldung mit der Gerätesperre eingeschaltet hast: Konto, Kennung des Passkeys und Zugangsdaten mit gewählter Schule, AES-GCM-verschlüsselt (httpOnly, nur an die Anmeldeadresse gesendet, nur zusammen mit einer Bestätigung durch Face ID, Fingerabdruck oder PIN gültig, 180 Tage ab der letzten Anmeldung, bleibt beim Abmelden, wird beim Ausschalten gelöscht)"
+                },
+                {
                   "name": "passkey_declined",
                   "kind": "necessary",
                   "desc": "Merkt sich, dass du das Speichern der Anmeldung im Browser abgelehnt hast. Läuft nach 1 Jahr ab."
@@ -2288,6 +2320,11 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Credenziali cifrate e scuola scelta (AES-GCM, httpOnly), per rinnovare automaticamente una sessione chiusa da WebUntis. Viene inviato solo all’indirizzo di accesso, vale solo insieme alla sessione e viene eliminato al logout. Scade dopo 4 ore."
                 },
                 {
+                  "name": "pokyh_unlock",
+                  "kind": "necessary",
+                  "desc": "Solo se hai attivato l’accesso con il blocco del dispositivo: account, identificativo della passkey e credenziali con la scuola scelta, cifrati con AES-GCM (httpOnly, inviato solo all’indirizzo di accesso, valido solo insieme a una conferma con Face ID, impronta o PIN, 180 giorni dall’ultimo accesso, resta al logout, eliminato alla disattivazione)"
+                },
+                {
                   "name": "passkey_declined",
                   "kind": "necessary",
                   "desc": "Ricorda che hai rifiutato di salvare l’accesso nel browser. Scade dopo 1 anno."
@@ -2518,6 +2555,11 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "name": "pokyh_renew",
                   "kind": "necessary",
                   "desc": "Encrypted credentials and chosen school (AES-GCM, httpOnly), so a session WebUntis ended can be renewed automatically. Only sent to the sign-in address, only valid together with the session, deleted when you sign out. Expires after 4 hours."
+                },
+                {
+                  "name": "pokyh_unlock",
+                  "kind": "necessary",
+                  "desc": "Only if you turned on signing in with the device lock: account, passkey identifier and credentials with the chosen school, AES-GCM encrypted (httpOnly, only sent to the sign-in address, only valid together with a confirmation by Face ID, fingerprint or PIN, 180 days from the last sign-in, stays when you sign out, deleted when you turn it off)"
                 },
                 {
                   "name": "passkey_declined",

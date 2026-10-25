@@ -77,6 +77,14 @@ export type LoginKey =
   | 'qrAlt'
   | 'qrNoApp'
   | 'qrGetApp'
+  | 'unlockIos'
+  | 'unlockAndroid'
+  | 'unlockOther'
+  | 'unlockAs'
+  | 'unlockStale'
+  | 'unlockTapAgain'
+  | 'unlockGone'
+  | 'unlockFailed'
   | 'imprint'
   | 'privacy'
   | 'terms'
@@ -174,6 +182,14 @@ export const loginDict: Dictionary<LoginKey> = {
     qrAlt: 'QR-Code zum Anmelden mit der POKYH-App',
     qrNoApp: 'Noch keine App?',
     qrGetApp: 'POKYH für Android herunterladen',
+    unlockIos: 'Mit Face ID anmelden',
+    unlockAndroid: 'Mit Fingerabdruck anmelden',
+    unlockOther: 'Mit der Gerätesperre anmelden',
+    unlockAs: 'als {name}',
+    unlockStale: 'WebUntis hat dein gespeichertes Passwort nicht angenommen. Melde dich einmal mit dem Passwort an, danach geht es wieder ohne.',
+    unlockTapAgain: 'Tippe bitte noch einmal.',
+    unlockGone: 'Auf diesem Gerät ist die Anmeldung ohne Passwort nicht mehr eingerichtet. Melde dich mit dem Passwort an.',
+    unlockFailed: 'Das hat nicht geklappt. Versuche es noch einmal oder melde dich mit dem Passwort an.',
     imprint: 'Impressum',
     privacy: 'Datenschutz',
     terms: 'Nutzungsbedingungen',
@@ -262,6 +278,14 @@ export const loginDict: Dictionary<LoginKey> = {
     qrAlt: 'Codice QR per accedere con l’app POKYH',
     qrNoApp: 'Non hai ancora l’app?',
     qrGetApp: 'Scarica POKYH per Android',
+    unlockIos: 'Accedi con Face ID',
+    unlockAndroid: 'Accedi con l’impronta',
+    unlockOther: 'Accedi con il blocco del dispositivo',
+    unlockAs: 'come {name}',
+    unlockStale: 'WebUntis non ha accettato la password salvata. Accedi una volta con la password, poi funziona di nuovo senza.',
+    unlockTapAgain: 'Tocca di nuovo, per favore.',
+    unlockGone: 'Su questo dispositivo l’accesso senza password non è più attivo. Accedi con la password.',
+    unlockFailed: 'Non ha funzionato. Riprova o accedi con la password.',
     imprint: 'Note legali',
     privacy: 'Privacy',
     terms: 'Condizioni d’uso',
@@ -350,6 +374,14 @@ export const loginDict: Dictionary<LoginKey> = {
     qrAlt: 'QR code for signing in with the POKYH app',
     qrNoApp: 'No app yet?',
     qrGetApp: 'Download POKYH for Android',
+    unlockIos: 'Sign in with Face ID',
+    unlockAndroid: 'Sign in with your fingerprint',
+    unlockOther: 'Sign in with the device lock',
+    unlockAs: 'as {name}',
+    unlockStale: 'WebUntis did not accept your saved password. Sign in with your password once, then it works without it again.',
+    unlockTapAgain: 'Please tap again.',
+    unlockGone: 'Signing in without a password is no longer set up on this device. Sign in with your password.',
+    unlockFailed: 'That didn’t work. Try again or sign in with your password.',
     imprint: 'Imprint',
     privacy: 'Privacy',
     terms: 'Terms of use',

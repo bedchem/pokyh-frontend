@@ -30,6 +30,7 @@ import { closeView, enteringWith, openView, useRoomView } from '@/components/roo
 import { HallwayScene, MascotBadge, type MascotEvent, type MascotState } from './Hallway';
 import OfficeSignIn, { MicrosoftMark } from './OfficeSignIn';
 import QrSignIn from './QrSignIn';
+import DeviceUnlock from './DeviceUnlock';
 
 // Room A+2/05, behind the hallway's door: a little secret classroom,
 // fetched and built only when someone goes near the door (components/room).
@@ -521,8 +522,9 @@ export default function LoginForm() {
     void signIn(user, { key }, setOfficeError);
   }
 
-  // Signed in by the POKYH app (QrSignIn): the school is the one of the app's account.
-  function finishQr(answer: SignInAnswer) {
+  // Signed in by the POKYH app (QrSignIn) or with the device's lock
+  // (DeviceUnlock): the school is the one the sign-in itself names.
+  function finishSignIn(answer: SignInAnswer) {
     rememberPendingAck();
     rememberSignIn(answer);
     setLoading(true);
@@ -677,6 +679,16 @@ export default function LoginForm() {
             <p role="status" className="mt-4 rounded-[12px] bg-[var(--butter)] px-3.5 py-2.5 text-[13.5px] font-medium leading-[1.45] text-[var(--butter-ink)]">
               {t('signedOutElsewhere')}
             </p>
+          )}
+
+          {/* The installed website, where Face ID (the fingerprint, the PIN) was turned on: above the password. */}
+          {ready && (
+            <DeviceUnlock
+              consentGiven={consentGiven}
+              onSignedIn={finishSignIn}
+              onStale={(name) => { if (name) setUsername(name); }}
+              describeError={describeError}
+            />
           )}
 
           {!ready ? (
@@ -933,7 +945,7 @@ export default function LoginForm() {
 
           <Sheet open={qrOpen} onClose={() => setQrOpen(false)} title={t('qrButton')} closeLabel={ta('close')}>
             {qrOpen && (consentGiven ? (
-              <QrSignIn onSignedIn={finishQr} describeError={describeError} />
+              <QrSignIn onSignedIn={finishSignIn} describeError={describeError} />
             ) : (
               <p role="alert" className="mb-2 rounded-[12px] bg-[var(--butter)] px-3.5 py-2.5 text-[13.5px] font-medium leading-[1.45] text-[var(--butter-ink)]">{t('cookieError')}</p>
             ))}

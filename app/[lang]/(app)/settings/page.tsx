@@ -12,6 +12,7 @@ import ChangePasswordForm from '@/components/account/ChangePasswordForm';
 import ForgotPasswordForm from '@/components/account/ForgotPasswordForm';
 import TwoFactorSheet from '@/components/account/TwoFactorSheet';
 import SecurityRow, { StatusPill } from '@/components/account/SecurityRow';
+import DeviceUnlockRow from '@/components/account/DeviceUnlockRow';
 import { PixelIcon } from '@/components/app/PixelState';
 import { COOKIE_SETTINGS_EVENT } from '@/components/CookieSettingsButton';
 import { Page, PageHeader, Segmented, Switch } from '@/components/app/Page';
@@ -336,6 +337,9 @@ function SettingsContent() {
               ) : undefined}
             />
           )}
+
+          {/* Only in the installed website, on a device with its own lock. */}
+          {user && <DeviceUnlockRow username={user.username} />}
 
           <SecurityRow
             icon={<PixelIcon name="devices" />}

@@ -99,6 +99,19 @@ export type SecurityKey =
   | 'methodLocal'
   | 'methodRegister'
   | 'methodQr'
+  | 'methodPasskey'
+  | 'unlockTitleIos'
+  | 'unlockTitleAndroid'
+  | 'unlockTitleOther'
+  | 'unlockHintIos'
+  | 'unlockHintAndroid'
+  | 'unlockHintOther'
+  | 'unlockOn'
+  | 'unlockOff'
+  | 'unlockOtherAccount'
+  | 'unlockPasswordNeeded'
+  | 'unlockFailed'
+  | 'unlockTapAgain'
   | 'loadError'
   | 'retry'
   | 'failed'
@@ -202,6 +215,19 @@ export const securityDict: Dictionary<SecurityKey> = {
     methodLocal: 'mit POKYH-Passwort',
     methodRegister: 'Konto erstellt',
     methodQr: 'mit der POKYH-App (QR-Code)',
+    methodPasskey: 'mit der Gerätesperre',
+    unlockTitleIos: 'Anmelden mit Face ID',
+    unlockTitleAndroid: 'Anmelden mit Fingerabdruck',
+    unlockTitleOther: 'Anmelden mit der Gerätesperre',
+    unlockHintIos: 'Statt des Passworts reicht Face ID, Touch ID oder der Code deines Geräts. Gilt nur hier, in der App auf dem Startbildschirm.',
+    unlockHintAndroid: 'Statt des Passworts reicht dein Fingerabdruck, dein Gesicht oder die PIN deines Handys. Gilt nur hier, in der App auf dem Startbildschirm.',
+    unlockHintOther: 'Statt des Passworts reicht die Sperre dieses Geräts. Gilt nur hier, in der App auf dem Startbildschirm.',
+    unlockOn: 'Einschalten',
+    unlockOff: 'Ausschalten',
+    unlockOtherAccount: 'Auf diesem Gerät ist es gerade für {name} eingeschaltet. Schaltest du es ein, gilt es stattdessen für dich.',
+    unlockPasswordNeeded: 'Melde dich einmal ab und mit deinem Passwort wieder an, dann lässt es sich einschalten.',
+    unlockFailed: 'Das hat nicht geklappt. Versuche es noch einmal.',
+    unlockTapAgain: 'Tippe bitte noch einmal auf „Einschalten“.',
     loadError: 'Konnte gerade nicht geladen werden.',
     retry: 'Nochmal versuchen',
     failed: 'Das hat nicht geklappt. Versuch es noch einmal.',
@@ -304,6 +330,19 @@ export const securityDict: Dictionary<SecurityKey> = {
     methodLocal: 'con password POKYH',
     methodRegister: 'Account creato',
     methodQr: 'con l’app POKYH (codice QR)',
+    methodPasskey: 'con il blocco del dispositivo',
+    unlockTitleIos: 'Accesso con Face ID',
+    unlockTitleAndroid: 'Accesso con l’impronta',
+    unlockTitleOther: 'Accesso con il blocco del dispositivo',
+    unlockHintIos: 'Al posto della password bastano Face ID, Touch ID o il codice del dispositivo. Vale solo qui, nell’app sulla schermata Home.',
+    unlockHintAndroid: 'Al posto della password bastano la tua impronta, il tuo volto o il PIN del telefono. Vale solo qui, nell’app sulla schermata Home.',
+    unlockHintOther: 'Al posto della password basta il blocco di questo dispositivo. Vale solo qui, nell’app sulla schermata Home.',
+    unlockOn: 'Attiva',
+    unlockOff: 'Disattiva',
+    unlockOtherAccount: 'Su questo dispositivo è attivo per {name}. Se lo attivi, varrà invece per te.',
+    unlockPasswordNeeded: 'Esci e accedi di nuovo con la password, poi puoi attivarlo.',
+    unlockFailed: 'Non ha funzionato. Riprova.',
+    unlockTapAgain: 'Tocca di nuovo «Attiva», per favore.',
     loadError: 'Non è stato possibile caricare.',
     retry: 'Riprova',
     failed: 'Non è andato a buon fine. Riprova.',
@@ -406,6 +445,19 @@ export const securityDict: Dictionary<SecurityKey> = {
     methodLocal: 'with POKYH password',
     methodRegister: 'Account created',
     methodQr: 'with the POKYH app (QR code)',
+    methodPasskey: 'with the device lock',
+    unlockTitleIos: 'Sign in with Face ID',
+    unlockTitleAndroid: 'Sign in with your fingerprint',
+    unlockTitleOther: 'Sign in with the device lock',
+    unlockHintIos: 'Instead of your password, Face ID, Touch ID or your device passcode is enough. Only here, in the app on your home screen.',
+    unlockHintAndroid: 'Instead of your password, your fingerprint, your face or your phone’s PIN is enough. Only here, in the app on your home screen.',
+    unlockHintOther: 'Instead of your password, this device’s lock is enough. Only here, in the app on your home screen.',
+    unlockOn: 'Turn on',
+    unlockOff: 'Turn off',
+    unlockOtherAccount: 'On this device it is on for {name}. Turning it on makes it yours instead.',
+    unlockPasswordNeeded: 'Sign out and back in with your password once, then you can turn it on.',
+    unlockFailed: 'That didn’t work. Try again.',
+    unlockTapAgain: 'Please tap “Turn on” again.',
     loadError: 'Could not be loaded right now.',
     retry: 'Try again',
     failed: 'That didn’t work. Please try again.',

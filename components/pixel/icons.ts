@@ -4,9 +4,9 @@ import { Sprite, grid, rect, rounded, disc, minus, type Pt, type Scene } from '.
 // light from the top left) and shown at three times their size, so every
 // pixel stays square (components/app/PixelState.tsx, PixelIcon). The
 // settings use them beside the account's e-mail, password, two-factor
-// sign-in and devices.
+// sign-in, sign-in with the device's lock and devices.
 
-export type PixelIconName = 'mail' | 'key' | 'shield-on' | 'shield-off' | 'devices';
+export type PixelIconName = 'mail' | 'key' | 'shield-on' | 'shield-off' | 'fingerprint' | 'devices';
 
 export const ICON_SIZE = 16;
 
@@ -56,6 +56,24 @@ function shieldOff(): Sprite {
     .fill([...rect(7, 3, 2, 5), ...rect(7, 9, 2, 2)], 'gd0');
 }
 
+const RIDGES = grid([
+  '..######..',
+  '.#......#.',
+  '#..####..#',
+  '#.#....#.#',
+  '#.#.##.#.#',
+  '#.#.#..#.#',
+  '#.#.#.#..#',
+  '..#.#.#.#.',
+  '#...#.#.#.',
+  '....#...#.',
+], 3, 3);
+
+// fingerprint: light ridges on an indigo tile (signing in with the device's lock).
+function fingerprint(): Sprite {
+  return new Sprite().mass(rounded(1, 1, 14, 14, 3), 'ac', { deep: true }).fill(RIDGES, 'pp3');
+}
+
 // devices: a screen on its stand, a phone in front of it.
 function devices(): Sprite {
   const s = new Sprite().mass([...rect(1, 2, 11, 8), ...rect(5, 10, 3, 1), ...rect(3, 11, 7, 1)], 'st');
@@ -64,7 +82,7 @@ function devices(): Sprite {
   return s.fill(rect(11, 7, 3, 6), 'wt2').set(11, 7, 'wt4').set(12, 13, 'ac3');
 }
 
-const BUILDERS: Record<PixelIconName, () => Sprite> = { mail, key, 'shield-on': shieldOn, 'shield-off': shieldOff, devices };
+const BUILDERS: Record<PixelIconName, () => Sprite> = { mail, key, 'shield-on': shieldOn, 'shield-off': shieldOff, fingerprint, devices };
 const built: Partial<Record<PixelIconName, Scene>> = {};
 
 export function iconScene(name: PixelIconName): Scene {
