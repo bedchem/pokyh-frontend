@@ -187,5 +187,23 @@ test('POKYH pages: time only with consent, the ranking only from the top half', 
   assert.equal(time.mood, 'night');
   assert.equal(withTime.find((s) => s.id === 'rank').mood, 'legend');
   const items = summaryItems({ title: '', firstName: '', periodFrom: '', periodTo: '', sections: ['pokyh'], untis: null, pokyh: { ...base, usageConsent: true, rank: { topPercent: 3, group: 40 } } }, fmt);
-  assert.deepEqual(items.map((i) => i.label), ['summaryDays', 'summaryRank']);
+  // Every figure the card can show, the most telling first.
+  assert.deepEqual(items.map((i) => i.id), ['rank', 'days', 'streak', 'todos']);
+  assert.equal(items[0].value, 'Top 3 %');
+});
+
+const font = await load('../components/recap/pixelFont.ts');
+
+test('the pixel font: widths, wrapping, cutting off, umlauts and accents', () => {
+  // 5 wide letters with a gap of one: "AB" is 11.
+  assert.equal(font.pixelWidth('AB'), 11);
+  assert.equal(font.pixelWidth('ab'), 11);
+  assert.ok(font.pixelWidth('ÄÖÜ') > 0);
+  assert.equal(font.pixelWidth('È'), font.pixelWidth('E'));
+  assert.deepEqual(font.pixelLines('MEIN SCHULJAHR', 40), ['MEIN', 'SCHULJAHR']);
+  assert.ok(font.pixelWidth(font.pixelClip('MATHEMATIK', 30)) <= 30);
+  assert.ok(font.pixelClip('MATHEMATIK', 30).endsWith('...'));
+  const p = font.pixelPath('1', 2);
+  assert.equal(p.height, 14);
+  assert.match(p.d, /^M/);
 });

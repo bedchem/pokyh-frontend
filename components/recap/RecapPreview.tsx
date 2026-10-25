@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import type { ClientRecap, RecapPokyh } from '@/lib/recap';
 import type { UntisRecap } from '@/lib/recap-figures';
+import { RecapBanner } from './RecapHost';
 
 // Development only (app/[lang]/dev-recap/page.dev.ts): the recap story with
 // made-up figures, to see every page and every reaction of the mascot
@@ -137,7 +138,15 @@ export default function RecapPreview() {
   }), [rate, average, classreg, cancelled, consent, hour, rank]);
 
   return (
-    <main className="min-h-dvh bg-canvas px-4 py-10 text-ink">
+    <main className="min-h-dvh bg-canvas px-4 py-6 text-ink">
+      {/* The top bar as the app has it: the search, the recap beside it (a circle on phones). */}
+      <div className="mx-auto mb-6 flex max-w-[1100px] items-center gap-2.5">
+        <span className="flex h-[46px] min-w-0 max-w-[560px] flex-1 items-center rounded-[15px] bg-surface px-4 text-[15px] font-semibold text-ink-3">Suchen</span>
+        <RecapBanner preview={RECAP} onOpen={() => { setRun((n) => n + 1); setOpen(true); }} />
+        <span className="hidden flex-1 lg:block" />
+        <span className="size-[46px] shrink-0 rounded-full bg-surface" />
+        <span className="size-[46px] shrink-0 rounded-full bg-surface" />
+      </div>
       <div className="mx-auto flex max-w-[640px] flex-col gap-6 rounded-[26px] bg-surface p-6">
         <div>
           <h1 className="text-[24px] font-extrabold tracking-[-0.03em]">Recap-Vorschau</h1>

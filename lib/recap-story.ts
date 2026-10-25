@@ -58,6 +58,8 @@ export interface Slide {
 }
 
 export interface SummaryItem {
+  id: string;
+  /** The short label the card shows. */
   label: RecapKey;
   value: string;
 }
@@ -395,21 +397,32 @@ export function buildStory(input: StoryInput, fmt: Fmt): Slide[] {
   return slides;
 }
 
-/** The few figures the last page (and the picture to share) shows. */
+/**
+ * Every figure the card to share can show, the most telling first; the
+ * student picks which (the first few are chosen at the start).
+ */
 export function summaryItems(input: StoryInput, fmt: Fmt): SummaryItem[] {
   const out: SummaryItem[] = [];
   const u = input.untis;
-  const wants = (s: RecapSection) => input.sections.includes(s);
-  if (u?.school && wants('school') && u.school.lessons > 0) {
-    out.push({ label: 'summaryHours', value: fmt.num(hours(Math.max(0, u.school.minutes - (wants('absences') ? u.absences?.missedMinutes ?? 0 : 0)))) });
-  }
-  if (u?.absences?.rate != null && wants('absences')) out.push({ label: 'summaryRate', value: `${fmt.num(u.absences.rate, u.absences.rate === 0 ? 0 : 1)} %` });
-  if (u?.grades && u.grades.count > 0 && wants('grades')) out.push({ label: 'summaryAverage', value: fmt.num(u.grades.average, 2) });
-  if (u?.school?.subjects[0] && wants('school')) out.push({ label: 'summarySubject', value: u.school.subjects[0].name });
   const p = input.pokyh;
-  if (p?.totals && p.totals.activeDays > 0 && wants('pokyh')) out.push({ label: 'summaryDays', value: fmt.num(p.totals.activeDays) });
-  if (p?.rank && p.rank.topPercent <= 50 && wants('pokyh')) out.push({ label: 'summaryRank', value: `Top ${p.rank.topPercent} %` });
-  // The exams only where a place is left.
-  if (u?.exams && wants('exams')) out.push({ label: 'summaryExams', value: fmt.num(u.exams) });
-  return out.slice(0, 6);
+  const wants = (s: RecapSection) => input.sections.includes(s);
+  const add = (id: string, label: RecapKey, value: string) => out.push({ id, label, value });
+  if (u?.school && wants('school') && u.school.lessons > 0) {
+    add('hours', 'cardHours', fmt.num(hours(Math.max(0, u.school.minutes - (wants('absences') ? u.absences?.missedMinutes ?? 0 : 0)))));
+  }
+  if (u?.absences?.rate != null && wants('absences')) add('rate', 'cardRate', `${fmt.num(u.absences.rate, u.absences.rate === 0 ? 0 : 1)} %`);
+  if (u?.grades && u.grades.count > 0 && wants('grades')) add('average', 'cardAverage', fmt.num(u.grades.average, 2));
+  if (u?.school?.subjects[0] && wants('school')) add('subject', 'cardSubject', u.school.subjects[0].name);
+  if (p?.rank && p.rank.topPercent <= 50 && wants('pokyh')) add('rank', 'cardRank', `Top ${p.rank.topPercent} %`);
+  if (p?.totals && p.totals.activeDays > 0 && wants('pokyh')) add('days', 'cardDays', fmt.num(p.totals.activeDays));
+  if (u?.grades?.best && wants('grades')) add('best', 'cardBest', u.grades.best.name);
+  if (u?.exams && wants('exams')) add('exams', 'cardExams', fmt.num(u.exams));
+  if (u?.homework && wants('exams')) add('homework', 'cardHomework', fmt.num(u.homework));
+  if (u?.absences && wants('absences')) add('missed', 'cardMissed', fmt.num(Math.round(u.absences.missedMinutes / 60)));
+  if (u?.school && wants('school') && u.school.lessons > 0) add('cancelled', 'cardCancelled', fmt.num(u.school.cancelled));
+  if (u?.school?.teachers[0] && wants('school')) add('teacher', 'cardTeacher', u.school.teachers[0].name);
+  if (p?.totals && p.totals.longestStreak > 1 && wants('pokyh')) add('streak', 'cardStreak', fmt.num(p.totals.longestStreak));
+  if (p?.created && p.created.todosDone > 0 && wants('pokyh')) add('todos', 'cardTodos', fmt.num(p.created.todosDone));
+  if (u?.classreg != null && wants('classreg')) add('classreg', 'cardClassreg', fmt.num(u.classreg));
+  return out;
 }

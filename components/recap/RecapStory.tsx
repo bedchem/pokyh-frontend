@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
-import { AnimatePresence, motion, useReducedMotion, type Variants } from 'framer-motion';
-import { ArrowCounterClockwise, CaretLeft, ShareNetwork, X } from '@phosphor-icons/react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { CaretLeft, X } from '@phosphor-icons/react';
 import MascotFigure from '@/components/pixel/MascotFigure';
 import { SpritePalette } from '@/components/pixel/SceneSvg';
 import { useFirstName } from '@/components/app/hooks';
@@ -12,31 +12,34 @@ import { recapDict } from '@/lib/i18n/dictionaries/recap';
 import { RECAP_DOCKED_EVENT, fetchRecap, markRecapView, type ClientRecap, type RecapPokyh } from '@/lib/recap';
 import { loadUntisRecap, type RecapProgress } from '@/lib/recap-data';
 import { dateOfNum, type UntisRecap } from '@/lib/recap-figures';
-import { buildStory, summaryItems, type Fmt, type Text, type Value } from '@/lib/recap-story';
+import { ABSENCE_LIMIT, buildStory, summaryItems, type Fmt, type Slide, type Text, type Value } from '@/lib/recap-story';
 import { holdPageCover } from '@/lib/page-cover';
+import PixelText from './PixelText';
+import RecapSummary from './RecapSummary';
+import { cover, fillAll, patternFor, reveal } from './pixelWipe';
 import { ONGOING, REACTIONS, type FieldParticles, type LocalParticles, type Reaction } from './reactions';
-import { THEMES, themeBackground } from './themes';
-import { shareSummary } from './share';
+import { THEMES, dotPattern, tilePattern } from './themes';
 import s from './recap.module.css';
 
-// A recap as a story, page after page: a figure, what it means, and the
-// mascot's take on it (lib/recap-story.ts decides the pages, ./reactions.ts
-// how the mascot reacts). "Weiter", a tap on the right, a swipe to the left
-// or → go on; a tap on the left, a swipe right or ← go back; a swipe down
-// or Esc closes. Nothing moves on by itself.
+// A recap as a story in pixel art, page after page: a figure, what it
+// means and the mascot's take on it (lib/recap-story.ts decides the pages,
+// ./reactions.ts how the mascot reacts). Each page is a little scene — a
+// sky in the page's colour, the ground the mascot stands on — and the pages
+// turn with block wipes like an old handheld's screens (./pixelWipe.ts): the
+// card fills with blocks in the next page's colours in one of nine patterns,
+// the page changes underneath, the blocks clear. Then the text steps in line
+// by line, the figure counts up in the pixel font and the mascot drops in.
 //
-// Going on, the page's text leaves upwards and blurs while the next one
-// rises in line by line, its number counting up; the background's colours
-// cross over and the mascot walks to its place on the new page, changing
-// its face on the way. With reduced motion everything simply fades.
+// "Weiter", a tap on the right, a swipe to the left or → go on; a tap on the
+// left, a swipe right or ← go back; a swipe down or Esc closes, and the card
+// flies into the button in the top bar. Nothing moves on by itself. The last
+// page is the card to share (./RecapSummary.tsx). With reduced motion the
+// pages simply change.
 //
 // The first page is there at once; its button shows how far the figures are
 // (the WebUntis ones are worked out on this device, lib/recap-data.ts) and
-// starts the story when they are. That the story was shown — and watched
-// to the end — is kept on the POKYH server (POST /recaps/:id/view).
-
-const EASE_OUT = [0.22, 1, 0.36, 1] as const;
-const EASE_IN = [0.4, 0, 1, 1] as const;
+// starts the story when they are. That the story was shown — and watched to
+// the end — is kept on the POKYH server (POST /recaps/:id/view).
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -75,24 +78,29 @@ const CONFETTI = ['#fde047', '#f472b6', '#60a5fa', '#34d399', '#fb923c', '#c4b5f
 function Field({ kind, seed }: { kind: FieldParticles; seed: string }) {
   const pieces = useMemo(() => {
     const r = seeded(seed + kind);
-    const n = kind === 'confetti' ? 30 : kind === 'stars' ? 16 : kind === 'rain' ? 34 : 0;
+    const n = kind === 'confetti' ? 28 : kind === 'stars' ? 14 : kind === 'rain' ? 30 : 0;
     return Array.from({ length: n }, () => ({ x: r(), y: r(), a: r(), b: r(), c: r(), d: r() }));
   }, [kind, seed]);
+  if (kind === 'alarm') {
+    return <div className={s.hazard} aria-hidden="true"><span /><span /><span /><span /></div>;
+  }
   return (
-    <motion.div className={s.field} aria-hidden="true" initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { duration: 0.6, delay: 0.25 } }} exit={{ opacity: 0, transition: { duration: 0.3 } }}>
-      {kind === 'alarm' && <span className={s.alarm} />}
+    <div className={s.field} aria-hidden="true">
       {pieces.map((p, i) => {
         if (kind === 'confetti') {
-          return <span key={i} className={s.confetti} style={{ left: `${p.x * 100}%`, '--s': `${6 + Math.round(p.a * 5)}px`, '--c': CONFETTI[i % CONFETTI.length], '--d': `${2.8 + p.b * 2.4}s`, '--w': `${-p.c * 5}s`, '--x': `${(p.d - 0.5) * 120}px`, '--r': `${(p.a - 0.5) * 900}deg` } as CSSProperties} />;
+          const size = 6 + Math.round(p.a * 2) * 2;
+          return <span key={i} className={s.confetti} style={{ left: `${p.x * 100}%`, '--s': `${size}px`, '--c': CONFETTI[i % CONFETTI.length], '--d': `${2.8 + p.b * 2.4}s`, '--w': `${-p.c * 5}s`, '--x': `${Math.round((p.d - 0.5) * 12) * 10}px`, '--r': `${Math.round((p.a - 0.5) * 8) * 90}deg` } as CSSProperties} />;
         }
         if (kind === 'stars') {
-          return <span key={i} className={s.star} style={{ left: `${4 + p.x * 92}%`, top: `${8 + p.y * 62}%`, '--d': `${1.6 + p.b * 2.2}s`, '--w': `${-p.c * 3}s` } as CSSProperties} />;
+          return <span key={i} className={s.star} style={{ left: `${4 + p.x * 92}%`, top: `${8 + p.y * 58}%`, '--d': `${1.4 + p.b * 2}s`, '--w': `${-p.c * 3}s` } as CSSProperties} />;
         }
-        return <span key={i} className={s.drop} style={{ left: `${p.x * 104}%`, '--d': `${0.7 + p.b * 0.6}s`, '--w': `${-p.c * 2}s` } as CSSProperties} />;
+        return <span key={i} className={s.rain} style={{ left: `${p.x * 104}%`, '--d': `${0.7 + p.b * 0.5}s`, '--w': `${-p.c * 2}s` } as CSSProperties} />;
       })}
-    </motion.div>
+    </div>
   );
 }
+
+const HEART = 'M1 0h2v1h1V0h2v1h1v2H6v1H5v1H4v1H3V5H2V4H1V3H0V1h1z';
 
 function Local({ kind, seed }: { kind: LocalParticles; seed: string }) {
   const r = useMemo(() => {
@@ -102,25 +110,29 @@ function Local({ kind, seed }: { kind: LocalParticles; seed: string }) {
   return (
     <span className={s.local} aria-hidden="true">
       {kind === 'sparkle' && r.map(([x, y, d], i) => (
-        <span key={i} className={s.spark} style={{ left: `${8 + x * 84}%`, top: `${6 + y * 60}%`, '--d': `${1.2 + d * 1.4}s`, '--w': `${-d * 2}s` } as CSSProperties} />
+        <span key={i} className={s.spark} style={{ left: `${8 + x * 84}%`, top: `${6 + y * 58}%`, '--d': `${1 + d * 1.2}s`, '--w': `${-d * 2}s` } as CSSProperties} />
       ))}
       {kind === 'zzz' && [0, 1, 2].map((i) => (
-        <span key={i} className={s.zzz} style={{ fontSize: `${14 + i * 6}px`, '--w': `${i * 1}s`, '--x': `${16 + i * 8}px` } as CSSProperties}>z</span>
+        <span key={i} className={s.zzz} style={{ '--z': `${10 + i * 5}px`, '--w': `${i}s`, '--x': `${16 + i * 8}px` } as CSSProperties}>
+          <PixelText text="Z" size={2 + i} min={1} />
+        </span>
       ))}
       {kind === 'hearts' && r.slice(0, 4).map(([x, , d], i) => (
-        <span key={i} className={s.heart} style={{ left: `${30 + x * 40}%`, '--d': `${2.2 + d}s`, '--w': `${i * 0.7}s`, '--x': `${(x - 0.5) * 50}px` } as CSSProperties} />
+        <svg key={i} viewBox="0 0 7 6" className={s.heart} shapeRendering="crispEdges" style={{ left: `${28 + x * 44}%`, '--d': `${2.2 + d}s`, '--w': `${i * 0.7}s`, '--x': `${Math.round((x - 0.5) * 5) * 10}px` } as CSSProperties}>
+          <path d={HEART} fill="currentColor" />
+        </svg>
       ))}
     </span>
   );
 }
 
 /** The mascot as it reacts: its first motion, then calm, the first one again every `repeat` ms. */
-function Figure({ reaction, id, svgRef }: { reaction: Reaction; id: string; svgRef?: React.Ref<SVGSVGElement> }) {
+function Figure({ reaction, id }: { reaction: Reaction; id: string }) {
   const first = reaction.look.motion;
   const [phase, setPhase] = useState({ n: 0, moving: true });
   useEffect(() => {
     if (ONGOING.has(first)) return;
-    const timers: number[] = [window.setTimeout(() => setPhase((p) => ({ ...p, moving: false })), 1000)];
+    const timers: number[] = [window.setTimeout(() => setPhase((p) => ({ ...p, moving: false })), 1100)];
     const again = reaction.repeat
       ? window.setInterval(() => {
           setPhase((p) => ({ n: p.n + 1, moving: true }));
@@ -131,35 +143,66 @@ function Figure({ reaction, id, svgRef }: { reaction: Reaction; id: string; svgR
   }, [first, reaction.repeat]);
   const look = { ...reaction.look, motion: phase.moving ? first : reaction.settle ?? 'bob' };
   return (
-    <svg ref={svgRef} viewBox="-6 -18 52 56" className={`spr ${s.figure}`} shapeRendering="crispEdges" aria-hidden="true">
+    <svg viewBox="-6 -18 52 55" className={`spr ${s.figure}`} shapeRendering="crispEdges" aria-hidden="true">
       <MascotFigure look={look} motionKey={`${id}-${phase.n}`} wear={reaction.wear} />
     </svg>
   );
 }
 
-function CountUp({ value, tag, reduced }: { value: Extract<Value, { kind: 'count' }>; tag: string; reduced: boolean }) {
+function useCountUp(value: Extract<Value, { kind: 'count' }>, reduced: boolean): number {
   const from = value.from ?? 0;
-  const [counted, setShown] = useState(from);
-  const shown = reduced ? value.n : counted;
+  const [counted, setCounted] = useState(from);
   useEffect(() => {
     if (reduced) return;
     let raf = 0;
-    const start = performance.now() + 380;
+    const start = performance.now() + 420;
     const span = Math.abs(value.n - from);
-    const duration = span < 5 ? 600 : span < 50 ? 1000 : 1500;
+    const duration = span < 5 ? 500 : span < 50 ? 900 : 1300;
     const tick = (now: number) => {
       const p = Math.min(1, Math.max(0, (now - start) / duration));
-      // Fast at first, slowing down into the figure.
       const eased = p >= 1 ? 1 : 1 - Math.pow(2, -10 * p);
-      setShown(from + (value.n - from) * eased);
+      setCounted(from + (value.n - from) * eased);
       if (p < 1) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [value.n, from, reduced]);
+  return reduced ? value.n : counted;
+}
+
+function BigValue({ value, tag, reduced, lines = 2 }: { value: Value; tag: string; reduced: boolean; lines?: number }) {
+  if (value.kind === 'text') return <PixelText text={value.text} size={7} min={3} lines={lines} />;
+  return <CountValue value={value} tag={tag} reduced={reduced} />;
+}
+
+function CountValue({ value, tag, reduced }: { value: Extract<Value, { kind: 'count' }>; tag: string; reduced: boolean }) {
+  const shown = useCountUp(value, reduced);
   const digits = value.decimals ?? 0;
   const text = new Intl.NumberFormat(tag, { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(digits === 0 ? Math.round(shown) : shown);
-  return <>{value.prefix}{text}{value.suffix}</>;
+  return <PixelText text={`${value.prefix ?? ''}${text}${value.suffix ?? ''}`} size={13} min={4} />;
+}
+
+/** The absence rate in 20 blocks, coloured by how far along they are, with the limit's flag. */
+function Meter({ value, label }: { value: number; label: string }) {
+  const span = Math.max(40, value * 1.25);
+  const per = span / 20;
+  const on = Math.max(value > 0 ? 1 : 0, Math.round(value / per));
+  const color = (i: number) => {
+    const at = (i + 1) * per;
+    return at <= 10 ? '#4ade80' : at <= 20 ? '#facc15' : at <= ABSENCE_LIMIT ? '#fb923c' : '#f87171';
+  };
+  const limitAt = `${(ABSENCE_LIMIT / span) * 100}%`;
+  return (
+    <div className={s.meter} aria-hidden="true">
+      <div className={s.cells}>
+        {Array.from({ length: 20 }, (_, i) => (
+          <span key={i} className={s.cell} data-on={i < on ? '' : undefined} style={{ '--c': color(i), '--i': i } as CSSProperties} />
+        ))}
+      </div>
+      <span className={s.limit} style={{ left: limitAt }} />
+      <span className={s.limitLabel} style={{ left: limitAt }}>{label}</span>
+    </div>
+  );
 }
 
 // ── The story ───────────────────────────────────────────────────────────────
@@ -190,12 +233,12 @@ export default function RecapStory({ recap, onClose, preview }: {
   const [progress, setProgress] = useState<RecapProgress | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [index, setIndex] = useState(0);
-  const [dir, setDir] = useState(1);
-  const [shareNote, setShareNote] = useState<string | null>(null);
-  // Where the card flies to as it closes: the banner in the top bar.
+  // Where the card flies to as it closes: the button in the top bar.
   const [dock, setDock] = useState<{ x: number; y: number; scale: number } | null>(null);
   const card = useRef<HTMLDivElement>(null);
-  const mascotSvg = useRef<SVGSVGElement>(null);
+  const wipe = useRef<HTMLCanvasElement>(null);
+  const turning = useRef(false);
+  const at = useRef(0);
   const finished = useRef(false);
   const swipe = useRef<{ x: number; y: number; moved: boolean } | null>(null);
 
@@ -238,17 +281,18 @@ export default function RecapStory({ recap, onClose, preview }: {
   const input = useMemo(() => ({
     title: recap.title, firstName, periodFrom: recap.periodFrom, periodTo: recap.periodTo, sections,
     untis: untis ?? null, pokyh: pokyh ?? null,
-  }), [recap, firstName, sections, untis, pokyh]);
+  }), [recap.title, recap.periodFrom, recap.periodTo, firstName, sections, untis, pokyh]);
   const slides = useMemo(() => {
     const all = buildStory(input, fmt);
     return ready && !nothing ? all : all.slice(0, 1);
   }, [input, fmt, ready, nothing]);
   const items = useMemo(() => summaryItems(input, fmt), [input, fmt]);
-  const at = Math.min(index, slides.length - 1);
-  const slide = slides[at]!;
+  const current = Math.min(index, slides.length - 1);
+  const slide: Slide = slides[current]!;
   const theme = THEMES[slide.theme];
   const reaction = REACTIONS[slide.mood];
-  const last = at === slides.length - 1 && slides.length > 1;
+  const last = current === slides.length - 1 && slides.length > 1;
+  useEffect(() => { at.current = current; }, [current]);
 
   useEffect(() => {
     if (!last || finished.current || preview) return;
@@ -256,7 +300,39 @@ export default function RecapStory({ recap, onClose, preview }: {
     void markRecapView(recap.id, true);
   }, [last, recap.id, preview]);
 
-  // Closing sends the card into the banner beside the search, which bumps as it lands.
+  // The story opens out of blocks: full before the first paint, then an iris.
+  useLayoutEffect(() => {
+    const canvas = wipe.current;
+    if (!canvas || reduced) return;
+    const colors = { fill: THEMES.night.accent, alt: THEMES.night.edge };
+    fillAll(canvas, colors);
+    turning.current = true;
+    void reveal(canvas, 'iris', colors, 3).then(() => { turning.current = false; });
+  }, [reduced]);
+
+  const goTo = useCallback(async (next: number) => {
+    if (turning.current || next === at.current || next < 0 || next >= slides.length) return;
+    const canvas = wipe.current;
+    if (reduced || !canvas) { setIndex(next); return; }
+    turning.current = true;
+    const target = THEMES[slides[next]!.theme];
+    const colors = { fill: target.bg, alt: target.chip };
+    const pattern = patternFor(slides[next]!.id, next);
+    const seed = next * 13 + 7;
+    await cover(canvas, pattern, colors, seed);
+    setIndex(next);
+    // The new page painted under the blocks before they clear.
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    await reveal(canvas, pattern, colors, seed);
+    turning.current = false;
+  }, [slides, reduced]);
+
+  const go = useCallback((step: 1 | -1) => {
+    if (step === 1 && (!ready || nothing)) return;
+    void goTo(at.current + step);
+  }, [ready, nothing, goTo]);
+
+  // Closing sends the card into the button beside the search, which bumps as it lands.
   const close = useCallback(() => {
     const target = [...document.querySelectorAll<HTMLElement>('[data-recap-banner]')].find((el) => el.getClientRects().length > 0);
     const box = card.current?.getBoundingClientRect();
@@ -267,30 +343,25 @@ export default function RecapStory({ recap, onClose, preview }: {
         y: b.top + b.height / 2 - (box.top + box.height / 2),
         scale: Math.max(0.04, b.height / box.height),
       });
-      window.setTimeout(() => window.dispatchEvent(new Event(RECAP_DOCKED_EVENT)), 560);
+      window.setTimeout(() => window.dispatchEvent(new Event(RECAP_DOCKED_EVENT)), 520);
     }
     requestAnimationFrame(() => onClose());
   }, [onClose, reduced]);
-
-  const go = useCallback((step: 1 | -1) => {
-    if (step === 1 && (!ready || nothing)) return;
-    setIndex((i) => {
-      const next = Math.min(slides.length - 1, Math.max(0, i + step));
-      if (next !== i) setDir(step);
-      return next;
-    });
-  }, [ready, nothing, slides.length]);
 
   // Keys: → Space Enter on, ← back, Esc closes. Focus stays in the story.
   useEffect(() => {
     const before = document.activeElement as HTMLElement | null;
     card.current?.focus({ preventScroll: true });
     const onKey = (e: KeyboardEvent) => {
+      // Inside the last page's sheet or menu the keys are theirs.
+      const owner = (e.target as HTMLElement | null)?.closest?.('[role="dialog"]');
+      const inSheet = !!owner && owner !== card.current;
       if (e.key === 'Escape') { e.preventDefault(); close(); }
+      else if (inSheet) return;
       else if (e.key === 'ArrowRight' || ((e.key === ' ' || e.key === 'Enter') && !(e.target instanceof HTMLButtonElement))) { e.preventDefault(); go(1); }
       else if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
       else if (e.key === 'Tab' && card.current) {
-        const focusable = [...card.current.querySelectorAll<HTMLElement>('button:not([disabled])')];
+        const focusable = [...card.current.querySelectorAll<HTMLElement>('button:not([disabled]), a[href]')];
         if (!focusable.length) return;
         const first = focusable[0]!;
         const lastEl = focusable[focusable.length - 1]!;
@@ -302,72 +373,53 @@ export default function RecapStory({ recap, onClose, preview }: {
     return () => { window.removeEventListener('keydown', onKey); before?.focus?.({ preventScroll: true }); };
   }, [go, close]);
 
+  const summary = slide.layout === 'summary';
   const onPointerDown = (e: ReactPointerEvent) => { swipe.current = { x: e.clientX, y: e.clientY, moved: false }; };
   const onPointerUp = (e: ReactPointerEvent) => {
     const start = swipe.current;
-    if (!start) return;
+    if (!start || summary) return;
     const dx = e.clientX - start.x;
     const dy = e.clientY - start.y;
     if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) { start.moved = true; go(dx < 0 ? 1 : -1); }
     else if (dy > 110 && dy > Math.abs(dx)) { start.moved = true; close(); }
   };
-  // A tap on the left third goes back, anywhere else on; buttons do their own.
+  // A tap on the left third goes back, anywhere else on; buttons and the last page do their own.
   const onClick = (e: React.MouseEvent) => {
     if (swipe.current?.moved) { swipe.current = null; return; }
-    if ((e.target as HTMLElement).closest('button')) return;
+    if (summary || (e.target as HTMLElement).closest('button, a')) return;
     const rect = card.current?.getBoundingClientRect();
     if (!rect) return;
     go(e.clientX < rect.left + rect.width * 0.3 ? -1 : 1);
   };
 
-  async function share() {
-    const result = await shareSummary({
-      title: recap.title,
-      period: `${fmt.day(recap.periodFrom)} – ${fmt.day(recap.periodTo)}`,
-      items: items.map((i) => ({ label: t(i.label), value: i.value })),
-      thanks: t('summaryThanks'),
-      theme,
-      mascot: mascotSvg.current,
-      fileName: 'pokyh-recap.png',
-    });
-    if (result === 'saved') {
-      setShareNote(t('shareSaved'));
-      window.setTimeout(() => setShareNote(null), 2200);
-    }
-  }
-
   const say = (x?: Text) => (x ? t(x.key, x.vars) : '');
-  const introBody: Text[] = [...(slide.body ?? [])];
-  if (slide.layout === 'intro' && nothing) introBody.push({ key: 'errorAll' });
-  else if (slide.layout === 'intro' && untisFailed) introBody.push({ key: 'errorUntis' });
-
-  const container: Variants = {
-    hidden: {},
-    show: { transition: { staggerChildren: reduced ? 0 : 0.085, delayChildren: reduced ? 0 : 0.12 } },
-    exit: (d: number) => (reduced
-      ? { opacity: 0, transition: { duration: 0.2 } }
-      : { opacity: 0, y: d > 0 ? -34 : 34, filter: 'blur(8px)', transition: { duration: 0.32, ease: EASE_IN } }),
-  };
-  const item: Variants = {
-    hidden: (d: number) => (reduced ? { opacity: 0 } : { opacity: 0, y: d > 0 ? 28 : -28, filter: 'blur(12px)' }),
-    show: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { duration: reduced ? 0.25 : 0.72, ease: EASE_OUT } },
-  };
-  const big: Variants = {
-    hidden: (d: number) => (reduced ? { opacity: 0 } : { opacity: 0, y: d > 0 ? 36 : -36, scale: 0.9, filter: 'blur(14px)' }),
-    show: { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)', transition: reduced ? { duration: 0.25 } : { type: 'spring', stiffness: 170, damping: 19, mass: 0.9 } },
-  };
-
+  const body: Text[] = [...(slide.body ?? [])];
+  if (slide.layout === 'intro' && nothing) body.push({ key: 'errorAll' });
+  else if (slide.layout === 'intro' && untisFailed) body.push({ key: 'errorUntis' });
   const listMax = Math.max(1, ...(slide.list ?? []).map((r) => r.value));
-  const meterSpan = slide.meter ? Math.max(40, slide.meter.value * 1.25) : 40;
-  const loadingShare = progress && progress.total > 0 ? progress.done / progress.total : 0;
-  const cardStyle = { '--rc-accent': theme.accent, '--rc-accent-ink': theme.accentInk } as CSSProperties;
+  const loaded = progress && progress.total > 0 ? Math.round((progress.done / progress.total) * 12) : 0;
+  const cardStyle = {
+    '--rc-bg': theme.bg, '--rc-dots': dotPattern(theme), '--rc-ground': theme.ground, '--rc-tiles': tilePattern(theme),
+    '--rc-edge': theme.edge, '--rc-chip': theme.chip, '--rc-soft': theme.soft, '--rc-accent': theme.accent, '--rc-accent-ink': theme.accentInk,
+  } as CSSProperties;
+  const shortDay = (iso: string) => {
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(y!, m! - 1, d!).toLocaleDateString(tag, { day: 'numeric', month: 'numeric', year: 'numeric' });
+  };
+  const year = (() => {
+    const from = Number(recap.periodFrom.slice(0, 4));
+    const to = Number(recap.periodTo.slice(0, 4));
+    return from === to ? String(from) : `${from}/${String(to).slice(2)}`;
+  })();
+  let line = 0;
+  const nextLine = () => ({ '--i': line++ } as CSSProperties);
 
   return (
     <motion.div
       className={s.overlay}
       initial={{ opacity: 0 }}
-      animate={{ opacity: 1, transition: { duration: 0.3 } }}
-      exit={{ opacity: 0, transition: { duration: dock ? 0.5 : 0.28, delay: 0.05 } }}
+      animate={{ opacity: 1, transition: { duration: 0.15 } }}
+      exit={{ opacity: 0, transition: { duration: dock ? 0.45 : 0.2, delay: 0.05 } }}
       onClick={(e) => { if (e.target === e.currentTarget) close(); }}
     >
       <SpritePalette />
@@ -377,200 +429,113 @@ export default function RecapStory({ recap, onClose, preview }: {
         aria-modal="true"
         aria-label={`${t('storyLabel')}: ${recap.title}`}
         tabIndex={-1}
-        className={s.card}
+        className={`${s.card} ${s.px}`}
         style={cardStyle}
-        initial={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.94, y: 40 }}
-        animate={{ opacity: 1, scale: 1, y: 0, transition: reduced ? { duration: 0.2 } : { type: 'spring', stiffness: 220, damping: 26 } }}
-        exit={reduced
-          ? { opacity: 0 }
-          : dock
-            ? { x: dock.x, y: dock.y, scale: dock.scale, borderRadius: 400, opacity: [1, 1, 0], transition: { duration: 0.56, ease: [0.6, 0, 0.25, 1], opacity: { duration: 0.56, times: [0, 0.75, 1] } } }
-            : { opacity: 0, scale: 0.96, y: 60, transition: { duration: 0.28, ease: EASE_IN } }}
+        exit={reduced || !dock
+          ? { opacity: 0, transition: { duration: 0.18 } }
+          : { x: dock.x, y: dock.y, scale: dock.scale, opacity: [1, 1, 0], transition: { duration: 0.5, ease: [0.6, 0, 0.25, 1], opacity: { duration: 0.5, times: [0, 0.8, 1] } } }}
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
         onClick={onClick}
       >
-        {/* The background's colours cross over from page to page. */}
-        <AnimatePresence initial={false}>
-          <motion.div
-            key={slide.theme}
-            className={s.bg}
-            style={{ background: themeBackground(theme) }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1, transition: { duration: reduced ? 0.2 : 0.9, ease: 'easeInOut' } }}
-            exit={{ opacity: 0, transition: { duration: reduced ? 0.2 : 0.9, ease: 'easeInOut', delay: 0.15 } }}
-          />
-        </AnimatePresence>
-        <div className={s.aurora} aria-hidden="true" />
-        <div className={s.grain} aria-hidden="true" />
-        <AnimatePresence>{reaction.field && !reduced && <Field key={`${slide.id}-${reaction.field}`} kind={reaction.field} seed={slide.id} />}</AnimatePresence>
+        <div className={s.ground} aria-hidden="true" />
+        {reaction.field && !reduced && !summary && <Field key={`${slide.id}-${reaction.field}`} kind={reaction.field} seed={slide.id} />}
 
         <div className={s.top}>
           <div className={s.bars} aria-hidden="true">
             {slides.length > 1 && slides.map((x, i) => (
-              <span key={x.id} className={s.bar} data-state={i < at ? 'done' : i === at ? 'now' : 'next'}><span /></span>
+              <span key={x.id} className={s.bar} data-state={i < current ? 'done' : i === current ? 'now' : 'next'}><span /></span>
             ))}
           </div>
-          <button type="button" className={s.close} onClick={close} aria-label={t('close')}>
+          <button type="button" className={`${s.close} ${s.px}`} onClick={close} aria-label={t('close')}>
             <X size={19} weight="bold" aria-hidden="true" />
           </button>
         </div>
 
-        <p className="visually-hidden" aria-live="polite">{slides.length > 1 ? t('slideOf', { n: at + 1, total: slides.length }) : ''}</p>
+        <p className="visually-hidden" aria-live="polite">{slides.length > 1 ? t('slideOf', { n: current + 1, total: slides.length }) : ''}</p>
 
-        <AnimatePresence initial={false} custom={dir}>
-          <motion.div
+        {summary ? (
+          <RecapSummary
             key={slide.id}
-            className={s.page}
-            data-layout={slide.layout}
-            variants={container}
-            custom={dir}
-            initial="hidden"
-            animate="show"
-            exit="exit"
-          >
-            {slide.lead && <motion.p variants={item} custom={dir} className={s.lead}>{say(slide.lead)}</motion.p>}
-            {slide.value && (
-              <motion.p variants={big} custom={dir} className={s.value} data-kind={slide.value.kind}>
-                {slide.value.kind === 'count' ? <CountUp value={slide.value} tag={tag} reduced={reduced} /> : slide.value.text}
-              </motion.p>
-            )}
-            {slide.unit && <motion.p variants={item} custom={dir} className={s.unit}>{say(slide.unit)}</motion.p>}
-
-            {slide.meter && (
-              <motion.div variants={item} custom={dir} className={s.meter} aria-hidden="true">
-                <div className={s.meterTrack}>
-                  {/* The whole scale is drawn and uncovered up to the rate, so its colours stay put. */}
-                  <motion.div
-                    className={s.meterFill}
-                    initial={{ clipPath: 'inset(0 100% 0 0 round 99px)' }}
-                    animate={{
-                      clipPath: `inset(0 ${100 - Math.max(slide.meter.value > 0 ? 2 : 0, (slide.meter.value / meterSpan) * 100)}% 0 0 round 99px)`,
-                      transition: { delay: reduced ? 0 : 0.55, duration: reduced ? 0 : 1.3, ease: EASE_OUT },
-                    }}
-                  />
+            t={t}
+            title={recap.title}
+            period={`${shortDay(recap.periodFrom)} - ${shortDay(recap.periodTo)}`}
+            year={year}
+            firstName={firstName}
+            items={items}
+            onReplay={() => void goTo(0)}
+          />
+        ) : (
+          <>
+            <div key={slide.id} className={s.page} data-layout={slide.layout}>
+              {slide.lead && <p className={`${s.lead} ${s.in}`} style={nextLine()}>{say(slide.lead)}</p>}
+              {slide.value && (
+                <div className={`${s.value} ${s.in}`} style={nextLine()}>
+                  <BigValue value={slide.value} tag={tag} reduced={reduced} lines={slide.layout === 'intro' ? 3 : 2} />
                 </div>
-                <span className={s.meterLimit} style={{ left: `${(slide.meter.limit / meterSpan) * 100}%` }} />
-                <span className={s.meterLabel} style={{ left: `${(slide.meter.limit / meterSpan) * 100}%` }}>{t('rateLimit')}</span>
-              </motion.div>
-            )}
-
-            {slide.list && slide.list.length > 0 && (
-              <motion.div variants={item} custom={dir} className={s.list}>
-                {slide.list.map((row, i) => (
-                  <div key={`${row.labelKey ?? row.label}-${i}`} className={s.row}>
-                    <div className={s.rowHead}>
-                      <span>{row.labelKey ? t(row.labelKey) : row.label}</span>
-                      <span>{row.display}</span>
-                    </div>
-                    <div className={s.track}>
-                      <motion.div
-                        className={s.fill}
-                        initial={{ scaleX: 0 }}
-                        animate={{ scaleX: row.value / listMax, transition: { delay: reduced ? 0 : 0.45 + i * 0.09, duration: reduced ? 0 : 0.9, ease: EASE_OUT } }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </motion.div>
-            )}
-
-            {slide.layout === 'summary' && (
-              <>
-                <motion.p variants={item} custom={dir} className={s.lead}>{fmt.day(recap.periodFrom)} – {fmt.day(recap.periodTo)}</motion.p>
-                <motion.div variants={item} custom={dir} className={s.summary}>
-                  {items.map((x) => (
-                    <div key={x.label} className={s.stat}>
-                      <span className={s.statValue} data-long={x.value.length > 7 ? '' : undefined}>{x.value}</span>
-                      <span className={s.statLabel}>{t(x.label)}</span>
+              )}
+              {slide.unit && <p className={`${s.unit} ${s.in}`} style={nextLine()}>{say(slide.unit)}</p>}
+              {slide.meter && (
+                <div className={s.in} style={nextLine()}>
+                  <Meter value={slide.meter.value} label={t('rateLimit')} />
+                </div>
+              )}
+              {slide.list && slide.list.length > 0 && (
+                <div className={`${s.list} ${s.in}`} style={nextLine()}>
+                  {slide.list.map((row, i) => (
+                    <div key={`${row.labelKey ?? row.label}-${i}`} className={s.row}>
+                      <div className={s.rowHead}>
+                        <span>{row.labelKey ? t(row.labelKey) : row.label}</span>
+                        <span>{row.display}</span>
+                      </div>
+                      <div className={s.track}>
+                        <div className={s.fill} style={{ '--w': `${Math.max(4, (row.value / listMax) * 100)}%`, '--i': i } as CSSProperties} />
+                      </div>
                     </div>
                   ))}
-                </motion.div>
-                <motion.p variants={item} custom={dir} className={s.thanks}>{shareNote ?? t('summaryThanks')}</motion.p>
-              </>
-            )}
+                </div>
+              )}
+              {body.map((b, i) => (
+                <p key={`${b.key}-${i}`} className={`${s.body} ${s.in}`} style={nextLine()}>{say(b)}</p>
+              ))}
+            </div>
 
-            {(slide.layout === 'intro' ? introBody : slide.body ?? []).map((b, i) => (
-              <motion.p key={`${b.key}-${i}`} variants={item} custom={dir} className={s.body}>{say(b)}</motion.p>
-            ))}
-          </motion.div>
-        </AnimatePresence>
+            <div key={`m-${slide.id}`} className={s.mascot} data-place={slide.place}>
+              {slide.quip && (
+                <>
+                  <span className={`${s.bubble} ${s.px}`}>{say(slide.quip)}</span>
+                  <span className={s.tail} aria-hidden="true" />
+                </>
+              )}
+              <div className={s.drop}>
+                {reaction.local && !reduced && <Local kind={reaction.local} seed={slide.id} />}
+                <Figure reaction={reaction} id={slide.id} />
+              </div>
+            </div>
 
-        {/* One mascot for the whole story: it walks to its place on each page. */}
-        <motion.div
-          layout={!reduced}
-          className={s.mascot}
-          data-place={slide.place}
-          data-layout={slide.layout}
-          transition={{ layout: { type: 'spring', stiffness: 110, damping: 18, mass: 1 } }}
-        >
-          <span className={s.glow} aria-hidden="true" />
-          <AnimatePresence>
-            {slide.quip && (
-              <motion.span
-                key={slide.id}
-                className={s.bubble}
-                style={{ transformOrigin: '50% 100%' }}
-                initial={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.5, y: 12 }}
-                animate={{ opacity: 1, scale: 1, y: 0, transition: reduced ? { duration: 0.2 } : { delay: 0.6, type: 'spring', stiffness: 460, damping: 22 } }}
-                exit={{ opacity: 0, scale: 0.85, transition: { duration: 0.14 } }}
-              >
-                {say(slide.quip)}
-              </motion.span>
-            )}
-          </AnimatePresence>
-          <motion.div
-            key={slide.mood}
-            initial={reduced ? false : { scale: 0.82, y: 6 }}
-            animate={{ scale: 1, y: 0, transition: { type: 'spring', stiffness: 420, damping: 14 } }}
-            style={{ transformOrigin: '50% 90%' }}
-          >
-            {reaction.local && !reduced && <Local kind={reaction.local} seed={slide.id} />}
-            <Figure reaction={reaction} id={slide.id} svgRef={slide.layout === 'summary' ? mascotSvg : undefined} />
-          </motion.div>
-        </motion.div>
-
-        <div className={s.bottom}>
-          {slide.layout === 'summary' ? (
-            <>
-              <button type="button" className={s.back} onClick={() => { setDir(-1); setIndex(0); finished.current = true; }} aria-label={t('replay')}>
-                <ArrowCounterClockwise size={21} weight="bold" aria-hidden="true" />
-              </button>
-              <button type="button" className={s.quiet} onClick={() => void share()}>
-                <span className="inline-flex items-center justify-center gap-2"><ShareNetwork size={18} weight="bold" aria-hidden="true" />{t('share')}</span>
-              </button>
-              <button type="button" className={s.next} style={{ background: theme.accent, color: theme.accentInk }} onClick={close}>
-                {t('done')}
-              </button>
-            </>
-          ) : (
-            <>
-              <button type="button" className={s.back} onClick={() => go(-1)} disabled={at === 0} aria-label={t('back')}>
+            <div className={s.bottom}>
+              <button type="button" className={`${s.back} ${s.px}`} onClick={() => go(-1)} disabled={current === 0} aria-label={t('back')}>
                 <CaretLeft size={22} weight="bold" aria-hidden="true" />
               </button>
               {nothing ? (
-                <button type="button" className={s.next} style={{ background: theme.accent, color: theme.accentInk }} onClick={() => setAttempt((n) => n + 1)}>
-                  {t('retry')}
-                </button>
+                <button type="button" className={`${s.next} ${s.px}`} onClick={() => setAttempt((n) => n + 1)}>{t('retry')}</button>
               ) : (
-                <button
-                  type="button"
-                  className={s.next}
-                  style={{ background: theme.accent, color: theme.accentInk }}
-                  data-loading={ready ? undefined : ''}
-                  disabled={!ready}
-                  aria-busy={!ready}
-                  onClick={() => go(1)}
-                >
-                  {!ready && <span className={s.nextProgress} style={{ transform: `scaleX(${loadingShare})` }} aria-hidden="true" />}
+                <button type="button" className={`${s.next} ${s.px}`} disabled={!ready} aria-busy={!ready} onClick={() => go(1)}>
                   {!ready
                     ? (progress && progress.total > 0 ? t('loading', { done: progress.done, total: progress.total }) : t('loadingShort'))
-                    : at === 0 ? t('start') : t('next')}
+                    : current === 0 ? t('start') : t('next')}
+                  {!ready && (
+                    <span className={s.loadCells} aria-hidden="true">
+                      {Array.from({ length: 12 }, (_, i) => <span key={i} data-on={i < loaded ? '' : undefined} />)}
+                    </span>
+                  )}
                 </button>
               )}
-            </>
-          )}
-        </div>
+            </div>
+          </>
+        )}
+
+        <canvas ref={wipe} className={s.wipe} aria-hidden="true" />
       </motion.div>
     </motion.div>
   );

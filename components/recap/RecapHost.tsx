@@ -9,7 +9,7 @@ import { useSession } from '@/providers/SessionProvider';
 import { useRoutePath, useT } from '@/providers/LocaleProvider';
 import { recapDict } from '@/lib/i18n/dictionaries/recap';
 import { isPageCovered } from '@/lib/page-cover';
-import { RECAP_DOCKED_EVENT, closeRecap, dueAutoRecap, forgetRecaps, openRecap, recapServerState, recapState, refreshRecaps, subscribeRecaps } from '@/lib/recap';
+import { RECAP_DOCKED_EVENT, type ClientRecap, closeRecap, dueAutoRecap, forgetRecaps, openRecap, recapServerState, recapState, refreshRecaps, subscribeRecaps } from '@/lib/recap';
 import { loadUntisRecap } from '@/lib/recap-data';
 import s from './recap.module.css';
 
@@ -99,11 +99,12 @@ function MiniMascot() {
 }
 
 /**
- * The recap in the top bar, beside the search: a banner on wider screens,
- * a round button with a turning ring (like a story) on phones. It bumps when
- * a closed story goes into it.
+ * The recap in the top bar, beside the search: a banner from 768 px up, only
+ * a round button on phones (its dashed ring turns while the recap is new).
+ * Which one shows is the stylesheet's (recap.module.css), not the utilities'.
+ * It bumps when a closed story goes into it.
  */
-export function RecapBanner() {
+export function RecapBanner({ preview, onOpen }: { preview?: ClientRecap; onOpen?: () => void } = {}) {
   const t = useT(recapDict);
   const { recaps, open } = useRecaps();
   const [bump, setBump] = useState(0);
@@ -113,11 +114,11 @@ export function RecapBanner() {
     return () => window.removeEventListener(RECAP_DOCKED_EVENT, onDocked);
   }, []);
 
-  const recap = recaps?.[0];
+  const recap = preview ?? recaps?.[0];
   if (!recap) return null;
   const isNew = !recap.finishedAt;
   const label = `${isNew ? t('bannerNew') : t('bannerSeen')}: ${recap.title}`;
-  const style = { visibility: open ? 'hidden' : undefined } as const;
+  const style = { visibility: open && !preview ? 'hidden' : undefined } as const;
 
   return (
     <>
@@ -126,26 +127,30 @@ export function RecapBanner() {
         key={`wide-${bump}`}
         type="button"
         data-recap-banner=""
-        onClick={() => openRecap(recap.id)}
-        className={`${s.banner} ${recap.openedAt ? '' : s.bannerNew} hidden md:flex`}
+        onClick={() => (onOpen ? onOpen() : openRecap(recap.id))}
+        className={`${s.banner} ${s.px} ${bump ? s.dock : ''}`}
         style={style}
         aria-label={label}
       >
-        <span className={s.bannerFace}><MiniMascot /></span>
+        <span className={`${s.bannerFace} ${s.px}`}><MiniMascot /></span>
         <span className={s.bannerText}>
           <span>{isNew ? t('bannerNew') : t('bannerSeen')}</span>
           <small className="max-w-[220px] truncate">{isNew ? t('bannerOpen') : t('bannerAgain')} · {recap.title}</small>
         </span>
+        {!recap.openedAt && <span className={s.bannerDot} aria-hidden="true" />}
       </button>
       <button
         key={`ring-${bump}`}
         type="button"
         data-recap-banner=""
-        onClick={() => openRecap(recap.id)}
-        className={`${s.ring} ${isNew ? s.ringNew : ''} ${s.dock} md:hidden`}
+        onClick={() => (onOpen ? onOpen() : openRecap(recap.id))}
+        className={`${s.ring} ${isNew ? s.ringNew : ''} ${bump ? s.dock : ''}`}
         style={style}
         aria-label={label}
       >
+        <svg viewBox="0 0 46 46" aria-hidden="true">
+          <circle cx="23" cy="23" r="21" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray={isNew ? '6 4' : undefined} />
+        </svg>
         <MiniMascot />
       </button>
     </>
