@@ -18,6 +18,7 @@ import { installIntentPreload } from '@/lib/preload';
 import Avatar from './Avatar';
 import Bell from './Bell';
 import SearchPalette from './SearchPalette';
+import RecapHost, { RecapBanner } from '@/components/recap/RecapHost';
 import { AppActionsProvider } from './actions';
 import { useKeepUntisSession, useMensaAvailable, useUnreadMessages, useUntisPermissions } from './hooks';
 import { BOTTOM_TABS, DEST, SIDEBAR_GROUPS, isActive, tabFor, type AppDestination } from './nav';
@@ -81,6 +82,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </div>
         <BottomBar />
         <SearchPalette open={searching} onClose={() => setSearching(false)} />
+        <RecapHost />
       </div>
     </AppActionsProvider>
   );
@@ -113,6 +115,7 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
         <span className="truncate">{t('search')}</span>
         <span className={`${s.kbd} hidden lg:inline`} aria-hidden="true">/</span>
       </button>
+      <RecapBanner />
       <span className="hidden flex-1 lg:block" />
       {untis && (
         <Link

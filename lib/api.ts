@@ -835,8 +835,8 @@ export interface AbsenceTimes {
   endDate: string;
   totals: AbsenceTimeTotals;
   bySubject: SubjectAbsence[];
-  /** Every missed lesson, with the absence it belongs to. */
-  lessons: { absenceId: number; minutes: number; subject: string; excused: boolean; counting: boolean }[];
+  /** Every missed lesson, with the absence it belongs to (and its day, YYYYMMDD). */
+  lessons: { absenceId: number; minutes: number; subject: string; excused: boolean; counting: boolean; date?: number; startTime?: number }[];
 }
 
 function absenceTimesUrl(year?: number): string {
@@ -852,6 +852,16 @@ export function fetchAbsenceTimes(year?: number): Promise<AbsenceTimes> {
 
 export function getAbsenceTimesStale(year?: number): AbsenceTimes | undefined {
   return pcGetStale<AbsenceTimes>(absenceTimesUrl(year));
+}
+
+/** The missed lessons of any date range (yyyyMMdd), for a recap's period: live, not kept on the device. */
+export function fetchAbsenceTimesRange(startDate: string, endDate: string): Promise<AbsenceTimes> {
+  return apiFetch(`/api/webuntis/absences/times?startDate=${startDate}&endDate=${endDate}`) as Promise<AbsenceTimes>;
+}
+
+/** The Abwesenheiten of any date range (yyyyMMdd), for a recap's period: live, not kept on the device. */
+export function fetchAbsencesForRecap(startDate: string, endDate: string): Promise<unknown> {
+  return apiFetch(`/api/webuntis/absences?startDate=${startDate}&endDate=${endDate}`);
 }
 
 /** A break of the school (YYYY-MM-DD), with the names WebUntis gives it, if any. */

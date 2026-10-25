@@ -27,7 +27,7 @@ const envSeconds = (name: string, fallback: number) => {
 // browser's Origin the API's CORS would refuse.
 const API_PATHS = [
   'webuntis', 'auth', 'dishes', 'dish-ratings', 'dish-comments', 'users', 'classes', 'sse',
-  'subject-images', 'activity-log', 'client-errors', 'usage', 'privacy', 'push', 'popups',
+  'subject-images', 'activity-log', 'client-errors', 'usage', 'privacy', 'push', 'popups', 'recaps',
 ];
 
 const base: NextConfig = {
