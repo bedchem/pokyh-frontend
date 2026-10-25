@@ -312,7 +312,19 @@ function classregSlides(u: UntisRecap): Slide[] {
 
 function pokyhSlides(p: RecapPokyh, fmt: Fmt, schoolDays: number): Slide[] {
   const t = p.totals;
-  if (!t || t.activeDays === 0) return [];
+  const madeCount = p.created ? p.created.todosDone + p.created.reminders + p.created.comments + p.created.ratings : 0;
+  if (!t || t.activeDays === 0) {
+    // Nothing kept from the period (e.g. a year whose rows went at the
+    // rollover without an archive): said so, instead of leaving it out.
+    if (madeCount > 0 || p.favouriteDish || !p.covered) return [];
+    return [{
+      id: 'pokyh-none', theme: 'night', mood: 'curious', layout: 'number', place: 'right',
+      lead: { key: 'pokyhNoneLead' },
+      unit: { key: 'pokyhNoneUnit' },
+      body: [{ key: 'pokyhNoneBody' }],
+      quip: { key: 'pokyhNoneQuip' },
+    }];
+  }
   const out: Slide[] = [];
   // Open on most school days: full of energy.
   const zap = schoolDays > 0 && t.activeDays >= schoolDays * 0.6;

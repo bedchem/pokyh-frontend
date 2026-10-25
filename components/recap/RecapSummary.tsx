@@ -5,24 +5,21 @@ import { ArrowCounterClockwise, CaretLeft, CaretRight, Check, Copy, DownloadSimp
 import MascotFigure from '@/components/pixel/MascotFigure';
 import type { RecapKey } from '@/lib/i18n/dictionaries/recap';
 import type { SummaryItem } from '@/lib/recap-story';
-import ShareCard, { CARD_DESIGNS, CARD_POSES, CARD_SLOTS, DEFAULT_POSE, POSTER_COLORS, type CardData, type CardDesign, type CardPose } from './ShareCard';
+import ShareCard, { CARD_POSES, CARD_SLOTS, POSTER_COLORS, warmPoses, type CardData, type CardPose } from './ShareCard';
 import { REACTIONS } from './reactions';
 import { cardPng, downloadPng, shareCard, siteLink, whatsappLink } from './share';
 import s from './recap.module.css';
 
-// The story's last page: the card to share (./ShareCard.tsx) as large as
-// the page allows. The arrows (or a swipe on the card) change its design;
-// "Anpassen" opens a sheet for the design, the mascot's pose, the poster's
-// colour, which figures it shows and whether the name is on it. "PNG"
-// saves the picture; "Teilen" hands it to the system's share sheet with a
-// line of text and POKYH's address (WhatsApp, Instagram …), or — where a
-// browser can't — offers WhatsApp's web share, copying the text and saving.
+// The story's last page: the poster to share (./ShareCard.tsx) as large as
+// the page allows. The arrows (or a swipe on the poster) change the
+// mascot's pose; "Anpassen" opens a sheet for the pose, the colour, which
+// figures it shows and whether the name is on it. "PNG" saves the picture;
+// "Teilen" hands it to the system's share sheet with a line of text and
+// POKYH's address (WhatsApp, Instagram …), or — where a browser can't —
+// offers WhatsApp's web share, copying the text and saving.
 
 type T = (key: RecapKey, vars?: Record<string, string | number>) => string;
 
-const DESIGN_KEY: Record<CardDesign, RecapKey> = {
-  report: 'designReport', arcade: 'designArcade', card: 'designCard', handheld: 'designHandheld', poster: 'designPoster',
-};
 const POSE_KEY: Record<CardPose, RecapKey> = {
   proud: 'poseProud', legend: 'poseLegend', wave: 'poseWave', cool: 'poseCool', party: 'poseParty',
   love: 'poseLove', cheer: 'poseCheer', zap: 'poseZap', sleepy: 'poseSleepy', angel: 'poseAngel',
@@ -40,17 +37,14 @@ function PoseIcon({ pose }: { pose: CardPose }) {
 export interface SummaryProps {
   t: T;
   title: string;
-  period: string;
-  year: string;
   firstName: string;
   items: SummaryItem[];
   onReplay: () => void;
 }
 
-export default function RecapSummary({ t, title, period, year, firstName, items, onReplay }: SummaryProps) {
-  const [design, setDesign] = useState<CardDesign>('report');
-  const [poses, setPoses] = useState<Partial<Record<CardDesign, CardPose>>>({});
-  const [posterColor, setPosterColor] = useState<string>(POSTER_COLORS[0]);
+export default function RecapSummary({ t, title, firstName, items, onReplay }: SummaryProps) {
+  const [pose, setPose] = useState<CardPose>(CARD_POSES[0]);
+  const [color, setColor] = useState<string>(POSTER_COLORS[0]);
   const [chosen, setChosen] = useState<string[] | null>(null);
   const [showName, setShowName] = useState(!!firstName);
   const [sheet, setSheet] = useState(false);
@@ -60,26 +54,26 @@ export default function RecapSummary({ t, title, period, year, firstName, items,
   const svg = useRef<SVGSVGElement>(null);
   const swipe = useRef<number | null>(null);
 
-  const pose = poses[design] ?? DEFAULT_POSE[design];
-  const slots = CARD_SLOTS[design];
-  // At the start the most telling figures, as many as the roomiest design takes.
-  const picked = chosen ?? items.slice(0, 6).map((i) => i.id);
+  // Every pose drawn while the page settles, so the arrows and the sheet are instant.
+  useEffect(() => {
+    const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 300));
+    const cancel = window.cancelIdleCallback ?? window.clearTimeout;
+    const id = idle(() => warmPoses());
+    return () => cancel(id);
+  }, []);
+
+  // At the start the most telling figures, as many as the poster has room for.
+  const picked = chosen ?? items.slice(0, CARD_SLOTS).map((i) => i.id);
   const shown = useMemo(
-    () => picked.map((id) => items.find((i) => i.id === id)).filter((i): i is SummaryItem => !!i).slice(0, slots),
-    [picked, items, slots],
+    () => picked.map((id) => items.find((i) => i.id === id)).filter((i): i is SummaryItem => !!i).slice(0, CARD_SLOTS),
+    [picked, items],
   );
   const data: CardData = {
     title,
-    period,
-    year,
     name: showName ? firstName : '',
     items: shown.map((i) => ({ label: t(i.label), value: i.value })),
     pose,
-    posterColor,
-    words: {
-      report: t('cardReport'), highScore: t('cardHighScore'), pressStart: t('cardPressStart'),
-      player: t('cardPlayer'), hp: t('cardHp'), student: t('cardStudent'),
-    },
+    color,
   };
 
   useEffect(() => {
@@ -89,14 +83,16 @@ export default function RecapSummary({ t, title, period, year, firstName, items,
   }, [note]);
 
   const step = (by: number) => {
-    const i = CARD_DESIGNS.indexOf(design);
-    setDesign(CARD_DESIGNS[(i + by + CARD_DESIGNS.length) % CARD_DESIGNS.length]!);
+    const i = CARD_POSES.indexOf(pose);
+    setPose(CARD_POSES[(i + by + CARD_POSES.length) % CARD_POSES.length]!);
   };
 
+  // At most CARD_SLOTS figures: the others wait until one is taken off.
   function toggle(id: string) {
     setChosen((current) => {
-      const list = current ?? picked;
-      return list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
+      const list = (current ?? picked).filter((x) => items.some((i) => i.id === x));
+      if (list.includes(id)) return list.filter((x) => x !== id);
+      return list.length < CARD_SLOTS ? [...list, id] : list;
     });
   }
 
@@ -133,6 +129,8 @@ export default function RecapSummary({ t, title, period, year, firstName, items,
     setMenu(false);
   }
 
+  const order = picked.filter((id) => items.some((i) => i.id === id));
+
   return (
     <>
       <div
@@ -145,17 +143,17 @@ export default function RecapSummary({ t, title, period, year, firstName, items,
           if (Math.abs(dx) > 40) step(dx < 0 ? 1 : -1);
         }}
       >
-        <ShareCard key={design} ref={svg} design={design} data={data} className={`${s.preview} ${s.px}`} label={`${t(DESIGN_KEY[design])}: ${title}`} />
+        <ShareCard ref={svg} data={data} className={`${s.preview} ${s.px}`} label={title} />
       </div>
 
       {note && <p className={`${s.note} ${s.px}`} role="status">{note}</p>}
 
       <div className={s.switcher}>
-        <button type="button" className={`${s.square} ${s.px}`} onClick={() => step(-1)} aria-label={t('prevDesign')}>
+        <button type="button" className={`${s.square} ${s.px}`} onClick={() => step(-1)} aria-label={t('prevPose')}>
           <CaretLeft size={20} weight="bold" aria-hidden="true" />
         </button>
-        <span className={s.designName} aria-live="polite">{t(DESIGN_KEY[design])}</span>
-        <button type="button" className={`${s.square} ${s.px}`} onClick={() => step(1)} aria-label={t('nextDesign')}>
+        <span className={s.designName} aria-live="polite">{t(POSE_KEY[pose])}</span>
+        <button type="button" className={`${s.square} ${s.px}`} onClick={() => step(1)} aria-label={t('nextPose')}>
           <CaretRight size={20} weight="bold" aria-hidden="true" />
         </button>
         <button type="button" className={`${s.customize} ${s.px}`} onClick={() => { setMenu(false); setSheet(true); }} aria-expanded={sheet}>
@@ -195,47 +193,35 @@ export default function RecapSummary({ t, title, period, year, firstName, items,
         <div className={s.sheet} role="dialog" aria-label={t('customize')}>
           <div className={s.sheetBody}>
             <div className={s.group}>
-              <p className={s.label}>{t('customizeDesign')}</p>
-              <div className={s.chips}>
-                {CARD_DESIGNS.map((d) => (
-                  <button key={d} type="button" className={`${s.chip} ${s.px}`} aria-pressed={d === design} onClick={() => setDesign(d)}>
-                    {t(DESIGN_KEY[d])}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className={s.group}>
               <p className={s.label}>{t('customizePose')}</p>
               <div className={s.chips}>
                 {CARD_POSES.map((p) => (
-                  <button key={p} type="button" className={`${s.chip} ${s.px}`} aria-pressed={p === pose} onClick={() => setPoses((all) => ({ ...all, [design]: p }))}>
+                  <button key={p} type="button" className={`${s.chip} ${s.px}`} aria-pressed={p === pose} onClick={() => setPose(p)}>
                     <PoseIcon pose={p} />{t(POSE_KEY[p])}
                   </button>
                 ))}
               </div>
             </div>
-            {design === 'poster' && (
-              <div className={s.group}>
-                <p className={s.label}>{t('customizeColor')}</p>
-                <div className={s.chips}>
-                  {POSTER_COLORS.map((c) => (
-                    <button key={c} type="button" className={`${s.chip} ${s.swatch} ${s.px}`} aria-pressed={c === posterColor} aria-label={c} onClick={() => setPosterColor(c)} style={{ '--c': c } as React.CSSProperties}>
-                      <span className={s.px} />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
             <div className={s.group}>
-              <p className={s.label}><span>{t('customizeFigures')}</span><span>{t('customizeRoom', { n: slots })}</span></p>
+              <p className={s.label}>{t('customizeColor')}</p>
+              <div className={s.chips}>
+                {POSTER_COLORS.map((c) => (
+                  <button key={c} type="button" className={`${s.chip} ${s.swatch} ${s.px}`} aria-pressed={c === color} aria-label={c} onClick={() => setColor(c)} style={{ '--c': c } as React.CSSProperties}>
+                    <span className={s.px} />
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className={s.group}>
+              <p className={s.label}><span>{t('customizeFigures')}</span><span>{t('customizeRoom', { n: CARD_SLOTS })}</span></p>
               <div className={s.figures}>
                 {items.map((item) => {
-                  const on = picked.includes(item.id);
-                  const place = picked.filter((id) => items.some((i) => i.id === id)).indexOf(item.id);
+                  const on = order.includes(item.id);
+                  const full = !on && order.length >= CARD_SLOTS;
                   return (
-                    <button key={item.id} type="button" role="checkbox" aria-checked={on} className={`${s.figure2} ${s.px}`} onClick={() => toggle(item.id)}>
+                    <button key={item.id} type="button" role="checkbox" aria-checked={on} disabled={full} className={`${s.figure2} ${s.px}`} onClick={() => toggle(item.id)}>
                       <span className={s.box} data-on={on ? '' : undefined}>{on && <Check size={12} weight="bold" aria-hidden="true" />}</span>
-                      <span>{t(item.label)}{on && place >= slots ? ' ·' : ''}</span>
+                      <span>{t(item.label)}</span>
                       <span>{item.value}</span>
                     </button>
                   );
@@ -255,7 +241,6 @@ export default function RecapSummary({ t, title, period, year, firstName, items,
           </div>
         </div>
       )}
-
     </>
   );
 }

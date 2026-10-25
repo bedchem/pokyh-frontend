@@ -115,8 +115,9 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
         <span className="truncate">{t('search')}</span>
         <span className={`${s.kbd} hidden lg:inline`} aria-hidden="true">/</span>
       </button>
-      <RecapBanner />
       <span className="hidden flex-1 lg:block" />
+      {/* The recap beside the messages (on phones only its circle). */}
+      <RecapBanner />
       {untis && (
         <Link
           href={localize('/messages')}

@@ -17,7 +17,7 @@ import { holdPageCover } from '@/lib/page-cover';
 import PixelText from './PixelText';
 import RecapSummary from './RecapSummary';
 import { cover, fillAll, patternFor, reveal } from './pixelWipe';
-import { ONGOING, REACTIONS, type FieldParticles, type LocalParticles, type Reaction } from './reactions';
+import { ONGOING, REACTIONS, topRow, type FieldParticles, type LocalParticles, type Reaction } from './reactions';
 import { THEMES, dotPattern, tilePattern } from './themes';
 import s from './recap.module.css';
 
@@ -238,6 +238,7 @@ export default function RecapStory({ recap, onClose, preview }: {
   const card = useRef<HTMLDivElement>(null);
   const wipe = useRef<HTMLCanvasElement>(null);
   const turning = useRef(false);
+  const queued = useRef(0);
   const at = useRef(0);
   const finished = useRef(false);
   const swipe = useRef<{ x: number; y: number; moved: boolean } | null>(null);
@@ -310,25 +311,39 @@ export default function RecapStory({ recap, onClose, preview }: {
     void reveal(canvas, 'iris', colors, 3).then(() => { turning.current = false; });
   }, [reduced]);
 
-  const goTo = useCallback(async (next: number) => {
-    if (turning.current || next === at.current || next < 0 || next >= slides.length) return;
+  // Turns to a page; taps during a turn add up and the next turn goes that
+  // far at once, so quick taps are never lost.
+  const goTo = useCallback(async (first: number) => {
+    if (turning.current) return;
     const canvas = wipe.current;
-    if (reduced || !canvas) { setIndex(next); return; }
+    if (reduced || !canvas) {
+      if (first >= 0 && first < slides.length) setIndex(first);
+      return;
+    }
     turning.current = true;
-    const target = THEMES[slides[next]!.theme];
-    const colors = { fill: target.bg, alt: target.chip };
-    const pattern = patternFor(slides[next]!.id, next);
-    const seed = next * 13 + 7;
-    await cover(canvas, pattern, colors, seed);
-    setIndex(next);
-    // The new page painted under the blocks before they clear.
-    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-    await reveal(canvas, pattern, colors, seed);
+    let next = first;
+    while (next !== at.current && next >= 0 && next < slides.length) {
+      const target = THEMES[slides[next]!.theme];
+      const colors = { fill: target.bg, alt: target.chip };
+      const pattern = patternFor(slides[next]!.id, next);
+      const seed = next * 13 + 7;
+      await cover(canvas, pattern, colors, seed);
+      setIndex(next);
+      at.current = next;
+      // The new page painted under the blocks before they clear.
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      await reveal(canvas, pattern, colors, seed);
+      const step = queued.current;
+      queued.current = 0;
+      if (!step) break;
+      next = Math.min(slides.length - 1, Math.max(0, next + step));
+    }
     turning.current = false;
   }, [slides, reduced]);
 
   const go = useCallback((step: 1 | -1) => {
     if (step === 1 && (!ready || nothing)) return;
+    if (turning.current) { queued.current += step; return; }
     void goTo(at.current + step);
   }, [ready, nothing, goTo]);
 
@@ -402,15 +417,6 @@ export default function RecapStory({ recap, onClose, preview }: {
     '--rc-bg': theme.bg, '--rc-dots': dotPattern(theme), '--rc-ground': theme.ground, '--rc-tiles': tilePattern(theme),
     '--rc-edge': theme.edge, '--rc-chip': theme.chip, '--rc-soft': theme.soft, '--rc-accent': theme.accent, '--rc-accent-ink': theme.accentInk,
   } as CSSProperties;
-  const shortDay = (iso: string) => {
-    const [y, m, d] = iso.split('-').map(Number);
-    return new Date(y!, m! - 1, d!).toLocaleDateString(tag, { day: 'numeric', month: 'numeric', year: 'numeric' });
-  };
-  const year = (() => {
-    const from = Number(recap.periodFrom.slice(0, 4));
-    const to = Number(recap.periodTo.slice(0, 4));
-    return from === to ? String(from) : `${from}/${String(to).slice(2)}`;
-  })();
   let line = 0;
   const nextLine = () => ({ '--i': line++ } as CSSProperties);
 
@@ -459,8 +465,6 @@ export default function RecapStory({ recap, onClose, preview }: {
             key={slide.id}
             t={t}
             title={recap.title}
-            period={`${shortDay(recap.periodFrom)} - ${shortDay(recap.periodTo)}`}
-            year={year}
             firstName={firstName}
             items={items}
             onReplay={() => void goTo(0)}
@@ -500,7 +504,8 @@ export default function RecapStory({ recap, onClose, preview }: {
               ))}
             </div>
 
-            <div key={`m-${slide.id}`} className={s.mascot} data-place={slide.place}>
+            {/* The figure's drawing runs from row -18 to 37 (Figure's viewBox): --head is where its top is drawn. */}
+            <div key={`m-${slide.id}`} className={s.mascot} data-place={slide.place} style={{ '--head': `${((37 - topRow(reaction)) / 55) * 100}%` } as CSSProperties}>
               {slide.quip && (
                 <>
                   <span className={`${s.bubble} ${s.px}`}>{say(slide.quip)}</span>

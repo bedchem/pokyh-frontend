@@ -40,6 +40,8 @@ export interface RecapPokyh {
   created?: { todos: number; todosDone: number; reminders: number; comments: number; ratings: number };
   favouriteDish?: { name: { de: string; it: string; en: string }; stars: number } | null;
   rank?: { topPercent: number; group: number } | null;
+  /** From which day POKYH keeps the live rows, and whether an archived year held any of the period. */
+  kept?: { liveFrom: string; archive: boolean };
 }
 
 interface State {

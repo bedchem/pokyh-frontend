@@ -35,8 +35,8 @@ const de = {
   hoursUnit: 'Stunden im Unterricht',
   hoursBody: 'an {days} Schultagen, in {lessons} Unterrichtsstunden.',
   hoursQuip: 'Das sind {days} Tage rund um die Uhr!',
-  subjectLead: 'Die meiste Zeit hast du verbracht mit',
-  subjectUnit: '{hours} Stunden in {lessons} Einheiten',
+  subjectLead: 'Am meisten Unterricht hattest du in',
+  subjectUnit: '{lessons} Unterrichtsstunden, {hours} Stunden lang',
   subjectQuip: 'Ihr zwei seid unzertrennlich.',
   teacherLead: 'Am häufigsten vor dir stand',
   teacherUnit: '{n} Stunden zusammen',
@@ -179,17 +179,17 @@ const de = {
   cardStreak: 'Serie',
   cardTodos: 'Todos',
   cardClassreg: 'Klassenbuch',
-  cardReport: 'Jahreszeugnis',
-  cardHighScore: 'High Score',
-  cardPressStart: 'Press Start',
-  cardPlayer: '1P',
-  cardHp: 'KP',
-  cardStudent: 'Schüler',
-  designReport: 'Zeugnis',
-  designArcade: 'Arcade',
-  designCard: 'Sammelkarte',
-  designHandheld: 'Handheld',
-  designPoster: 'Poster',
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   poseProud: 'Streber',
   poseLegend: 'Krone',
   poseWave: 'Winken',
@@ -201,14 +201,14 @@ const de = {
   poseSleepy: 'Müde',
   poseAngel: 'Engel',
   customize: 'Anpassen',
-  customizeDesign: 'Design',
+  
   customizePose: 'Maskottchen',
   customizeColor: 'Farbe',
   customizeFigures: 'Zahlen auf der Karte',
-  customizeRoom: 'Platz für {n}',
+  customizeRoom: 'höchstens {n}',
   customizeName: 'Meinen Namen zeigen',
-  prevDesign: 'Vorheriges Design',
-  nextDesign: 'Nächstes Design',
+  
+  
   downloadPng: 'PNG',
   downloadPngLong: 'Als PNG speichern',
   shareText: '{title}: mein Rückblick mit POKYH. Hol dir deinen auf {url}',
@@ -216,6 +216,12 @@ const de = {
   shareCopy: 'Text und Link kopieren',
   shareCopied: 'Kopiert!',
   shareHint: 'Bild speichern und in WhatsApp anhängen, der Text mit dem Link ist schon dabei.',
+  prevPose: 'Vorherige Pose',
+  nextPose: 'Nächste Pose',
+  pokyhNoneLead: 'Deine Zeit in POKYH',
+  pokyhNoneUnit: 'Aus diesem Zeitraum hat POKYH keine Nutzungsdaten.',
+  pokyhNoneBody: 'POKYH hebt sie für das laufende Schuljahr auf; danach bleibt eine Jahresübersicht im Archiv. Für diesen Zeitraum gibt es keine.',
+  pokyhNoneQuip: 'Hm, hier ist nichts …',
 };
 
 export type RecapKey = keyof typeof de;
@@ -251,8 +257,8 @@ export const recapDict: Dictionary<RecapKey> = {
     hoursUnit: 'hours in class',
     hoursBody: 'on {days} school days, in {lessons} lessons.',
     hoursQuip: 'That’s {days} days around the clock!',
-    subjectLead: 'Most of your time went to',
-    subjectUnit: '{hours} hours in {lessons} lessons',
+    subjectLead: 'Most of your lessons were in',
+    subjectUnit: '{lessons} lessons, {hours} hours in all',
     subjectQuip: 'You two are inseparable.',
     teacherLead: 'Most often in front of you',
     teacherUnit: '{n} hours together',
@@ -381,17 +387,17 @@ export const recapDict: Dictionary<RecapKey> = {
     cardStreak: 'Streak',
     cardTodos: 'Todos',
     cardClassreg: 'Register',
-    cardReport: 'Report card',
-    cardHighScore: 'High Score',
-    cardPressStart: 'Press Start',
-    cardPlayer: '1P',
-    cardHp: 'HP',
-    cardStudent: 'Student',
-    designReport: 'Report card',
-    designArcade: 'Arcade',
-    designCard: 'Trading card',
-    designHandheld: 'Handheld',
-    designPoster: 'Poster',
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     poseProud: 'Nerd',
     poseLegend: 'Crown',
     poseWave: 'Wave',
@@ -403,14 +409,14 @@ export const recapDict: Dictionary<RecapKey> = {
     poseSleepy: 'Sleepy',
     poseAngel: 'Angel',
     customize: 'Customise',
-    customizeDesign: 'Design',
+    
     customizePose: 'Mascot',
     customizeColor: 'Colour',
     customizeFigures: 'Figures on the card',
-    customizeRoom: 'Room for {n}',
+    customizeRoom: 'up to {n}',
     customizeName: 'Show my name',
-    prevDesign: 'Previous design',
-    nextDesign: 'Next design',
+    
+    
     downloadPng: 'PNG',
     downloadPngLong: 'Save as PNG',
     shareText: '{title}: my recap with POKYH. Get yours at {url}',
@@ -418,6 +424,12 @@ export const recapDict: Dictionary<RecapKey> = {
     shareCopy: 'Copy text and link',
     shareCopied: 'Copied!',
     shareHint: 'Save the picture and attach it in WhatsApp, the text with the link is already in.',
+    prevPose: 'Previous pose',
+    nextPose: 'Next pose',
+    pokyhNoneLead: 'Your time in POKYH',
+    pokyhNoneUnit: 'POKYH has no usage data from this period.',
+    pokyhNoneBody: 'POKYH keeps it for the running school year; after that a yearly summary stays in the archive. There is none for this period.',
+    pokyhNoneQuip: 'Hmm, nothing here …',
   },
   it: {
     bannerNew: 'È arrivato il tuo riepilogo',
@@ -448,8 +460,8 @@ export const recapDict: Dictionary<RecapKey> = {
     hoursUnit: 'ore in classe',
     hoursBody: 'in {days} giorni di scuola, in {lessons} lezioni.',
     hoursQuip: 'Sono {days} giorni ininterrotti!',
-    subjectLead: 'Hai passato più tempo con',
-    subjectUnit: '{hours} ore in {lessons} lezioni',
+    subjectLead: 'Hai avuto più lezioni di',
+    subjectUnit: '{lessons} lezioni, {hours} ore in tutto',
     subjectQuip: 'Voi due siete inseparabili.',
     teacherLead: 'Più spesso davanti a te',
     teacherUnit: '{n} ore insieme',
@@ -578,17 +590,17 @@ export const recapDict: Dictionary<RecapKey> = {
     cardStreak: 'Serie',
     cardTodos: 'Todo',
     cardClassreg: 'Registro',
-    cardReport: 'Pagella',
-    cardHighScore: 'High Score',
-    cardPressStart: 'Press Start',
-    cardPlayer: '1P',
-    cardHp: 'PS',
-    cardStudent: 'Studente',
-    designReport: 'Pagella',
-    designArcade: 'Arcade',
-    designCard: 'Carta',
-    designHandheld: 'Console',
-    designPoster: 'Poster',
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     poseProud: 'Secchione',
     poseLegend: 'Corona',
     poseWave: 'Saluto',
@@ -600,14 +612,14 @@ export const recapDict: Dictionary<RecapKey> = {
     poseSleepy: 'Assonnato',
     poseAngel: 'Angelo',
     customize: 'Personalizza',
-    customizeDesign: 'Design',
+    
     customizePose: 'Mascotte',
     customizeColor: 'Colore',
     customizeFigures: 'Numeri sulla carta',
-    customizeRoom: 'Spazio per {n}',
+    customizeRoom: 'al massimo {n}',
     customizeName: 'Mostra il mio nome',
-    prevDesign: 'Design precedente',
-    nextDesign: 'Design successivo',
+    
+    
     downloadPng: 'PNG',
     downloadPngLong: 'Salva come PNG',
     shareText: '{title}: il mio riepilogo con POKYH. Prendi il tuo su {url}',
@@ -615,5 +627,11 @@ export const recapDict: Dictionary<RecapKey> = {
     shareCopy: 'Copia testo e link',
     shareCopied: 'Copiato!',
     shareHint: 'Salva l’immagine e allegala su WhatsApp, il testo con il link è già pronto.',
+    prevPose: 'Posa precedente',
+    nextPose: 'Posa successiva',
+    pokyhNoneLead: 'Il tuo tempo in POKYH',
+    pokyhNoneUnit: 'POKYH non ha dati di utilizzo per questo periodo.',
+    pokyhNoneBody: 'POKYH li conserva per l’anno scolastico in corso; dopo resta un riepilogo annuale nell’archivio. Per questo periodo non c’è.',
+    pokyhNoneQuip: 'Mh, qui non c’è niente …',
   },
 };

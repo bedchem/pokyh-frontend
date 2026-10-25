@@ -1,7 +1,8 @@
 /* The recap story (RecapStory.tsx, RecapSummary.tsx) and its place in the
    top bar (RecapHost.tsx). Pixel art throughout: solid colours from the
-   page's theme (themes.ts, as --rc-* on the card), corners cut in steps,
-   motion in steps. No gradients, no glass, no glow. */
+   page's theme (themes.ts, as --rc-* on the card), corners cut in steps.
+   Movement is smooth (stepped easing read as stutter); only blinking and
+   the block wipes are in steps. No gradients, no glass, no glow. */
 
 /* Corners cut in two steps of --px, like a sprite's. */
 .px {
@@ -106,7 +107,7 @@
   transform: scaleX(0);
 }
 .bar[data-state='done'] > span { transform: scaleX(1); }
-.bar[data-state='now'] > span { animation: rc-bar 0.5s steps(5, end) 0.25s both; }
+.bar[data-state='now'] > span { animation: rc-bar 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both; }
 @keyframes rc-bar { to { transform: scaleX(1); } }
 
 .close,
@@ -134,9 +135,9 @@
 }
 .page[data-layout='intro'] { padding-top: calc(104px + var(--safe-top)); }
 
-.in { animation: rc-in 0.4s steps(4, end) both; animation-delay: calc(var(--i, 0) * 80ms + 140ms); }
+.in { animation: rc-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: calc(var(--i, 0) * 70ms + 120ms); }
 @keyframes rc-in {
-  from { opacity: 0; transform: translateY(16px); }
+  from { opacity: 0; transform: translateY(18px); }
 }
 
 .lead {
@@ -179,7 +180,7 @@
   width: var(--w);
   background: var(--rc-accent);
   transform-origin: left;
-  animation: rc-grow 0.8s steps(8, end) both;
+  animation: rc-grow 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
   animation-delay: calc(var(--i, 0) * 90ms + 420ms);
 }
 @keyframes rc-grow { from { transform: scaleX(0); } }
@@ -218,19 +219,17 @@
   .mascot[data-place='left'], .mascot[data-place='right'] { width: 32%; }
   .mascot[data-place='corner'] { width: 22%; }
 }
-.drop { animation: rc-drop 0.42s steps(6, end) both 0.12s; }
+.drop { animation: rc-drop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both 0.1s; }
 @keyframes rc-drop {
-  0% { transform: translateY(-60px); opacity: 0; }
-  20% { opacity: 1; }
-  80% { transform: translateY(4px); }
-  100% { transform: none; }
+  from { transform: translateY(-48px); opacity: 0; }
 }
 .figure { position: relative; display: block; width: 100%; overflow: visible; }
 
 .bubble {
   --px: 3px;
   position: absolute;
-  bottom: calc(100% + 10px);
+  z-index: 2;
+  bottom: calc(var(--head, 66%) + 14px);
   left: 50%;
   width: max-content;
   max-width: 200px;
@@ -242,26 +241,25 @@
   line-height: 1.25;
   text-align: center;
   translate: -50% 0;
-  animation: rc-pop 0.3s steps(3, end) both 0.6s;
+  animation: rc-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both 0.55s;
 }
 .tail {
   position: absolute;
-  bottom: calc(100% + 2px);
+  z-index: 2;
+  bottom: calc(var(--head, 66%) + 6px);
   left: 50%;
   width: 12px;
   height: 9px;
   background: var(--rc-accent);
   translate: -50% 0;
   clip-path: polygon(0 0, 100% 0, 100% 3px, 66% 3px, 66% 6px, 33% 6px, 33% 9px, 0 9px);
-  animation: rc-pop 0.3s steps(3, end) both 0.6s;
+  animation: rc-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both 0.55s;
 }
 .mascot[data-place='left'] .bubble { left: 70%; }
 .mascot[data-place='right'] .bubble, .mascot[data-place='corner'] .bubble { left: 24%; }
 .mascot[data-place='corner'] .bubble { font-size: 13px; max-width: 150px; }
 @keyframes rc-pop {
-  0% { opacity: 0; transform: scale(0.4); }
-  50% { opacity: 1; transform: scale(1.1); }
-  100% { transform: none; }
+  from { opacity: 0; transform: scale(0.6); }
 }
 
 /* ── Bottom: back and "Weiter" (on the ground) ────────────── */
@@ -326,7 +324,7 @@
   width: var(--s);
   height: var(--s);
   background: var(--c);
-  animation: rc-fall var(--d) steps(18, end) var(--w) infinite;
+  animation: rc-fall var(--d) linear var(--w) infinite;
 }
 @keyframes rc-fall {
   to { transform: translate(var(--x), 105vh) rotate(var(--r)); }
@@ -346,7 +344,7 @@
   width: 3px;
   height: 9px;
   background: var(--rc-soft);
-  animation: rc-rain var(--d) steps(10, end) var(--w) infinite;
+  animation: rc-rain var(--d) linear var(--w) infinite;
 }
 @keyframes rc-rain { to { transform: translate(-12px, 105vh); } }
 
@@ -374,14 +372,14 @@
   top: 22%;
   width: var(--z);
   color: var(--rc-soft);
-  animation: rc-rise 3s steps(9, end) var(--w) infinite;
+  animation: rc-rise 3s ease-out var(--w) infinite;
 }
 .heart {
   position: absolute;
   bottom: 34%;
   width: 14px;
   color: #fb7185;
-  animation: rc-rise var(--d) steps(9, end) var(--w) infinite;
+  animation: rc-rise var(--d) ease-out var(--w) infinite;
 }
 @keyframes rc-rise {
   0% { transform: translate(0, 0); opacity: 0; }
@@ -406,12 +404,10 @@
   aspect-ratio: 9 / 16;
   object-fit: contain;
   image-rendering: pixelated;
-  animation: rc-card 0.55s steps(6, end) both 0.15s;
+  animation: rc-card 0.65s cubic-bezier(0.22, 1, 0.36, 1) both 0.1s;
 }
 @keyframes rc-card {
-  0% { transform: translateY(40px) scale(0.85); opacity: 0; }
-  60% { transform: translateY(-6px) scale(1.02); opacity: 1; }
-  100% { transform: none; }
+  from { transform: translateY(28px) scale(0.94); opacity: 0; }
 }
 .switcher {
   position: absolute;
@@ -455,7 +451,8 @@
   max-height: 74%;
   border-top: 6px solid var(--rc-edge);
   background: var(--rc-ground);
-  animation: rc-sheet 0.3s steps(5, end) both;
+  will-change: transform;
+  animation: rc-sheet 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 @keyframes rc-sheet { from { transform: translateY(100%); } }
 .sheetBody { flex: 1; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; padding: 18px 16px 8px; }
@@ -494,7 +491,8 @@
 }
 .figure2 > span:nth-child(2) { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .figure2 > span:last-child { color: var(--rc-soft); font-variant-numeric: tabular-nums; }
-.figure2:disabled { opacity: 0.45; }
+/* Five chosen: the others wait until one is taken off. */
+.figure2:disabled { opacity: 0.45; cursor: not-allowed; }
 .box { width: 18px; height: 18px; flex-shrink: 0; border: 3px solid #fff; }
 .box[data-on] { background: var(--rc-accent); border-color: var(--rc-accent); }
 .toggleRow { margin-top: 18px; }
@@ -510,7 +508,7 @@
   gap: 6px;
   padding: 12px;
   background: var(--rc-ground);
-  animation: rc-pop 0.24s steps(3, end) both;
+  animation: rc-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 .menu .quiet { flex: none; height: 46px; }
 .menuHint { margin: 2px 2px 4px; font-size: 13px; font-weight: 600; line-height: 1.4; color: var(--rc-soft); }
@@ -527,7 +525,7 @@
   font-size: 14px;
   font-weight: 800;
   white-space: nowrap;
-  animation: rc-pop 0.24s steps(3, end) both;
+  animation: rc-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -584,16 +582,14 @@
 }
 @media (min-width: 768px) { .ring { display: none; } }
 .ring > svg:first-child { position: absolute; inset: 0; width: 100%; height: 100%; color: var(--accent); }
-.ringNew > svg:first-child { animation: rc-spin 4s steps(24, end) infinite; }
+.ringNew > svg:first-child { animation: rc-spin 6s linear infinite; }
 .ring > svg:last-child { width: 32px; height: 32px; }
 @keyframes rc-spin { to { transform: rotate(1turn); } }
 
 /* The top bar's button bumps as a closed story lands in it. */
-.dock { animation: rc-bump 0.45s steps(5, end) both; }
+.dock { animation: rc-bump 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
 @keyframes rc-bump {
-  0% { transform: scale(0.6); }
-  60% { transform: scale(1.15); }
-  100% { transform: scale(1); }
+  from { transform: scale(0.7); }
 }
 @media (prefers-reduced-motion: reduce) {
   .ringNew > svg:first-child, .dock { animation: none; }

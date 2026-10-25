@@ -3,13 +3,13 @@
 // iris, blinds, rain, a snake, a checker, a diamond), and the new page
 // appears as the blocks clear in the same order — the screen wipes of old
 // handheld games. Each block grows in two steps, as pixels would. Drawn on
-// one canvas over the card; a page turn takes about 0.65 s.
+// one canvas over the card; a page turn takes about half a second.
 
 export const WIPE_PATTERNS = ['diagonal', 'dissolve', 'spiral', 'iris', 'blinds', 'rain', 'snake', 'checker', 'diamond'] as const;
 export type WipePattern = (typeof WIPE_PATTERNS)[number];
 
-const COVER_MS = 310;
-const REVEAL_MS = 350;
+const COVER_MS = 230;
+const REVEAL_MS = 270;
 /** Blocks across the card. */
 const ACROSS = 11;
 

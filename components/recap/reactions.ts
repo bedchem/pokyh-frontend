@@ -69,5 +69,17 @@ export const REACTIONS: Record<Mood, Reaction> = {
   cheer: { look: { pose: { eyes: 'happy', look: O, mouth: 'grin', arms: 'cheer' }, motion: 'hop' }, field: 'confetti', repeat: 3000 },
 };
 
+/**
+ * The highest sprite row a reaction draws (the head at 1, a hat or a sign
+ * above it), as MascotFigure places them — so the speech bubble sits just
+ * above what is drawn, not above the room kept for hats.
+ */
+export function topRow(r: Reaction): number {
+  const head = r.wear?.head;
+  const hat = head === 'crown' ? -9 : head === 'headphones' ? -6 : head ? -14 : 1;
+  const sign = r.look.mark || r.look.think || r.look.anger ? -10 + Math.min(0, hat) : 1;
+  return Math.min(hat, sign);
+}
+
 /** Motions that keep going by themselves; the others play once. */
 export const ONGOING: ReadonlySet<Look['motion']> = new Set(['bob', 'fume', 'buzz']);

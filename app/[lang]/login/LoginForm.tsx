@@ -72,10 +72,13 @@ function Highlight({ text, query }: { text: string; query: string }) {
   );
 }
 
-/** "oder", then the way in with the POKYH app's QR code (QrSignIn). */
+/**
+ * "oder", then the way in with the POKYH app's QR code (QrSignIn). Not on
+ * phones: the code would have to be scanned with the phone it is shown on.
+ */
 function QrEntry({ label, or, onOpen }: { label: string; or: string; onOpen: () => void }) {
   return (
-    <div className="mt-5 flex flex-col gap-2.5">
+    <div className="mt-5 hidden flex-col gap-2.5 md:flex">
       <p aria-hidden="true" className="flex items-center gap-3 text-[12.5px] font-semibold text-ink-3">
         <span className="h-px flex-1 bg-[var(--line)]" />
         {or}

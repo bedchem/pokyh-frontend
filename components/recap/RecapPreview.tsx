@@ -142,8 +142,8 @@ export default function RecapPreview() {
       {/* The top bar as the app has it: the search, the recap beside it (a circle on phones). */}
       <div className="mx-auto mb-6 flex max-w-[1100px] items-center gap-2.5">
         <span className="flex h-[46px] min-w-0 max-w-[560px] flex-1 items-center rounded-[15px] bg-surface px-4 text-[15px] font-semibold text-ink-3">Suchen</span>
-        <RecapBanner preview={RECAP} onOpen={() => { setRun((n) => n + 1); setOpen(true); }} />
         <span className="hidden flex-1 lg:block" />
+        <RecapBanner preview={RECAP} onOpen={() => { setRun((n) => n + 1); setOpen(true); }} />
         <span className="size-[46px] shrink-0 rounded-full bg-surface" />
         <span className="size-[46px] shrink-0 rounded-full bg-surface" />
       </div>

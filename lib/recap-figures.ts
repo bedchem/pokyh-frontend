@@ -195,6 +195,7 @@ export interface AbsenceLike {
   endTime: number;
   isExcused: boolean;
   hours: number;
+  subjectName?: string;
 }
 
 export interface RecapSources {
@@ -207,7 +208,7 @@ export interface RecapSources {
   times?: { lessons: ReadonlyArray<{ absenceId: number; minutes: number; subject: string; excused: boolean; date?: number }> } | null;
   grades?: ReadonlyArray<{ subjectName: string; grades: ReadonlyArray<{ date: number; markDisplayValue: number }> }> | null;
   exams?: ReadonlyArray<{ examDate: number }> | null;
-  homework?: ReadonlyArray<{ date: number }> | null;
+  homework?: ReadonlyArray<{ id?: number; date: number }> | null;
   classreg?: ReadonlyArray<{ createDate: number }> | null;
 }
 
@@ -256,7 +257,42 @@ function periodDays(src: RecapSources, now: Date): Day[] {
   return out.sort((a, b) => a.date - b.date);
 }
 
+// The length of one lesson ("Stunde") in the period: the most common length
+// among entries of up to an hour; 50 without any. A double lesson the
+// timetable shows as one entry counts as two.
+function singleLesson(days: Day[]): number {
+  const lengths = new Map<number, number>();
+  for (const d of days) for (const l of d.lessons) if (l[1] - l[0] <= 60) lengths.set(l[1] - l[0], (lengths.get(l[1] - l[0]) ?? 0) + 1);
+  let best = 50, most = 0;
+  for (const [length, n] of lengths) if (n > most || (n === most && length > best)) { best = length; most = n; }
+  return best;
+}
+
+/** How many lessons ("Stunden") an entry is. */
+const periodsOf = (l: RecapLesson, single: number) => Math.max(1, Math.round((l[1] - l[0]) / single));
+
+/** Each lesson once: the same lesson twice (groups of the class) is one. */
+function distinct(lessons: readonly RecapLesson[]): RecapLesson[] {
+  const seen = new Set<string>();
+  return lessons.filter((l) => {
+    const key = `${l[0]}-${l[1]}-${l[2]}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function count(map: Map<string, { value: number; lessons: number }>, name: string, value: number, lessons: number) {
+  const key = name.trim();
+  if (!key) return;
+  const e = map.get(key) ?? { value: 0, lessons: 0 };
+  e.value += value;
+  e.lessons += lessons;
+  map.set(key, e);
+}
+
 function schoolFigures(days: Day[]): SchoolFigures {
+  const single = singleLesson(days);
   const subjects = new Map<string, { value: number; lessons: number }>();
   const teachers = new Map<string, { value: number; lessons: number }>();
   const rooms = new Map<string, { value: number; lessons: number }>();
@@ -266,21 +302,18 @@ function schoolFigures(days: Day[]): SchoolFigures {
   let earliest: SchoolFigures['earliest'] = null;
   let latest: SchoolFigures['latest'] = null;
   for (const day of days) {
-    const held = day.lessons.filter((l) => l[5] !== CANCELLED);
-    cancelled += day.lessons.length - held.length;
+    const all = distinct(day.lessons);
+    for (const l of all) if (l[5] === CANCELLED) cancelled += periodsOf(l, single);
+    const held = all.filter((l) => l[5] !== CANCELLED);
     if (!held.length) continue;
     schoolDays += 1;
-    // The same lesson twice (groups of the class) is one.
-    const seen = new Set<string>();
     for (const l of held) {
-      const key = `${l[0]}-${l[1]}-${l[2]}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      lessons += 1;
-      if (l[5] === SUBSTITUTION) substitutions += 1;
-      bump(subjects, l[2], l[1] - l[0]);
-      for (const t of l[3].split(', ')) bump(teachers, t.trim(), 1);
-      for (const r of l[4].split(', ')) bump(rooms, r.trim(), 1);
+      const n = periodsOf(l, single);
+      lessons += n;
+      if (l[5] === SUBSTITUTION) substitutions += n;
+      count(subjects, l[2], l[1] - l[0], n);
+      for (const t of l[3].split(', ')) count(teachers, t, n, n);
+      for (const r of l[4].split(', ')) count(rooms, r, n, n);
     }
     const spans = mergedSpans(held);
     const dayMinutes = spans.reduce((a, [s, e]) => a + e - s, 0);
@@ -299,19 +332,25 @@ function schoolFigures(days: Day[]): SchoolFigures {
   };
 }
 
-// The most common length of a lesson in the period; the usual 50 without any.
+// The most common length of a merged lesson slot in the period (as the
+// absences page counts it, lib/absence-calc.ts); the usual 50 without any.
 function usualLessonMinutes(days: Day[]): number {
-  const count = new Map<number, number>();
-  for (const d of days) for (const l of d.lessons) count.set(l[1] - l[0], (count.get(l[1] - l[0]) ?? 0) + 1);
+  const lengths = new Map<number, number>();
+  for (const d of days) for (const [s, e] of mergedSpans(d.lessons.filter((l) => l[5] !== CANCELLED))) lengths.set(e - s, (lengths.get(e - s) ?? 0) + 1);
   let best = 50, most = 0;
-  for (const [length, n] of count) if (n > most) { best = length; most = n; }
+  for (const [length, n] of lengths) if (n > most) { best = length; most = n; }
   return best;
 }
 
-// What an absence cost inside the period, per day, from the timetable;
-// null where a day of it has no week loaded.
-function absenceFromLessons(a: AbsenceLike, src: RecapSources, until: number): Map<number, number> | null {
-  const out = new Map<number, number>();
+interface Missed { day: number; subject: string; minutes: number }
+
+// What an absence cost inside the period, from the timetable, as the
+// absences page works it out (lib/absence-calc.ts): the lessons it covers,
+// lessons at the same time once, the times of its first and last day; each
+// piece with the subject of the lesson it fell in. Null where a day of it
+// has no week loaded.
+function absenceFromLessons(a: AbsenceLike, src: RecapSources, until: number): Missed[] | null {
+  const out: Missed[] = [];
   const multiDay = a.startDate !== a.endDate;
   const absStart = toMinutes(a.startTime);
   const absEnd = toMinutes(a.endTime);
@@ -322,67 +361,87 @@ function absenceFromLessons(a: AbsenceLike, src: RecapSources, until: number): M
     const week = src.weeks[isoOf(mondayOf(d))];
     if (!week) return null;
     const day = dayNumOf(d);
-    let total = 0;
-    for (const [s, e] of mergedSpans((week.days[String(day)] ?? []).filter((l) => l[5] !== CANCELLED))) {
+    const held = (week.days[String(day)] ?? []).filter((l) => l[5] !== CANCELLED);
+    for (const [s, e] of mergedSpans(held)) {
       let from = s;
       let to = e;
       // Times are those of the first and the last day; the days between are whole.
       if (absStart > 0 && (!multiDay || day === a.startDate)) from = Math.max(from, absStart);
       if (absEnd > 0 && (!multiDay || day === a.endDate)) to = Math.min(to, absEnd);
-      if (to > from) total += to - from;
+      if (to <= from) continue;
+      // The subject of the lesson that takes the most of this piece.
+      let subject = '';
+      let most = 0;
+      for (const l of held) {
+        const overlap = Math.min(to, l[1]) - Math.max(from, l[0]);
+        if (overlap > most) { most = overlap; subject = l[2]; }
+      }
+      out.push({ day, subject, minutes: to - from });
     }
-    if (total > 0) out.set(day, total);
   }
   return out;
 }
 
+/**
+ * The absences of the period, counted the way the absences page counts them
+ * (lib/absence-calc.ts): per absence, the school's own minutes ("Fehlzeiten")
+ * where WebUntis gives any for it, else worked out from the timetable, else
+ * its lesson hours × the usual lesson length. An empty or missing
+ * "Fehlzeiten" answer never stands in for the absences themselves.
+ */
 function absenceFigures(src: RecapSources, days: Day[], complete: boolean, now: Date): AbsenceFigures | null {
-  const absences = (src.absences ?? []).filter((a) => a.endDate >= src.from && a.startDate <= src.to);
-  const official = (src.times?.lessons ?? []).filter((l) => typeof l.date === 'number');
-  const hasOfficial = !!src.times && official.length === (src.times.lessons.length);
-  if (!src.absences && !hasOfficial) return null;
+  if (!src.absences && !src.times) return null;
   const until = Math.min(src.to, dayNumOf(now));
+  const inPeriod = (d: number) => d >= src.from && d <= until;
+  const absences = (src.absences ?? []).filter((a) => a.endDate >= src.from && a.startDate <= until);
+  // The school's minutes per absence, only for days in the period.
+  const official = new Map<number, Array<{ day: number; subject: string; minutes: number; excused: boolean }>>();
+  for (const l of src.times?.lessons ?? []) {
+    if (typeof l.date !== 'number' || !inPeriod(l.date) || l.minutes <= 0) continue;
+    official.set(l.absenceId, [...(official.get(l.absenceId) ?? []), { day: l.date, subject: l.subject, minutes: l.minutes, excused: l.excused }]);
+  }
+
   const bySubject = new Map<string, { value: number; lessons: number }>();
   const byWeekday = Array.from({ length: 7 }, () => 0);
   const missedDays = new Set<number>();
-  let missed = 0, excused = 0;
+  let missed = 0, excused = 0, fromSchool = 0;
+  const add = (day: number, subject: string, minutes: number, isExcused: boolean) => {
+    if (minutes <= 0) return;
+    missed += minutes;
+    if (isExcused) excused += minutes;
+    bump(bySubject, subject || '—', minutes);
+    byWeekday[weekdayOfNum(day)]! += minutes;
+    missedDays.add(day);
+  };
 
-  if (hasOfficial) {
-    for (const l of official) {
-      const date = l.date!;
-      if (date < src.from || date > until || l.minutes <= 0) continue;
-      missed += l.minutes;
-      if (l.excused) excused += l.minutes;
-      bump(bySubject, l.subject || '—', l.minutes);
-      byWeekday[weekdayOfNum(date)]! += l.minutes;
-      missedDays.add(date);
+  const lessonLength = usualLessonMinutes(days);
+  const counted = new Set<number>();
+  for (const a of absences) {
+    counted.add(a.id);
+    const own = official.get(a.id);
+    if (own) {
+      for (const l of own) add(l.day, l.subject, l.minutes, a.isExcused);
+      fromSchool += 1;
+      continue;
     }
-  } else {
-    const lessonLength = usualLessonMinutes(days);
-    for (const a of absences) {
-      const perDay = absenceFromLessons(a, src, until);
-      if (perDay) {
-        for (const [day, m] of perDay) {
-          missed += m;
-          if (a.isExcused) excused += m;
-          byWeekday[weekdayOfNum(day)]! += m;
-          missedDays.add(day);
-        }
-      } else if (a.startDate >= src.from && a.startDate <= until) {
-        const m = a.hours * lessonLength;
-        missed += m;
-        if (a.isExcused) excused += m;
-        byWeekday[weekdayOfNum(a.startDate)]! += m;
-        missedDays.add(a.startDate);
-      }
-    }
+    const pieces = absenceFromLessons(a, src, until);
+    if (pieces) for (const p of pieces) add(p.day, p.subject, p.minutes, a.isExcused);
+    else if (inPeriod(a.startDate)) add(a.startDate, a.subjectName ?? '', a.hours * lessonLength, a.isExcused);
+  }
+  // The school's minutes of absences the list doesn't have (it could not be loaded).
+  for (const [id, own] of official) {
+    if (counted.has(id)) continue;
+    for (const l of own) add(l.day, l.subject, l.minutes, l.excused);
+    fromSchool += 1;
   }
 
   const possible = complete ? days.reduce((sum, d) => sum + mergedSpans(d.lessons.filter((l) => l[5] !== CANCELLED)).reduce((a, [s, e]) => a + e - s, 0), 0) : null;
-  const entries = src.absences ? absences.length : new Set(official.filter((l) => l.date! >= src.from && l.date! <= until).map((l) => l.absenceId)).size;
+  const officialOnly = !src.absences;
   return {
-    entries,
-    openEntries: src.absences ? absences.filter((a) => !a.isExcused).length : 0,
+    entries: officialOnly ? official.size : absences.length,
+    openEntries: officialOnly
+      ? [...official.values()].filter((own) => own.some((l) => !l.excused)).length
+      : absences.filter((a) => !a.isExcused).length,
     missedMinutes: missed,
     excusedMinutes: excused,
     possibleMinutes: possible,
@@ -390,7 +449,7 @@ function absenceFigures(src: RecapSources, days: Day[], complete: boolean, now: 
     missedDays: missedDays.size,
     bySubject: ranked(bySubject),
     byWeekday,
-    official: hasOfficial,
+    official: fromSchool > 0,
   };
 }
 
@@ -430,7 +489,8 @@ function gradeFigures(src: RecapSources): GradeFigures | null {
   };
 }
 
-const within = (date: number, src: RecapSources) => date >= src.from && date <= src.to;
+// Up to today: an exam or a homework still to come is not "done" yet.
+const within = (date: number, src: RecapSources, now: Date) => date >= src.from && date <= Math.min(src.to, dayNumOf(now));
 
 export function untisRecap(src: RecapSources): UntisRecap {
   const now = src.now ?? new Date();
@@ -445,8 +505,9 @@ export function untisRecap(src: RecapSources): UntisRecap {
     school: loaded > 0 ? schoolFigures(days) : null,
     absences: absenceFigures(src, days, complete, now),
     grades: gradeFigures(src),
-    exams: src.exams ? src.exams.filter((e) => within(e.examDate, src)).length : null,
-    homework: src.homework ? src.homework.filter((h) => within(h.date, src)).length : null,
-    classreg: src.classreg ? src.classreg.filter((e) => within(e.createDate, src)).length : null,
+    exams: src.exams ? src.exams.filter((e) => within(e.examDate, src, now)).length : null,
+    // Each homework once (the answer can list one per lesson it belongs to).
+    homework: src.homework ? new Set(src.homework.filter((h) => typeof h.date === 'number' && within(h.date, src, now)).map((h, i) => h.id ?? -i - 1)).size : null,
+    classreg: src.classreg ? src.classreg.filter((e) => within(e.createDate, src, now)).length : null,
   };
 }

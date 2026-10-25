@@ -207,3 +207,79 @@ test('the pixel font: widths, wrapping, cutting off, umlauts and accents', () =>
   assert.equal(p.height, 14);
   assert.match(p.d, /^M/);
 });
+
+const calc = await load('../lib/absence-calc.ts');
+
+// A week of 2025/26: Monday 1 September … Friday 5 September, four lessons a day.
+const SEP = {
+  days: ['2025-09-01', '2025-09-02', '2025-09-03', '2025-09-04', '2025-09-05'].map((date) => ({
+    date,
+    gridEntries: [
+      entry(date, '08:00', '08:50', 'Mathematik'),
+      entry(date, '08:50', '09:40', 'Deutsch'),
+      entry(date, '10:00', '10:50', 'Englisch', date === '2025-09-03' ? { status: 'CANCELLED' } : {}),
+      entry(date, '10:50', '11:40', 'Informatik'),
+    ],
+  })),
+};
+const SAT = new Date(2025, 8, 6, 12, 0);
+const ABSENCES = [
+  // The school counts this one itself ("Fehlzeiten").
+  { id: 1, startDate: 20250901, endDate: 20250901, startTime: 800, endTime: 940, isExcused: true, hours: 2 },
+  // This one only the timetable can tell: the whole of Thursday.
+  { id: 2, startDate: 20250904, endDate: 20250904, startTime: 0, endTime: 0, isExcused: false, hours: 4 },
+];
+const TIMES = { lessons: [
+  { absenceId: 1, minutes: 50, subject: 'Mathematik', excused: true, counting: true, date: 20250901 },
+  { absenceId: 1, minutes: 50, subject: 'Deutsch', excused: true, counting: true, date: 20250901 },
+] };
+
+test('an empty "Fehlzeiten" answer does not wipe out the absences (it showed 0 %)', () => {
+  const weeks = { '2025-09-01': { at: SAT.getTime(), days: recapLessonsOfWeek(SEP) } };
+  const u = untisRecap({ from: 20250901, to: 20260630, now: SAT, weeks, absences: ABSENCES, times: { lessons: [] } });
+  // Both absences from the timetable: 100 + 200 minutes.
+  assert.equal(u.absences.missedMinutes, 300);
+  assert.ok(u.absences.rate > 0);
+  assert.equal(u.absences.entries, 2);
+  assert.equal(u.absences.openEntries, 1);
+});
+
+test('the recap counts absences exactly like the absences page (lib/absence-calc.ts)', () => {
+  const weeks = { '2025-09-01': { at: SAT.getTime(), days: recapLessonsOfWeek(SEP) } };
+  const recap = untisRecap({ from: 20250901, to: 20260630, now: SAT, weeks, absences: ABSENCES, times: TIMES }).absences;
+  const cal = { v: 2, weeks: { '2025-09-01': { at: SAT.getTime(), days: calc.lessonsOfWeek(SEP) } } };
+  const page = calc.absenceFigures(ABSENCES, cal, TIMES, 2025, SAT, false);
+  assert.equal(recap.missedMinutes, page.minutes);
+  assert.equal(recap.excusedMinutes, page.excusedMinutes);
+  assert.equal(recap.possibleMinutes, page.possible);
+  assert.equal(recap.rate, page.rate);
+  // 100 school minutes + Thursday's 200; 19 lessons of 50 held (one cancelled).
+  assert.equal(recap.missedMinutes, 300);
+  assert.equal(recap.possibleMinutes, 950);
+  // Where the minutes came from: Mathematik and Deutsch on Monday, Thursday's four lessons.
+  assert.deepEqual(recap.bySubject.map((s) => [s.name, s.value]), [['Deutsch', 100], ['Mathematik', 100], ['Englisch', 50], ['Informatik', 50]]);
+  assert.equal(recap.byWeekday[0], 100);
+  assert.equal(recap.byWeekday[3], 200);
+});
+
+test('a double lesson shown as one entry counts as two lessons', () => {
+  const week = { days: [{ date: '2026-03-02', gridEntries: [
+    entry('2026-03-02', '08:00', '08:50', 'Deutsch'),
+    entry('2026-03-02', '08:50', '10:30', 'Mathematik'),
+    entry('2026-03-02', '10:45', '11:35', 'Englisch'),
+  ] }] };
+  const u = untisRecap({ from: 20260302, to: 20260302, now: NOW, weeks: { '2026-03-02': { at: 0, days: recapLessonsOfWeek(week) } } });
+  assert.equal(u.school.lessons, 4);
+  assert.equal(u.school.subjects[0].name, 'Mathematik');
+  assert.equal(u.school.subjects[0].lessons, 2);
+});
+
+test('exams and homework still to come are not counted yet; each homework once', () => {
+  const u = untisRecap({
+    from: 20260101, to: 20260630, now: NOW, weeks: {},
+    exams: [{ examDate: 20260215 }, { examDate: 20260520 }],
+    homework: [{ id: 1, date: 20260210 }, { id: 1, date: 20260210 }, { id: 2, date: 20260601 }, { homeworkId: 3 }],
+  });
+  assert.equal(u.exams, 1);
+  assert.equal(u.homework, 1);
+});
