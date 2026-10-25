@@ -188,8 +188,8 @@ test('POKYH pages: time only with consent, the ranking only from the top half', 
   assert.equal(withTime.find((s) => s.id === 'rank').mood, 'legend');
   const items = summaryItems({ title: '', firstName: '', periodFrom: '', periodTo: '', sections: ['pokyh'], untis: null, pokyh: { ...base, usageConsent: true, rank: { topPercent: 3, group: 40 } } }, fmt);
   // Every figure the card can show, the most telling first.
-  assert.deepEqual(items.map((i) => i.id), ['rank', 'days', 'streak', 'todos']);
-  assert.equal(items[0].value, 'Top 3 %');
+  assert.deepEqual(items.map((i) => i.id), ['days', 'rank', 'streak', 'todos']);
+  assert.equal(items[1].value, 'Top 3 %');
 });
 
 const font = await load('../components/recap/pixelFont.ts');
@@ -282,4 +282,13 @@ test('exams and homework still to come are not counted yet; each homework once',
   });
   assert.equal(u.exams, 1);
   assert.equal(u.homework, 1);
+});
+
+test('the poster starts with the days in POKYH, not the favourite subject', () => {
+  const u = untisRecap({ from: 20260302, to: 20260306, now: NOW, weeks: weeks(), absences: [], times: { lessons: [] }, grades: [{ subjectName: 'Deutsch', grades: [{ date: 20260303, markDisplayValue: 8 }] }] });
+  const pokyh = { covered: { from: '2026-03-02', to: '2026-03-06' }, usageConsent: false, memberSince: null, totals: { activeDays: 4, logins: 2, activeSeconds: 0, visits: 0, screens: 0, longestStreak: 3 }, rank: { topPercent: 10, group: 40 } };
+  const items = summaryItems({ title: '', firstName: '', periodFrom: '', periodTo: '', sections: ['school', 'absences', 'grades', 'pokyh'], untis: u, pokyh }, fmt);
+  const first = items.slice(0, 5).map((i) => i.id);
+  assert.deepEqual(first, ['hours', 'rate', 'average', 'days', 'rank']);
+  assert.ok(items.some((i) => i.id === 'subject'));
 });

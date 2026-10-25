@@ -424,9 +424,10 @@ export function summaryItems(input: StoryInput, fmt: Fmt): SummaryItem[] {
   }
   if (u?.absences?.rate != null && wants('absences')) add('rate', 'cardRate', `${fmt.num(u.absences.rate, u.absences.rate === 0 ? 0 : 1)} %`);
   if (u?.grades && u.grades.count > 0 && wants('grades')) add('average', 'cardAverage', fmt.num(u.grades.average, 2));
-  if (u?.school?.subjects[0] && wants('school')) add('subject', 'cardSubject', u.school.subjects[0].name);
-  if (p?.rank && p.rank.topPercent <= 50 && wants('pokyh')) add('rank', 'cardRank', `Top ${p.rank.topPercent} %`);
+  // The days in POKYH among the first five (chosen at the start), the favourite subject just after.
   if (p?.totals && p.totals.activeDays > 0 && wants('pokyh')) add('days', 'cardDays', fmt.num(p.totals.activeDays));
+  if (p?.rank && p.rank.topPercent <= 50 && wants('pokyh')) add('rank', 'cardRank', `Top ${p.rank.topPercent} %`);
+  if (u?.school?.subjects[0] && wants('school')) add('subject', 'cardSubject', u.school.subjects[0].name);
   if (u?.grades?.best && wants('grades')) add('best', 'cardBest', u.grades.best.name);
   if (u?.exams && wants('exams')) add('exams', 'cardExams', fmt.num(u.exams));
   if (u?.homework && wants('exams')) add('homework', 'cardHomework', fmt.num(u.homework));
