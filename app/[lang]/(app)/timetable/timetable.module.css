@@ -1136,6 +1136,16 @@ button.special { border: 0; background: transparent; font: inherit; cursor: poin
   .pager { flex: none; height: 460px; }
 }
 
+/* Computers with a window taller than a 1080p screen's (Chrome maximised
+   there leaves about 946px): the week keeps the size it has there, 874px
+   under the top bar, instead of stretching every lesson further, and the page
+   scrolls like the others should it ever be taller than the window. Phones,
+   tablets and smaller windows are left as they are. */
+@media (min-width: 1024px) and (min-height: 950px) {
+  .host { overflow-y: auto; touch-action: pan-y; }
+  .page { height: 874px; }
+}
+
 /* Phones: the week fills the screen as everywhere else, so nothing scrolls.
    The week switch comes first, right under the top bar, and holds the school
    year right of the week; away from this week "Zu heute" takes its place

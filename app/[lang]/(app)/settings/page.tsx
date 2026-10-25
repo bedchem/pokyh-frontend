@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState, useSyncExternalStore, type FormEvent } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { ArrowRight, Check, Devices, DownloadSimple, EnvelopeSimple, Key, PencilSimple, ShieldCheck, ShieldWarning } from '@phosphor-icons/react';
+import { ArrowRight, Check, DownloadSimple, PencilSimple, ShieldCheck } from '@phosphor-icons/react';
 import AuthGuard from '@/components/AuthGuard';
 import Sheet from '@/components/ui/Sheet';
 import Spinner from '@/components/ui/Spinner';
@@ -11,7 +11,8 @@ import { FormStatus, TextField } from '@/components/ui/Field';
 import ChangePasswordForm from '@/components/account/ChangePasswordForm';
 import ForgotPasswordForm from '@/components/account/ForgotPasswordForm';
 import TwoFactorSheet from '@/components/account/TwoFactorSheet';
-import SecurityCard, { StatusPill } from '@/components/account/SecurityCard';
+import SecurityRow, { StatusPill } from '@/components/account/SecurityRow';
+import { PixelIcon } from '@/components/app/PixelState';
 import { COOKIE_SETTINGS_EVENT } from '@/components/CookieSettingsButton';
 import { Page, PageHeader, Segmented, Switch } from '@/components/app/Page';
 import { Group, Item, LinkItem } from '@/components/app/SettingsRows';
@@ -37,8 +38,9 @@ import { REPO_URLS } from '@/lib/site-links';
 // Settings, set out like the public FAQ: each group's name on the left (it
 // stays in view on wide screens), its settings on the right as rows under
 // thin rules — no boxes around them. In order: how POKYH looks, the account
-// (its WebUntis settings), its security (devices, two-factor sign-in,
-// password), notifications, privacy (with the data download), storage, about.
+// and its security (e-mail, password, two-factor sign-in, devices, its
+// WebUntis settings), notifications, privacy (with the data download),
+// storage, about.
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -217,132 +219,6 @@ function SettingsContent() {
       <PageHeader title={t('title')} subtitle={t('lead')} />
 
       <div className="flex flex-col gap-14 md:gap-20">
-        {/* What keeps the account safe, first and as cards: e-mail, password,
-            two-factor sign-in and the signed-in devices, each with its action. */}
-        <Group id="account" title={ts('accountSecurity')}>
-          <div className="grid gap-3 border-t border-line pb-3 pt-5 sm:grid-cols-2">
-            {untis && (account === null ? (
-              <div aria-hidden="true" className="squircle flex min-h-[176px] flex-col gap-4 rounded-[24px] bg-surface p-5 text-ink">
-                <span className="flex items-center gap-3.5"><Bone className="size-11 !rounded-[12px]" /><Bone className="h-4 w-32" /></span>
-                <Bone className="h-3.5 w-4/5" />
-                <Bone className="mt-auto h-11 w-28 !rounded-[14px]" />
-              </div>
-            ) : account === false ? (
-              <SecurityCard
-                icon={<EnvelopeSimple size={22} weight="bold" />}
-                tone="neutral"
-                title={ts('email')}
-                hint={ts('accountError')}
-                actions={<Button variant="quiet" onClick={retryAccount}>{ts('retry')}</Button>}
-              />
-            ) : (
-              <SecurityCard
-                icon={<EnvelopeSimple size={22} weight="bold" />}
-                tone={account.profile.email ? 'butter' : 'blush'}
-                title={ts('email')}
-                value={account.profile.email || undefined}
-                status={account.profile.email ? undefined : <StatusPill tone="blush">{ts('missing')}</StatusPill>}
-                hint={account.profile.email ? ts('emailCardHint') : ts('emailNone')}
-                highlight={!account.profile.email}
-                actions={(
-                  <Button
-                    variant={account.profile.email ? 'tone' : 'primary'}
-                    onClick={() => { setEmailDraft(account.profile.email); setEmailStatus(null); setEmailOpen(true); }}
-                  >
-                    <PencilSimple size={17} weight="bold" aria-hidden="true" />
-                    {account.profile.email ? ts('emailChange') : ts('emailAdd')}
-                  </Button>
-                )}
-              />
-            ))}
-
-            {untis && (
-              <SecurityCard
-                icon={<Key size={22} weight="bold" />}
-                tone="periwinkle"
-                title={ts('passwordTitle')}
-                value="••••••••"
-                hint={ts('passwordCardHint')}
-                actions={(
-                  <>
-                    {(account === null || account === false || account.profile.passwordChangeAllowed) && (
-                      <Button variant="tone" onClick={() => setSheet('password')}>
-                        <PencilSimple size={17} weight="bold" aria-hidden="true" />
-                        {ts('passwordChange')}
-                      </Button>
-                    )}
-                    <Button variant="quiet" onClick={() => setSheet('forgot')}>{ts('passwordForgot')}</Button>
-                  </>
-                )}
-              />
-            )}
-
-            {untis && account && account.twoFactor.available && (
-              <SecurityCard
-                icon={account.twoFactor.enabled ? <ShieldCheck size={22} weight="bold" /> : <ShieldWarning size={22} weight="bold" />}
-                tone={account.twoFactor.enabled ? 'sage' : 'butter'}
-                title={ts('twoFactor')}
-                value={account.twoFactor.enabled ? ts('stateOn') : ts('stateOff')}
-                status={account.twoFactor.enabled
-                  ? <StatusPill tone="sage"><Check size={14} weight="bold" aria-hidden="true" />{ts('stateOn')}</StatusPill>
-                  : <StatusPill tone="butter">{ts('recommended')}</StatusPill>}
-                hint={!account.twoFactor.enabled ? ts('twoFactorCardOff') : account.twoFactor.required ? ts('twoFactorRequired') : ts('twoFactorCardOn')}
-                highlight={!account.twoFactor.enabled}
-                actions={!account.twoFactor.enabled ? (
-                  <Button onClick={() => setTwoFactor('setup')}>
-                    <ShieldCheck size={17} weight="bold" aria-hidden="true" />
-                    {ts('twoFactorSetup')}
-                  </Button>
-                ) : !account.twoFactor.required ? (
-                  <Button variant="quiet" onClick={() => setTwoFactor('disable')}>{ts('twoFactorDisable')}</Button>
-                ) : undefined}
-              />
-            )}
-
-            <SecurityCard
-              icon={<Devices size={22} weight="bold" />}
-              tone="periwinkle"
-              title={ts('devices')}
-              value={deviceCount === null ? undefined : deviceCount <= 1 ? ts('devicesOne') : ts('devicesCount', { n: deviceCount })}
-              hint={ts('devicesHint')}
-              actions={(
-                <ButtonLink variant="tone" href={localize('/settings/devices')}>
-                  {ts('devicesView')}
-                  <ArrowRight size={17} weight="bold" aria-hidden="true" />
-                </ButtonLink>
-              )}
-            />
-          </div>
-
-          {accountError && <p role="alert" className="py-3 text-[14px] font-semibold text-danger-ink">{accountError}</p>}
-          {untis && account && (
-            <>
-              <Item title={ts('forward')} hint={account.profile.email ? ts('forwardHint') : ts('forwardNeedsEmail')}>
-                <Switch
-                  label={ts('forward')}
-                  checked={account.profile.forwardMessageToEmail}
-                  disabled={!account.profile.email || accountSaving !== null}
-                  onChange={(v) => void saveAccount('forward', { forwardMessageToEmail: v })}
-                />
-              </Item>
-              {account.languages.length > 0 && (
-                <Item title={ts('untisLanguage')} hint={ts('untisLanguageHint')}>
-                  <select
-                    aria-label={ts('untisLanguage')}
-                    value={account.profile.languageCode}
-                    disabled={accountSaving !== null}
-                    onChange={(e) => void saveAccount('language', { languageCode: e.target.value })}
-                    className="h-11 max-w-[220px] rounded-[14px] bg-inset px-3.5 text-[15px] font-semibold text-ink outline-none transition-shadow focus:shadow-[0_0_0_2px_var(--accent)] disabled:opacity-50"
-                  >
-                    {account.languages.map((l) => <option key={l.key} value={l.key}>{l.name}</option>)}
-                  </select>
-                </Item>
-              )}
-            </>
-          )}
-          {untis && <LinkItem href="/profile" title={t('profile')} hint={t('profileHint')} />}
-        </Group>
-
         <Group id="appearance" title={t('appearance')}>
           <div className="border-t border-line py-5">
             <p className="text-[16.5px] font-bold tracking-[-0.015em]">{t('theme')}</p>
@@ -382,6 +258,125 @@ function SettingsContent() {
           <Item title={t('sidebar')} hint={t('sidebarHint')} className="max-lg:hidden">
             <Switch label={t('sidebar')} checked={collapsed} onChange={setCollapsed} />
           </Item>
+        </Group>
+
+        {/* What keeps the account safe: e-mail, password, two-factor sign-in
+            and the signed-in devices, each a row with its pixel icon and its
+            action; one that wants doing keeps an outline. */}
+        <Group id="account" title={ts('accountSecurity')}>
+          {untis && (account === null ? (
+            <div aria-hidden="true" className="flex gap-4 border-t border-line py-5 text-ink sm:gap-5">
+              <Bone className="size-12 !rounded-[12px]" />
+              <span className="flex flex-1 flex-col gap-2.5 pt-1"><Bone className="h-4 w-32" /><Bone className="h-3.5 w-3/5" /></span>
+            </div>
+          ) : account === false ? (
+            <SecurityRow
+              icon={<PixelIcon name="mail" />}
+              title={ts('email')}
+              hint={ts('accountError')}
+              actions={<Button variant="quiet" onClick={retryAccount}>{ts('retry')}</Button>}
+            />
+          ) : (
+            <SecurityRow
+              icon={<PixelIcon name="mail" />}
+              title={ts('email')}
+              value={account.profile.email || undefined}
+              status={account.profile.email ? undefined : <StatusPill tone="blush">{ts('missing')}</StatusPill>}
+              hint={account.profile.email ? ts('emailCardHint') : ts('emailNone')}
+              highlight={!account.profile.email}
+              actions={(
+                <Button
+                  variant={account.profile.email ? 'tone' : 'primary'}
+                  onClick={() => { setEmailDraft(account.profile.email); setEmailStatus(null); setEmailOpen(true); }}
+                >
+                  <PencilSimple size={17} weight="bold" aria-hidden="true" />
+                  {account.profile.email ? ts('emailChange') : ts('emailAdd')}
+                </Button>
+              )}
+            />
+          ))}
+
+          {untis && (
+            <SecurityRow
+              icon={<PixelIcon name="key" />}
+              title={ts('passwordTitle')}
+              value="••••••••"
+              hint={ts('passwordCardHint')}
+              actions={(
+                <>
+                  {(account === null || account === false || account.profile.passwordChangeAllowed) && (
+                    <Button variant="tone" onClick={() => setSheet('password')}>
+                      <PencilSimple size={17} weight="bold" aria-hidden="true" />
+                      {ts('passwordChange')}
+                    </Button>
+                  )}
+                  <Button variant="quiet" onClick={() => setSheet('forgot')}>{ts('passwordForgot')}</Button>
+                </>
+              )}
+            />
+          )}
+
+          {untis && account && account.twoFactor.available && (
+            <SecurityRow
+              icon={<PixelIcon name={account.twoFactor.enabled ? 'shield-on' : 'shield-off'} />}
+              title={ts('twoFactor')}
+              value={account.twoFactor.enabled ? undefined : ts('stateOff')}
+              status={account.twoFactor.enabled
+                ? <StatusPill tone="sage"><Check size={14} weight="bold" aria-hidden="true" />{ts('stateOn')}</StatusPill>
+                : <StatusPill tone="butter">{ts('recommended')}</StatusPill>}
+              hint={!account.twoFactor.enabled ? ts('twoFactorCardOff') : account.twoFactor.required ? ts('twoFactorRequired') : ts('twoFactorCardOn')}
+              highlight={!account.twoFactor.enabled}
+              actions={!account.twoFactor.enabled ? (
+                <Button onClick={() => setTwoFactor('setup')}>
+                  <ShieldCheck size={17} weight="bold" aria-hidden="true" />
+                  {ts('twoFactorSetup')}
+                </Button>
+              ) : !account.twoFactor.required ? (
+                <Button variant="quiet" onClick={() => setTwoFactor('disable')}>{ts('twoFactorDisable')}</Button>
+              ) : undefined}
+            />
+          )}
+
+          <SecurityRow
+            icon={<PixelIcon name="devices" />}
+            title={ts('devices')}
+            value={deviceCount === null ? undefined : deviceCount <= 1 ? ts('devicesOne') : ts('devicesCount', { n: deviceCount })}
+            hint={ts('devicesHint')}
+            actions={(
+              <ButtonLink variant="tone" href={localize('/settings/devices')}>
+                {ts('devicesView')}
+                <ArrowRight size={17} weight="bold" aria-hidden="true" />
+              </ButtonLink>
+            )}
+          />
+
+          {accountError && <p role="alert" className="py-3 text-[14px] font-semibold text-danger-ink">{accountError}</p>}
+          {untis && account && (
+            <>
+              <Item title={ts('forward')} hint={account.profile.email ? ts('forwardHint') : ts('forwardNeedsEmail')}>
+                <Switch
+                  label={ts('forward')}
+                  checked={account.profile.forwardMessageToEmail}
+                  disabled={!account.profile.email || accountSaving !== null}
+                  onChange={(v) => void saveAccount('forward', { forwardMessageToEmail: v })}
+                />
+              </Item>
+              {account.languages.length > 0 && (
+                <Item title={ts('untisLanguage')} hint={ts('untisLanguageHint')}>
+                  <select
+                    aria-label={ts('untisLanguage')}
+                    value={account.profile.languageCode}
+                    disabled={accountSaving !== null}
+                    onChange={(e) => void saveAccount('language', { languageCode: e.target.value })}
+                    className="h-11 max-w-[220px] rounded-[14px] bg-inset px-3.5 text-[15px] font-semibold text-ink outline-none transition-shadow focus:shadow-[0_0_0_2px_var(--accent)] disabled:opacity-50"
+                  >
+                    {account.languages.map((l) => <option key={l.key} value={l.key}>{l.name}</option>)}
+                  </select>
+                </Item>
+              )}
+            </>
+          )}
+          {untis && <LinkItem href="/profile" title={t('profile')} hint={t('profileHint')} />}
         </Group>
 
         <Group id="notifications" title={t('notifications')}>

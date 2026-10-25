@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import SceneSvg from '@/components/pixel/SceneSvg';
 import { stateScene, type PixelSprite } from '@/components/pixel/states';
+import { iconScene, type PixelIconName } from '@/components/pixel/icons';
 
 export { holidaySprite } from '@/components/pixel/states';
 
@@ -32,6 +33,11 @@ export type { PixelSprite };
 
 export function PixelSpriteArt({ sprite = 'unplugged', className = '', width }: { sprite?: PixelSprite; className?: string; width?: string }) {
   return <SceneSvg scene={stateScene(sprite)} className={className} style={width ? { width } : undefined} />;
+}
+
+/** A 16 × 16 pixel icon (components/pixel/icons.ts) at three times its size, so its pixels stay square. */
+export function PixelIcon({ name, className = '' }: { name: PixelIconName; className?: string }) {
+  return <SceneSvg scene={iconScene(name)} className={`size-12 shrink-0 ${className}`} />;
 }
 
 export default function PixelState({

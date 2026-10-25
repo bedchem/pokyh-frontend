@@ -85,6 +85,18 @@ Repositories: `pokyh-frontend`, `pokyh-backend`, `POKYH_ANDROID`. Follows
 - Date 25 October 2026; `PRIVACY_NOTICE_VERSION` `2026-10-25`, so everyone
   is asked once more.
 
+## Timetable on tall screens, settings order (owner's request)
+
+- Timetable, computers only (from 1024px wide, window at least 950px tall):
+  the column keeps the 874px it has under the top bar of a maximised browser
+  on a 1080p screen, so a taller screen no longer stretches the lessons; the
+  page may scroll there. Phones, tablets and smaller windows unchanged.
+- Settings: Darstellung first, then Konto & Sicherheit. The four cards
+  (e-mail, password, two-factor sign-in, devices) are rows under thin rules
+  with a 16 × 16 pixel icon on the left (`components/pixel/icons.ts`,
+  `PixelIcon`); only a row that wants doing (no e-mail, two-factor off) keeps
+  the accent outline. `SecurityCard` became `SecurityRow`.
+
 ## Other
 
 - Removed `instrumentation-client.js`, a temporary layout check (fake
