@@ -17,6 +17,9 @@ import s from './recap.module.css';
 // "Teilen" hands it to the system's share sheet with a line of text and
 // POKYH's address (WhatsApp, Instagram …), or — where a browser can't —
 // offers WhatsApp's web share, copying the text and saving.
+//
+// On a wide screen the settings don't wait behind "Anpassen": they stand
+// in a panel beside the poster, the buttons on the ground below them.
 
 type T = (key: RecapKey, vars?: Record<string, string | number>) => string;
 
@@ -40,9 +43,11 @@ export interface SummaryProps {
   firstName: string;
   items: SummaryItem[];
   onReplay: () => void;
+  /** The wide screens' layout: poster and settings side by side. */
+  wide: boolean;
 }
 
-export default function RecapSummary({ t, title, firstName, items, onReplay }: SummaryProps) {
+export default function RecapSummary({ t, title, firstName, items, onReplay, wide }: SummaryProps) {
   const [pose, setPose] = useState<CardPose>(CARD_POSES[0]);
   const [color, setColor] = useState<string>(POSTER_COLORS[0]);
   const [chosen, setChosen] = useState<string[] | null>(null);
@@ -131,22 +136,123 @@ export default function RecapSummary({ t, title, firstName, items, onReplay }: S
 
   const order = picked.filter((id) => items.some((i) => i.id === id));
 
+  // A swipe on the poster changes the pose.
+  const swipeProps = {
+    onPointerDown: (e: React.PointerEvent) => { swipe.current = e.clientX; },
+    onPointerUp: (e: React.PointerEvent) => {
+      if (swipe.current === null) return;
+      const dx = e.clientX - swipe.current;
+      swipe.current = null;
+      if (Math.abs(dx) > 40) step(dx < 0 ? 1 : -1);
+    },
+  };
+  const poster = <ShareCard ref={svg} data={data} className={`${s.preview} ${s.px}`} label={title} />;
+  const toast = note && <p className={`${s.note} ${s.px}`} role="status">{note}</p>;
+
+  const actions = (
+    <>
+      <button type="button" className={`${s.back} ${s.px}`} onClick={onReplay} aria-label={t('replay')}>
+        <ArrowCounterClockwise size={21} weight="bold" aria-hidden="true" />
+      </button>
+      <button type="button" className={`${s.quiet} ${s.px}`} onClick={() => void save()} disabled={busy} aria-label={t('downloadPngLong')}>
+        <DownloadSimple size={19} weight="bold" aria-hidden="true" />{t('downloadPng')}
+      </button>
+      <button type="button" className={`${s.next} ${s.px}`} onClick={() => void share()} disabled={busy}>
+        <ShareNetwork size={19} weight="bold" aria-hidden="true" />{t('share')}
+      </button>
+    </>
+  );
+
+  const shareMenu = menu && (
+    <div className={`${s.menu} ${s.px}`} role="dialog" aria-label={t('share')}>
+      <p className={s.menuHint}>{t('shareHint')}</p>
+      <a className={`${s.quiet} ${s.px}`} href={whatsappLink(shareText)} target="_blank" rel="noopener noreferrer" onClick={() => { void save(); setMenu(false); }}>
+        <WhatsappLogo size={19} weight="bold" aria-hidden="true" />{t('shareWhatsapp')}
+      </a>
+      <button type="button" className={`${s.quiet} ${s.px}`} onClick={() => void copy()}>
+        <Copy size={18} weight="bold" aria-hidden="true" />{t('shareCopy')}
+      </button>
+      <button type="button" className={`${s.quiet} ${s.px}`} onClick={() => { void save(); setMenu(false); }}>
+        <DownloadSimple size={18} weight="bold" aria-hidden="true" />{t('downloadPngLong')}
+      </button>
+      <button type="button" className={`${s.next} ${s.px}`} onClick={() => setMenu(false)}>{t('close')}</button>
+    </div>
+  );
+
+  const settings = (
+    <>
+      <div className={s.group}>
+        <p className={s.label}>{t('customizePose')}</p>
+        <div className={s.chips}>
+          {CARD_POSES.map((p) => (
+            <button key={p} type="button" className={`${s.chip} ${s.px}`} aria-pressed={p === pose} onClick={() => setPose(p)}>
+              <PoseIcon pose={p} />{t(POSE_KEY[p])}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className={s.group}>
+        <p className={s.label}>{t('customizeColor')}</p>
+        <div className={s.chips}>
+          {POSTER_COLORS.map((c) => (
+            <button key={c} type="button" className={`${s.chip} ${s.swatch} ${s.px}`} aria-pressed={c === color} aria-label={c} onClick={() => setColor(c)} style={{ '--c': c } as React.CSSProperties}>
+              <span className={s.px} />
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className={s.group}>
+        <p className={s.label}><span>{t('customizeFigures')}</span><span>{t('customizeRoom', { n: CARD_SLOTS })}</span></p>
+        <div className={s.figures}>
+          {items.map((item) => {
+            const on = order.includes(item.id);
+            const full = !on && order.length >= CARD_SLOTS;
+            return (
+              <button key={item.id} type="button" role="checkbox" aria-checked={on} disabled={full} className={`${s.figure2} ${s.px}`} onClick={() => toggle(item.id)}>
+                <span className={s.box} data-on={on ? '' : undefined}>{on && <Check size={12} weight="bold" aria-hidden="true" />}</span>
+                <span>{t(item.label)}</span>
+                <span>{item.value}</span>
+              </button>
+            );
+          })}
+        </div>
+        {firstName && (
+          <button type="button" role="checkbox" aria-checked={showName} className={`${s.figure2} ${s.toggleRow} ${s.px}`} onClick={() => setShowName((v) => !v)}>
+            <span className={s.box} data-on={showName ? '' : undefined}>{showName && <Check size={12} weight="bold" aria-hidden="true" />}</span>
+            <span>{t('customizeName')}</span>
+            <span>{firstName}</span>
+          </button>
+        )}
+      </div>
+    </>
+  );
+
+  if (wide) {
+    return (
+      <>
+        <div className={s.desk}>
+          <div className={s.deskPoster} {...swipeProps}>{poster}</div>
+          <div className={s.deskSide}>
+            <section className={`${s.panel} ${s.px}`} aria-label={t('customize')}>
+              <h2 className={s.panelHead}>
+                <SlidersHorizontal size={20} weight="bold" aria-hidden="true" />{t('customize')}
+              </h2>
+              <div className={s.panelBody}>{settings}</div>
+            </section>
+            <div className={s.deskActions}>{actions}</div>
+            {shareMenu}
+          </div>
+        </div>
+        {toast}
+      </>
+    );
+  }
+
   return (
     <>
-      <div
-        className={s.stage}
-        onPointerDown={(e) => { swipe.current = e.clientX; }}
-        onPointerUp={(e) => {
-          if (swipe.current === null) return;
-          const dx = e.clientX - swipe.current;
-          swipe.current = null;
-          if (Math.abs(dx) > 40) step(dx < 0 ? 1 : -1);
-        }}
-      >
-        <ShareCard ref={svg} data={data} className={`${s.preview} ${s.px}`} label={title} />
-      </div>
+      <div className={s.stage} {...swipeProps}>{poster}</div>
 
-      {note && <p className={`${s.note} ${s.px}`} role="status">{note}</p>}
+      {toast}
 
       <div className={s.switcher}>
         <button type="button" className={`${s.square} ${s.px}`} onClick={() => step(-1)} aria-label={t('prevPose')}>
@@ -161,81 +267,13 @@ export default function RecapSummary({ t, title, firstName, items, onReplay }: S
         </button>
       </div>
 
-      <div className={s.bottom}>
-        <button type="button" className={`${s.back} ${s.px}`} onClick={onReplay} aria-label={t('replay')}>
-          <ArrowCounterClockwise size={21} weight="bold" aria-hidden="true" />
-        </button>
-        <button type="button" className={`${s.quiet} ${s.px}`} onClick={() => void save()} disabled={busy} aria-label={t('downloadPngLong')}>
-          <DownloadSimple size={19} weight="bold" aria-hidden="true" />{t('downloadPng')}
-        </button>
-        <button type="button" className={`${s.next} ${s.px}`} onClick={() => void share()} disabled={busy}>
-          <ShareNetwork size={19} weight="bold" aria-hidden="true" />{t('share')}
-        </button>
-      </div>
+      <div className={s.bottom}>{actions}</div>
 
-      {menu && (
-        <div className={`${s.menu} ${s.px}`} role="dialog" aria-label={t('share')}>
-          <p className={s.menuHint}>{t('shareHint')}</p>
-          <a className={`${s.quiet} ${s.px}`} href={whatsappLink(shareText)} target="_blank" rel="noopener noreferrer" onClick={() => { void save(); setMenu(false); }}>
-            <WhatsappLogo size={19} weight="bold" aria-hidden="true" />{t('shareWhatsapp')}
-          </a>
-          <button type="button" className={`${s.quiet} ${s.px}`} onClick={() => void copy()}>
-            <Copy size={18} weight="bold" aria-hidden="true" />{t('shareCopy')}
-          </button>
-          <button type="button" className={`${s.quiet} ${s.px}`} onClick={() => { void save(); setMenu(false); }}>
-            <DownloadSimple size={18} weight="bold" aria-hidden="true" />{t('downloadPngLong')}
-          </button>
-          <button type="button" className={`${s.next} ${s.px}`} onClick={() => setMenu(false)}>{t('close')}</button>
-        </div>
-      )}
+      {shareMenu}
 
       {sheet && (
         <div className={s.sheet} role="dialog" aria-label={t('customize')}>
-          <div className={s.sheetBody}>
-            <div className={s.group}>
-              <p className={s.label}>{t('customizePose')}</p>
-              <div className={s.chips}>
-                {CARD_POSES.map((p) => (
-                  <button key={p} type="button" className={`${s.chip} ${s.px}`} aria-pressed={p === pose} onClick={() => setPose(p)}>
-                    <PoseIcon pose={p} />{t(POSE_KEY[p])}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className={s.group}>
-              <p className={s.label}>{t('customizeColor')}</p>
-              <div className={s.chips}>
-                {POSTER_COLORS.map((c) => (
-                  <button key={c} type="button" className={`${s.chip} ${s.swatch} ${s.px}`} aria-pressed={c === color} aria-label={c} onClick={() => setColor(c)} style={{ '--c': c } as React.CSSProperties}>
-                    <span className={s.px} />
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className={s.group}>
-              <p className={s.label}><span>{t('customizeFigures')}</span><span>{t('customizeRoom', { n: CARD_SLOTS })}</span></p>
-              <div className={s.figures}>
-                {items.map((item) => {
-                  const on = order.includes(item.id);
-                  const full = !on && order.length >= CARD_SLOTS;
-                  return (
-                    <button key={item.id} type="button" role="checkbox" aria-checked={on} disabled={full} className={`${s.figure2} ${s.px}`} onClick={() => toggle(item.id)}>
-                      <span className={s.box} data-on={on ? '' : undefined}>{on && <Check size={12} weight="bold" aria-hidden="true" />}</span>
-                      <span>{t(item.label)}</span>
-                      <span>{item.value}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              {firstName && (
-                <button type="button" role="checkbox" aria-checked={showName} className={`${s.figure2} ${s.toggleRow} ${s.px}`} onClick={() => setShowName((v) => !v)}>
-                  <span className={s.box} data-on={showName ? '' : undefined}>{showName && <Check size={12} weight="bold" aria-hidden="true" />}</span>
-                  <span>{t('customizeName')}</span>
-                  <span>{firstName}</span>
-                </button>
-              )}
-            </div>
-          </div>
+          <div className={s.sheetBody}>{settings}</div>
           <div className={s.sheetFoot}>
             <button type="button" className={`${s.next} ${s.px}`} onClick={() => setSheet(false)}>{t('done')}</button>
           </div>

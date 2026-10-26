@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { CaretLeft, X } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, CaretLeft, X } from '@phosphor-icons/react';
 import MascotFigure from '@/components/pixel/MascotFigure';
 import { SpritePalette } from '@/components/pixel/SceneSvg';
 import { useFirstName } from '@/components/app/hooks';
@@ -36,12 +36,41 @@ import s from './recap.module.css';
 // page is the card to share (./RecapSummary.tsx). With reduced motion the
 // pages simply change.
 //
+// On a wide screen (WIDE) the story fills it: the text in a column on the
+// left, the mascot large on the right, the ground across the whole width
+// with the buttons on it; the last page puts the poster beside its
+// settings. Phones and upright screens keep the one column.
+//
 // The first page is there at once; its button shows how far the figures are
 // (the WebUntis ones are worked out on this device, lib/recap-data.ts) and
 // starts the story when they are. That the story was shown — and watched to
 // the end — is kept on the POKYH server (POST /recaps/:id/view).
 
 const pad = (n: number) => String(n).padStart(2, '0');
+
+/** Wide screens, laid out in two columns; the same query as in recap.module.css. */
+const WIDE = '(min-width: 640px) and (min-aspect-ratio: 4/5)';
+
+const onResize = (changed: () => void) => {
+  window.addEventListener('resize', changed);
+  return () => window.removeEventListener('resize', changed);
+};
+
+function useWide(): boolean {
+  return useSyncExternalStore(onResize, () => window.matchMedia(WIDE).matches, () => false);
+}
+
+// CSS pixels per font pixel for a page's figure: as on phones below 640 px,
+// then growing with the screen — on wide screens with its height, as the
+// text has a column of its own there.
+function figureSize(): number {
+  if (window.matchMedia(WIDE).matches) return Math.min(40, Math.max(9, Math.floor(window.innerHeight / 36)));
+  return window.innerWidth < 640 ? 13 : Math.min(20, Math.floor(window.innerWidth / 36));
+}
+
+function useFigureSize(): number {
+  return useSyncExternalStore(onResize, figureSize, () => 13);
+}
 
 function useFmt(): Fmt {
   const { tag } = useDateLocale();
@@ -170,16 +199,17 @@ function useCountUp(value: Extract<Value, { kind: 'count' }>, reduced: boolean):
   return reduced ? value.n : counted;
 }
 
-function BigValue({ value, tag, reduced, lines = 2 }: { value: Value; tag: string; reduced: boolean; lines?: number }) {
-  if (value.kind === 'text') return <PixelText text={value.text} size={7} min={3} lines={lines} />;
-  return <CountValue value={value} tag={tag} reduced={reduced} />;
+/** A page's figure, `size` CSS pixels per font pixel at most; a word or a name at about half that. */
+function BigValue({ value, tag, reduced, size, lines = 2 }: { value: Value; tag: string; reduced: boolean; size: number; lines?: number }) {
+  if (value.kind === 'text') return <PixelText text={value.text} size={Math.round(size * 0.54)} min={3} lines={lines} />;
+  return <CountValue value={value} tag={tag} reduced={reduced} size={size} />;
 }
 
-function CountValue({ value, tag, reduced }: { value: Extract<Value, { kind: 'count' }>; tag: string; reduced: boolean }) {
+function CountValue({ value, tag, reduced, size }: { value: Extract<Value, { kind: 'count' }>; tag: string; reduced: boolean; size: number }) {
   const shown = useCountUp(value, reduced);
   const digits = value.decimals ?? 0;
   const text = new Intl.NumberFormat(tag, { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(digits === 0 ? Math.round(shown) : shown);
-  return <PixelText text={`${value.prefix ?? ''}${text}${value.suffix ?? ''}`} size={13} min={4} />;
+  return <PixelText text={`${value.prefix ?? ''}${text}${value.suffix ?? ''}`} size={size} min={4} />;
 }
 
 /** The absence rate in 20 blocks, coloured by how far along they are, with the limit's flag. */
@@ -226,6 +256,8 @@ export default function RecapStory({ recap, onClose, preview }: {
   const ownName = useFirstName();
   const firstName = preview?.firstName ?? ownName;
   const reduced = !!useReducedMotion();
+  const wide = useWide();
+  const figure = useFigureSize();
 
   // The answers of a try (`attempt`); undefined while it is under way.
   const [pokyhResult, setPokyhResult] = useState<{ attempt: number; value: RecapPokyh | null } | null>(null);
@@ -468,6 +500,7 @@ export default function RecapStory({ recap, onClose, preview }: {
             firstName={firstName}
             items={items}
             onReplay={() => void goTo(0)}
+            wide={wide}
           />
         ) : (
           <>
@@ -475,7 +508,7 @@ export default function RecapStory({ recap, onClose, preview }: {
               {slide.lead && <p className={`${s.lead} ${s.in}`} style={nextLine()}>{say(slide.lead)}</p>}
               {slide.value && (
                 <div className={`${s.value} ${s.in}`} style={nextLine()}>
-                  <BigValue value={slide.value} tag={tag} reduced={reduced} lines={slide.layout === 'intro' ? 3 : 2} />
+                  <BigValue value={slide.value} tag={tag} reduced={reduced} size={figure} lines={slide.layout === 'intro' ? 3 : 2} />
                 </div>
               )}
               {slide.unit && <p className={`${s.unit} ${s.in}`} style={nextLine()}>{say(slide.unit)}</p>}
@@ -519,6 +552,16 @@ export default function RecapStory({ recap, onClose, preview }: {
             </div>
 
             <div className={s.bottom}>
+              {/* Wide screens with a mouse: the keys, beside the buttons. */}
+              {wide && (
+                <p className={s.keys} aria-hidden="true">
+                  <kbd className={`${s.key} ${s.px}`}><ArrowLeft size={14} weight="bold" /></kbd>
+                  <kbd className={`${s.key} ${s.px}`}><ArrowRight size={14} weight="bold" /></kbd>
+                  <span>{t('keysTurn')}</span>
+                  <kbd className={`${s.key} ${s.px}`}>Esc</kbd>
+                  <span>{t('keysClose')}</span>
+                </p>
+              )}
               <button type="button" className={`${s.back} ${s.px}`} onClick={() => go(-1)} disabled={current === 0} aria-label={t('back')}>
                 <CaretLeft size={22} weight="bold" aria-hidden="true" />
               </button>

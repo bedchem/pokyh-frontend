@@ -44,17 +44,6 @@
   -webkit-tap-highlight-color: transparent;
   outline: none;
 }
-@media (min-width: 640px) and (min-height: 640px) {
-  .overlay {
-    background-color: #0c0a17;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Crect x='7' y='7' width='2' height='2' fill='%231c1830'/%3E%3C/svg%3E");
-  }
-  .card {
-    --px: 8px;
-    width: min(440px, calc((100dvh - 48px) * 0.52));
-    height: min(900px, calc(100dvh - 48px));
-  }
-}
 
 /* The ground the mascot stands on; the buttons sit on it. */
 .ground {
@@ -311,6 +300,9 @@
 .back:hover, .quiet:hover, .next:hover { filter: brightness(1.08); }
 .back:active, .quiet:active, .next:active { transform: translateY(2px); }
 .next:disabled { cursor: progress; color: #fff; background: var(--rc-chip); }
+/* The keys, on wide screens with a mouse (see below). */
+.keys { display: none; }
+
 .loadCells { position: absolute; inset: auto 10px 7px; display: grid; grid-template-columns: repeat(12, 1fr); gap: 2px; height: 5px; }
 .loadCells > span { background: var(--rc-ground); }
 .loadCells > span[data-on] { background: var(--rc-accent); }
@@ -321,8 +313,8 @@
 .confetti {
   position: absolute;
   top: -12px;
-  width: var(--s);
-  height: var(--s);
+  width: calc(var(--s) * var(--k, 1));
+  height: calc(var(--s) * var(--k, 1));
   background: var(--c);
   animation: rc-fall var(--d) linear var(--w) infinite;
 }
@@ -330,19 +322,20 @@
   to { transform: translate(var(--x), 105vh) rotate(var(--r)); }
 }
 .star {
+  --d3: calc(3px * var(--k, 1));
   position: absolute;
-  width: 3px;
-  height: 3px;
+  width: var(--d3);
+  height: var(--d3);
   background: var(--rc-soft);
-  box-shadow: 3px 0 var(--rc-soft), -3px 0 var(--rc-soft), 0 3px var(--rc-soft), 0 -3px var(--rc-soft);
+  box-shadow: var(--d3) 0 var(--rc-soft), calc(var(--d3) * -1) 0 var(--rc-soft), 0 var(--d3) var(--rc-soft), 0 calc(var(--d3) * -1) var(--rc-soft);
   animation: rc-twinkle var(--d) steps(2, end) var(--w) infinite;
 }
 @keyframes rc-twinkle { 50% { opacity: 0.15; } }
 .rain {
   position: absolute;
   top: -16px;
-  width: 3px;
-  height: 9px;
+  width: calc(3px * var(--k, 1));
+  height: calc(9px * var(--k, 1));
   background: var(--rc-soft);
   animation: rc-rain var(--d) linear var(--w) infinite;
 }
@@ -359,32 +352,33 @@
 
 .local { position: absolute; inset: -30% -16% 0; pointer-events: none; }
 .spark {
+  --d4: calc(4px * var(--k, 1));
   position: absolute;
-  width: 4px;
-  height: 4px;
+  width: var(--d4);
+  height: var(--d4);
   background: var(--rc-accent);
-  box-shadow: 4px 0 var(--rc-accent), -4px 0 var(--rc-accent), 0 4px var(--rc-accent), 0 -4px var(--rc-accent);
+  box-shadow: var(--d4) 0 var(--rc-accent), calc(var(--d4) * -1) 0 var(--rc-accent), 0 var(--d4) var(--rc-accent), 0 calc(var(--d4) * -1) var(--rc-accent);
   animation: rc-twinkle var(--d) steps(2, end) var(--w) infinite;
 }
 .zzz {
   position: absolute;
   left: 60%;
   top: 22%;
-  width: var(--z);
+  width: calc(var(--z) * var(--k, 1));
   color: var(--rc-soft);
   animation: rc-rise 3s ease-out var(--w) infinite;
 }
 .heart {
   position: absolute;
   bottom: 34%;
-  width: 14px;
+  width: calc(14px * var(--k, 1));
   color: #fb7185;
   animation: rc-rise var(--d) ease-out var(--w) infinite;
 }
 @keyframes rc-rise {
   0% { transform: translate(0, 0); opacity: 0; }
   15% { opacity: 1; }
-  100% { transform: translate(var(--x, 14px), -90px); opacity: 0; }
+  100% { transform: translate(calc(var(--x, 14px) * var(--k, 1)), calc(-90px * var(--k, 1))); opacity: 0; }
 }
 
 /* ── The last page: the card to share ─────────────────────── */
@@ -528,8 +522,248 @@
   animation: rc-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
+/* ── Upright tablets and windows ──────────────────────────── */
+/* The phone's layout with more room around it. */
+
+@media (min-width: 640px) and (max-aspect-ratio: 4/5) {
+  .card { --ground: calc(172px + var(--safe-bottom)); }
+  .top { padding: calc(22px + var(--safe-top)) 28px 0 40px; }
+  .page { padding: calc(100px + var(--safe-top)) 40px 0; }
+  .page[data-layout='intro'] { padding-top: calc(136px + var(--safe-top)); }
+  .lead, .unit { font-size: 23px; }
+  .body { max-width: 40ch; font-size: 17.5px; }
+  .row { font-size: 16px; }
+  .list { gap: 14px; margin-top: 24px; }
+  .mascot { width: min(46%, 36dvh); }
+  .mascot[data-place='left'], .mascot[data-place='right'] { width: min(40%, 32dvh); }
+  .mascot[data-place='corner'] { width: min(28%, 24dvh); }
+  .bubble { max-width: 240px; font-size: 16px; }
+  .bottom { padding: 0 40px calc(28px + var(--safe-bottom)); }
+  .stage { inset: calc(80px + var(--safe-top)) 40px calc(var(--ground) + 18px); }
+  .switcher { inset: auto 40px calc(98px + var(--safe-bottom)); }
+}
+
+/* ── Wide screens: the whole screen is the scene ──────────── */
+/* The text in a column on the left, centred in the sky; the mascot large on
+   the right, standing on the ground that runs across the screen; the
+   buttons on the ground below it, the keys beside them. Everything grows
+   with the screen's height. The last page puts the poster beside its
+   settings (.desk). The same query as WIDE in RecapStory.tsx. */
+
+@media (min-width: 640px) and (min-aspect-ratio: 4/5) {
+  .card {
+    /* The content's margin and width; as percentages they hold for the
+       card's own children, which are all placed against the card. */
+    --gutter: max(40px, 5%, calc(50% - 75dvh), calc(env(safe-area-inset-left, 0px) + 16px), calc(env(safe-area-inset-right, 0px) + 16px));
+    --col: calc(100% - var(--gutter) * 2);
+    --ground: calc(clamp(96px, 21dvh, 300px) + var(--safe-bottom));
+    --sky-top: clamp(64px, 12dvh, 172px);
+    --btn: clamp(48px, 6.6dvh, 80px);
+    /* Particles twice their phone size. */
+    --k: 2;
+    width: 100%;
+    height: 100%;
+    background-size: 18px 18px;
+  }
+  .ground { border-top-width: 8px; background-size: 24px 24px; }
+  .ground::before { height: 6px; }
+
+  .top { gap: 16px; padding: calc(clamp(16px, 3.4dvh, 36px) + var(--safe-top)) var(--gutter) 0; }
+  .bars { gap: 4px; }
+  .bar { height: 8px; }
+  .close { --px: 5px; width: clamp(44px, 5.4dvh, 64px); height: clamp(44px, 5.4dvh, 64px); }
+
+  .page, .page[data-layout='intro'] {
+    inset: 0 auto var(--ground) var(--gutter);
+    width: calc(var(--col) * 0.56);
+    padding: var(--sky-top) 0 clamp(16px, 4dvh, 48px);
+  }
+  /* Centred, a little above the middle; from the top when it is taller than the sky. */
+  .page::before, .page::after { content: ''; flex: 1 1 0; }
+  .page::after { flex-grow: 1.3; }
+  .lead, .unit { font-size: clamp(18px, 2.7dvh, 40px); }
+  .value, .unit, .body { margin-top: clamp(10px, 1.9dvh, 28px); }
+  .body { max-width: 42ch; font-size: clamp(15px, 2.05dvh, 29px); }
+  .body + .body { margin-top: clamp(6px, 0.9dvh, 14px); }
+
+  .list { max-width: none; gap: clamp(10px, 1.8dvh, 26px); margin-top: clamp(16px, 3dvh, 44px); }
+  .row { font-size: clamp(14px, 1.9dvh, 27px); }
+  .rowHead { margin-bottom: clamp(5px, 0.8dvh, 12px); }
+  .track { height: clamp(10px, 1.5dvh, 20px); }
+
+  .meter { --cells: clamp(18px, 3dvh, 42px); max-width: none; margin: clamp(20px, 3.4dvh, 50px) 0 clamp(34px, 5.4dvh, 76px); }
+  .cells { gap: 4px; height: var(--cells); }
+  .limit { top: -9px; bottom: -9px; width: 4px; }
+  .limitLabel { top: calc(var(--cells) + 14px); font-size: clamp(12.5px, 1.6dvh, 22px); }
+
+  /* The mascot in the right column, where the page puts it; smaller beside a list. */
+  .mascot, .mascot[data-place] {
+    --m: min(calc(var(--col) * 0.38), 46dvh);
+    left: calc(var(--gutter) + var(--col) * var(--at, 0.79) - var(--m) / 2);
+    right: auto;
+    width: var(--m);
+    margin: 0;
+  }
+  .mascot[data-place='left'] { --at: 0.75; }
+  .mascot[data-place='right'] { --at: 0.83; }
+  .mascot[data-place='corner'] { --at: 0.82; --m: min(calc(var(--col) * 0.3), 36dvh); }
+  .bubble, .mascot[data-place] .bubble {
+    --px: 4px;
+    bottom: calc(var(--head, 66%) + 18px);
+    left: 50%;
+    max-width: clamp(200px, 30dvh, 420px);
+    padding: clamp(8px, 1.2dvh, 16px) clamp(12px, 1.8dvh, 24px);
+    font-size: clamp(14.5px, 2dvh, 27px);
+  }
+  .tail {
+    bottom: calc(var(--head, 66%) + 7px);
+    width: 16px;
+    height: 12px;
+    clip-path: polygon(0 0, 100% 0, 100% 4px, 66% 4px, 66% 8px, 33% 8px, 33% 12px, 0 12px);
+  }
+  .drop { animation-name: rc-drop-wide; }
+
+  .hazard > span { background-size: 24px 24px; }
+  .hazard > span:nth-child(1), .hazard > span:nth-child(2) { height: 12px; }
+  .hazard > span:nth-child(3), .hazard > span:nth-child(4) { width: 12px; }
+
+  /* The buttons in the middle of the ground, on the right. */
+  .bottom {
+    justify-content: flex-end;
+    gap: 12px;
+    height: var(--ground);
+    padding: 8px var(--gutter) var(--safe-bottom);
+  }
+  .back, .quiet, .next { --px: 5px; height: var(--btn); font-size: clamp(16px, 2.1dvh, 24px); }
+  .back { width: var(--btn); }
+  .bottom .next { flex: 0 0 auto; width: clamp(200px, 24%, 30dvh); }
+  /* The quiet buttons in the ground's edge colour: in its own they vanish among the tiles. */
+  .bottom .back, .bottom .quiet, .deskActions .back, .deskActions .quiet { background: var(--rc-edge); }
+
+  .note { top: calc(var(--sky-top) - 4px); font-size: 15px; }
+}
+
+/* Phones on their side: everything tighter, the ranking in two columns. */
+@media (min-width: 640px) and (min-aspect-ratio: 4/5) and (max-height: 560px) {
+  .card { --k: 1; --ground: calc(84px + var(--safe-bottom)); --sky-top: 58px; --btn: 46px; }
+  .top { padding-top: calc(10px + var(--safe-top)); }
+  .close { width: 40px; height: 40px; }
+  .lead, .unit { font-size: 16px; }
+  .body { font-size: 13.5px; }
+  .value, .unit, .body { margin-top: 6px; }
+  .list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; margin-top: 10px; }
+  .row { font-size: 13px; }
+  .rowHead { margin-bottom: 3px; }
+  .track { height: 6px; }
+  .meter { --cells: 14px; margin: 12px 0 26px; }
+  .limitLabel { top: calc(var(--cells) + 10px); font-size: 11.5px; }
+  .bubble, .mascot[data-place] .bubble { max-width: 170px; font-size: 13px; }
+}
+
+@keyframes rc-drop-wide {
+  from { transform: translateY(-96px); opacity: 0; }
+}
+
+/* The keys, where there is a mouse to go with them. */
+@media (min-width: 640px) and (min-aspect-ratio: 4/5) and (hover: hover) and (pointer: fine) {
+  .keys {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 auto 0 0;
+    color: var(--rc-soft);
+    font-size: clamp(14px, 1.6dvh, 21px);
+    font-weight: 750;
+    white-space: nowrap;
+  }
+  .keys > span:not(:last-child) { margin-right: 14px; }
+  .key {
+    --px: 2px;
+    display: grid;
+    place-items: center;
+    min-width: clamp(30px, 3.3dvh, 46px);
+    height: clamp(30px, 3.3dvh, 46px);
+    padding: 0 8px 3px;
+    color: #fff;
+    background: var(--rc-edge);
+    box-shadow: inset 0 -3px var(--rc-bg);
+    font: inherit;
+    font-size: 0.9em;
+    font-weight: 800;
+  }
+}
+
+/* The last page on a wide screen: the poster standing on the ground, its
+   settings in a panel beside it, the buttons on the ground below them. */
+.desk {
+  --gap: clamp(28px, 4.5vw, 88px);
+  --poster-bottom: calc(var(--safe-bottom) + (var(--ground) - 8px - var(--safe-bottom) - var(--btn)) / 2);
+  /* As tall as the sky and the ground allow, as wide as leaves the panel 280 px. */
+  --poster-h: min(
+    calc(100dvh - var(--sky-top) - var(--poster-bottom)),
+    calc((min(90vw, 150dvh) - 280px - var(--gap)) * 16 / 9)
+  );
+  position: absolute;
+  inset: 0 var(--gutter);
+  z-index: 3;
+  display: flex;
+  justify-content: center;
+  gap: var(--gap);
+}
+.deskPoster { flex-shrink: 0; padding-top: var(--sky-top); }
+.deskPoster .preview { --px: 8px; width: calc(var(--poster-h) * 9 / 16); height: var(--poster-h); }
+.deskSide {
+  position: relative;
+  display: flex;
+  flex: 0 1 clamp(420px, 34dvh, 560px);
+  flex-direction: column;
+  min-width: 280px;
+  padding-top: var(--sky-top);
+}
+.panel {
+  --px: 6px;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  margin-bottom: clamp(16px, 3dvh, 28px);
+  background: var(--rc-ground);
+  box-shadow: inset 0 6px var(--rc-edge);
+  animation: rc-card 0.65s cubic-bezier(0.22, 1, 0.36, 1) both 0.18s;
+}
+.panelHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 22px 20px 4px;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.panelBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px 20px 20px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rc-edge) transparent;
+}
+.deskActions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+  height: var(--ground);
+  padding: 8px 0 var(--safe-bottom);
+}
+.deskActions .quiet, .deskActions .next { flex: 1; }
+.panel .chip, .panel .figure2 { background: var(--rc-chip); box-shadow: inset 0 0 0 2px var(--rc-edge); }
+.panel .chip[aria-pressed='true'] { background: var(--rc-accent); box-shadow: none; }
+.deskSide .menu { inset: auto 0 calc(var(--ground) - 4px); }
+
 @media (prefers-reduced-motion: reduce) {
-  .in, .drop, .bubble, .tail, .preview, .sheet, .menu, .note, .fill, .cell[data-on], .bar[data-state='now'] > span { animation: none; }
+  .in, .drop, .bubble, .tail, .preview, .panel, .sheet, .menu, .note, .fill, .cell[data-on], .bar[data-state='now'] > span { animation: none; }
   .confetti, .rain, .zzz, .heart { display: none; }
   .star, .spark, .hazard { animation: none; }
 }

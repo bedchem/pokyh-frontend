@@ -54,6 +54,18 @@ const NARROW_TEXT_MIN_WIDTH = 20;
 const WIDE_SLOT_PAD = 3;
 /** The height (in units of the text scale) a cell needs for its subject over teacher and room, at full size. */
 const PAIR_HEIGHT = 32;
+/**
+ * On a computer (`roomy`) a minute is at least this tall, so a lesson keeps its three lines with
+ * room around them; a day longer than the window scrolls in the grid instead of being pressed
+ * into it. At most the other, so a short day on a tall screen doesn't turn into posters.
+ */
+const ROOMY_MIN_PX_PER_MINUTE = 1.6;
+const ROOMY_MAX_PX_PER_MINUTE = 2.1;
+/** On a computer: the room above and below each lesson, and the height (text-scale units) for its three lines. */
+const ROOMY_SLOT_PAD = 4.5;
+const ROOMY_LINES_HEIGHT = 46;
+/** On a computer: room under the last lesson, down to the window's edge, where a scrolling grid fades out. */
+const ROOMY_END_ROOM = 24;
 
 /** A figure of the week whose lessons stand out while it is pointed at (page.tsx, the dock). */
 export type WeekMark = 'today' | 'cancelled' | 'exam' | 'substitution';
@@ -80,6 +92,7 @@ export default function WeekGrid({
   empty,
   mark = null,
   fit = true,
+  roomy = false,
   holidayTitle,
 }: {
   /** The name of the school's break on a day (YYYYMMDD), for its card. */
@@ -100,20 +113,24 @@ export default function WeekGrid({
   mark?: WeekMark | null;
   /** Spread the day over the height there is (no scrolling); else a fixed height per minute. */
   fit?: boolean;
+  /** A computer: the lessons keep a comfortable height, and a longer day scrolls under the day names. */
+  roomy?: boolean;
 }) {
   const t = useT(timetableDict);
   const { locale } = useLocale();
   const DAY_LABELS = dayLabelsMonSat(locale);
   const viewRef = useRef<HTMLDivElement>(null);
-  const [box, setBox] = useState({ width: 0, height: 0 });
+  // `bar`: the width of the grid's scrollbar, where it takes room (the day names leave it free).
+  const [box, setBox] = useState({ width: 0, height: 0, bar: 0 });
 
   // The room under the day names, measured before the first paint and on every resize.
   useLayoutEffect(() => {
     const el = viewRef.current;
     if (!el) return;
-    const update = () => setBox(b => (
-      b.width === el.clientWidth && b.height === el.clientHeight ? b : { width: el.clientWidth, height: el.clientHeight }
-    ));
+    const update = () => setBox(b => {
+      const bar = el.offsetWidth - el.clientWidth;
+      return b.width === el.clientWidth && b.height === el.clientHeight && b.bar === bar ? b : { width: el.clientWidth, height: el.clientHeight, bar };
+    });
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
@@ -140,8 +157,11 @@ export default function WeekGrid({
   const minMins = allEntries.length ? Math.min(...allEntries.map(e => toMins(e.startTime))) : TIMETABLE_PERIODS[0].startMinute;
   const maxMins = allEntries.length ? Math.max(...allEntries.map(e => toMins(e.endTime))) : TIMETABLE_PERIODS[TIMETABLE_PERIODS.length - 1].endMinute;
   const span = Math.max(1, maxMins - minMins);
-  const room = Math.max(0, box.height - AXIS_ROOM_TOP - AXIS_ROOM_BOTTOM);
-  const pxPerMin = fit ? Math.min(MAX_PX_PER_MINUTE, Math.max(MIN_PX_PER_MINUTE, room / span)) : PX_PER_MINUTE * scale;
+  const roomBottom = roomy ? AXIS_ROOM_BOTTOM + ROOMY_END_ROOM : AXIS_ROOM_BOTTOM;
+  const room = Math.max(0, box.height - AXIS_ROOM_TOP - roomBottom);
+  const pxPerMin = !fit ? PX_PER_MINUTE * scale
+    : roomy ? Math.min(ROOMY_MAX_PX_PER_MINUTE, Math.max(ROOMY_MIN_PX_PER_MINUTE, room / span))
+    : Math.min(MAX_PX_PER_MINUTE, Math.max(MIN_PX_PER_MINUTE, room / span));
   const totalHeight = fit ? span * pxPerMin : Math.max(380 * scale, span * pxPerMin);
   const overflows = fit && totalHeight > room + 0.5;
   // The length of most of the week's lessons (the middle one), for the size of their text.
@@ -151,7 +171,7 @@ export default function WeekGrid({
   }, [allEntries]);
   // A cell's padding above and below: the gap between two lessons (a little less where the
   // day is fitted to a phone's screen).
-  const slotPad = wide ? WIDE_SLOT_PAD : (fit ? 1.5 : 2) * scale;
+  const slotPad = roomy ? ROOMY_SLOT_PAD : wide ? WIDE_SLOT_PAD : (fit ? 1.5 : 2) * scale;
   // Text grows with the room each minute gets, up to the size the width allows. With width to
   // spend, as large as lets a usual lesson still hold its subject over teacher and room (rounded
   // down, so it does).
@@ -194,10 +214,20 @@ export default function WeekGrid({
   const showNow = todayIndex >= 0 && minute >= minMins && minute <= maxMins && colW > 0;
   const nowY = (minute - minMins) * pxPerMin;
 
+  // A scrolling day opens at its start, or where it is now when that is further down than the
+  // view reaches: the line a third down. Once per week shown.
+  const placed = useRef(false);
+  useLayoutEffect(() => {
+    const el = viewRef.current;
+    if (!el || placed.current || !roomy || !measured || !overflows) return;
+    placed.current = true;
+    if (showNow && nowY + AXIS_ROOM_TOP > room * 0.8) el.scrollTop = Math.max(0, nowY + AXIS_ROOM_TOP - room / 3);
+  }, [roomy, measured, overflows, showNow, nowY, room]);
+
   return (
-    <div className={s.grid} style={{ ['--s' as string]: textScale } as CSSProperties} data-mark={mark ?? undefined} data-wide={wide || undefined}>
+    <div className={s.grid} style={{ ['--s' as string]: textScale } as CSSProperties} data-mark={mark ?? undefined} data-wide={wide || undefined} data-roomy={roomy || undefined}>
       {/* Header */}
-      <div className={s.gridHeader} style={{ gap: colGap }}>
+      <div className={s.gridHeader} style={roomy ? { gap: colGap, paddingRight: box.bar } : { gap: colGap }}>
         <div className={s.gutterHead} style={{ width: gutter }}>
           <span className={s.gutterKw}>{t('cw')} {weekNumber}</span>
           {dates[0] && <span className={s.gutterMonth}>{monthShort(locale)[dates[0].getMonth()]}</span>}
@@ -215,7 +245,7 @@ export default function WeekGrid({
 
       <div ref={viewRef} className={s.gridView} data-overflow={overflows || undefined}>
       {measured && (
-      <div className={s.gridBody} style={{ height: totalHeight, gap: colGap, marginTop: AXIS_ROOM_TOP, marginBottom: fit ? AXIS_ROOM_BOTTOM : 0 }}>
+      <div className={s.gridBody} style={{ height: totalHeight, gap: colGap, marginTop: AXIS_ROOM_TOP, marginBottom: fit ? roomBottom : 0 }}>
         <div className={s.axis} style={{ width: gutter, height: totalHeight }}>
           {visiblePeriods.map(p => (
             <span
@@ -245,6 +275,7 @@ export default function WeekGrid({
             pxPerMin={pxPerMin}
             scale={textScale}
             wide={wide}
+            roomy={roomy}
             minCellHeight={minCellHeight}
             slotPad={slotPad}
             hues={hues}
@@ -284,6 +315,7 @@ function DayColumn({
   pxPerMin,
   scale,
   wide,
+  roomy,
   minCellHeight,
   slotPad,
   hues,
@@ -304,6 +336,7 @@ function DayColumn({
   pxPerMin: number;
   scale: number;
   wide: boolean;
+  roomy: boolean;
   minCellHeight: number;
   slotPad: number;
   hues: ReadonlyMap<string, number>;
@@ -377,7 +410,7 @@ function DayColumn({
               data-exam={(entry.isExam || cell.kind === 'exam') || undefined}
               data-substitution={(entry.isSubstitution && !cancelled) || undefined}
             >
-              <GridLessonCell cell={cell} height={h} width={cellWidth} dense={sharing} scale={scale} wide={wide} slotPad={slotPad} hues={hues} onTap={onTap} />
+              <GridLessonCell cell={cell} height={h} width={cellWidth} dense={sharing} scale={scale} wide={wide} roomy={roomy} slotPad={slotPad} hues={hues} onTap={onTap} />
             </div>
           );
         })
@@ -404,13 +437,15 @@ function DayColumn({
 }
 
 /** One lesson block: pastel fill and up to three lines (subject, teacher, room) in that order. */
-function GridLessonCell({ cell, height, width, dense, scale, wide, slotPad, hues, onTap }: {
+function GridLessonCell({ cell, height, width, dense, scale, wide, roomy, slotPad, hues, onTap }: {
   cell: GridCell;
   height: number;
   width: number;
   dense: boolean;
   scale: number;
   wide: boolean;
+  /** A computer: the three lines a little larger and further apart (timetable.module.css). */
+  roomy: boolean;
   slotPad: number;
   hues: ReadonlyMap<string, number>;
   onTap: (slot: MergedSlot) => void;
@@ -438,7 +473,7 @@ function GridLessonCell({ cell, height, width, dense, scale, wide, slotPad, hues
   // usual padding, but still wide enough to say what it is.
   const showText = width >= NARROW_TEXT_MIN_WIDTH;
   const narrow = width < TEXT_MIN_CELL_WIDTH;
-  const fit = inner >= 42 * scale ? 'roomy'
+  const fit = inner >= (roomy ? ROOMY_LINES_HEIGHT : 42) * scale ? 'roomy'
     : wide && inner >= PAIR_HEIGHT * scale ? 'pair'
     : inner >= 27.5 * scale ? 'tight' : inner >= 20 * scale ? 'joined' : 'subject';
   const lines = fit === 'subject' ? []

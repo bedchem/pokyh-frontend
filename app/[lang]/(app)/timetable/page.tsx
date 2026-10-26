@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { Suspense, memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type WheelEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowClockwise, CalendarBlank, CaretDown, CaretLeft, CaretRight, Exam, ShareFat, UsersThree, WifiSlash, X } from '@phosphor-icons/react';
 import { useSearchParams } from 'next/navigation';
@@ -66,6 +66,9 @@ const HOVER_QUERY = '(hover: hover) and (pointer: fine)';
 // A phone: the school year moves into the week switch, where it takes turns
 // with "Zu heute" (timetable.module.css has the same breakpoint).
 const PHONE_QUERY = '(max-width: 639.98px)';
+// A computer: the lessons keep a comfortable height, and a long day scrolls in the grid
+// (WeekGrid's `roomy`; timetable.module.css has the same breakpoint).
+const DESKTOP_QUERY = '(min-width: 1024px)';
 
 function useMedia(query: string): boolean {
   const subscribe = useCallback((cb: () => void) => {
@@ -148,6 +151,7 @@ function TimetableContent() {
   const menuRef = useRef<HTMLDivElement>(null);
   const canHover = useMedia(HOVER_QUERY);
   const phone = useMedia(PHONE_QUERY);
+  const desktop = useMedia(DESKTOP_QUERY);
   // Pointed at, or focused from the keyboard (a click focuses it too, so it stays until the next click).
   const [hoverMark, setHoverMark] = useState<WeekMark | null>(null);
   const [focusMark, setFocusMark] = useState<WeekMark | null>(null);
@@ -458,6 +462,15 @@ function TimetableContent() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
+  // On a computer the day scrolls in the grid: the wheel over the title or the week switch
+  // scrolls it too, as it would a page.
+  const scrollWeekFromOutside = (e: WheelEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.closest(`.${s.gridView}, [role="menu"], [role="listbox"]`)) return;
+    const view = e.currentTarget.querySelector<HTMLElement>(`.${s.pane}:not([aria-hidden]) .${s.gridView}[data-overflow]`);
+    view?.scrollBy({ top: e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY });
+  };
+
   const renderPane = (offset: number) => (
     <WeekPane
       offset={offset}
@@ -465,6 +478,7 @@ function TimetableContent() {
       todayNum={todayNum}
       minute={minute}
       scale={scale}
+      roomy={desktop}
       absences={source ? NO_ABSENCES : absences[schoolYearOfDate(dateOf(offset, 3))] ?? NO_ABSENCES}
       onTap={setActiveSlot}
       ensureWeek={ensureWeek}
@@ -484,7 +498,7 @@ function TimetableContent() {
     <AuthGuard>
       <UntisGuard>
         <div className={s.wrap}>
-          <div className={s.host}>
+          <div className={s.host} onWheel={desktop ? scrollWeekFromOutside : undefined}>
             <main className={s.page}>
               {/* Header: title and menus. On a phone the school year is in the week switch, and
                   the header only shows for an old copy of the week (its date, under the switch). */}
@@ -617,6 +631,7 @@ const WeekPane = memo(function WeekPane({
   todayNum,
   minute,
   scale,
+  roomy,
   absences,
   onTap,
   ensureWeek,
@@ -628,6 +643,7 @@ const WeekPane = memo(function WeekPane({
   todayNum: number;
   minute: number;
   scale: number;
+  roomy: boolean;
   absences: AbsenceEntry[];
   onTap: (slot: MergedSlot) => void;
   ensureWeek: (offset: number, force?: boolean) => void;
@@ -654,6 +670,7 @@ const WeekPane = memo(function WeekPane({
       weekNumber={isoWeekNumber(dates[0])}
       minute={minute}
       scale={scale}
+      roomy={roomy}
       onTap={onTap}
       absences={empty ? NO_ABSENCES : absences}
       mark={mark}
