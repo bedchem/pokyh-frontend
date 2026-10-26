@@ -364,6 +364,11 @@ unset, so the default in the code applies. The container itself needs no environ
 docker compose up --build -d
 ```
 
+A download that breaks off on a bad connection (`npm error code ECONNRESET`, `network aborted`)
+does not fail the build: `npm ci` runs up to five times, and a BuildKit cache mount keeps the
+packages it already has, for the next attempt and the next deploy (Docker and Dokploy build with
+BuildKit by default). Only when the registry stays unreachable does the build stop.
+
 ### Cloudflare Workers
 
 `wrangler.jsonc` deploys the export as a Worker with static assets and no code of its own:
@@ -380,9 +385,12 @@ serve it locally the way Cloudflare does: `npx wrangler dev`.
 
 ### Cloudflare Pages
 
-Build command `npm run build`, build output directory `out`, the same build variables. Pages
-skips `wrangler.jsonc` (it has no `pages_build_output_dir`) and serves `out/` with
-`_headers` and `_redirects`, which use the same rules on Pages and Workers.
+Framework preset *None*, build command `npm run build`, build output directory `out`, the same
+build variables. Pages skips `wrangler.jsonc` (it has no `pages_build_output_dir`) and serves
+`out/` with `_headers` and `_redirects`, which use the same rules on Pages and Workers. From a
+machine: `npm run build && npx wrangler pages deploy out`.
+
+Both Cloudflare builds use the Node version in `.node-version`, the same as the Docker image.
 
 ### Any static host or CDN
 

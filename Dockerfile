@@ -1,8 +1,17 @@
 # ── Build: the static export (out/) ───────────────────────────────────────────
+# The same Node as the Cloudflare builds (.node-version): keep both in step.
 FROM node:22.23.4-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+# On a bad connection a download breaks off half-way ("npm error code
+# ECONNRESET, network aborted"), which npm does not retry itself: the install
+# runs again. The cache mount keeps every package already downloaded, for the
+# next attempt and for the next build.
+RUN --mount=type=cache,target=/root/.npm \
+    for attempt in 1 2 3 4 5; do \
+      npm ci --prefer-offline --no-audit --no-fund && exit 0; \
+      echo "npm ci failed (attempt $attempt of 5), trying again"; sleep $((attempt * 5)); \
+    done; exit 1
 COPY . .
 
 # Build-time env vars (baked into the pages and the client bundle). NEXT_PUBLIC_*
