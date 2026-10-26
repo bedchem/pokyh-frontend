@@ -56,16 +56,18 @@ const WIDE_SLOT_PAD = 3;
 const PAIR_HEIGHT = 32;
 /**
  * On a computer (`roomy`) a minute is at least this tall, so a lesson keeps its three lines with
- * room around them; a day longer than the window scrolls in the grid instead of being pressed
- * into it. At most the other, so a short day on a tall screen doesn't turn into posters.
+ * room around them; a day longer than the window scrolls the page instead of being pressed into
+ * it. At most the other, so a short day on a tall screen doesn't turn into posters.
  */
 const ROOMY_MIN_PX_PER_MINUTE = 1.6;
 const ROOMY_MAX_PX_PER_MINUTE = 2.1;
 /** On a computer: the room above and below each lesson, and the height (text-scale units) for its three lines. */
 const ROOMY_SLOT_PAD = 4.5;
 const ROOMY_LINES_HEIGHT = 46;
-/** On a computer: room under the last lesson, down to the window's edge, where a scrolling grid fades out. */
+/** On a computer: room under the last lesson, down to the window's edge or the end of a scrolled page. */
 const ROOMY_END_ROOM = 24;
+/** On a computer: how far lessons go under the day names before they fade out there fully. */
+const UNDER_FADE_PX = 24;
 
 /** A figure of the week whose lessons stand out while it is pointed at (page.tsx, the dock). */
 export type WeekMark = 'today' | 'cancelled' | 'exam' | 'substitution';
@@ -113,29 +115,51 @@ export default function WeekGrid({
   mark?: WeekMark | null;
   /** Spread the day over the height there is (no scrolling); else a fixed height per minute. */
   fit?: boolean;
-  /** A computer: the lessons keep a comfortable height, and a longer day scrolls under the day names. */
+  /** A computer: the lessons keep a comfortable height, and a longer day scrolls the page under the day names. */
   roomy?: boolean;
 }) {
   const t = useT(timetableDict);
   const { locale } = useLocale();
   const DAY_LABELS = dayLabelsMonSat(locale);
+  const headRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<HTMLDivElement>(null);
-  // `bar`: the width of the grid's scrollbar, where it takes room (the day names leave it free).
-  const [box, setBox] = useState({ width: 0, height: 0, bar: 0 });
+  const [box, setBox] = useState({ width: 0, height: 0 });
 
-  // The room under the day names, measured before the first paint and on every resize.
+  // The room under the day names, measured before the first paint and on every resize. On a
+  // computer the page scrolls, not the grid: the room is what the window leaves under the day
+  // names with nothing scrolled, however long the day is.
   useLayoutEffect(() => {
     const el = viewRef.current;
     if (!el) return;
-    const update = () => setBox(b => {
-      const bar = el.offsetWidth - el.clientWidth;
-      return b.width === el.clientWidth && b.height === el.clientHeight && b.bar === bar ? b : { width: el.clientWidth, height: el.clientHeight, bar };
-    });
+    const page = roomy ? scrollerOf(el) : null;
+    const update = () => {
+      const width = el.clientWidth;
+      const height = page ? Math.floor(page.clientHeight - topOn(page, el)) : el.clientHeight;
+      setBox(b => (b.width === width && b.height === height ? b : { width, height }));
+    };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
+    // The window, and what stands above the week (a line more in the header).
+    if (page) [page, page.firstElementChild].forEach(n => n && ro.observe(n));
     return () => ro.disconnect();
-  }, []);
+  }, [roomy]);
+
+  // On a computer the lessons fade out as they pass under the day names: the fade comes in over
+  // the first UNDER_FADE_PX they go under (`--under`, 0 … 1, timetable.module.css).
+  useLayoutEffect(() => {
+    const view = viewRef.current;
+    const head = headRef.current;
+    const page = roomy && view ? scrollerOf(view) : null;
+    if (!view || !head || !page) return;
+    const update = () => {
+      const under = (head.getBoundingClientRect().bottom - view.getBoundingClientRect().top) / UNDER_FADE_PX;
+      head.style.setProperty('--under', String(Math.min(1, Math.max(0, under))));
+    };
+    update();
+    page.addEventListener('scroll', update, { passive: true });
+    return () => page.removeEventListener('scroll', update);
+  }, [roomy]);
 
   // Tablets and computers: more room between days and lessons, and text sized for the screen.
   const wide = scale > 1;
@@ -214,20 +238,26 @@ export default function WeekGrid({
   const showNow = todayIndex >= 0 && minute >= minMins && minute <= maxMins && colW > 0;
   const nowY = (minute - minMins) * pxPerMin;
 
-  // A scrolling day opens at its start, or where it is now when that is further down than the
-  // view reaches: the line a third down. Once per week shown.
+  // A day longer than the window opens at its start, or where it is now when that is further down
+  // than the window reaches: the line a third down what is left under the day names. Once per
+  // week shown, and only by the shown week (the ones beside it share the page).
   const placed = useRef(false);
   useLayoutEffect(() => {
     const el = viewRef.current;
-    if (!el || placed.current || !roomy || !measured || !overflows) return;
+    const head = headRef.current;
+    const page = el && scrollerOf(el);
+    if (!el || !head || !page || placed.current || !roomy || !measured || !overflows || el.closest('[inert]')) return;
     placed.current = true;
-    if (showNow && nowY + AXIS_ROOM_TOP > room * 0.8) el.scrollTop = Math.max(0, nowY + AXIS_ROOM_TOP - room / 3);
-  }, [roomy, measured, overflows, showNow, nowY, room]);
+    const nowOnPage = topOn(page, el) + AXIS_ROOM_TOP + nowY;
+    if (!showNow || nowOnPage <= page.clientHeight * 0.8) return;
+    const under = parseFloat(getComputedStyle(head).top) + head.offsetHeight;
+    page.scrollTo({ top: nowOnPage - under - (page.clientHeight - under) / 3 });
+  }, [roomy, measured, overflows, showNow, nowY]);
 
   return (
     <div className={s.grid} style={{ ['--s' as string]: textScale } as CSSProperties} data-mark={mark ?? undefined} data-wide={wide || undefined} data-roomy={roomy || undefined}>
       {/* Header */}
-      <div className={s.gridHeader} style={roomy ? { gap: colGap, paddingRight: box.bar } : { gap: colGap }}>
+      <div ref={headRef} className={s.gridHeader} style={{ gap: colGap }}>
         <div className={s.gutterHead} style={{ width: gutter }}>
           <span className={s.gutterKw}>{t('cw')} {weekNumber}</span>
           {dates[0] && <span className={s.gutterMonth}>{monthShort(locale)[dates[0].getMonth()]}</span>}
@@ -243,7 +273,7 @@ export default function WeekGrid({
         })}
       </div>
 
-      <div ref={viewRef} className={s.gridView} data-overflow={overflows || undefined}>
+      <div ref={viewRef} className={s.gridView} data-overflow={(overflows && !roomy) || undefined}>
       {measured && (
       <div className={s.gridBody} style={{ height: totalHeight, gap: colGap, marginTop: AXIS_ROOM_TOP, marginBottom: fit ? roomBottom : 0 }}>
         <div className={s.axis} style={{ width: gutter, height: totalHeight }}>
@@ -305,6 +335,16 @@ export default function WeekGrid({
       </div>
     </div>
   );
+}
+
+/** The page that scrolls on a computer (page.tsx). */
+function scrollerOf(el: HTMLElement) {
+  return el.closest<HTMLElement>(`.${s.host}`);
+}
+
+/** Where `el` starts on the scrolling `page`, however far that is scrolled. */
+function topOn(page: HTMLElement, el: HTMLElement) {
+  return el.getBoundingClientRect().top - page.getBoundingClientRect().top + page.scrollTop;
 }
 
 function DayColumn({

@@ -1136,19 +1136,76 @@ button.special { border: 0; background: transparent; font: inherit; cursor: poin
   .pager { flex: none; height: 460px; }
 }
 
-/* Computers (from 1024px, WeekGrid's `roomy`): the week reaches down to the
-   window's edge, and a lesson keeps a comfortable height instead of being
-   pressed into the window: a longer day scrolls in the grid, under the day
-   names, and fades out at the edge. The lines in a lesson a little larger and
-   further apart. Phones and tablets are left as they are. */
+/* Computers (from 1024px, `data-roomy`, WeekGrid's `roomy`): the week
+   reaches down to the window's edge, and a lesson keeps a comfortable height
+   instead of being pressed into the window. A longer day scrolls the page as
+   any other page scrolls: the title and its menus leave at the top, the week
+   switch and the day names stay there, and the lessons fade out as they
+   pass under them. The lines in a lesson a little larger and further apart.
+   Phones and tablets are left as they are. */
 @media (min-width: 1024px) {
   .page { padding-bottom: 0; }
 }
-.grid[data-roomy] .gridView[data-overflow] {
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--ink) 22%, transparent) transparent;
-  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
-  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+.host[data-roomy] {
+  overflow-y: auto;
+  touch-action: pan-y;
+  /* A lesson reached with Tab comes into view below the day names. */
+  scroll-padding-top: calc(var(--tt-stick, 0px) + 48px);
+}
+.host[data-roomy] .page {
+  height: auto;
+  min-height: 100%;
+}
+/* Its background reaches over the gaps above and below it (and its margins
+   give them back), so nothing shows through there while it stays at the top. */
+.host[data-roomy] .weekBarWrap {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding-top: 12px;
+  padding-bottom: 18px;
+  margin: -12px 0 -18px;
+  background: var(--app-bg);
+}
+/* The weeks as tall as the shown one, the page's height at least (for the
+   loading and error states); the ones beside it, cut to that, don't make the
+   page longer. Clipped, not hidden, so the day names can stay at the top. */
+.host[data-roomy] .pager {
+  flex: 1 0 auto;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: clip;
+}
+.host[data-roomy] .stage,
+.host[data-roomy] .track {
+  position: relative;
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+.host[data-roomy] .pane { position: relative; flex: 1 0 auto; }
+.host[data-roomy] .pane[aria-hidden] { position: absolute; bottom: auto; min-height: 100%; }
+.host[data-roomy] .grid,
+.host[data-roomy] .gridView { flex: 1 0 auto; }
+.grid[data-roomy] .gridHeader {
+  position: sticky;
+  top: var(--tt-stick, 0px);
+  z-index: 6;
+  background: var(--app-bg);
+}
+/* The fade under the day names, there as far as lessons have gone under
+   them (`--under`, WeekGrid). */
+.grid[data-roomy] .gridHeader::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: linear-gradient(var(--app-bg), color-mix(in srgb, var(--app-bg) 60%, transparent) 45%, transparent);
+  opacity: var(--under, 0);
+  pointer-events: none;
 }
 .grid[data-roomy] .cellBody:not(.cellTight):not(.cellPair) {
   gap: calc(2px * var(--s));

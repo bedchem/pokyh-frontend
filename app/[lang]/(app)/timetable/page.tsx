@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type WheelEvent } from 'react';
+import { Suspense, memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowClockwise, CalendarBlank, CaretDown, CaretLeft, CaretRight, Exam, ShareFat, UsersThree, WifiSlash, X } from '@phosphor-icons/react';
 import { useSearchParams } from 'next/navigation';
@@ -66,9 +66,21 @@ const HOVER_QUERY = '(hover: hover) and (pointer: fine)';
 // A phone: the school year moves into the week switch, where it takes turns
 // with "Zu heute" (timetable.module.css has the same breakpoint).
 const PHONE_QUERY = '(max-width: 639.98px)';
-// A computer: the lessons keep a comfortable height, and a long day scrolls in the grid
-// (WeekGrid's `roomy`; timetable.module.css has the same breakpoint).
+// A computer: the lessons keep a comfortable height, and a long day scrolls the page under the
+// week switch and the day names (WeekGrid's `roomy`, `data-roomy` in timetable.module.css).
 const DESKTOP_QUERY = '(min-width: 1024px)';
+
+/**
+ * The week switch's height, as `--tt-stick` on the page that scrolls: on a computer the day names
+ * stay right under the switch while the week scrolls (timetable.module.css).
+ */
+function measureStick(el: HTMLDivElement | null) {
+  const host = el?.closest<HTMLElement>(`.${s.host}`);
+  if (!el || !host) return;
+  const ro = new ResizeObserver(() => host.style.setProperty('--tt-stick', `${el.offsetHeight}px`));
+  ro.observe(el);
+  return () => ro.disconnect();
+}
 
 function useMedia(query: string): boolean {
   const subscribe = useCallback((cb: () => void) => {
@@ -462,15 +474,6 @@ function TimetableContent() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
-  // On a computer the day scrolls in the grid: the wheel over the title or the week switch
-  // scrolls it too, as it would a page.
-  const scrollWeekFromOutside = (e: WheelEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLElement;
-    if (target.closest(`.${s.gridView}, [role="menu"], [role="listbox"]`)) return;
-    const view = e.currentTarget.querySelector<HTMLElement>(`.${s.pane}:not([aria-hidden]) .${s.gridView}[data-overflow]`);
-    view?.scrollBy({ top: e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY });
-  };
-
   const renderPane = (offset: number) => (
     <WeekPane
       offset={offset}
@@ -498,7 +501,7 @@ function TimetableContent() {
     <AuthGuard>
       <UntisGuard>
         <div className={s.wrap}>
-          <div className={s.host} onWheel={desktop ? scrollWeekFromOutside : undefined}>
+          <div className={s.host} data-roomy={desktop || undefined}>
             <main className={s.page}>
               {/* Header: title and menus. On a phone the school year is in the week switch, and
                   the header only shows for an old copy of the week (its date, under the switch). */}
@@ -552,7 +555,7 @@ function TimetableContent() {
 
               </header>
 
-              <div className={`${s.inset} ${s.weekBarWrap}`}>
+              <div ref={measureStick} className={`${s.inset} ${s.weekBarWrap}`}>
               <div className={s.weekBar}>
                 <button type="button" className={`${s.weekArrow} ${s.weekPrev}`} onClick={() => goWeek(-1)} aria-label={t('prevWeek')} disabled={weekOffset <= -PAGE_SPAN}>
                   <CaretLeft size={20} weight="bold" />
