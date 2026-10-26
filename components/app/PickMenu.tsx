@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { CaretDown, Check } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/Button';
 
@@ -23,7 +23,24 @@ export default function PickMenu<T extends string | number>({
   icon?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [side, setSide] = useState(align);
   const ref = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+
+  // Opens toward `align`, but flips to the other edge of the button when the
+  // list would run off the screen there (e.g. the button wrapped to the left
+  // on a phone). Runs before paint, so the list never shows up cut off.
+  useLayoutEffect(() => {
+    if (!open || !ref.current || !listRef.current) return;
+    const btn = ref.current.getBoundingClientRect();
+    const w = listRef.current.offsetWidth;
+    const gutter = 8;
+    setSide(
+      align === 'right'
+        ? (btn.right - w < gutter ? 'left' : 'right')
+        : (btn.left + w > window.innerWidth - gutter ? 'right' : 'left'),
+    );
+  }, [open, align]);
 
   useEffect(() => {
     if (!open) return;
@@ -52,9 +69,10 @@ export default function PickMenu<T extends string | number>({
       </Button>
       {open && (
         <ul
+          ref={listRef}
           role="listbox"
           aria-label={label}
-          className={`sheet-in absolute top-[calc(100%+6px)] z-50 min-w-[190px] rounded-[16px] bg-surface p-1.5 shadow-[var(--shadow-float)] ${align === 'right' ? 'right-0' : 'left-0'}`}
+          className={`sheet-in absolute top-[calc(100%+6px)] z-50 min-w-[190px] rounded-[16px] bg-surface p-1.5 shadow-[var(--shadow-float)] ${side === 'right' ? 'right-0' : 'left-0'}`}
         >
           {options.map((o) => {
             const active = o.value === value;
