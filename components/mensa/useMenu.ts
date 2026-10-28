@@ -145,7 +145,9 @@ export function useMenu({ inApp = false, initialRaw, initialCanteens, listed = t
   } else if (own) target = { kind: 'own' };
   else if (ask && canteens && canteens.length > 1) target = { kind: 'choose' };
   else target = { kind: 'school', slug: null };
-  const settled = inApp || (!isLoading && picked !== undefined && !(user && ownRaw === undefined) && canteens !== null);
+  // The list is waited for only where it is read: without it (a dish page
+  // reached without a choice, a backend with no list) nothing would settle.
+  const settled = inApp || (!isLoading && picked !== undefined && !(user && ownRaw === undefined) && (canteens !== null || !needList));
 
   const scope = target.kind === 'own' ? 'account' : 'public';
   const slug = target.kind === 'school' ? target.slug : null;
