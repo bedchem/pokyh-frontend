@@ -15,13 +15,49 @@ export interface MenuDay {
   dishes: MenuDish[];
 }
 
+// An uploaded picture comes as a path on the API when pokyh-backend has no
+// PUBLIC_BASE_URL; in development `next dev` passes those on (lib/backend.ts).
+const PICTURE_BASE = process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_API_DIRECT !== 'true'
+  ? ''
+  : (process.env.NEXT_PUBLIC_API_BACKEND_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'https://api.pokyh.com').replace(/\/$/, '');
+
+const withFullPicture = (d: MenuDish): MenuDish => (d?.imageUrl?.startsWith('/') ? { ...d, imageUrl: `${PICTURE_BASE}${d.imageUrl}` } : d);
+
 export function dishesFrom(raw: unknown): MenuDish[] {
-  if (Array.isArray(raw)) return raw as MenuDish[];
+  if (Array.isArray(raw)) return (raw as MenuDish[]).map(withFullPicture);
   const r = (raw ?? {}) as Record<string, unknown>;
   const fromMenu = (r.menu as Record<string, unknown> | undefined)?.dishes;
   const list = fromMenu ?? r.dishes ?? r.data;
-  return Array.isArray(list) ? (list as MenuDish[]) : [];
+  return Array.isArray(list) ? (list as MenuDish[]).map(withFullPicture) : [];
 }
+
+export interface MenuBreak {
+  start: string; // YYYY-MM-DD
+  end: string;
+  reason: string;
+}
+
+const DAY_KEY = /^\d{4}-\d{2}-\d{2}$/;
+const NAMED_BREAKS = new Set(['summer', 'allSaints', 'christmas', 'winter', 'easter']);
+
+const dayNumber = (key: string) => Date.parse(`${key}T00:00:00Z`) / 86_400_000;
+
+/**
+ * The breaks the menu waits out, as pokyh-backend names them, the ones worth a
+ * word: a single holiday is just a day without a menu. None from an older backend.
+ */
+export function breaksFrom(raw: unknown): MenuBreak[] {
+  const list = (raw as { breaks?: unknown } | null)?.breaks;
+  if (!Array.isArray(list)) return [];
+  return list.filter((b): b is MenuBreak => DAY_KEY.test(String(b?.start)) && DAY_KEY.test(String(b?.end)) && typeof b?.reason === 'string')
+    .filter((b) => NAMED_BREAKS.has(b.reason) || ((b.reason === 'school' || b.reason === 'closed') && dayNumber(b.end) - dayNumber(b.start) >= 2));
+}
+
+/** The break `today` falls in, if any. */
+export const breakOn = (breaks: MenuBreak[], today: string) => breaks.find((b) => b.start <= today && today <= b.end) ?? null;
+
+/** The breaks still to come between two days: those that lie after `after` and end before `before`. */
+export const breaksBetween = (breaks: MenuBreak[], after: string, before: string) => breaks.filter((b) => b.start > after && b.end < before);
 
 function localDayKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -44,6 +80,9 @@ export function upcomingDays(dishes: MenuDish[], now = new Date()): MenuDay[] {
       return { key, date: new Date(y, m - 1, day), dishes: list };
     });
 }
+
+/** Today as a day key, on the visitor's clock. */
+export const todayKey = (now = new Date()) => localDayKey(now);
 
 export function isTodayKey(key: string, now = new Date()): boolean {
   return key === localDayKey(now);

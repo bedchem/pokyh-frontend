@@ -57,7 +57,9 @@ export type MensaKey =
   | 'changeCanteen'
   | 'yourSchool'
   | 'otherSchoolComments'
-  | 'otherSchoolRating';
+  | 'otherSchoolRating'
+  | 'breakNow'
+  | 'breakRange';
 
 export const mensaDict: Dictionary<MensaKey> = {
   de: {
@@ -98,6 +100,8 @@ export const mensaDict: Dictionary<MensaKey> = {
     yourRating: 'Deine Bewertung',
     rateLabels: 'Naja|Geht so|Gut|Sehr gut|Mega',
     allDays: 'Der ganze Plan',
+    breakNow: '{name} bis {date}. Danach geht der Plan weiter.',
+    breakRange: '{name}: {from} bis {to}',
     nutrition: 'Nährwerte',
     carbsLong: 'Kohlenhydrate',
     backToPlan: 'Zum Speiseplan',
@@ -154,6 +158,8 @@ export const mensaDict: Dictionary<MensaKey> = {
     yourRating: 'La tua valutazione',
     rateLabels: 'Mah|Così così|Buono|Molto buono|Top',
     allDays: 'Tutto il menù',
+    breakNow: '{name} fino al {date}. Poi il menù riprende.',
+    breakRange: '{name}: dal {from} al {to}',
     nutrition: 'Valori nutrizionali',
     carbsLong: 'Carboidrati',
     backToPlan: 'Al menù',
@@ -210,6 +216,8 @@ export const mensaDict: Dictionary<MensaKey> = {
     yourRating: 'Your rating',
     rateLabels: 'Meh|So-so|Good|Very good|Awesome',
     allDays: 'The whole plan',
+    breakNow: '{name} until {date}. The menu continues afterwards.',
+    breakRange: '{name}: {from} to {to}',
     nutrition: 'Nutrition',
     carbsLong: 'Carbohydrates',
     backToPlan: 'Back to the menu',
@@ -247,5 +255,7 @@ export const mensaDict: Dictionary<MensaKey> = {
     loadError: "Fal tl ciarië l menu",
     emptyTitle: "Deguna menu",
     emptySubtitle: "Al mumënt ne n’iel nia tla mensa.",
+    breakNow: '{name} cina ai {date}. Do va le plan inant.',
+    breakRange: '{name}: dai {from} ai {to}',
   },
 };

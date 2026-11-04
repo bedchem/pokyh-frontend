@@ -56,10 +56,10 @@ export function average(ratings: Record<string, number> | undefined): number {
 
 export const comma = (n: number) => n.toFixed(1).replace('.', ',');
 
-/** The dish photo, unless the visitor hid outside pictures (lib/external-media.ts). */
+/** The dish photo, unless the visitor hid outside pictures (lib/external-media.ts); one uploaded to POKYH is not one. */
 export function Food({ dish, alt, eager = false }: { dish: Dish; alt: string; eager?: boolean }) {
   const external = useExternalMedia();
-  return dish.imageUrl && external ? (
+  return dish.imageUrl && (external || dish.ownImage) ? (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={dish.imageUrl}
@@ -82,7 +82,7 @@ export function Plate({ dish, className = '' }: { dish: Dish; className?: string
   return (
     <PixelPlate
       size="plate"
-      photo={external ? dish.imageUrl : null}
+      photo={external || dish.ownImage ? dish.imageUrl : null}
       style={foodStyleOf(dish)}
       seed={dish.id}
       className={className}

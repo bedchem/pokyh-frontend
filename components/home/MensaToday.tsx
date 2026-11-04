@@ -216,7 +216,7 @@ export default function MensaToday() {
           )}
         </div>
 
-        {pick?.dish.imageUrl && (external ? (
+        {pick?.dish.imageUrl && (external || pick.dish.ownImage ? (
           <div ref={photo} className="justify-self-center will-change-transform md:justify-self-end">
             <div data-frame className="aspect-[4/5] w-[min(78vw,420px)] overflow-hidden rounded-[clamp(22px,2.4vw,36px)] md:w-[clamp(280px,32vw,560px)]">
               {/* eslint-disable-next-line @next/next/no-img-element */}

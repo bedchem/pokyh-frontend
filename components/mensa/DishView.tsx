@@ -180,14 +180,14 @@ export default function DishView({ id, inApp = false }: { id: string; inApp?: bo
         <article className="rise grid gap-10 md:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] md:gap-14">
           <div className={`md:sticky md:self-start ${inApp ? 'md:top-4' : 'md:top-24'}`}>
             {back}
-            {dish.imageUrl && external ? (
+            {dish.imageUrl && (external || dish.ownImage) ? (
               <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[28px] bg-inset md:rounded-[36px]">
                 <Food dish={dish} alt={name} eager />
               </div>
             ) : (
               <PixelPlate style={foodStyleOf(dish)} seed={dish.id} />
             )}
-            {dish.imageUrl && <ExternalMediaNotice className="mt-4" />}
+            {dish.imageUrl && !dish.ownImage && <ExternalMediaNotice className="mt-4" />}
           </div>
 
           <div className="min-w-0">

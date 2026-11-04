@@ -201,6 +201,8 @@ export interface Dish {
   category: string;
   date: string; // ISO date
   imageUrl?: string;
+  /** Uploaded to POKYH itself: no other site is asked for it (lib/external-media.ts). */
+  ownImage?: boolean;
   price?: number;
   allergens?: string[];
   tags?: string[];

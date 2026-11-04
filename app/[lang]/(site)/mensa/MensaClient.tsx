@@ -14,7 +14,9 @@ import { api } from '@/lib/api-client';
 import { useApp } from '@/providers/AppProvider';
 import { useDateLocale, useLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { mensaDict } from '@/lib/i18n/dictionaries/mensa';
-import { CHOICE_PARAM, canteenOf, daysFromToday, dishesFrom, localized, menuOwner, upcomingDays, type Canteen, type CanteenSchool, type MenuDay, type MenuDish } from '@/lib/mensa';
+import { CHOICE_PARAM, breakOn, breaksBetween, breaksFrom, canteenOf, daysFromToday, dishesFrom, localized, menuOwner, todayKey, upcomingDays, type Canteen, type CanteenSchool, type MenuBreak, type MenuDay, type MenuDish } from '@/lib/mensa';
+import { holidayKey } from '@/lib/holidays';
+import { holidaysDict } from '@/lib/i18n/dictionaries/holidays';
 import { formatDate } from '@/lib/i18n/dateLocale';
 import { useExternalMedia } from '@/lib/external-media';
 
@@ -33,6 +35,11 @@ function weekIndex(d: Date): number {
 }
 
 const leadDish = (day: MenuDay) => day.dishes.find((d) => d.imageUrl) ?? day.dishes[0];
+
+const dateOfKey = (key: string) => {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d);
+};
 
 const noop = () => () => {};
 
@@ -57,6 +64,7 @@ export default function MensaClient({ inApp = false, initialDays, initialCanteen
   initialOwner?: ReturnType<typeof menuOwner>;
 }) {
   const t = useT(mensaDict);
+  const holidayName = useT(holidaysDict);
   const { locale } = useLocale();
   const { tag } = useDateLocale();
   const localize = useLocalizeHref();
@@ -114,6 +122,13 @@ export default function MensaClient({ inApp = false, initialDays, initialCanteen
     menu.retry();
   };
 
+  // The breaks the plan waits out, once the browser has its own answer and clock.
+  const breaks = useMemo(() => (live && !prerendered ? breaksFrom(menu.raw) : []), [live, prerendered, menu.raw]);
+  const today = live ? todayKey() : '';
+  const breakNow = breakOn(breaks, today);
+  const breakDate = useCallback((key: string) => formatDate(dateOfKey(key), tag, { day: 'numeric', month: 'long' }), [tag]);
+  const breakName = useCallback((b: MenuBreak) => holidayName(holidayKey({ start: b.start, end: b.end, names: [] })), [holidayName]);
+
   const dayLabel = useCallback((day: MenuDay) => {
     const n = live ? daysFromToday(day.date) : NaN;
     if (n <= 0) return t('today');
@@ -161,6 +176,11 @@ export default function MensaClient({ inApp = false, initialDays, initialCanteen
       <PageIntro title={t('pageTitle')} lead={choosing ? t('chooseLead') : available ? t('pageLead') : undefined} />
 
       <section className="wrap pb-24 md:pb-32">
+        {breakNow && !choosing && available && !menu.error && (
+          <p className="mb-8 text-[17px] font-semibold text-ink-2">
+            {t('breakNow', { name: breakName(breakNow), date: breakDate(breakNow.end) })}
+          </p>
+        )}
         {choosing && menu.canteens ? (
           <CanteenPicker canteens={menu.canteens} ownCanteen={menu.ownCanteen} onChoose={menu.choose} />
         ) : menu.error ? (
@@ -199,7 +219,7 @@ export default function MensaClient({ inApp = false, initialDays, initialCanteen
               <Link href={href(served.id)} aria-label={localized(served.name, locale)} className="rise mx-auto block w-full max-w-[640px]">
                 <PixelPlate
                   key={served.id}
-                  photo={external ? served.imageUrl : null}
+                  photo={external || served.ownImage ? served.imageUrl : null}
                   style={foodStyleOf(served)}
                   seed={served.id}
                 />
@@ -232,14 +252,19 @@ export default function MensaClient({ inApp = false, initialDays, initialCanteen
               </div>
             </div>
 
-            {days.some((d) => d.dishes.some((dish) => dish.imageUrl)) && (
+            {days.some((d) => d.dishes.some((dish) => dish.imageUrl && !dish.ownImage)) && (
               <ExternalMediaNotice className="mt-12 max-w-[640px]" />
             )}
 
             {/* The whole plan, by week */}
             <h2 className="mt-24 text-[clamp(30px,3.6vw,48px)] font-extrabold leading-[1.04] tracking-[-0.045em] text-ink md:mt-32">{t('allDays')}</h2>
-            {weeks.map((w) => (
+            {weeks.map((w, i) => (
               <div key={w.key} className="mt-10">
+                {breaksBetween(breaks, i === 0 ? today : weeks[i - 1].days[weeks[i - 1].days.length - 1].key, w.days[0].key).map((b) => (
+                  <p key={b.start} className="mb-10 text-[15px] font-semibold text-ink-2">
+                    {t('breakRange', { name: breakName(b), from: breakDate(b.start), to: breakDate(b.end) })}
+                  </p>
+                ))}
                 <h3 className="text-[15px] font-semibold text-ink-3">{w.title}</h3>
                 <ul className="mt-4 grid gap-3 md:grid-cols-2">
                   {w.days.flatMap((day) => day.dishes.map((dish) => (
