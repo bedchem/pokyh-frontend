@@ -90,3 +90,32 @@ Repositories: `pokyh-backend` (d0bd918), `pokyh-frontend` (46d621a),
 - Check the logs for `class_check_reset`, `role_lock` and
   `local_origin_backfill`.
 - The Ladin texts of the website's new class notes need a review.
+
+## Second security pass
+
+Asked for: make it secure, test everything again. Reviewed every change of
+this work for exploitable gaps; found and closed:
+
+- Many schools share a WebUntis host and the app names its school itself;
+  until a school's tenant was learned from a website sign-in, a session of
+  another school's tenant on the same host could act for a same-named account
+  there, or make accounts whose class ids matched the school's. Schools and
+  accounts now keep the tenant of their first verified sign-in; a website
+  sign-in with the password or key corrects it and signs the other tenant's
+  accounts out.
+- A self-registered account could be taken over from another school; now
+  only from its own.
+- The database link ran without TLS since Prisma 7; TLS is on again.
+- Admin password and second-factor resets from the command line now end the
+  account's panel sessions.
+- The website's message view no longer has a server-side fallback that
+  could pass half a tag.
+
+Verification: backend 616 tests (unit 455, accounts 24, admin 22, push 14,
+replication 26, installer 20, relays 9, updates 6, features 5, Mensa 12, 7
+and 10, blue/green updater 6), all with TLS to MySQL; production image ready
+after 6 s, its 15 database connections on TLS 1.3; benchmark 1073 to 1541
+req/s with 24 requests at once; admin panel in Chromium without console
+errors; website lint, 83 tests and build; iOS app (1d8e393) builds; `npm
+audit` 0 in backend, admin panel and website.
+
