@@ -50,6 +50,7 @@ import { commonDict } from '@/lib/i18n/dictionaries/common';
 import { formatDateTime } from '@/lib/i18n/dateLocale';
 import { leaveForLogin } from '@/providers/SessionProvider';
 import { ROUTE_PLACEHOLDER, useRouteId } from '@/lib/route-id';
+import DOMPurify from 'dompurify';
 
 const MediaViewer = dynamic(() => import('@/components/ui/MediaViewer'), { ssr: false });
 
@@ -69,6 +70,14 @@ function formatDate(dateStr: string, tag: string): string {
 
 const URL_REGEX = /(https?:\/\/[^\s<>"{}|\\^`[\]]+)/g;
 
+// A teacher's message as HTML, cleaned by an allowlist (DOMPurify): only
+// text formatting, lists, tables and links to web and mail addresses stay.
+// Everything else — scripts, styles, forms, SVG, <base>, event handlers,
+// javascript: and data: links in any spelling — goes.
+const MESSAGE_TAGS = ['p', 'br', 'div', 'span', 'b', 'strong', 'i', 'em', 'u', 's', 'sub', 'sup', 'small', 'blockquote', 'pre', 'code', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'a', 'table', 'thead', 'tbody', 'tr', 'th', 'td'];
+const MESSAGE_ATTRS = ['href', 'title', 'colspan', 'rowspan'];
+const SAFE_LINK = /^(?:https?:|mailto:)/i;
+
 function sanitizeMessageHtml(input: string): string {
   // Trailing blank lines and breaks only add empty space under the text.
   const raw = (input ?? '').replace(/(\s|<br\s*\/?>|&nbsp;)+$/i, '');
@@ -76,36 +85,32 @@ function sanitizeMessageHtml(input: string): string {
   if (typeof window === 'undefined') return raw.replace(/<[^>]+>/g, '').trim();
 
   const looksLikeHtml = /<[a-z][^>]*>/i.test(raw);
-  let html: string;
-  if (looksLikeHtml) {
-    html = raw;
-  } else {
-    html = raw
+  const html = looksLikeHtml
+    ? raw
+    : raw
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/\n/g, '<br>')
       .replace(URL_REGEX, '<a href="$1">$1</a>');
-  }
 
-  try {
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-    for (const tag of ['script', 'style', 'iframe', 'object', 'embed', 'form', 'meta', 'link', 'input', 'button']) {
-      doc.querySelectorAll(tag).forEach((el) => el.remove());
-    }
-    doc.body.querySelectorAll('*').forEach((el) => {
-      const toRemove = [...el.attributes].filter((a) => {
-        if (a.name.startsWith('on')) return true;
-        if (a.name === 'style') return true;
-        if ((a.name === 'href' || a.name === 'src') && /^javascript:/i.test(a.value.trim())) return true;
-        return false;
-      });
-      toRemove.forEach((a) => el.removeAttribute(a.name));
-    });
-    return doc.body.innerHTML;
-  } catch {
-    return raw.replace(/<[^>]+>/g, '').replace(/\n/g, '<br>');
-  }
+  const clean = DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: MESSAGE_TAGS,
+    ALLOWED_ATTR: MESSAGE_ATTRS,
+    ALLOWED_URI_REGEXP: SAFE_LINK,
+    ALLOW_DATA_ATTR: false,
+    RETURN_DOM_FRAGMENT: true,
+  });
+  // Links open apart from POKYH and tell the other site nothing about it.
+  clean.querySelectorAll('a').forEach((a) => {
+    const href = a.getAttribute('href') ?? '';
+    if (!SAFE_LINK.test(href)) a.removeAttribute('href');
+    a.setAttribute('target', '_blank');
+    a.setAttribute('rel', 'noopener noreferrer nofollow');
+  });
+  const holder = document.createElement('div');
+  holder.appendChild(clean);
+  return holder.innerHTML;
 }
 
 function coerceAttachmentList(v: unknown): Array<Record<string, unknown>> | null {
