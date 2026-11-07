@@ -82,7 +82,9 @@ function sanitizeMessageHtml(input: string): string {
   // Trailing blank lines and breaks only add empty space under the text.
   const raw = (input ?? '').replace(/(\s|<br\s*\/?>|&nbsp;)+$/i, '');
   if (!raw) return '';
-  if (typeof window === 'undefined') return raw.replace(/<[^>]+>/g, '').trim();
+  // Rendered in the browser only (the message is loaded there); never HTML
+  // that DOMPurify has not seen.
+  if (typeof window === 'undefined') return '';
 
   const looksLikeHtml = /<[a-z][^>]*>/i.test(raw);
   const html = looksLikeHtml
