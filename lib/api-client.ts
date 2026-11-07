@@ -287,7 +287,18 @@ export interface ApiUser {
   webuntisKlasseName: string;
   classId: string | null;
   isAdmin: boolean;
-  role?: 'student' | 'parent';
+  role?: 'student' | 'parent' | 'none';
+  // Why the account has no class (the backend's ClassNote), and whether its
+  // next sign-in still checks it.
+  classNote?: string | null;
+  classCheckPending?: boolean;
+}
+
+/** What the account's missing class means, for the pages that need one. */
+export interface ClassStatus {
+  role: 'student' | 'parent' | 'none';
+  note: string | null;
+  pending: boolean;
 }
 
 export interface ApiTodo {
@@ -403,7 +414,7 @@ export const api = {
   getToken,
 
   auth: {
-    async loginWithSession(): Promise<{ stableUid: string; classId: string | null; isAdmin: boolean }> {
+    async loginWithSession(): Promise<{ stableUid: string; classId: string | null; isAdmin: boolean; classStatus: ClassStatus | null }> {
       // Called once the sign-in has set the token cookies: who is signed in.
       try {
         const user = await apiJson<ApiUser>('/auth/me');
@@ -411,10 +422,11 @@ export const api = {
           stableUid: user.stableUid,
           classId: user.classId,
           isAdmin: user.isAdmin,
+          classStatus: { role: user.role ?? 'student', note: user.classNote ?? null, pending: user.classCheckPending === true },
         };
       } catch {
         // Token not valid yet or not set, this can happen on first load
-        return { stableUid: '', classId: null, isAdmin: false };
+        return { stableUid: '', classId: null, isAdmin: false, classStatus: null };
       }
     },
 

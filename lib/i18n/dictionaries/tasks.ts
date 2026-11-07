@@ -30,6 +30,16 @@ export type TasksKey =
   | 'classNotFound'
   | 'syncFailed'
   | 'loginAgain'
+  | 'noClassParentTitle'
+  | 'noClassParentDetail'
+  | 'noClassRoleTitle'
+  | 'noClassRoleDetail'
+  | 'classPendingTitle'
+  | 'classPendingDetail'
+  | 'noClassInUntisTitle'
+  | 'noClassInUntisDetail'
+  | 'sharedRecordTitle'
+  | 'sharedRecordDetail'
   | 'remindersEmptyTitle'
   | 'remindersEmptySubtitle'
   | 'overdueHeader'
@@ -83,6 +93,16 @@ export const tasksDict: Dictionary<TasksKey> = {
     classNotFound: 'Klasse nicht gefunden',
     syncFailed: 'Synchronisierung fehlgeschlagen. Versuche es erneut oder melde dich neu an.',
     loginAgain: 'Neu anmelden',
+    noClassParentTitle: "Elternkonten haben keine Klasse",
+    noClassParentDetail: "Erinnerungen gehören zur Klasse. Elternkonten sind in keiner Klasse; deine eigenen Todos findest du unter „Todos“.",
+    noClassRoleTitle: "Keine Klasse für dieses Konto",
+    noClassRoleDetail: "Dieses Konto hat keine Rolle als Schüler:in und ist in keiner Klasse.",
+    classPendingTitle: "Deine Klasse wird geprüft",
+    classPendingDetail: "POKYH fragt WebUntis gerade neu nach deiner Klasse. Das passiert bei der nächsten Anmeldung von selbst, meist in wenigen Minuten.",
+    noClassInUntisTitle: "WebUntis nennt keine Klasse",
+    noClassInUntisDetail: "Dein WebUntis-Konto nennt keine Klasse. Wenn das nicht stimmt, wende dich an deine Schule.",
+    sharedRecordTitle: "Deine Klasse wartet auf eine Prüfung",
+    sharedRecordDetail: "Ein anderes Konto meldet sich auf demselben WebUntis-Schüler an. Ein Admin ordnet das bald zu.",
     remindersEmptyTitle: 'Keine Erinnerungen',
     remindersEmptySubtitle: 'Füge Hausaufgaben oder Erinnerungen für deine Klasse hinzu.',
     overdueHeader: 'FÄLLIG',
@@ -135,6 +155,16 @@ export const tasksDict: Dictionary<TasksKey> = {
     classNotFound: 'Classe non trovata',
     syncFailed: 'Sincronizzazione non riuscita. Riprova o effettua di nuovo l’accesso.',
     loginAgain: 'Accedi di nuovo',
+    noClassParentTitle: "Gli account dei genitori non hanno una classe",
+    noClassParentDetail: "I promemoria appartengono alla classe. Gli account dei genitori non sono in nessuna classe; i tuoi to-do sono sotto „To-do“.",
+    noClassRoleTitle: "Nessuna classe per questo account",
+    noClassRoleDetail: "Questo account non ha il ruolo di studente e non è in nessuna classe.",
+    classPendingTitle: "Stiamo verificando la tua classe",
+    classPendingDetail: "POKYH sta chiedendo di nuovo a WebUntis la tua classe. Succede da solo al prossimo accesso, di solito in pochi minuti.",
+    noClassInUntisTitle: "WebUntis non indica una classe",
+    noClassInUntisDetail: "Il tuo account WebUntis non indica nessuna classe. Se non è corretto, rivolgiti alla tua scuola.",
+    sharedRecordTitle: "La tua classe è in attesa di verifica",
+    sharedRecordDetail: "Un altro account accede con lo stesso studente WebUntis. Un amministratore lo assegnerà a breve.",
     remindersEmptyTitle: 'Nessun promemoria',
     remindersEmptySubtitle: 'Aggiungi compiti o promemoria per la tua classe.',
     overdueHeader: 'SCADUTI',
@@ -187,6 +217,16 @@ export const tasksDict: Dictionary<TasksKey> = {
     classNotFound: 'Class not found',
     syncFailed: 'Sync failed. Try again or log in again.',
     loginAgain: 'Log in again',
+    noClassParentTitle: "Parent accounts have no class",
+    noClassParentDetail: "Reminders belong to a class. Parent accounts aren’t in any class; your own to-dos are under “To-dos”.",
+    noClassRoleTitle: "No class for this account",
+    noClassRoleDetail: "This account has no student role and isn’t in any class.",
+    classPendingTitle: "Checking your class",
+    classPendingDetail: "POKYH is asking WebUntis for your class again. It happens on its own at your next sign-in, usually within a few minutes.",
+    noClassInUntisTitle: "WebUntis names no class",
+    noClassInUntisDetail: "Your WebUntis account doesn’t name a class. If that’s wrong, contact your school.",
+    sharedRecordTitle: "Your class is waiting for a check",
+    sharedRecordDetail: "Another account signs in as the same WebUntis student. An admin will sort it out soon.",
     remindersEmptyTitle: 'No reminders',
     remindersEmptySubtitle: 'Add homework or reminders for your class.',
     overdueHeader: 'DUE',
@@ -239,6 +279,16 @@ export const tasksDict: Dictionary<TasksKey> = {
     classNotFound: "Tlas nia giapeda",
     syncFailed: "La sincronisazion ne n’ie nia juda. Prova mo n iede o va ite de nuef.",
     loginAgain: "Jì ite de nuef",
+    noClassParentTitle: "I conc di genitores ne à deguna tlas",
+    noClassParentDetail: "La recurdanzes tol pea ala tlas. I conc di genitores ne ie te deguna tlas; ti to-do ies giapes sota „To-do“.",
+    noClassRoleTitle: "Deguna tlas per chësc cont",
+    noClassRoleDetail: "Chësc cont ne à nia la rola de scolaa o scolé y ne ie te deguna tlas.",
+    classPendingTitle: "Tia tlas vën cuntrulëda",
+    classPendingDetail: "POKYH damanda mo n iede WebUntis tia tlas. Chësc suzed da se nstës l’iede che vën che te vas ite, de regula danter n valguni minuc.",
+    noClassInUntisTitle: "WebUntis ne dij deguna tlas",
+    noClassInUntisDetail: "Tie cont WebUntis ne dij deguna tlas. Sce chësc ne n’ie nia giut, damanda la scola.",
+    sharedRecordTitle: "Tia tlas aspieta n cuntrol",
+    sharedRecordDetail: "N auter cont va ite cun l medem scolé de WebUntis. N admin mët a puest chësc tosc.",
     remindersEmptyTitle: "Deguna recurdanzes",
     remindersEmptySubtitle: "Junta lëures da cësa o recurdanzes per tia tlas.",
     overdueHeader: "SCADUDES",

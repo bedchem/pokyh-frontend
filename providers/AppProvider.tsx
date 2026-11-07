@@ -7,12 +7,14 @@ import {
   useEffect,
   useState,
 } from 'react';
-import { api, apiFetch } from '@/lib/api-client';
+import { api, apiFetch, type ClassStatus } from '@/lib/api-client';
 import { useSession } from '@/providers/SessionProvider';
 
 interface AppCtx {
   stableUid: string | null;
   classId: string | null;
+  // Why there is no class (null while unknown).
+  classStatus: ClassStatus | null;
   ready: boolean;
   retryInit: () => void;
 }
@@ -20,6 +22,7 @@ interface AppCtx {
 const Ctx = createContext<AppCtx>({
   stableUid: null,
   classId: null,
+  classStatus: null,
   ready: false,
   retryInit: () => {},
 });
@@ -28,6 +31,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const { user } = useSession();
   const [stableUid, setStableUid] = useState<string | null>(null);
   const [classId, setClassId] = useState<string | null>(null);
+  const [classStatus, setClassStatus] = useState<ClassStatus | null>(null);
   const [ready, setReady] = useState(false);
 
   const init = useCallback(async () => {
@@ -36,6 +40,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (result.stableUid) {
         setStableUid(result.stableUid);
         setClassId(result.classId);
+        setClassStatus(result.classStatus);
       }
     } catch (e) {
       console.error('[AppProvider] init error:', e);
@@ -80,7 +85,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   return (
-    <Ctx.Provider value={{ stableUid, classId, ready, retryInit }}>
+    <Ctx.Provider value={{ stableUid, classId, classStatus, ready, retryInit }}>
       {children}
     </Ctx.Provider>
   );

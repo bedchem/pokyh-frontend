@@ -73,7 +73,7 @@ function dayKey(d: Date): string {
 
 function RemindersContent() {
   const { user, logout } = useSession();
-  const { classId, stableUid, ready, retryInit } = useApp();
+  const { classId, classStatus, stableUid, ready, retryInit } = useApp();
   const t = useT(tasksDict);
   const tc = useT(commonDict);
   const th = useT(homeDict);
@@ -236,20 +236,31 @@ function RemindersContent() {
   );
 
   if (ready && !classId) {
+    // The reason decides what is said: some accounts have no class by design,
+    // some wait for their check, only the rest is a failed sync.
+    const why: { title: TasksKey; detail: TasksKey; failed: boolean } =
+      classStatus?.role === 'parent' ? { title: 'noClassParentTitle', detail: 'noClassParentDetail', failed: false }
+        : classStatus?.role === 'none' ? { title: 'noClassRoleTitle', detail: 'noClassRoleDetail', failed: false }
+          : classStatus?.pending ? { title: 'classPendingTitle', detail: 'classPendingDetail', failed: false }
+            : classStatus?.note === 'shared_person' ? { title: 'sharedRecordTitle', detail: 'sharedRecordDetail', failed: false }
+              : classStatus?.note === 'no_class_found' || classStatus?.note === 'candidate_rejected' || classStatus?.note === 'not_student'
+                ? { title: 'noClassInUntisTitle', detail: 'noClassInUntisDetail', failed: false }
+                : { title: 'classNotFound', detail: 'syncFailed', failed: true };
+    const byDesign = classStatus?.role === 'parent' || classStatus?.role === 'none';
     return (
       <Page width="narrow">
         {header}
         <div className="squircle rounded-[26px] bg-surface">
           <PixelState
             sprite="search"
-            title={t('classNotFound')}
-            detail={t('syncFailed')}
-            action={
+            title={t(why.title)}
+            detail={t(why.detail)}
+            action={byDesign ? undefined : (
               <div className="flex flex-wrap justify-center gap-2">
                 <Button variant="quiet" onClick={retryInit}><ArrowClockwise size={17} weight="bold" aria-hidden="true" />{tc('retry')}</Button>
-                <Button variant="tone" onClick={() => void logout()}><SignIn size={17} weight="bold" aria-hidden="true" />{t('loginAgain')}</Button>
+                {why.failed && <Button variant="tone" onClick={() => void logout()}><SignIn size={17} weight="bold" aria-hidden="true" />{t('loginAgain')}</Button>}
               </div>
-            }
+            )}
           />
         </div>
       </Page>
