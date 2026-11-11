@@ -141,6 +141,8 @@ export interface MessageRecipient {
   role?: string;
   initials: string;
   category: 'classTeacher' | 'other';
+  /** The class teacher proper, not the deputy: the one an excuse goes to. */
+  mainClassTeacher?: boolean;
 }
 
 export interface SendMessageInput {

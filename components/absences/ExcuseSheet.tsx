@@ -16,6 +16,7 @@ import ReasonList from './ReasonList';
 // The API's reasons for not sending, in the reader's language.
 const ERROR_KEYS: Record<string, UntisActionKey> = {
   no_class_teacher: 'exNoTeacher',
+  class_teacher_unclear: 'exTeacherUnclear',
   messages_forbidden: 'exForbidden',
   already_excused: 'exAlready',
   send_failed: 'exSendFailed',
@@ -23,8 +24,8 @@ const ERROR_KEYS: Record<string, UntisActionKey> = {
 };
 
 // Excusing absences that are over. WebUntis takes no reason for those, so the
-// API writes to the class teachers instead (one WebUntis message each) and
-// they mark the absence excused. Built like "Mitteilung an Lehrkraft": the
+// API writes to the class teacher instead (one WebUntis message, never to the
+// deputy) and they mark the absence excused. Built like "Mitteilung an Lehrkraft": the
 // absence on top, who gets it, the reason as a field whose list is a second
 // step in the same sheet, the note, the send button pinned below, a
 // confirmation at the end. Reports success only when WebUntis sent it.
@@ -53,8 +54,10 @@ export default function ExcuseSheet({
   const [view, setView] = useState<'form' | 'reasons'>('form');
   const [reasons, setReasons] = useState<AbsenceReason[] | null>(null);
   const [reasonId, setReasonId] = useState<number | null>(null);
-  // The class teachers it goes to; null while loading, 'failed' when WebUntis won't say.
+  // The class teacher it goes to (one, never the deputy); null while loading, 'failed' when WebUntis won't say.
   const [teachers, setTeachers] = useState<MessageRecipient[] | 'failed' | null>(null);
+  // WebUntis names class teachers, but not which of them is the class teacher proper.
+  const [unclear, setUnclear] = useState(false);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -73,7 +76,12 @@ export default function ExcuseSheet({
       })
       .catch(() => { if (alive) setReasons([]); });
     fetchRecipients()
-      .then((r) => { if (alive) setTeachers((r.recipients ?? []).filter((p) => p.category === 'classTeacher')); })
+      .then((r) => {
+        if (!alive) return;
+        const list = r.recipients ?? [];
+        setTeachers(list.filter((p) => p.mainClassTeacher));
+        setUnclear(!list.some((p) => p.mainClassTeacher) && list.some((p) => p.category === 'classTeacher'));
+      })
       .catch(() => { if (alive) setTeachers('failed'); });
     return () => { alive = false; };
   }, []);
@@ -184,7 +192,7 @@ export default function ExcuseSheet({
                 {teachers === null ? '…' : teachers === 'failed' ? t('exToSchool') : teachers.length > 0 ? teachers.map((r) => r.name).join(', ') : ta('unavailable')}
               </span>
             </div>
-            {noTeacher && <p className="text-[13px] font-medium text-danger-ink">{t('exNoTeacher')}</p>}
+            {noTeacher && <p className="text-[13px] font-medium text-danger-ink">{t(unclear ? 'exTeacherUnclear' : 'exNoTeacher')}</p>}
           </div>
 
           <div className="flex flex-col gap-1.5">

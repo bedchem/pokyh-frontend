@@ -149,7 +149,7 @@ export const timetableDict: Dictionary<TimetableKey> = {
     markPreExcusedShort: 'Vorentsch.',
     markExcusedShort: 'Entsch.',
     markAbsentShort: 'Unentsch.',
-    markSent: 'Nachricht an Klassenlehrer gesendet',
+    markSent: 'Nachricht an Klassenlehrkraft gesendet',
     sentTo: 'An {names} · {date}',
   },
   it: {
@@ -223,7 +223,7 @@ export const timetableDict: Dictionary<TimetableKey> = {
     markPreExcusedShort: 'Giust. ant.',
     markExcusedShort: 'Giust.',
     markAbsentShort: 'Non giust.',
-    markSent: 'Messaggio inviato ai coordinatori',
+    markSent: 'Messaggio inviato al coordinatore',
     sentTo: 'A {names} · {date}',
   },
   en: {
@@ -297,7 +297,7 @@ export const timetableDict: Dictionary<TimetableKey> = {
     markPreExcusedShort: 'Pre-exc.',
     markExcusedShort: 'Exc.',
     markAbsentShort: 'Unexc.',
-    markSent: 'Message sent to class teachers',
+    markSent: 'Message sent to class teacher',
     sentTo: 'To {names} · {date}',
   },
   lld: {

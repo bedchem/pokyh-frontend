@@ -666,13 +666,13 @@ export async function createAbsence(input: ReportAbsenceInput): Promise<unknown>
 export interface ExcuseResult {
   ok: true;
   /**
-   * 'message': written to the class teachers. 'webuntis': the account may write to no
+   * 'message': written to the class teacher. 'webuntis': the account may write to no
    * teacher (a guardian, say), so reason and note were saved on the absence in WebUntis.
    */
   via: 'message' | 'webuntis';
   /** The absences it is about (those not excused yet). */
   absenceIds: number[];
-  /** Class teachers who got it, and those it could not be sent to. */
+  /** The class teacher who got it (never the deputy), and whom it could not be sent to. */
   sentTo: string[];
   failed: string[];
   excuse: SentExcuse | null;
@@ -681,8 +681,8 @@ export interface ExcuseResult {
 const EXCUSES_URL = '/api/webuntis/absences/excuses';
 
 /**
- * Excuses absences that are over: the API writes to the class teachers in
- * WebUntis (one message each), in the page's language. The dates tell it
+ * Excuses absences that are over: the API writes to the class teacher in
+ * WebUntis (one message, not to the deputy), in the page's language. The dates tell it
  * where to find the absences.
  */
 export async function excuseAbsence(
