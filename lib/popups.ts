@@ -1,6 +1,7 @@
 'use client';
 
 import { apiFetch } from '@/lib/api-client';
+import { API_BASE } from '@/lib/backend';
 import { isDueIn, withSeen, type ActivePopup, type SeenMap } from '@/lib/popup-schedule';
 
 // Admin-authored announcement popups (pokyh-backend /popups/active). The
@@ -43,5 +44,12 @@ export async function fetchDuePopups(audience: PopupAudience): Promise<ActivePop
   const res = await apiFetch(`/popups/active?platform=web&audience=${audience}`, { cache: 'no-store' });
   if (!res.ok) return [];
   const data = await res.json() as { popups?: ActivePopup[] };
-  return (data.popups ?? []).filter((p) => isDue(p));
+  return (data.popups ?? []).filter((p) => isDue(p)).map((p) => ({ ...p, html: withPictureBase(p.html) }));
+}
+
+// A picture uploaded for a popup comes as a path on the API when pokyh-backend
+// has no PUBLIC_BASE_URL (/popup-images/<id>): the API's address goes in front.
+// In development `next dev` passes those paths on (next.config.ts).
+export function withPictureBase(html: string): string {
+  return html.replace(/(<img\b[^>]*\bsrc=")(\/popup-images\/)/g, `$1${API_BASE}$2`);
 }
