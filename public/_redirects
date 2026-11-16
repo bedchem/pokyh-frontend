@@ -8,6 +8,10 @@
 /datenschutz            /legal/datenschutz/            302
 /nutzungsbedingungen    /legal/nutzungsbedingungen/    302
 
+# The Pokyh Learn notice is gone with Pokyh Learn.
+/:lang/legal/learn      /:lang/legal/                  301
+/:lang/legal/learn/     /:lang/legal/                  301
+
 # A language without its slash, permanently (the host's own fix-up is temporary).
 /de                     /de/                           301
 /it                     /it/                           301

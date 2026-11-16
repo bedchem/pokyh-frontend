@@ -1,19 +1,26 @@
-// The legal texts of POKYH (imprint, privacy notice, terms of use, cookies,
-// Pokyh Learn) in German, Italian and English, as structured content: the
-// page (page.tsx) numbers the sections, builds the table of contents and fills
-// in the identity and contact details from the deployment's configuration
-// (lib/legal-identity.ts). Legal seat: Italy. Version: 19 October 2026.
+// The legal texts of POKYH (imprint, privacy notice, terms of use, cookies)
+// in German, Italian and English, as structured content: the page
+// (LegalViews.tsx) numbers the sections, builds the table of contents and
+// fills in the identity and contact details from the deployment's
+// configuration (lib/legal-identity.ts). Legal seat: Italy. Version:
+// 16 November 2026.
+//
+// A section, block or row with `when` is shown only in builds where Google
+// Analytics is on ('analytics') or off ('noAnalytics'), so the texts always
+// describe what the build really does (lib/analytics-config.ts).
 
 export type LegalLocale = 'de' | 'it' | 'en';
-export type LegalDocView = 'impressum' | 'datenschutz' | 'nutzungsbedingungen' | 'cookies' | 'learn';
+export type LegalDocView = 'impressum' | 'datenschutz' | 'nutzungsbedingungen' | 'cookies';
 export type CookieKind = 'necessary' | 'setting' | 'analytics' | 'consent';
+export type Condition = 'analytics' | 'noAnalytics';
+type When = { when?: Condition };
 
-export type Block =
+export type Block = When & (
   | { p: string }
   | { list: string[] }
-  | { items: { label: string; desc: string }[] }
-  | { parties: { name: string; purpose: string; url: string | null }[] }
-  | { cookies: { name: string; kind: CookieKind; desc: string }[] }
+  | { items: ({ label: string; desc: string } & When)[] }
+  | { parties: ({ name: string; purpose: string; url: string | null } & When)[] }
+  | { cookies: ({ name: string; kind: CookieKind; desc: string } & When)[] }
   | { identity: 'operator' | 'controller' }
   | { contact: 'contact' | 'privacy' }
   | { note: 'seePrivacy' }
@@ -22,9 +29,10 @@ export type Block =
   | { cookieButton: string }
   | { optout: { prefix: string; label: string } }
   | { link: { view: LegalDocView; label: string } }
-  | { links: { href: string; label: string }[] };
+  | { links: { href: string; label: string }[] }
+);
 
-export interface LegalSectionContent {
+export interface LegalSectionContent extends When {
   id: string;
   title: string;
   blocks: Block[];
@@ -37,9 +45,9 @@ export interface LegalDocument {
 }
 
 export const LEGAL_UPDATED: Record<LegalLocale, string> = {
-  "de": "25. Oktober 2026",
-  "it": "25 ottobre 2026",
-  "en": "25 October 2026"
+  "de": "16. November 2026",
+  "it": "16 novembre 2026",
+  "en": "16 November 2026"
 };
 
 export const LEGAL_UI = {
@@ -131,10 +139,6 @@ export const LEGAL_TILES: Record<LegalLocale, Record<LegalDocView, { title: stri
     "cookies": {
       "title": "Cookies und Speicher",
       "desc": "Was im Browser gespeichert wird und wie du es änderst"
-    },
-    "learn": {
-      "title": "Pokyh Learn · Datenschutz",
-      "desc": "Hinweise zur WebUntis-Prüfung und zum digitalen Lernen"
     }
   },
   "it": {
@@ -153,10 +157,6 @@ export const LEGAL_TILES: Record<LegalLocale, Record<LegalDocView, { title: stri
     "cookies": {
       "title": "Cookie e memoria",
       "desc": "Cosa viene salvato nel browser e come modificarlo"
-    },
-    "learn": {
-      "title": "Pokyh Learn · Privacy",
-      "desc": "Informativa sulla verifica WebUntis e l’apprendimento digitale"
     }
   },
   "en": {
@@ -175,10 +175,6 @@ export const LEGAL_TILES: Record<LegalLocale, Record<LegalDocView, { title: stri
     "cookies": {
       "title": "Cookies and storage",
       "desc": "What is stored in the browser and how to change it"
-    },
-    "learn": {
-      "title": "Pokyh Learn · Privacy",
-      "desc": "Information on WebUntis verification and digital learning"
     }
   }
 };
@@ -260,7 +256,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "title": "Urheberrecht",
           "blocks": [
             {
-              "p": "Der Quellcode von POKYH ist Open Source: Web-App und Backend sind auf GitHub veröffentlicht (github.com/bedchem) und stehen unter der MIT-Lizenz. Verwendete Bibliotheken und Schriften unterliegen ihren eigenen Lizenzen. Die Fotos der Gerichte im Mensa-Speiseplan gehören ihren Urhebern; sie werden nicht kopiert, sondern direkt von den Seiten geladen, auf denen sie frei zugänglich veröffentlicht sind. Wer Rechte an einem Foto hat und nicht möchte, dass es so angezeigt wird, schreibt uns über die Kontaktadresse oben; wir nehmen den Verweis dann umgehend heraus."
+              "p": "Der Quellcode von POKYH ist Open Source: Web-App, Backend und iOS-App sind auf GitHub veröffentlicht (github.com/bedchem) und stehen unter der MIT-Lizenz. Verwendete Bibliotheken und Schriften unterliegen ihren eigenen Lizenzen. Die Fotos der Gerichte im Mensa-Speiseplan liegen auf dem POKYH-Server; die Rechte daran liegen bei ihren Urheberinnen und Urhebern. Einzelne Fotos werden noch direkt von den Seiten geladen, auf denen sie veröffentlicht sind. Wer Rechte an einem Foto hat und nicht möchte, dass es hier erscheint, schreibt uns über die Kontaktadresse oben; wir entfernen es umgehend."
             }
           ]
         }
@@ -341,7 +337,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "title": "Diritto d’autore",
           "blocks": [
             {
-              "p": "Il codice sorgente di POKYH è open source: la web app e il backend sono pubblicati su GitHub (github.com/bedchem) con licenza MIT. Le librerie e i caratteri utilizzati sono soggetti alle proprie licenze. Le foto dei piatti nel menù della mensa appartengono ai loro autori; non vengono copiate, ma caricate direttamente dai siti in cui sono pubblicate e liberamente accessibili. Chi ha diritti su una foto e non desidera che sia mostrata così può scriverci all’indirizzo di contatto indicato sopra; rimuoveremo subito il collegamento."
+              "p": "Il codice sorgente di POKYH è open source: web app, backend e app iOS sono pubblicati su GitHub (github.com/bedchem) con licenza MIT. Le librerie e i caratteri utilizzati sono soggetti alle proprie licenze. Le foto dei piatti del menù della mensa si trovano sul server di POKYH; i diritti appartengono ai rispettivi autori. Alcune foto vengono ancora caricate direttamente dai siti su cui sono pubblicate. Chi detiene diritti su una foto e non vuole che compaia qui ci scrive all’indirizzo di contatto indicato sopra; la rimuoviamo subito."
             }
           ]
         }
@@ -422,7 +418,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "title": "Copyright",
           "blocks": [
             {
-              "p": "The source code of POKYH is open source: the web app and the backend are published on GitHub (github.com/bedchem) under the MIT licence. Libraries and fonts used are subject to their own licences. The dish photos in the cafeteria menu belong to their authors; they are not copied but loaded directly from the sites that publish them freely. If you hold rights to a photo and do not want it shown this way, write to us at the contact address above; we will remove the link promptly."
+              "p": "POKYH’s source code is open source: the web app, the backend and the iOS app are published on GitHub (github.com/bedchem) under the MIT licence. Libraries and fonts used are subject to their own licences. The dish photos in the canteen menu are on the POKYH server; the rights to them belong to their authors. Some photos are still loaded directly from the sites where they are published. Anyone who holds rights to a photo and does not want it to appear here can write to us at the contact address above; we remove it right away."
             }
           ]
         }
@@ -458,7 +454,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 "POKYH ist kostenlos, ohne Werbung und verkauft keine Daten.",
                 "Dein WebUntis-Passwort geht nur an den WebUntis-Server deiner Schule und wird auf POKYH-Servern nicht gespeichert; nur wenn du die Website mit der POKYH-App anmeldest (QR-Code), liegt es dafür höchstens drei Minuten verschlüsselt beim POKYH-Backend.",
                 "Daten aus WebUntis (Stundenplan, Noten, Abwesenheiten, Nachrichten) werden nur für die Anzeige abgerufen und auf POKYH-Servern nicht dauerhaft gespeichert.",
-                "Freiwillige Statistiken gibt es nur mit deiner Zustimmung, die du jederzeit widerrufen kannst. Fotos von anderen Seiten kannst du jederzeit ausblenden.",
+                "Statistiken, die deinem Konto zugeordnet sind, gibt es nur mit deiner Zustimmung, die du jederzeit widerrufen kannst; ohne sie zählt POKYH nur ohne Namen, und auch dem kannst du widersprechen.",
                 "Du kannst jederzeit Auskunft, Löschung und mehr verlangen; eine E-Mail genügt."
               ]
             }
@@ -488,7 +484,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 },
                 {
                   "label": "Anmeldung mit der POKYH-App (QR-Code)",
-                  "desc": "Wählst du auf der Anmeldeseite „Mit der POKYH-App anmelden“, legt das POKYH-Backend einen Code an, der zwei Minuten und nur einmal gilt, und die Website zeigt ihn als QR-Code. Gespeichert werden nur Prüfwerte (Hashes) des Codes sowie zum Computer, der sich anmelden möchte: die Art des Geräts, Betriebssystem und Browser (aus dem User-Agent), die IP-Adresse und das von Cloudflare ermittelte Land (und, sofern übermittelt, Region und Stadt). Diese Angaben zeigt dir die App beim Scannen, damit du siehst, welcher Computer fragt. Den QR-Code liest der Code-Scanner der Google Play-Dienste auf deinem Handy; die App erhält dabei keinen Zugriff auf die Kamera, nur den gelesenen Text. Bestätigst du in der App, übergibt sie dem POKYH-Backend deinen Benutzernamen, deine Schule, ihre WebUntis-Sitzung und, sofern sie es gespeichert hat, dein WebUntis-Passwort. Das Backend hält diese Angaben verschlüsselt (AES-256-GCM) bereit, bis sich die Website damit angemeldet hat, und löscht sie dann sofort, sonst spätestens eine Minute nach Ablauf des Codes (höchstens drei Minuten nach seinem Anlegen); in eine Datenbank-Sicherung aus diesen Minuten können sie verschlüsselt gelangen (gelöscht nach 7 Tagen). Die Website übernimmt die WebUntis-Sitzung der App; danach gilt dasselbe wie nach einer Anmeldung mit Passwort, und im Anmeldeverlauf steht die Anmeldung als „mit der POKYH-App (QR-Code)“. Zweck: die Anmeldung am Computer, ohne dort das Passwort einzugeben. Rechtsgrundlage: Erbringung des Dienstes (Art. 6 Abs. 1 lit. b DSGVO)."
+                  "desc": "Wählst du auf der Anmeldeseite „Mit der POKYH-App anmelden“, legt das POKYH-Backend einen Code an, der zwei Minuten und nur einmal gilt, und die Website zeigt ihn als QR-Code. Gespeichert werden nur Prüfwerte (Hashes) des Codes sowie zum Computer, der sich anmelden möchte: die Art des Geräts, Betriebssystem und Browser (aus dem User-Agent), die IP-Adresse und das von Cloudflare ermittelte Land (und, sofern übermittelt, Region und Stadt). Diese Angaben zeigt dir die App beim Scannen, damit du siehst, welcher Computer fragt. Den QR-Code liest die POKYH-App mit der Kamera deines Handys, sobald du das erlaubst; das Kamerabild wird nur auf dem Gerät ausgewertet und weder gespeichert noch gesendet. Bestätigst du in der App, übergibt sie dem POKYH-Backend deinen Benutzernamen, deine Schule, ihre WebUntis-Sitzung und, sofern sie es gespeichert hat, dein WebUntis-Passwort. Das Backend hält diese Angaben verschlüsselt (AES-256-GCM) bereit, bis sich die Website damit angemeldet hat, und löscht sie dann sofort, sonst spätestens eine Minute nach Ablauf des Codes (höchstens drei Minuten nach seinem Anlegen); in eine Datenbank-Sicherung aus diesen Minuten können sie verschlüsselt gelangen (gelöscht nach 7 Tagen). Die Website übernimmt die WebUntis-Sitzung der App; danach gilt dasselbe wie nach einer Anmeldung mit Passwort, und im Anmeldeverlauf steht die Anmeldung als „mit der POKYH-App (QR-Code)“. Zweck: die Anmeldung am Computer, ohne dort das Passwort einzugeben. Rechtsgrundlage: Erbringung des Dienstes (Art. 6 Abs. 1 lit. b DSGVO)."
                 },
                 {
                   "label": "Anmeldung mit der Gerätesperre (Face ID, Fingerabdruck, PIN)",
@@ -499,6 +495,10 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Richtest du in POKYH die Zwei-Faktor-Anmeldung deines WebUntis-Kontos ein oder schaltest du sie aus, änderst du deine E-Mail-Adresse, die Sprache in WebUntis oder die Weiterleitung von Nachrichten per E-Mail oder löschst du Nachrichten, gibt das POKYH-Backend das nur an den WebUntis-Server deiner Schule weiter; bei POKYH wird davon nichts gespeichert. Den geheimen Schlüssel für deine Authenticator-App zeigt POKYH dir einmal an, ohne ihn zu speichern oder zu protokollieren; den 6-stelligen Code deiner App bei der Anmeldung gibt POKYH nur an WebUntis weiter. Rechtsgrundlage: Erbringung des von dir gewünschten Dienstes (Art. 6 Abs. 1 lit. b DSGVO)."
                 },
                 {
+                  "label": "Nachrichten, Abwesenheiten und Profilbild aus WebUntis",
+                  "desc": "Nachrichten, die du in POKYH liest, schreibst oder löschst, und Abwesenheiten, die du meldest oder entschuldigst, gibt das POKYH-Backend nur an den WebUntis-Server deiner Schule weiter; bei POKYH werden sie nicht gespeichert, und die Server-Protokolle enthalten nur die aufgerufene Adresse, keine Inhalte. Entschuldigst du eine vergangene Abwesenheit, schickt POKYH dafür in deinem Namen eine WebUntis-Nachricht an die Klassenlehrpersonen deiner Klasse. Wählst du als Grund etwa Krankheit oder schreibst du etwas über deine Gesundheit, sind das Gesundheitsdaten (Art. 9 DSGVO): POKYH übermittelt sie nur, wenn du sie ausdrücklich absendest. Schreib bitte nur, was die Schule wissen muss. Dein Profilbild aus WebUntis lädt das Backend bei Bedarf von WebUntis und reicht es nur an dich weiter, ohne es zu speichern. Rechtsgrundlage: Erbringung des von dir gewünschten Dienstes (Art. 6 Abs. 1 lit. b DSGVO), für Gesundheitsdaten deine ausdrückliche Einwilligung durch das Absenden (Art. 9 Abs. 2 lit. a DSGVO)."
+                },
+                {
                   "label": "Benutzer-Cookie (pokyh_user)",
                   "desc": "Enthält nicht-sensible Anzeigeinformationen (Benutzername, Klasse, Schule) für die Darstellung in der App. Kein Passwort, kein Token."
                 },
@@ -507,12 +507,16 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Damit du deine Schule findest, schickt der POKYH-Server deinen Suchbegriff (Name, Ort oder Postleitzahl einer Schule) an die öffentliche Schulsuche von WebUntis (Untis GmbH). Untis erhält dabei nur den Suchbegriff und die Adresse des POKYH-Servers, nicht deine IP-Adresse. Die Treffer werden bis zu 10 Minuten im Arbeitsspeicher des Servers zwischengespeichert und keiner Person zugeordnet. Die gewählte Schule (Anmeldename, Name, Adresse und Server laut WebUntis) speichert dein Browser bis zum Ende des Schuljahres (31. August, mindestens 30 Tage) unter pokyh_school, damit du sie nicht jedes Mal neu suchen musst; du kannst sie beim Anmelden jederzeit ändern. Nach der Anmeldung ordnet das POKYH-Backend dein Konto dieser Schule zu (Anmeldename, Name und Server der Schule), damit Klassen, Erinnerungen, Kommentare und der Speiseplan getrennt nach Schulen bleiben; meldet sich jemand einer Schule zum ersten Mal an, wird die Schule dabei angelegt. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO."
                 },
                 {
-                  "label": "POKYH-Backend (Todos & Erinnerungen)",
-                  "desc": "Todos und Klassen-Erinnerungen werden auf dem eigenen POKYH-Backend gespeichert: Titel, Details, Zeitstempel, Benutzername. Löschung jederzeit selbst möglich. Es werden keine externen Cloud-Dienste für diese Funktionen genutzt."
+                  "label": "To-dos, Klassen-Erinnerungen und Kommentare",
+                  "desc": "To-dos speichert das POKYH-Backend mit Titel, Details, Fälligkeit, Zeitstempeln und deiner Benutzer-ID; sie siehst nur du. Erinnerungen gehören deiner Klasse: Titel, Text und Zeitpunkt, Name und Benutzername der Person, die sie angelegt hat, sowie die Kommentare dazu (mit Benutzername) sehen alle Mitglieder deiner Klasse. Eigene To-dos, Erinnerungen und Kommentare kannst du jederzeit löschen; löschst du dein Konto, bleiben Erinnerungen der Klasse ohne deinen Namen erhalten. Externe Cloud-Dienste werden dafür nicht genutzt. Rechtsgrundlage: Erbringung des Dienstes (Art. 6 Abs. 1 lit. b DSGVO)."
                 },
                 {
                   "label": "Mensa-Bewertungen & Kommentare",
-                  "desc": "Wenn du ein Gericht bewertest oder kommentierst, speichert das POKYH-Backend Sternebewertung bzw. Kommentartext, Benutzername, interne Benutzer-ID und Zeitstempel. Kommentare sind mit deinem Benutzernamen für andere angemeldete Nutzer sichtbar; Bewertungen erscheinen als Durchschnitt und Anzahl, und hast du ein Gericht auch kommentiert, stehen deine Sterne neben deinem Kommentar. Eigene Kommentare kannst du jederzeit löschen."
+                  "desc": "Wenn du ein Gericht bewertest oder kommentierst, speichert das POKYH-Backend Sternebewertung bzw. Kommentartext, Benutzername, interne Benutzer-ID und Zeitstempel. Kommentare sind mit deinem Benutzernamen für andere angemeldete Nutzer sichtbar; Bewertungen erscheinen als Durchschnitt und Anzahl, und hast du ein Gericht auch kommentiert, stehen deine Sterne neben deinem Kommentar. Eigene Kommentare kannst du jederzeit löschen. Rechtsgrundlage: Erbringung des Dienstes (Art. 6 Abs. 1 lit. b DSGVO)."
+                },
+                {
+                  "label": "Rückblick",
+                  "desc": "Ab und zu zeigt POKYH einen Rückblick auf einen Zeitraum, etwa das Schuljahr; Administratoren legen fest, für welche Schule, Klasse oder welche Konten. Die Zahlen aus WebUntis (Stunden, Noten, Abwesenheiten, Prüfungen, Hausaufgaben) berechnet dein Gerät mit deiner eigenen WebUntis-Sitzung; sie verlassen das Gerät nicht. Die Zahlen aus POKYH (aktive Tage, Anmeldungen, To-dos, Erinnerungen, Kommentare, Bewertungen und, nur mit Einwilligung in die persönliche Nutzungsstatistik, Nutzungsdauer und meistgeöffnete Bildschirme) liest das Backend aus den ohnehin gespeicherten Daten, für vergangene Schuljahre aus dem Schuljahresarchiv. Deinen Platz an deiner Schule nach aktiven Tagen zeigt der Rückblick nur dir und nur grob („Top n %“), und nur wenn genug Personen deiner Schule mitgezählt werden. Neu gespeichert wird nur, dass du einen Rückblick bis zum Ende angesehen hast. Teilen oder als Bild speichern geschieht nur, wenn du es selbst auslöst. Rechtsgrundlage: Erbringung des Dienstes (Art. 6 Abs. 1 lit. b DSGVO); für den Vergleich mit anderen berechtigtes Interesse (Art. 6 Abs. 1 lit. f DSGVO), dem du jederzeit widersprechen kannst (Art. 21 DSGVO)."
                 },
                 {
                   "label": "Benachrichtigungen (Glocke)",
@@ -524,19 +528,28 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 },
                 {
                   "label": "Push-Benachrichtigungen (Website, optional)",
-                  "desc": "Nur wenn du Benachrichtigungen im Browser erlaubst: Das POKYH-Backend speichert die Push-Adresse (Endpoint) deines Browsers mit deiner Benutzer-ID. Damit es dich über neue WebUntis-Nachrichten informieren kann, speichert es außerdem deine aktuelle WebUntis-Sitzung (Sitzungskennung und Zugriffstoken, nicht dein Passwort) und fragt damit etwa alle 5 Minuten beim WebUntis-Server deiner Schule ab, wie viele Nachrichten ungelesen sind. Inhalte von Nachrichten werden dabei nicht gespeichert. Die Abfrage endet, sobald WebUntis die Sitzung beendet. Zugestellt werden die Benachrichtigungen über den Push-Dienst deines Browser-Herstellers (z. B. Google, Mozilla oder Apple). Widerruf jederzeit in den Browser-Einstellungen; die Push-Adresse wird dann gelöscht."
+                  "desc": "Nur wenn du Benachrichtigungen im Browser erlaubst: Das POKYH-Backend speichert die Push-Adresse (Endpoint) deines Browsers und ihre Schlüssel mit deiner Benutzer-ID. Damit es dich über neue WebUntis-Nachrichten informieren kann, speichert es außerdem deine aktuelle WebUntis-Sitzung (Sitzungskennung und Zugriffstoken, nicht dein Passwort) und fragt damit etwa alle 5 Minuten beim WebUntis-Server deiner Schule ab, wie viele Nachrichten ungelesen sind; Inhalte von Nachrichten werden dabei nicht gespeichert, und die Abfrage endet, sobald WebUntis die Sitzung beendet. Außerdem erinnert es dich an fällige To-dos und an Erinnerungen deiner Klasse. Eine Benachrichtigung enthält die Zahl neuer Nachrichten oder den Titel des To-dos bzw. Titel und Text der Erinnerung. Zugestellt wird sie über den Push-Dienst deines Browser-Herstellers (z. B. Google, Mozilla oder Apple), Ende-zu-Ende-verschlüsselt, sodass dieser den Inhalt nicht lesen kann. Widerruf jederzeit in den Browser-Einstellungen; die Push-Adresse wird dann gelöscht. Rechtsgrundlage: Erbringung des von dir gewünschten Dienstes (Art. 6 Abs. 1 lit. b DSGVO)."
                 },
                 {
-                  "label": "Fotos von anderen Seiten (Mensa)",
-                  "desc": "Die Fotos der Gerichte im Mensa-Speiseplan liegen auf fremden Rezeptseiten und werden von dort angezeigt; POKYH kopiert sie nicht. Dein Browser lädt sie direkt von diesen Seiten, die dabei wie bei jedem Seitenaufruf deine IP-Adresse und technische Angaben deines Browsers (z. B. Browsertyp) erhalten, ohne Referrer, also ohne die Adresse der POKYH-Seite. Was diese Seiten damit tun, etwa ob sie Cookies setzen, liegt bei ihnen; viele Browser blockieren Cookies fremder Seiten. Rechtsgrundlage: berechtigtes Interesse (Art. 6 Abs. 1 lit. f DSGVO), den Speiseplan anschaulich zu zeigen. Du kannst jederzeit widersprechen (Art. 21 DSGVO): Mit „Fotos ausblenden“ auf der Mensa-Seite lädt dein Browser keine fremden Fotos mehr; die Wahl speichert er unter pokyh_external_media."
+                  "label": "Push-Benachrichtigungen (iOS-App, optional)",
+                  "desc": "Erlaubst du der iOS-App Mitteilungen, meldet sie beim POKYH-Backend ihr Gerätetoken des Apple Push Notification Service (APNs) an. Gespeichert werden das Token, deine Benutzer-ID, welche Arten du eingeschaltet hast (Nachrichten, To-dos, Erinnerungen), das angemeldete Gerät, zu dem es gehört, und für neue Nachrichten deine aktuelle WebUntis-Sitzung (nicht dein Passwort), mit der das Backend wie bei der Website etwa alle 5 Minuten nach ungelesenen Nachrichten fragt. Zugestellt werden die Mitteilungen über Apple; sie enthalten die Zahl neuer Nachrichten oder den Titel des To-dos bzw. Titel und Text der Erinnerung, die Apple für die Zustellung verarbeitet. Schaltest du Mitteilungen aus oder wird das Gerät abgemeldet, wird der Eintrag gelöscht. Die Android-App bekommt keine Push-Nachrichten vom Server (siehe „Mobile Apps“). Rechtsgrundlage: Erbringung des von dir gewünschten Dienstes (Art. 6 Abs. 1 lit. b DSGVO)."
+                },
+                {
+                  "label": "Fotos der Gerichte (Mensa)",
+                  "desc": "Die Fotos im Mensa-Speiseplan liegen auf dem POKYH-Server und werden von dort geladen; dabei erhält niemand außer POKYH Daten. Einzelne Fotos können noch auf fremden Seiten liegen: Die lädt dein Browser direkt von dort, und diese Seiten erhalten dabei wie bei jedem Seitenaufruf deine IP-Adresse und technische Angaben deines Browsers (z. B. Browsertyp), ohne Referrer, also ohne die Adresse der POKYH-Seite. Was diese Seiten damit tun, etwa ob sie Cookies setzen, liegt bei ihnen; viele Browser blockieren Cookies fremder Seiten. Rechtsgrundlage: berechtigtes Interesse (Art. 6 Abs. 1 lit. f DSGVO), den Speiseplan anschaulich zu zeigen. Du kannst jederzeit widersprechen (Art. 21 DSGVO): Mit „Fotos ausblenden“ auf der Mensa-Seite lädt dein Browser keine Fotos fremder Seiten mehr; die Wahl speichert er unter pokyh_external_media. Fotos vom POKYH-Server werden weiter angezeigt."
                 },
                 {
                   "label": "Google Analytics 4 (GA4)",
-                  "desc": "Diese Website kann Google Analytics 4 (Google LLC) verwenden, aber ausschließlich nach deiner ausdrücklichen Einwilligung im Cookie-Banner; vorher wird keine Verbindung zu Google aufgebaut. GA4 erhebt pseudonymisierte Nutzungsdaten (Seitenaufrufe, Gerätekategorie, ungefähres Herkunftsland) und setzt dafür die Cookies _ga und _ga_*. Nach Angaben von Google speichert GA4 keine IP-Adressen; Google-Signale und Werbefunktionen sind abgeschaltet. Rechtsgrundlage: deine Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, Art. 122 Codice privacy). Du kannst sie jederzeit in den Cookie-Einstellungen widerrufen; die Cookies werden dann gelöscht. Zusätzlich kannst du der Datenerhebung unter tools.google.com/dlpage/gaoptout widersprechen."
+                  "desc": "Diese Website verwendet Google Analytics 4 (Google LLC), aber ausschließlich nach deiner ausdrücklichen Einwilligung im Cookie-Banner; vorher wird keine Verbindung zu Google aufgebaut. GA4 erhebt pseudonymisierte Nutzungsdaten (Seitenaufrufe, Gerätekategorie, ungefähres Herkunftsland) und setzt dafür die Cookies _ga und _ga_*. Nach Angaben von Google speichert GA4 keine IP-Adressen; Google-Signale und Werbefunktionen sind abgeschaltet. Rechtsgrundlage: deine Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, Art. 122 Codice privacy). Du kannst sie jederzeit in den Cookie-Einstellungen widerrufen; die Cookies werden dann gelöscht. Zusätzlich kannst du der Datenerhebung unter tools.google.com/dlpage/gaoptout widersprechen.",
+                  "when": "analytics"
                 },
                 {
-                  "label": "Cloudflare Tunnel (Cloudflare, Inc.)",
-                  "desc": "Zur öffentlichen Erreichbarkeit des selbst gehosteten Servers wird Cloudflare Tunnel verwendet. Cloudflare verarbeitet dabei Netzwerk-Metadaten (IP-Adressen, Anfrage-Header) zur Weiterleitung des Datenverkehrs. Es werden keine Inhalte dauerhaft gespeichert. Rechtsgrundlage: berechtigtes Interesse (Art. 6 Abs. 1 lit. f DSGVO) für den sicheren Serverbetrieb. Cloudflare übermittelt uns außerdem das aus der IP-Adresse ermittelte Land (ggf. Region und Stadt), das wir für die Besucher-Statistik von Website und Apps nutzen; eine Standortabfrage bei weiteren Anbietern findet nicht statt."
+                  "label": "Cloudflare (Cloudflare, Inc.)",
+                  "desc": "Die Website liegt bei Cloudflare (Cloudflare Workers) und wird von dort ausgeliefert, und alle Verbindungen zum POKYH-Backend (api.pokyh.com) laufen über Cloudflare. Cloudflare verarbeitet dabei als Auftragsverarbeiter (Art. 28 DSGVO) IP-Adressen, Anfrage-Header und technische Verbindungsdaten, um die Seiten auszuliefern, die Verbindung zu verschlüsseln und Angriffe abzuwehren; die verschlüsselte Verbindung deines Browsers endet bei Cloudflare. Kommt eine Verbindung nicht zustande, kann dein Browser Cloudflare einen kurzen technischen Fehlerbericht senden (Network Error Logging, nur bei Fehlern). Cloudflare übermittelt uns außerdem das aus der IP-Adresse ermittelte Land (ggf. Region und Stadt), das wir für die Besucher-Statistik von Website und Apps nutzen; eine Standortabfrage bei weiteren Anbietern findet nicht statt. Rechtsgrundlage: berechtigtes Interesse an einem sicheren, erreichbaren Dienst (Art. 6 Abs. 1 lit. f DSGVO)."
+                },
+                {
+                  "label": "Schutz des Backends (FastProtect)",
+                  "desc": "Zwischen Cloudflare und dem POKYH-Backend läuft der Verkehr über FastProtect, einen von uns selbst betriebenen Reverse-Proxy- und DDoS-Schutz mit Servern in der EU. FastProtect leitet die Anfragen weiter und wehrt Angriffe und Bots ab; dafür verarbeitet es IP-Adressen und Anfragedaten. Normale Anfragen werden dabei weder gespeichert noch protokolliert. Nur von Adressen, von denen abgewiesener Verkehr kommt (etwa Angriffe oder Bots), bleiben die auffälligsten mit der Zahl der abgewiesenen Anfragen in der Angriffsstatistik, höchstens 400 Tage. Rechtsgrundlage: berechtigtes Interesse am Schutz des Dienstes vor Angriffen (Art. 6 Abs. 1 lit. f DSGVO)."
                 },
                 {
                   "label": "Server-Protokollierung (Request Logs)",
@@ -559,8 +572,8 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Zu deinem Konto speichern wir, welche Fassung dieser Datenschutzerklärung dir wann angezeigt wurde (bei der Anmeldung bzw. nach einer Änderung, auf der Website oder in der App) und ob und wann du der persönlichen Nutzungsstatistik zugestimmt oder sie widerrufen hast, als Nachweis (Art. 5 Abs. 2, Art. 7 Abs. 1 DSGVO). Das Anzeigen ist keine Einwilligung. Die Daten werden mit deinem Konto gelöscht. Deine Auswahl im Cookie-Banner wird zusätzlich auf deinem Gerät gespeichert (siehe Cookies)."
                 },
                 {
-                  "label": "Mobile App (iOS & Android)",
-                  "desc": "Die nativen POKYH-Apps speichern Zugangsdaten ausschließlich verschlüsselt auf dem Gerät (iOS-Keychain bzw. mit einem Schlüssel aus dem Android Keystore), damit die Anmeldung erneuert werden kann; auf POKYH-Servern werden sie nicht gespeichert, außer kurz bei der Anmeldung am Computer per QR-Code (siehe „Anmeldung mit der POKYH-App (QR-Code)“). iCloud-Synchronisierung ist deaktiviert. Außer der oben beschriebenen Nutzungsstatistik und App-Besucher-Statistik erhebt die App keine Analysedaten; Analyse-SDKs von Drittanbietern sind nicht eingebunden. Nach der ersten Anmeldung und nach einer Änderung dieser Datenschutzerklärung zeigt die App einmal einen Hinweis darauf; dass er angezeigt wurde, wird wie auf der Website gespeichert (siehe „Hinweis & Einwilligungen“). Für die Offline-Nutzung legt die App zuletzt geladene Daten (z. B. Stundenplan, Noten, Abwesenheiten, Mensa) im privaten App-Speicher des Geräts ab. Erinnerungen werden als lokale Gerätebenachrichtigungen ausgeliefert (kein Remote-Push). Update-Prüfungen erfolgen über die öffentliche GitHub-API; dabei erhält GitHub technisch bedingt die IP-Adresse, aber keine Konto- oder Schuldaten."
+                  "label": "Mobile Apps (iOS und Android)",
+                  "desc": "Die POKYH-Apps speichern Zugangsdaten ausschließlich verschlüsselt auf dem Gerät (iOS-Schlüsselbund bzw. mit einem Schlüssel aus dem Android Keystore), damit die Anmeldung erneuert werden kann; auf POKYH-Servern werden sie nicht gespeichert, außer kurz bei der Anmeldung am Computer per QR-Code (siehe „Anmeldung mit der POKYH-App (QR-Code)“). iCloud-Synchronisierung ist deaktiviert. Für die Offline-Nutzung, für Widgets und für die Apple Watch legen die Apps zuletzt geladene Daten (z. B. Stundenplan, Noten, Abwesenheiten, Mensa) im privaten Speicher des Geräts ab; sie verlassen das Gerät nicht. Face ID, Fingerabdruck oder PIN prüft nur das Gerät. Die Kamera nutzen die Apps nur, wenn du einen QR-Code zur Anmeldung scannst; das Bild wird nur auf dem Gerät ausgewertet. Einen Rückblick speichert die iOS-App nur auf deinen Wunsch in deinen Fotos. Außer der oben beschriebenen Nutzungsstatistik und App-Besucher-Statistik erheben die Apps keine Analysedaten; Analyse- oder Werbe-SDKs von Drittanbietern sind nicht eingebunden. Nach der ersten Anmeldung und nach einer Änderung dieser Datenschutzerklärung zeigen die Apps einmal einen Hinweis darauf; dass er angezeigt wurde, wird wie auf der Website gespeichert (siehe „Hinweis & Einwilligungen“). Benachrichtigungen: Die iOS-App bekommt Push-Mitteilungen über Apple (siehe „Push-Benachrichtigungen (iOS-App)“). Die Android-App bekommt keine Push-Nachrichten vom Server: Sie fragt im Hintergrund selbst mit deinen auf dem Gerät gespeicherten Zugangsdaten bei WebUntis nach neuen Nachrichten und zeigt lokale Benachrichtigungen. Updates: Die Android-App prüft über die öffentliche GitHub-API, ob es eine neue Version gibt, und lädt sie bei Bedarf von GitHub; dabei erhält GitHub technisch bedingt die IP-Adresse, aber keine Konto- oder Schuldaten."
                 },
                 {
                   "label": "Fehlerberichte (Apps und Verwaltung)",
@@ -568,7 +581,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 },
                 {
                   "label": "Lokaler Speicher (localStorage)",
-                  "desc": "Für Einstellungen (Darstellung, Sprache, gewählte Schule und Mensa, Fotos ja/nein, der Fortschritt im versteckten Klassenzimmer der Anmeldeseite) und als Zwischenspeicher zuletzt geladener Schuldaten (Stundenplan, Noten, Abwesenheiten, Nachrichten) für eine schnellere Anzeige wird der Speicher deines Browsers genutzt. Diese Daten verlassen dein Gerät nicht; die einzelnen Einträge stehen in der Cookie-Richtlinie."
+                  "desc": "Für Einstellungen (Darstellung, Sprache, gewählte Schule und Mensa, Fotos ja/nein, der Fortschritt im versteckten Klassenzimmer der Anmeldeseite), als Zwischenspeicher zuletzt geladener Schuldaten (Stundenplan, Noten, Abwesenheiten, Nachrichten, die Wochen eines Rückblicks) und für die Reihenfolge, in der neue Noten zuerst gesehen wurden (nur Kennungen und Zeiten), wird der Speicher deines Browsers genutzt. Diese Daten verlassen dein Gerät nicht; die einzelnen Einträge stehen in der Cookie-Richtlinie."
                 },
                 {
                   "label": "Unterstützung über Buy Me a Coffee (freiwillig)",
@@ -583,10 +596,15 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "title": "Zwecke und Rechtsgrundlagen",
           "blocks": [
             {
-              "p": "Die Verarbeitung erfolgt zur Erbringung des Dienstes (Art. 6 Abs. 1 lit. b DSGVO). Notwendige Sicherheitsmaßnahmen (z. B. Netzwerkweiterleitung, Zugriffsprotokolle), die Besucher-Statistik von Website und Apps mit IP-Adresse und die anonyme Nutzungsstatistik stützen sich auf unser berechtigtes Interesse an einem sicheren Betrieb und der Verbesserung des Dienstes (Art. 6 Abs. 1 lit. f DSGVO). Die persönliche Nutzungsstatistik und Google Analytics erfolgen ausschließlich mit deiner Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), die du im Cookie-Banner („Alle akzeptieren“ oder „Einstellungen“) oder im Profil erteilst und dort jederzeit widerrufen kannst; der Widerruf berührt nicht die Rechtmäßigkeit der bis dahin erfolgten Verarbeitung. Keine der beiden Optionen ist vorausgewählt, und POKYH ist ohne sie uneingeschränkt nutzbar."
+              "p": "Die Verarbeitung erfolgt zur Erbringung des Dienstes (Art. 6 Abs. 1 lit. b DSGVO). Notwendige Sicherheitsmaßnahmen (z. B. Auslieferung über Cloudflare, Schutz durch FastProtect, Zugriffsprotokolle), die Besucher-Statistik von Website und Apps mit IP-Adresse, die anonyme Nutzungsstatistik und der Vergleich im Rückblick stützen sich auf unser berechtigtes Interesse an einem sicheren Betrieb und der Verbesserung des Dienstes (Art. 6 Abs. 1 lit. f DSGVO); du kannst jederzeit widersprechen (Art. 21 DSGVO). Die persönliche Nutzungsstatistik erfolgt ausschließlich mit deiner Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), die du im Cookie-Banner („Alle akzeptieren“ oder „Einstellungen“) oder im Profil erteilst und dort jederzeit widerrufen kannst; der Widerruf berührt nicht die Rechtmäßigkeit der bis dahin erfolgten Verarbeitung. Sie ist nicht vorausgewählt, und POKYH ist ohne sie uneingeschränkt nutzbar.",
+              "when": "noAnalytics"
             },
             {
-              "p": "Die Schulsuche und die Zuordnung deines Kontos zu deiner Schule dienen der Erbringung des Dienstes (Art. 6 Abs. 1 lit. b DSGVO). Fotos von anderen Seiten werden aufgrund berechtigten Interesses geladen (Art. 6 Abs. 1 lit. f DSGVO); du kannst jederzeit widersprechen, indem du sie ausblendest (Art. 21 DSGVO)."
+              "p": "Die Verarbeitung erfolgt zur Erbringung des Dienstes (Art. 6 Abs. 1 lit. b DSGVO). Notwendige Sicherheitsmaßnahmen (z. B. Auslieferung über Cloudflare, Schutz durch FastProtect, Zugriffsprotokolle), die Besucher-Statistik von Website und Apps mit IP-Adresse, die anonyme Nutzungsstatistik und der Vergleich im Rückblick stützen sich auf unser berechtigtes Interesse an einem sicheren Betrieb und der Verbesserung des Dienstes (Art. 6 Abs. 1 lit. f DSGVO); du kannst jederzeit widersprechen (Art. 21 DSGVO). Die persönliche Nutzungsstatistik und Google Analytics erfolgen ausschließlich mit deiner Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), die du im Cookie-Banner („Alle akzeptieren“ oder „Einstellungen“) oder im Profil erteilst und dort jederzeit widerrufen kannst; der Widerruf berührt nicht die Rechtmäßigkeit der bis dahin erfolgten Verarbeitung. Keine der beiden Optionen ist vorausgewählt, und POKYH ist ohne sie uneingeschränkt nutzbar.",
+              "when": "analytics"
+            },
+            {
+              "p": "Die Schulsuche und die Zuordnung deines Kontos zu deiner Schule dienen der Erbringung des Dienstes (Art. 6 Abs. 1 lit. b DSGVO). Fotos, die noch auf anderen Seiten liegen, werden aufgrund berechtigten Interesses geladen (Art. 6 Abs. 1 lit. f DSGVO); du kannst jederzeit widersprechen, indem du sie ausblendest (Art. 21 DSGVO). Gesundheitsdaten, die du selbst mit einer Abwesenheit an die Schule schickst, übermittelt POKYH aufgrund deiner ausdrücklichen Einwilligung (Art. 9 Abs. 2 lit. a DSGVO)."
             }
           ]
         },
@@ -608,32 +626,43 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 },
                 {
                   "name": "POKYH-Backend",
-                  "purpose": "Eigener Server für Konten, Schulen, To-dos, Erinnerungen, Mensa, Kommentare, Benachrichtigungen und Statistik",
+                  "purpose": "Eigener Server für Konten, Schulen, To-dos, Erinnerungen, Mensa, Kommentare, Benachrichtigungen, Rückblicke und Statistik",
                   "url": null
                 },
                 {
-                  "name": "Google Analytics 4 (Google LLC)",
-                  "purpose": "Anonymisierte Nutzungsstatistiken zur Verbesserung des Dienstes, nur nach Einwilligung",
-                  "url": "https://policies.google.com/privacy"
+                  "name": "FastProtect (eigener Dienst)",
+                  "purpose": "Reverse-Proxy und DDoS-Schutz vor dem POKYH-Backend, von uns selbst betrieben, Server in der EU",
+                  "url": null
                 },
                 {
                   "name": "Cloudflare, Inc.",
-                  "purpose": "Netzwerkweiterleitung via Cloudflare Tunnel für den selbst gehosteten Server",
+                  "purpose": "Auslieferung der Website (Cloudflare Workers), Verbindungen zum POKYH-Backend und Schutz vor Angriffen; Auftragsverarbeiter",
                   "url": "https://www.cloudflare.com/privacypolicy/"
                 },
                 {
+                  "name": "Apple (Apple Push Notification Service)",
+                  "purpose": "Zustellung der Push-Mitteilungen der iOS-App, nur wenn du sie erlaubst",
+                  "url": "https://www.apple.com/legal/privacy/"
+                },
+                {
                   "name": "Push-Dienste der Browser-Hersteller",
-                  "purpose": "Zustellung von Web-Push-Benachrichtigungen, nur wenn du sie erlaubst",
+                  "purpose": "Zustellung von Web-Push-Benachrichtigungen (Ende-zu-Ende-verschlüsselt), nur wenn du sie erlaubst",
                   "url": "https://developer.mozilla.org/docs/Web/API/Push_API"
                 },
                 {
                   "name": "GitHub API (GitHub, Inc.)",
-                  "purpose": "Update-Prüfung der mobilen Apps; GitHub erhält dabei technisch bedingt die IP-Adresse, keine Konto- oder Schuldaten",
+                  "purpose": "Update-Prüfung und Download der Android-App; GitHub erhält dabei technisch bedingt die IP-Adresse, keine Konto- oder Schuldaten",
                   "url": "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement"
                 },
                 {
-                  "name": "Rezeptseiten (Fotos der Gerichte)",
-                  "purpose": "Anzeige der Fotos im Mensa-Speiseplan direkt von den Seiten, auf denen sie veröffentlicht sind (abschaltbar mit „Fotos ausblenden“)",
+                  "name": "Google Analytics 4 (Google LLC)",
+                  "purpose": "Anonymisierte Nutzungsstatistiken zur Verbesserung des Dienstes, nur nach Einwilligung",
+                  "url": "https://policies.google.com/privacy",
+                  "when": "analytics"
+                },
+                {
+                  "name": "Rezeptseiten (einzelne Fotos der Gerichte)",
+                  "purpose": "Einzelne Fotos im Mensa-Speiseplan, die noch auf anderen Seiten liegen und direkt von dort geladen werden (abschaltbar mit „Fotos ausblenden“)",
                   "url": null
                 },
                 {
@@ -642,6 +671,9 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "url": null
                 }
               ]
+            },
+            {
+              "p": "Innerhalb von POKYH sehen Daten nur Administratoren, soweit ihre Aufgabe es verlangt (zum Beispiel Support, Moderation und Abwehr von Missbrauch). Sie handeln im Auftrag und nach den Weisungen des Verantwortlichen (Art. 29 DSGVO, Art. 2-quaterdecies Codice privacy), müssen die Daten vertraulich behandeln und erhalten nur die Rechte, die sie dafür brauchen, auf Wunsch auch nur für eine Schule. Daten werden nicht verkauft und nicht für Werbung weitergegeben; Behörden erhalten sie nur, wenn ein Gesetz es verlangt."
             }
           ]
         },
@@ -650,7 +682,14 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "title": "Übermittlung in Drittländer",
           "blocks": [
             {
-              "p": "Die Daten aus WebUntis verarbeitet die Untis GmbH nach eigenen Angaben ausschließlich in der EU. Cloudflare, Inc., GitHub, Inc. (nur bei der Update-Prüfung der Apps), Google LLC (nur mit deiner Einwilligung in die Statistik) und die Push-Dienste der Browser-Hersteller (zum Beispiel Google, Apple oder Mozilla; nur wenn du Benachrichtigungen erlaubst) können Daten in den USA verarbeiten; die Übermittlung stützt sich auf den Angemessenheitsbeschluss zum EU-US Data Privacy Framework (Art. 45 DSGVO), nach dem diese Anbieter zertifiziert sind, sowie auf Standardvertragsklauseln (Art. 46 DSGVO). Rezeptseiten, von denen die Fotos des Mensa-Speiseplans stammen, können ihren Sitz außerhalb der EU haben, auch in Ländern ohne Angemessenheitsbeschluss. Dein Browser lädt die Fotos direkt von dort, solange du sie nicht mit „Fotos ausblenden“ abschaltest; dabei erhalten diese Seiten deine IP-Adresse. Möchtest du das nicht, blende die Fotos aus."
+              "p": "Das POKYH-Backend läuft auf eigener Hardware, FastProtect auf Servern in der EU; alle Sicherungen bleiben auf eigenen Servern. Die Daten aus WebUntis verarbeitet die Untis GmbH nach eigenen Angaben ausschließlich in der EU. Cloudflare, Inc., Apple (nur bei Push-Mitteilungen der iOS-App), GitHub, Inc. (nur bei Updates der Android-App) und die Push-Dienste der Browser-Hersteller (zum Beispiel Google, Apple oder Mozilla; nur wenn du Benachrichtigungen erlaubst) können Daten in den USA verarbeiten; die Übermittlung stützt sich auf den Angemessenheitsbeschluss zum EU-US Data Privacy Framework (Art. 45 DSGVO), nach dem diese Anbieter zertifiziert sind, sowie auf Standardvertragsklauseln (Art. 46 DSGVO)."
+            },
+            {
+              "p": "Google LLC verarbeitet Daten von Google Analytics nur mit deiner Einwilligung in die Statistik, auch in den USA; auch dafür gilt das EU-US Data Privacy Framework (Art. 45 DSGVO).",
+              "when": "analytics"
+            },
+            {
+              "p": "Rezeptseiten, von denen einzelne Fotos des Mensa-Speiseplans noch geladen werden, können ihren Sitz außerhalb der EU haben, auch in Ländern ohne Angemessenheitsbeschluss. Dein Browser lädt diese Fotos direkt von dort, solange du sie nicht mit „Fotos ausblenden“ abschaltest; dabei erhalten diese Seiten deine IP-Adresse. Möchtest du das nicht, blende die Fotos aus."
             }
           ]
         },
@@ -659,10 +698,14 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "title": "Speicherdauer",
           "blocks": [
             {
-              "p": "Anmelde-Cookies werden beim Logout gelöscht und laufen sonst automatisch ab (Sitzung 4 Stunden, API-Token 8 Stunden, Refresh-Token 30 Tage). Todos, Erinnerungen, Mensa-Bewertungen und Kommentare werden auf dem POKYH-Backend gespeichert, bis du sie selbst löschst. Server-Protokolle werden nach 30 Tagen, Datenbank-Sicherungen nach 7 Tagen gelöscht. Angemeldete Geräte werden 60 Tage nach ihrer letzten Nutzung oder nach dem Abmelden gelöscht, Einträge des Anmeldeverlaufs nach 90 Tagen. Ein Code für die Anmeldung mit der POKYH-App wird spätestens eine Minute nach seinem Ablauf (nach zwei Minuten) gelöscht, die von der App übergebene Anmeldung schon, sobald sich die Website damit angemeldet hat. Die Tagesübersicht deines Kontos (aktive Tage, Gerätetyp, Anmeldungen) bleibt bis zum Ende des laufenden Schuljahres gespeichert; die Nutzungsstatistik nennt dein Konto nur mit Einwilligung und höchstens ebenso lange. Beim Schuljahreswechsel (1. August) werden die Zahlen des Jahres je Konto (aktive Tage, Anmeldungen, mit Einwilligung die Nutzungsdauer) zusammen mit den Konten, Klassen, Todos und Erinnerungen des abgelaufenen Schuljahres in ein Schuljahresarchiv übernommen, das nur Administratoren einsehen können; die Einträge des Jahres werden danach gelöscht. Seitenaufrufe werden nach 30 Tagen gelöscht; danach (und bei anonymen Besuchen, sobald die Server-Protokolle gelöscht sind) lässt sich kein Eintrag mehr einer Person zuordnen, und er bleibt nur als anonyme Statistik erhalten. Bei Website- und App-Besuchen werden IP-Adresse, Ort, Kontoschlüssel, Besuchs-ID und (mit Einwilligung) dein Konto nach 30 Tagen entfernt; übrig bleibt eine anonyme Zählung nach Land, Gerätetyp, Seite bzw. App-Version, Tag und Stunde. Abgeschlossene Todos werden nach 24 Stunden automatisch ausgeblendet. Google Analytics-Daten werden, sofern du zugestimmt hast, nach 14 Monaten gelöscht. Meldungen von Inhalten werden aufbewahrt, bis der Fall erledigt ist, danach höchstens 6 Monate. Das Protokoll der Verwaltung wird nach 365 Tagen gelöscht, Fehlerberichte der Apps nach 30 Tagen. Welche Benachrichtigungen der Glocke du gesehen oder entfernt hast, löscht das POKYH-Backend nach 30 Tagen. Der Fortschritt im versteckten Klassenzimmer liegt nur in deinem Browser, bis du ihn dort löschst."
+              "p": "Anmelde-Cookies werden beim Logout gelöscht und laufen sonst automatisch ab (Sitzung 4 Stunden, API-Token 8 Stunden, Refresh-Token 30 Tage). Todos und Erinnerungen bleiben auf dem POKYH-Backend, bis du sie löschst oder das Schuljahr wechselt (siehe unten); abgeschlossene Todos werden nach 24 Stunden automatisch ausgeblendet. Mensa-Bewertungen und Kommentare bleiben, bis du sie selbst löschst. Server-Protokolle werden nach 30 Tagen gelöscht. Datenbank-Sicherungen werden nach 7 Tagen gelöscht, die Protokolle zur Wiederherstellung eines bestimmten Zeitpunkts (Binlogs) nach 14 Tagen und Sicherungen des ganzen Servers vor Wartungsarbeiten spätestens nach 30 Tagen. Angemeldete Geräte werden 60 Tage nach ihrer letzten Nutzung oder nach dem Abmelden gelöscht, Einträge des Anmeldeverlaufs nach 90 Tagen. Ein Code für die Anmeldung mit der POKYH-App wird spätestens eine Minute nach seinem Ablauf (nach zwei Minuten) gelöscht, die von der App übergebene Anmeldung schon, sobald sich die Website damit angemeldet hat. Die Tagesübersicht deines Kontos (aktive Tage, Gerätetyp, Anmeldungen) bleibt bis zum Ende des laufenden Schuljahres gespeichert; die Nutzungsstatistik nennt dein Konto nur mit Einwilligung und höchstens ebenso lange. Beim Schuljahreswechsel (1. August) werden die Zahlen des Jahres je Konto (aktive Tage, Anmeldungen, mit Einwilligung die Nutzungsdauer) zusammen mit den Konten, Klassen, Todos und Erinnerungen des abgelaufenen Schuljahres in ein Schuljahresarchiv übernommen, das nur Administratoren einsehen können; die Einträge des Jahres werden danach gelöscht. Das Archiv eines Schuljahres wird beim nächsten Schuljahreswechsel gelöscht, also nach einem Jahr. Seitenaufrufe werden nach 30 Tagen gelöscht; danach (und bei anonymen Besuchen, sobald die Server-Protokolle gelöscht sind) lässt sich kein Eintrag mehr einer Person zuordnen, und er bleibt nur als anonyme Statistik erhalten. Bei Website- und App-Besuchen werden IP-Adresse, Ort, Kontoschlüssel, Besuchs-ID und (mit Einwilligung) dein Konto nach 30 Tagen entfernt; übrig bleibt eine anonyme Zählung nach Land, Gerätetyp, Seite bzw. App-Version, Tag und Stunde. Meldungen von Inhalten werden aufbewahrt, bis der Fall erledigt ist, danach höchstens 6 Monate. Das Protokoll der Verwaltung wird nach 365 Tagen gelöscht, Fehlerberichte der Apps nach 30 Tagen. Welche Benachrichtigungen der Glocke du gesehen oder entfernt hast, löscht das POKYH-Backend nach 30 Tagen. Dass du einen Rückblick angesehen hast, wird mit dem Rückblick oder deinem Konto gelöscht. Der Fortschritt im versteckten Klassenzimmer liegt nur in deinem Browser, bis du ihn dort löschst."
             },
             {
-              "p": "Die gewählte Schule bleibt in deinem Browser bis zum 31. August des laufenden Schuljahres, mindestens 30 Tage. Die für Push-Benachrichtigungen gespeicherte WebUntis-Sitzung ist nur gültig, bis WebUntis sie beendet, und wird mit der Push-Adresse gelöscht. Die Zuordnung deines Kontos zu deiner Schule wird mit deinem Konto gelöscht. Zwischengespeicherte Treffer der Schulsuche verfallen nach 10 Minuten."
+              "p": "Google Analytics-Daten werden, sofern du zugestimmt hast, nach 14 Monaten gelöscht.",
+              "when": "analytics"
+            },
+            {
+              "p": "Die gewählte Schule bleibt in deinem Browser bis zum 31. August des laufenden Schuljahres, mindestens 30 Tage. Die für Push-Benachrichtigungen gespeicherte WebUntis-Sitzung (Website und iOS-App) ist nur gültig, bis WebUntis sie beendet, und wird mit der Push-Adresse bzw. dem Gerätetoken gelöscht, also wenn du Benachrichtigungen ausschaltest oder das Gerät abgemeldet wird. Die Zuordnung deines Kontos zu deiner Schule wird mit deinem Konto gelöscht. Zwischengespeicherte Treffer der Schulsuche verfallen nach 10 Minuten."
             }
           ]
         },
@@ -694,7 +737,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
               ]
             },
             {
-              "p": "Auskunft und Datenübertragbarkeit kannst du auch selbst ausüben: Unter Einstellungen → Datenschutz → „Meine Daten herunterladen“ erhältst du sofort alle Daten, die POKYH zu deinem Konto speichert, als maschinenlesbare Datei (JSON)."
+              "p": "Auskunft und Datenübertragbarkeit kannst du auch selbst ausüben: Unter Einstellungen → Datenschutz → „Meine Daten herunterladen“ erhältst du sofort alle Daten, die POKYH zu deinem Konto speichert, als maschinenlesbare Datei (JSON). Dein Konto kannst du in der iOS- und der Android-App selbst löschen; sonst genügt eine E-Mail an die Adresse unten. Auf Anfragen antworten wir innerhalb eines Monats (Art. 12 Abs. 3 DSGVO)."
             },
             {
               "contact": "privacy"
@@ -718,7 +761,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "title": "Datensicherheit",
           "blocks": [
             {
-              "p": "Alle Verbindungen erfolgen über HTTPS/TLS (bereitgestellt via Cloudflare Tunnel). WebUntis-Session-Tokens werden serverseitig AES-GCM-verschlüsselt und ausschließlich in httpOnly-Cookies gespeichert (kein JavaScript-Zugriff). Passwörter werden nie auf POKYH-Servern gespeichert. Eingaben werden serverseitig validiert. Der Server wird auf privater Hardware betrieben und ist ausschließlich über den verschlüsselten Cloudflare-Tunnel zugänglich."
+              "p": "Alle Verbindungen sind mit HTTPS/TLS verschlüsselt. Die Website liefert Cloudflare aus; das POKYH-Backend läuft auf eigener Hardware und ist von außen nur über Cloudflare und FastProtect erreichbar, ohne offenen Port am Server. WebUntis-Sitzungen werden serverseitig AES-GCM-verschlüsselt und nur in httpOnly-Cookies gespeichert (kein JavaScript-Zugriff). WebUntis-Passwörter werden auf POKYH-Servern nicht gespeichert (zur kurzen Ausnahme bei der Anmeldung per QR-Code siehe oben). Eingaben werden serverseitig geprüft und Anfragen begrenzt. Der Verwaltungsbereich verlangt neben dem Passwort immer eine Authenticator-App."
             }
           ]
         },
@@ -799,9 +842,20 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Zwischenspeicher zuletzt geladener Schuldaten für schnellere Anzeige (localStorage, verlässt das Gerät nicht, beim Abmelden gelöscht)"
                 },
                 {
+                  "name": "pokyh_recapweeks_*",
+                  "kind": "necessary",
+                  "desc": "Zwischengespeicherte Stundenplan-Wochen für einen Rückblick (localStorage, verlässt das Gerät nicht, ältere Wochen bis zu 30 Tage)"
+                },
+                {
+                  "name": "pokyh_grade_seen",
+                  "kind": "necessary",
+                  "desc": "Wann dieser Browser eine Note zum ersten Mal gesehen hat, nur Kennung und Zeit (localStorage, verlässt das Gerät nicht)"
+                },
+                {
                   "name": "_ga, _ga_*",
                   "kind": "analytics",
-                  "desc": "Google Analytics 4: anonymisierte Nutzungsstatistiken (nur bei Einwilligung), 1-2 Jahre Laufzeit"
+                  "desc": "Google Analytics 4: anonymisierte Nutzungsstatistiken (nur bei Einwilligung), 1-2 Jahre Laufzeit",
+                  "when": "analytics"
                 }
               ]
             },
@@ -852,7 +906,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 "POKYH è gratuita, senza pubblicità e non vende dati.",
                 "La tua password WebUntis va solo al server WebUntis della tua scuola e non viene salvata sui server di POKYH; solo se accedi al sito con l’app POKYH (codice QR) resta a questo scopo cifrata presso il backend di POKYH per al massimo tre minuti.",
                 "I dati di WebUntis (orario, voti, assenze, messaggi) vengono richiesti solo per mostrarli e non vengono conservati in modo permanente sui server di POKYH.",
-                "Le statistiche facoltative ci sono solo con il tuo consenso, revocabile in qualsiasi momento. Le foto da altri siti si possono nascondere in qualsiasi momento.",
+                "Le statistiche associate al tuo account ci sono solo con il tuo consenso, revocabile in qualsiasi momento; senza consenso POKYH conta solo senza nome, e puoi opporti anche a questo.",
                 "Puoi chiedere in qualsiasi momento accesso, cancellazione e altro; basta un’e-mail."
               ]
             }
@@ -882,7 +936,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 },
                 {
                   "label": "Accesso con l’app POKYH (codice QR)",
-                  "desc": "Se nella pagina di accesso scegli «Accedi con l’app POKYH», il backend di POKYH crea un codice valido due minuti e una sola volta, che il sito mostra come codice QR. Vengono salvati solo valori di controllo (hash) del codice e, del computer che vuole accedere: il tipo di dispositivo, il sistema operativo e il browser (dallo user agent), l’indirizzo IP e il paese ricavato da Cloudflare (e, se trasmessi, regione e città). L’app ti mostra questi dati durante la scansione, così vedi quale computer chiede l’accesso. Il codice QR viene letto dallo scanner dei servizi Google Play sul tuo telefono; l’app non ottiene accesso alla fotocamera, ma solo il testo letto. Se confermi nell’app, questa trasmette al backend di POKYH il tuo nome utente, la tua scuola, la sua sessione WebUntis e, se l’ha salvata, la tua password WebUntis. Il backend conserva questi dati cifrati (AES-256-GCM) finché il sito non li ha usati per accedere e li cancella subito dopo, altrimenti al più tardi un minuto dopo la scadenza del codice (al massimo tre minuti dalla sua creazione); in un backup del database di quei minuti possono finire in forma cifrata (cancellato dopo 7 giorni). Il sito riprende la sessione WebUntis dell’app; da lì vale lo stesso che dopo un accesso con password, e nella cronologia degli accessi l’accesso compare come «con l’app POKYH (codice QR)». Finalità: accedere sul computer senza digitarvi la password. Base giuridica: fornitura del servizio (art. 6, par. 1, lett. b GDPR)."
+                  "desc": "Se nella pagina di accesso scegli «Accedi con l’app POKYH», il backend di POKYH crea un codice valido due minuti e una sola volta, che il sito mostra come codice QR. Vengono salvati solo valori di controllo (hash) del codice e, del computer che vuole accedere: il tipo di dispositivo, il sistema operativo e il browser (dallo user agent), l’indirizzo IP e il paese ricavato da Cloudflare (e, se trasmessi, regione e città). L’app ti mostra questi dati durante la scansione, così vedi quale computer chiede l’accesso. Il codice QR viene letto dall’app POKYH con la fotocamera del tuo telefono, se lo consenti; l’immagine della fotocamera viene elaborata solo sul dispositivo e non viene né salvata né inviata. Se confermi nell’app, questa trasmette al backend di POKYH il tuo nome utente, la tua scuola, la sua sessione WebUntis e, se l’ha salvata, la tua password WebUntis. Il backend conserva questi dati cifrati (AES-256-GCM) finché il sito non li ha usati per accedere e li cancella subito dopo, altrimenti al più tardi un minuto dopo la scadenza del codice (al massimo tre minuti dalla sua creazione); in un backup del database di quei minuti possono finire in forma cifrata (cancellato dopo 7 giorni). Il sito riprende la sessione WebUntis dell’app; da lì vale lo stesso che dopo un accesso con password, e nella cronologia degli accessi l’accesso compare come «con l’app POKYH (codice QR)». Finalità: accedere sul computer senza digitarvi la password. Base giuridica: fornitura del servizio (art. 6, par. 1, lett. b GDPR)."
                 },
                 {
                   "label": "Accesso con il blocco del dispositivo (Face ID, impronta, PIN)",
@@ -893,6 +947,10 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Se in POKYH attivi o disattivi l’accesso a due fattori del tuo account WebUntis, cambi il tuo indirizzo e-mail, la lingua in WebUntis o l’inoltro dei messaggi via e-mail, oppure elimini messaggi, il backend di POKYH lo trasmette solo al server WebUntis della tua scuola; presso POKYH non viene salvato nulla. La chiave segreta per la tua app di autenticazione ti viene mostrata una volta, senza che POKYH la salvi o la registri; il codice di 6 cifre della tua app al momento dell’accesso POKYH lo trasmette solo a WebUntis. Base giuridica: fornitura del servizio da te richiesto (art. 6, par. 1, lett. b GDPR)."
                 },
                 {
+                  "label": "Messaggi, assenze e foto profilo da WebUntis",
+                  "desc": "I messaggi che leggi, scrivi o elimini in POKYH e le assenze che segnali o giustifichi vengono solo inoltrati dal backend di POKYH al server WebUntis della tua scuola; POKYH non li conserva e i log del server contengono solo l’indirizzo richiamato, nessun contenuto. Se giustifichi un’assenza passata, POKYH invia a tuo nome un messaggio WebUntis ai docenti coordinatori della tua classe. Se come motivo scegli ad esempio la malattia o scrivi qualcosa sulla tua salute, si tratta di dati relativi alla salute (art. 9 GDPR): POKYH li trasmette solo quando li invii espressamente. Scrivi solo ciò che la scuola deve sapere. La tua foto profilo di WebUntis viene caricata dal backend da WebUntis quando serve e passata solo a te, senza salvarla. Base giuridica: fornitura del servizio da te richiesto (art. 6, par. 1, lett. b GDPR); per i dati relativi alla salute il tuo consenso esplicito con l’invio (art. 9, par. 2, lett. a GDPR)."
+                },
+                {
                   "label": "Cookie utente (pokyh_user)",
                   "desc": "Contiene informazioni di visualizzazione non sensibili (nome utente, classe, scuola) per la presentazione nell’app. Nessuna password, nessun token."
                 },
@@ -901,12 +959,16 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Per trovare la tua scuola, il server di POKYH invia il termine di ricerca (nome, città o CAP di una scuola) alla ricerca pubblica delle scuole di WebUntis (Untis GmbH). Untis riceve solo il termine di ricerca e l’indirizzo del server di POKYH, non il tuo indirizzo IP. I risultati restano fino a 10 minuti nella memoria di lavoro del server e non vengono associati a nessuno. La scuola scelta (nome di accesso, nome, indirizzo e server secondo WebUntis) viene salvata dal tuo browser fino alla fine dell’anno scolastico (31 agosto, almeno 30 giorni) come pokyh_school, così non devi cercarla ogni volta; puoi cambiarla in qualsiasi momento all’accesso. Dopo l’accesso il backend di POKYH associa il tuo account a questa scuola (nome di accesso, nome e server della scuola), così classi, promemoria, commenti e menù restano separati per scuola; quando qualcuno di una scuola accede per la prima volta, la scuola viene creata. Base giuridica: art. 6, par. 1, lett. b GDPR."
                 },
                 {
-                  "label": "Backend POKYH (cose da fare e promemoria)",
-                  "desc": "Le attività e i promemoria di classe vengono salvati sul backend proprio di POKYH: titolo, dettagli, timestamp, nome utente. Puoi eliminarli tu stesso in qualsiasi momento. Per queste funzioni non vengono utilizzati servizi cloud esterni."
+                  "label": "Cose da fare, promemoria di classe e commenti",
+                  "desc": "Le cose da fare vengono salvate dal backend di POKYH con titolo, dettagli, scadenza, data e ora e il tuo ID utente; le vedi solo tu. I promemoria appartengono alla tua classe: titolo, testo e momento, nome e nome utente di chi li ha creati e i relativi commenti (con nome utente) sono visibili a tutti i membri della tua classe. Puoi eliminare in qualsiasi momento le tue cose da fare, i tuoi promemoria e i tuoi commenti; se elimini il tuo account, i promemoria della classe restano senza il tuo nome. Per queste funzioni non vengono usati servizi cloud esterni. Base giuridica: fornitura del servizio (art. 6, par. 1, lett. b GDPR)."
                 },
                 {
                   "label": "Valutazioni e commenti della mensa",
-                  "desc": "Quando valuti o commenti un piatto, il backend di POKYH salva la valutazione in stelle o il testo del commento, il nome utente, l’ID utente interno e la data. I commenti sono visibili con il tuo nome utente agli altri utenti registrati; le valutazioni compaiono come media e numero e, se hai anche commentato il piatto, le tue stelle accanto al tuo commento. Puoi eliminare i tuoi commenti in qualsiasi momento."
+                  "desc": "Quando valuti o commenti un piatto, il backend di POKYH salva la valutazione in stelle o il testo del commento, il nome utente, l’ID utente interno e la data. I commenti sono visibili con il tuo nome utente agli altri utenti registrati; le valutazioni compaiono come media e numero e, se hai anche commentato il piatto, le tue stelle accanto al tuo commento. Puoi eliminare i tuoi commenti in qualsiasi momento. Base giuridica: fornitura del servizio (art. 6, par. 1, lett. b GDPR)."
+                },
+                {
+                  "label": "Riepilogo",
+                  "desc": "Di tanto in tanto POKYH mostra un riepilogo di un periodo, ad esempio l’anno scolastico; gli amministratori stabiliscono per quale scuola, classe o quali account. I dati di WebUntis (ore, voti, assenze, verifiche, compiti) vengono calcolati dal tuo dispositivo con la tua sessione WebUntis e non lasciano il dispositivo. I dati di POKYH (giorni attivi, accessi, cose da fare, promemoria, commenti, valutazioni e, solo con il consenso alle statistiche di utilizzo personali, durata d’uso e schermate più aperte) vengono letti dal backend dai dati già salvati, per gli anni scolastici passati dall’archivio dell’anno scolastico. La tua posizione nella tua scuola per giorni attivi viene mostrata solo a te e solo in modo approssimativo («Top n %»), e solo se viene contato un numero sufficiente di persone della tua scuola. Viene salvato in più solo il fatto che hai guardato un riepilogo fino alla fine. Condividerlo o salvarlo come immagine avviene solo se lo fai tu. Base giuridica: fornitura del servizio (art. 6, par. 1, lett. b GDPR); per il confronto con gli altri il legittimo interesse (art. 6, par. 1, lett. f GDPR), al quale puoi opporti in qualsiasi momento (art. 21 GDPR)."
                 },
                 {
                   "label": "Notifiche (campanella)",
@@ -918,19 +980,28 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 },
                 {
                   "label": "Notifiche push (sito web, facoltative)",
-                  "desc": "Solo se consenti le notifiche nel browser: il backend di POKYH salva l’indirizzo push (endpoint) del tuo browser con il tuo ID utente. Per informarti dei nuovi messaggi WebUntis salva inoltre la tua sessione WebUntis attuale (identificativo di sessione e token di accesso, non la password) e chiede con essa circa ogni 5 minuti al server WebUntis della tua scuola quanti messaggi non sono letti. I contenuti dei messaggi non vengono salvati. La richiesta termina quando WebUntis chiude la sessione. Le notifiche vengono recapitate tramite il servizio push del produttore del browser (ad es. Google, Mozilla o Apple). Puoi revocarle in qualsiasi momento nelle impostazioni del browser; l’indirizzo push viene allora cancellato."
+                  "desc": "Solo se consenti le notifiche nel browser: il backend di POKYH salva l’indirizzo push (endpoint) del tuo browser e le sue chiavi con il tuo ID utente. Per informarti dei nuovi messaggi WebUntis salva inoltre la tua sessione WebUntis attuale (identificativo di sessione e token di accesso, non la password) e chiede con essa circa ogni 5 minuti al server WebUntis della tua scuola quanti messaggi non sono letti; i contenuti dei messaggi non vengono salvati e la richiesta termina quando WebUntis chiude la sessione. Inoltre ti ricorda le cose da fare in scadenza e i promemoria della tua classe. Una notifica contiene il numero di nuovi messaggi oppure il titolo della cosa da fare o il titolo e il testo del promemoria. Viene recapitata tramite il servizio push del produttore del browser (ad es. Google, Mozilla o Apple), cifrata end-to-end, così che questo non possa leggerne il contenuto. Puoi revocarle in qualsiasi momento nelle impostazioni del browser; l’indirizzo push viene allora cancellato. Base giuridica: fornitura del servizio da te richiesto (art. 6, par. 1, lett. b GDPR)."
                 },
                 {
-                  "label": "Foto da altri siti (mensa)",
-                  "desc": "Le foto dei piatti nel menù della mensa si trovano su siti di ricette di terzi e vengono mostrate da lì; POKYH non le copia. Il browser le carica direttamente da questi siti, che ricevono come per ogni visita il tuo indirizzo IP e dati tecnici del browser (ad es. il tipo di browser), senza referrer, cioè senza l’indirizzo della pagina di POKYH. Cosa fanno questi siti con i dati, ad esempio se impostano cookie, dipende da loro; molti browser bloccano i cookie di siti terzi. Base giuridica: legittimo interesse (art. 6, par. 1, lett. f GDPR) a mostrare il menù in modo chiaro. Puoi opporti in qualsiasi momento (art. 21 GDPR): con «Nascondi le foto» nella pagina della mensa il browser non carica più foto di terzi; la scelta viene salvata come pokyh_external_media."
+                  "label": "Notifiche push (app iOS, facoltative)",
+                  "desc": "Se consenti le notifiche all’app iOS, questa registra presso il backend di POKYH il proprio token del servizio Apple Push Notification Service (APNs). Vengono salvati il token, il tuo ID utente, quali tipi hai attivato (messaggi, cose da fare, promemoria), il dispositivo connesso a cui appartiene e, per i nuovi messaggi, la tua sessione WebUntis attuale (non la password), con cui il backend chiede circa ogni 5 minuti, come per il sito, se ci sono messaggi non letti. Le notifiche vengono recapitate tramite Apple; contengono il numero di nuovi messaggi oppure il titolo della cosa da fare o il titolo e il testo del promemoria, che Apple tratta per il recapito. Se disattivi le notifiche o il dispositivo viene disconnesso, la voce viene cancellata. L’app Android non riceve notifiche push dal server (vedi «App mobili»). Base giuridica: fornitura del servizio da te richiesto (art. 6, par. 1, lett. b GDPR)."
+                },
+                {
+                  "label": "Foto dei piatti (mensa)",
+                  "desc": "Le foto del menù della mensa si trovano sul server di POKYH e vengono caricate da lì; nessuno oltre a POKYH riceve dati. Alcune foto possono trovarsi ancora su siti di terzi: il tuo browser le carica direttamente da lì e questi siti ricevono, come per ogni visita di una pagina, il tuo indirizzo IP e dati tecnici del browser (ad es. il tipo di browser), senza referrer, cioè senza l’indirizzo della pagina di POKYH. Cosa ne fanno questi siti, ad esempio se impostano cookie, dipende da loro; molti browser bloccano i cookie di siti terzi. Base giuridica: legittimo interesse (art. 6, par. 1, lett. f GDPR) a mostrare il menù in modo chiaro. Puoi opporti in qualsiasi momento (art. 21 GDPR): con «Nascondi le foto» nella pagina della mensa il browser non carica più foto da siti terzi; la scelta viene salvata in pokyh_external_media. Le foto dal server di POKYH restano visibili."
                 },
                 {
                   "label": "Google Analytics 4 (GA4)",
-                  "desc": "Questo sito può utilizzare Google Analytics 4 (Google LLC), ma solo previo tuo consenso esplicito espresso nel banner dei cookie; prima non viene stabilita alcuna connessione con Google. GA4 raccoglie dati d’uso pseudonimizzati (visualizzazioni di pagina, categoria del dispositivo, paese di origine approssimativo) e a tal fine imposta i cookie _ga e _ga_*. Secondo Google, GA4 non memorizza indirizzi IP; i segnali Google e le funzioni pubblicitarie sono disattivati. Base giuridica: il tuo consenso (art. 6, par. 1, lett. a GDPR, art. 122 Codice privacy). Puoi revocarlo in qualsiasi momento nelle impostazioni dei cookie; i cookie vengono allora cancellati. Puoi inoltre opporti alla raccolta dati su tools.google.com/dlpage/gaoptout."
+                  "desc": "Questo sito utilizza Google Analytics 4 (Google LLC), ma solo previo tuo consenso esplicito espresso nel banner dei cookie; prima non viene stabilita alcuna connessione con Google. GA4 raccoglie dati d’uso pseudonimizzati (visualizzazioni di pagina, categoria del dispositivo, paese di origine approssimativo) e a tal fine imposta i cookie _ga e _ga_*. Secondo Google, GA4 non memorizza indirizzi IP; i segnali Google e le funzioni pubblicitarie sono disattivati. Base giuridica: il tuo consenso (art. 6, par. 1, lett. a GDPR, art. 122 Codice privacy). Puoi revocarlo in qualsiasi momento nelle impostazioni dei cookie; i cookie vengono allora cancellati. Puoi inoltre opporti alla raccolta dati su tools.google.com/dlpage/gaoptout.",
+                  "when": "analytics"
                 },
                 {
-                  "label": "Cloudflare Tunnel (Cloudflare, Inc.)",
-                  "desc": "Per la raggiungibilità pubblica del server autogestito viene utilizzato Cloudflare Tunnel. Cloudflare tratta metadati di rete (indirizzi IP, intestazioni delle richieste) per l’inoltro del traffico. Nessun contenuto viene conservato in modo permanente. Base giuridica: legittimo interesse (art. 6, par. 1, lett. f GDPR) per la gestione sicura del server. Cloudflare ci trasmette inoltre il paese ricavato dall’indirizzo IP (eventualmente regione e città), che usiamo per la statistica dei visitatori del sito e delle app; non avviene alcuna localizzazione presso altri fornitori."
+                  "label": "Cloudflare (Cloudflare, Inc.)",
+                  "desc": "Il sito è ospitato da Cloudflare (Cloudflare Workers) e viene distribuito da lì, e tutte le connessioni al backend di POKYH (api.pokyh.com) passano attraverso Cloudflare. Cloudflare tratta, come responsabile del trattamento (art. 28 GDPR), indirizzi IP, intestazioni delle richieste e dati tecnici di connessione per distribuire le pagine, cifrare la connessione e respingere gli attacchi; la connessione cifrata del tuo browser termina presso Cloudflare. Se una connessione non riesce, il tuo browser può inviare a Cloudflare una breve segnalazione tecnica di errore (Network Error Logging, solo in caso di errori). Cloudflare ci trasmette inoltre il paese ricavato dall’indirizzo IP (ed eventualmente regione e città), che usiamo per la statistica dei visitatori del sito e delle app; non si interrogano altri fornitori sulla posizione. Base giuridica: legittimo interesse a un servizio sicuro e raggiungibile (art. 6, par. 1, lett. f GDPR)."
+                },
+                {
+                  "label": "Protezione del backend (FastProtect)",
+                  "desc": "Tra Cloudflare e il backend di POKYH il traffico passa attraverso FastProtect, un reverse proxy con protezione DDoS gestito da noi stessi, con server nell’UE. FastProtect inoltra le richieste e respinge attacchi e bot; a questo scopo tratta indirizzi IP e dati delle richieste. Le richieste normali non vengono né salvate né registrate. Solo degli indirizzi da cui proviene traffico respinto (ad esempio attacchi o bot) i più evidenti restano nella statistica degli attacchi con il numero di richieste respinte, al massimo per 400 giorni. Base giuridica: legittimo interesse alla protezione del servizio dagli attacchi (art. 6, par. 1, lett. f GDPR)."
                 },
                 {
                   "label": "Registrazione dei log del server (request log)",
@@ -953,8 +1024,8 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Per il tuo account salviamo quale versione di questa informativa ti è stata mostrata e quando (all’accesso o dopo una modifica, sul sito o nell’app), e se e quando hai dato o revocato il consenso alle statistiche di utilizzo personali, come prova (art. 5, par. 2, art. 7, par. 1 GDPR). La visualizzazione non è un consenso. I dati vengono cancellati insieme al tuo account. La tua scelta nel banner dei cookie viene inoltre salvata sul tuo dispositivo (vedi Cookie)."
                 },
                 {
-                  "label": "App mobile (iOS e Android)",
-                  "desc": "Le app native di POKYH memorizzano le credenziali esclusivamente in forma cifrata sul dispositivo (Keychain di iOS o con una chiave dell’Android Keystore), per poter rinnovare l’accesso; non vengono salvate sui server di POKYH, salvo brevemente nell’accesso al computer con il codice QR (vedi «Accesso con l’app POKYH (codice QR)»). La sincronizzazione con iCloud è disattivata. Oltre alle statistiche di utilizzo e alla statistica dei visitatori dell’app descritte sopra, l’app non raccoglie dati di analisi; non sono integrati SDK di analisi di terze parti. Dopo il primo accesso e dopo una modifica di questa informativa l’app mostra una volta un avviso; il fatto che sia stato mostrato viene salvato come sul sito (vedi «Informativa e consensi»). Per l’uso offline l’app conserva gli ultimi dati caricati (ad es. orario, voti, assenze, mensa) nella memoria privata dell’app sul dispositivo. I promemoria vengono recapitati come notifiche locali del dispositivo (nessun push remoto). I controlli degli aggiornamenti avvengono tramite l’API pubblica di GitHub; per motivi tecnici GitHub riceve l’indirizzo IP, ma nessun dato dell’account o scolastico."
+                  "label": "App mobili (iOS e Android)",
+                  "desc": "Le app POKYH memorizzano le credenziali esclusivamente in forma cifrata sul dispositivo (Portachiavi di iOS o con una chiave dell’Android Keystore), per poter rinnovare l’accesso; non vengono salvate sui server di POKYH, salvo brevemente nell’accesso al computer con il codice QR (vedi «Accesso con l’app POKYH (codice QR)»). La sincronizzazione con iCloud è disattivata. Per l’uso offline, per i widget e per l’Apple Watch le app conservano gli ultimi dati caricati (ad es. orario, voti, assenze, mensa) nella memoria privata del dispositivo; questi dati non lasciano il dispositivo. Face ID, impronta o PIN vengono verificati solo dal dispositivo. Le app usano la fotocamera solo quando scansioni un codice QR per l’accesso; l’immagine viene elaborata solo sul dispositivo. L’app iOS salva un riepilogo nelle tue foto solo se lo chiedi tu. Oltre alle statistiche di utilizzo e alla statistica dei visitatori delle app descritte sopra, le app non raccolgono dati di analisi; non sono integrati SDK di analisi o pubblicità di terze parti. Dopo il primo accesso e dopo una modifica di questa informativa le app mostrano una volta un avviso; il fatto che sia stato mostrato viene salvato come sul sito (vedi «Informativa e consensi»). Notifiche: l’app iOS riceve notifiche push tramite Apple (vedi «Notifiche push (app iOS)»). L’app Android non riceve notifiche push dal server: controlla da sola in background presso WebUntis, con le credenziali salvate sul dispositivo, se ci sono nuovi messaggi e mostra notifiche locali. Aggiornamenti: l’app Android verifica tramite l’API pubblica di GitHub se esiste una nuova versione e, se serve, la scarica da GitHub; GitHub riceve per motivi tecnici l’indirizzo IP, ma nessun dato dell’account o della scuola."
                 },
                 {
                   "label": "Segnalazioni di errore (app e amministrazione)",
@@ -962,7 +1033,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 },
                 {
                   "label": "Memoria locale (localStorage)",
-                  "desc": "La memoria del browser viene usata per le impostazioni (aspetto, lingua, scuola e mensa scelte, foto sì/no, i progressi nell’aula nascosta della pagina di accesso) e come memoria temporanea degli ultimi dati scolastici caricati (orario, voti, assenze, messaggi) per una visualizzazione più rapida. Questi dati non lasciano il dispositivo; le singole voci sono elencate nell’informativa sui cookie."
+                  "desc": "La memoria del browser viene usata per le impostazioni (aspetto, lingua, scuola e mensa scelte, foto sì/no, i progressi nell’aula nascosta della pagina di accesso), come memoria temporanea degli ultimi dati scolastici caricati (orario, voti, assenze, messaggi, le settimane di un riepilogo) e per l’ordine in cui i nuovi voti sono stati visti la prima volta (solo identificativi e orari). Questi dati non lasciano il tuo dispositivo; le singole voci sono elencate nella cookie policy."
                 },
                 {
                   "label": "Sostegno tramite Buy Me a Coffee (volontario)",
@@ -977,10 +1048,15 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "title": "Finalità e basi giuridiche",
           "blocks": [
             {
-              "p": "Il trattamento avviene per l’erogazione del servizio (art. 6, par. 1, lett. b GDPR). Le misure di sicurezza necessarie (ad es. inoltro di rete, log di accesso), la statistica dei visitatori del sito e delle app con indirizzo IP e le statistiche di utilizzo anonime si basano sul nostro legittimo interesse a un funzionamento sicuro e al miglioramento del servizio (art. 6, par. 1, lett. f GDPR). Le statistiche di utilizzo personali e Google Analytics avvengono esclusivamente con il tuo consenso (art. 6, par. 1, lett. a GDPR), che dai nel banner dei cookie («Accetta tutto» o «Impostazioni») o nel profilo e che puoi revocare lì in qualsiasi momento; la revoca non pregiudica la liceità del trattamento effettuato prima. Nessuna delle due opzioni è preselezionata e POKYH è pienamente utilizzabile anche senza."
+              "p": "Il trattamento avviene per la fornitura del servizio (art. 6, par. 1, lett. b GDPR). Le misure di sicurezza necessarie (ad es. distribuzione tramite Cloudflare, protezione tramite FastProtect, log di accesso), la statistica dei visitatori del sito e delle app con indirizzo IP, le statistiche di utilizzo anonime e il confronto nel riepilogo si basano sul nostro legittimo interesse a un funzionamento sicuro e al miglioramento del servizio (art. 6, par. 1, lett. f GDPR); puoi opporti in qualsiasi momento (art. 21 GDPR). Le statistiche di utilizzo personali avvengono esclusivamente con il tuo consenso (art. 6, par. 1, lett. a GDPR), che dai nel banner dei cookie («Accetta tutto» o «Impostazioni») o nel profilo e che puoi revocare lì in qualsiasi momento; la revoca non pregiudica la liceità del trattamento effettuato prima. Non sono preselezionate e POKYH è pienamente utilizzabile anche senza.",
+              "when": "noAnalytics"
             },
             {
-              "p": "La ricerca della scuola e l’associazione del tuo account alla scuola servono alla fornitura del servizio (art. 6, par. 1, lett. b GDPR). Le foto da altri siti vengono caricate sulla base del legittimo interesse (art. 6, par. 1, lett. f GDPR); puoi opporti in qualsiasi momento nascondendole (art. 21 GDPR)."
+              "p": "Il trattamento avviene per la fornitura del servizio (art. 6, par. 1, lett. b GDPR). Le misure di sicurezza necessarie (ad es. distribuzione tramite Cloudflare, protezione tramite FastProtect, log di accesso), la statistica dei visitatori del sito e delle app con indirizzo IP, le statistiche di utilizzo anonime e il confronto nel riepilogo si basano sul nostro legittimo interesse a un funzionamento sicuro e al miglioramento del servizio (art. 6, par. 1, lett. f GDPR); puoi opporti in qualsiasi momento (art. 21 GDPR). Le statistiche di utilizzo personali e Google Analytics avvengono esclusivamente con il tuo consenso (art. 6, par. 1, lett. a GDPR), che dai nel banner dei cookie («Accetta tutto» o «Impostazioni») o nel profilo e che puoi revocare lì in qualsiasi momento; la revoca non pregiudica la liceità del trattamento effettuato prima. Nessuna delle due opzioni è preselezionata e POKYH è pienamente utilizzabile anche senza.",
+              "when": "analytics"
+            },
+            {
+              "p": "La ricerca della scuola e l’associazione del tuo account alla scuola servono alla fornitura del servizio (art. 6, par. 1, lett. b GDPR). Le foto che si trovano ancora su altri siti vengono caricate sulla base del legittimo interesse (art. 6, par. 1, lett. f GDPR); puoi opporti in qualsiasi momento nascondendole (art. 21 GDPR). I dati relativi alla salute che invii tu stesso alla scuola con un’assenza vengono trasmessi da POKYH sulla base del tuo consenso esplicito (art. 9, par. 2, lett. a GDPR)."
             }
           ]
         },
@@ -1002,32 +1078,43 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 },
                 {
                   "name": "Backend POKYH",
-                  "purpose": "Server proprio per account, scuole, to-do, promemoria, mensa, commenti, notifiche e statistiche",
+                  "purpose": "Server proprio per account, scuole, cose da fare, promemoria, mensa, commenti, notifiche, riepiloghi e statistiche",
                   "url": null
+                },
+                {
+                  "name": "FastProtect (servizio proprio)",
+                  "purpose": "Reverse proxy e protezione DDoS davanti al backend di POKYH, gestito da noi stessi, server nell’UE",
+                  "url": null
+                },
+                {
+                  "name": "Cloudflare, Inc.",
+                  "purpose": "Distribuzione del sito (Cloudflare Workers), connessioni al backend di POKYH e protezione dagli attacchi; responsabile del trattamento",
+                  "url": "https://www.cloudflare.com/privacypolicy/"
+                },
+                {
+                  "name": "Apple (Apple Push Notification Service)",
+                  "purpose": "Recapito delle notifiche push dell’app iOS, solo se le consenti",
+                  "url": "https://www.apple.com/legal/privacy/"
+                },
+                {
+                  "name": "Servizi push dei produttori di browser",
+                  "purpose": "Recapito delle notifiche web push (cifrate end-to-end), solo se le consenti",
+                  "url": "https://developer.mozilla.org/docs/Web/API/Push_API"
+                },
+                {
+                  "name": "API di GitHub (GitHub, Inc.)",
+                  "purpose": "Verifica e download degli aggiornamenti dell’app Android; GitHub riceve per motivi tecnici l’indirizzo IP, nessun dato dell’account o della scuola",
+                  "url": "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement"
                 },
                 {
                   "name": "Google Analytics 4 (Google LLC)",
                   "purpose": "Statistiche d’uso anonimizzate per migliorare il servizio, solo previo consenso",
-                  "url": "https://policies.google.com/privacy"
+                  "url": "https://policies.google.com/privacy",
+                  "when": "analytics"
                 },
                 {
-                  "name": "Cloudflare, Inc.",
-                  "purpose": "Instradamento di rete tramite Cloudflare Tunnel per il server autogestito",
-                  "url": "https://www.cloudflare.com/privacypolicy/"
-                },
-                {
-                  "name": "Servizi push dei produttori di browser",
-                  "purpose": "Recapito delle notifiche web push: solo se le consenti",
-                  "url": "https://developer.mozilla.org/docs/Web/API/Push_API"
-                },
-                {
-                  "name": "API GitHub (GitHub, Inc.)",
-                  "purpose": "Verifica degli aggiornamenti delle app; GitHub riceve per motivi tecnici l’indirizzo IP, nessun dato dell’account o della scuola",
-                  "url": "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement"
-                },
-                {
-                  "name": "Siti di ricette (foto dei piatti)",
-                  "purpose": "Foto nel menù della mensa caricate direttamente dai siti che le pubblicano (disattivabili con «Nascondi le foto»)",
+                  "name": "Siti di ricette (alcune foto dei piatti)",
+                  "purpose": "Alcune foto del menù della mensa che si trovano ancora su altri siti e vengono caricate direttamente da lì (disattivabili con «Nascondi le foto»)",
                   "url": null
                 },
                 {
@@ -1036,6 +1123,9 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "url": null
                 }
               ]
+            },
+            {
+              "p": "All’interno di POKYH i dati sono visibili solo agli amministratori, nella misura richiesta dal loro compito (ad esempio assistenza, moderazione e contrasto agli abusi). Agiscono per conto e secondo le istruzioni del titolare (art. 29 GDPR, art. 2-quaterdecies Codice privacy), devono trattare i dati in modo riservato e ricevono solo i diritti di cui hanno bisogno, anche limitati a una sola scuola. I dati non vengono venduti né ceduti per pubblicità; le autorità li ricevono solo se lo impone la legge."
             }
           ]
         },
@@ -1044,7 +1134,14 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "title": "Trasferimento verso paesi terzi",
           "blocks": [
             {
-              "p": "Secondo quanto dichiara, Untis GmbH tratta i dati di WebUntis esclusivamente nell’UE. Cloudflare, Inc., GitHub, Inc. (solo per la verifica degli aggiornamenti delle app), Google LLC (solo con il tuo consenso alla statistica) e i servizi push dei produttori di browser (ad esempio Google, Apple o Mozilla; solo se consenti le notifiche) possono trattare dati negli Stati Uniti; il trasferimento si basa sulla decisione di adeguatezza relativa al Data Privacy Framework UE-USA (art. 45 GDPR), secondo cui questi fornitori sono certificati, e sulle clausole contrattuali standard (art. 46 GDPR). I siti di ricette da cui provengono le foto del menù della mensa possono avere sede fuori dall’UE, anche in paesi senza decisione di adeguatezza. Il tuo browser carica le foto direttamente da lì finché non le disattivi con «Nascondi le foto»; questi siti ricevono così il tuo indirizzo IP. Se non lo desideri, nascondi le foto."
+              "p": "Il backend di POKYH funziona su hardware proprio, FastProtect su server nell’UE; tutti i backup restano su server propri. I dati di WebUntis vengono trattati da Untis GmbH, secondo quanto dichiara, esclusivamente nell’UE. Cloudflare, Inc., Apple (solo per le notifiche push dell’app iOS), GitHub, Inc. (solo per gli aggiornamenti dell’app Android) e i servizi push dei produttori di browser (ad esempio Google, Apple o Mozilla; solo se consenti le notifiche) possono trattare dati negli Stati Uniti; il trasferimento si basa sulla decisione di adeguatezza relativa all’EU-US Data Privacy Framework (art. 45 GDPR), secondo il quale questi fornitori sono certificati, e sulle clausole contrattuali tipo (art. 46 GDPR)."
+            },
+            {
+              "p": "Google LLC tratta i dati di Google Analytics solo con il tuo consenso alle statistiche, anche negli Stati Uniti; anche per questo vale l’EU-US Data Privacy Framework (art. 45 GDPR).",
+              "when": "analytics"
+            },
+            {
+              "p": "I siti di ricette da cui vengono ancora caricate alcune foto del menù della mensa possono avere sede fuori dall’UE, anche in paesi senza decisione di adeguatezza. Il tuo browser carica queste foto direttamente da lì finché non le disattivi con «Nascondi le foto»; questi siti ricevono così il tuo indirizzo IP. Se non lo desideri, nascondi le foto."
             }
           ]
         },
@@ -1053,10 +1150,14 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "title": "Periodo di conservazione",
           "blocks": [
             {
-              "p": "I cookie di accesso vengono eliminati al logout e altrimenti scadono automaticamente (sessione 4 ore, token API 8 ore, token di refresh 30 giorni). Attività, promemoria, valutazioni e commenti della mensa restano sul backend di POKYH finché non li elimini tu stesso. I log del server vengono cancellati dopo 30 giorni, i backup del database dopo 7 giorni. I dispositivi connessi vengono cancellati 60 giorni dopo l’ultimo utilizzo o dopo la disconnessione, le voci della cronologia degli accessi dopo 90 giorni. Un codice per l’accesso con l’app POKYH viene cancellato al più tardi un minuto dopo la sua scadenza (dopo due minuti), l’accesso trasmesso dall’app già non appena il sito lo ha usato per accedere. Il riepilogo giornaliero del tuo account (giorni attivi, tipo di dispositivo, accessi) resta salvato fino alla fine dell’anno scolastico in corso; le statistiche di utilizzo indicano il tuo account solo con il consenso e al massimo per lo stesso periodo. Al cambio di anno scolastico (1° agosto) i dati dell’anno per ogni account (giorni attivi, accessi, con il consenso la durata d’uso) passano, insieme agli account, alle classi, alle attività e ai promemoria dell’anno concluso, in un archivio dell’anno scolastico consultabile solo dagli amministratori; le voci dell’anno vengono poi cancellate. Le visualizzazioni di pagina vengono cancellate dopo 30 giorni. Dopo (e per le visite anonime, non appena i log del server sono stati cancellati) nessuna voce può più essere ricondotta a una persona e resta solo come statistica anonima. Per le visite al sito e alle app indirizzo IP, luogo, chiave dell’account, ID di visita e (con il consenso) il tuo account vengono rimossi dopo 30 giorni; resta un conteggio anonimo per paese, tipo di dispositivo, pagina o versione dell’app, giorno e ora. Le attività completate vengono nascoste automaticamente dopo 24 ore. I dati di Google Analytics vengono cancellati, se hai prestato il consenso, dopo 14 mesi. Le segnalazioni di contenuti vengono conservate fino alla chiusura del caso, poi al massimo 6 mesi. Il registro delle attività di amministrazione viene cancellato dopo 365 giorni, le segnalazioni di errore delle app dopo 30 giorni. Quali notifiche della campanella hai visto o rimosso, il backend di POKYH lo cancella dopo 30 giorni. I progressi nell’aula nascosta restano solo nel tuo browser finché non li cancelli lì."
+              "p": "I cookie di accesso vengono eliminati al logout e altrimenti scadono automaticamente (sessione 4 ore, token API 8 ore, token di refresh 30 giorni). Le cose da fare e i promemoria restano sul backend di POKYH finché non li elimini o finché non cambia l’anno scolastico (vedi sotto); le cose da fare completate vengono nascoste automaticamente dopo 24 ore. Le valutazioni e i commenti della mensa restano finché non li elimini tu. I log del server vengono cancellati dopo 30 giorni. I backup del database vengono cancellati dopo 7 giorni, i log per il ripristino a un momento preciso (binlog) dopo 14 giorni e i backup dell’intero server prima di lavori di manutenzione al più tardi dopo 30 giorni. I dispositivi connessi vengono cancellati 60 giorni dopo l’ultimo utilizzo o dopo la disconnessione, le voci della cronologia degli accessi dopo 90 giorni. Un codice per l’accesso con l’app POKYH viene cancellato al più tardi un minuto dopo la sua scadenza (dopo due minuti), l’accesso trasmesso dall’app già non appena il sito lo ha usato per accedere. Il riepilogo giornaliero del tuo account (giorni attivi, tipo di dispositivo, accessi) resta salvato fino alla fine dell’anno scolastico in corso; le statistiche di utilizzo indicano il tuo account solo con il consenso e al massimo per lo stesso periodo. Al cambio di anno scolastico (1° agosto) i dati dell’anno per ogni account (giorni attivi, accessi, con il consenso la durata d’uso) passano, insieme agli account, alle classi, alle cose da fare e ai promemoria dell’anno concluso, in un archivio dell’anno scolastico visibile solo agli amministratori; le voci dell’anno vengono poi cancellate. L’archivio di un anno scolastico viene cancellato al cambio di anno successivo, quindi dopo un anno. Le visualizzazioni di pagina vengono cancellate dopo 30 giorni; dopo (e per le visite anonime, appena i log del server sono cancellati) nessuna voce si può più attribuire a una persona e resta solo come statistica anonima. Per le visite al sito e alle app, indirizzo IP, luogo, chiave dell’account, ID della visita e (con il consenso) il tuo account vengono rimossi dopo 30 giorni; resta un conteggio anonimo per paese, tipo di dispositivo, pagina o versione dell’app, giorno e ora. Le segnalazioni di contenuti vengono conservate fino alla chiusura del caso e poi al massimo per 6 mesi. Il registro delle attività di amministrazione viene cancellato dopo 365 giorni, le segnalazioni di errore delle app dopo 30 giorni. Quali notifiche della campanella hai visto o rimosso viene cancellato dal backend di POKYH dopo 30 giorni. Il fatto che hai guardato un riepilogo viene cancellato con il riepilogo o con il tuo account. I progressi nell’aula nascosta restano solo nel tuo browser finché non li cancelli lì."
             },
             {
-              "p": "La scuola scelta resta nel browser fino al 31 agosto dell’anno scolastico in corso, per almeno 30 giorni. La sessione WebUntis salvata per le notifiche push è valida solo finché WebUntis non la chiude e viene cancellata insieme all’indirizzo push. L’associazione del tuo account alla scuola viene cancellata con il tuo account. I risultati della ricerca delle scuole in memoria scadono dopo 10 minuti."
+              "p": "I dati di Google Analytics, se hai dato il consenso, vengono cancellati dopo 14 mesi.",
+              "when": "analytics"
+            },
+            {
+              "p": "La scuola scelta resta nel browser fino al 31 agosto dell’anno scolastico in corso, per almeno 30 giorni. La sessione WebUntis salvata per le notifiche push (sito e app iOS) è valida solo finché WebUntis non la chiude e viene cancellata insieme all’indirizzo push o al token del dispositivo, cioè quando disattivi le notifiche o il dispositivo viene disconnesso. L’associazione del tuo account alla scuola viene cancellata con il tuo account. I risultati della ricerca delle scuole in memoria scadono dopo 10 minuti."
             }
           ]
         },
@@ -1088,7 +1189,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
               ]
             },
             {
-              "p": "Accesso e portabilità puoi esercitarli anche da solo: in Impostazioni → Privacy → «Scarica i miei dati» ricevi subito tutti i dati che POKYH conserva sul tuo account, in un file leggibile da una macchina (JSON)."
+              "p": "Accesso e portabilità puoi esercitarli anche da solo: in Impostazioni → Privacy → «Scarica i miei dati» ricevi subito tutti i dati che POKYH conserva sul tuo account, in un file leggibile da una macchina (JSON). Puoi eliminare il tuo account da solo nell’app iOS e nell’app Android; altrimenti basta un’e-mail all’indirizzo qui sotto. Rispondiamo alle richieste entro un mese (art. 12, par. 3 GDPR)."
             },
             {
               "contact": "privacy"
@@ -1112,7 +1213,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "title": "Sicurezza dei dati",
           "blocks": [
             {
-              "p": "Tutte le connessioni avvengono tramite HTTPS/TLS (fornito tramite Cloudflare Tunnel). I token di sessione WebUntis vengono cifrati lato server con AES-GCM e conservati esclusivamente in cookie httpOnly (nessun accesso da JavaScript). Le password non vengono mai salvate sui server di POKYH. Gli input vengono validati lato server. Il server è gestito su hardware privato ed è raggiungibile esclusivamente tramite il tunnel Cloudflare cifrato."
+              "p": "Tutte le connessioni sono cifrate con HTTPS/TLS. Il sito viene distribuito da Cloudflare; il backend di POKYH funziona su hardware proprio ed è raggiungibile dall’esterno solo tramite Cloudflare e FastProtect, senza porte aperte sul server. Le sessioni WebUntis vengono cifrate lato server con AES-GCM e salvate solo in cookie httpOnly (nessun accesso da JavaScript). Le password WebUntis non vengono salvate sui server di POKYH (per la breve eccezione nell’accesso con il codice QR vedi sopra). I dati inseriti vengono verificati lato server e le richieste limitate. L’area di amministrazione richiede sempre, oltre alla password, un’app di autenticazione."
             }
           ]
         },
@@ -1193,9 +1294,20 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Memoria temporanea degli ultimi dati scolastici caricati per una visualizzazione più rapida (localStorage, non lascia il dispositivo, eliminata al logout)"
                 },
                 {
+                  "name": "pokyh_recapweeks_*",
+                  "kind": "necessary",
+                  "desc": "Settimane dell’orario in memoria temporanea per un riepilogo (localStorage, non lascia il dispositivo, settimane passate fino a 30 giorni)"
+                },
+                {
+                  "name": "pokyh_grade_seen",
+                  "kind": "necessary",
+                  "desc": "Quando questo browser ha visto un voto per la prima volta, solo identificativo e orario (localStorage, non lascia il dispositivo)"
+                },
+                {
                   "name": "_ga, _ga_*",
                   "kind": "analytics",
-                  "desc": "Google Analytics 4: statistiche d’uso anonimizzate (solo con consenso), durata 1-2 anni"
+                  "desc": "Google Analytics 4: statistiche d’uso anonimizzate (solo con consenso), durata 1-2 anni",
+                  "when": "analytics"
                 }
               ]
             },
@@ -1246,7 +1358,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 "POKYH is free, ad-free and does not sell data.",
                 "Your WebUntis password only goes to your school’s WebUntis server and is not stored on POKYH servers; only when you sign the website in with the POKYH app (QR code) is it held there for this, encrypted, for at most three minutes.",
                 "Data from WebUntis (timetable, grades, absences, messages) is fetched only to show it and is not kept permanently on POKYH servers.",
-                "Optional statistics are only used with your consent, which you can withdraw at any time. Photos from other sites can be hidden at any time.",
+                "Statistics linked to your account are only kept with your consent, which you can withdraw at any time; without it POKYH only counts without names, and you can object to that too.",
                 "You can ask for access, deletion and more at any time; an e-mail is enough."
               ]
             }
@@ -1276,7 +1388,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 },
                 {
                   "label": "Signing in with the POKYH app (QR code)",
-                  "desc": "If you choose “Sign in with the POKYH app” on the sign-in page, the POKYH backend creates a code that is valid for two minutes and only once, and the website shows it as a QR code. Only check values (hashes) of the code are stored, and about the computer that wants to sign in: the kind of device, the operating system and browser (from the user agent), the IP address and the country Cloudflare derives from it (and, where sent, region and city). The app shows you these details when you scan, so you can see which computer is asking. The QR code is read by the code scanner of Google Play services on your phone; the app gets no access to the camera, only the text that was read. If you confirm in the app, it hands your username, your school, its WebUntis session and, where it has saved it, your WebUntis password to the POKYH backend. The backend keeps these encrypted (AES-256-GCM) until the website has used them to sign in and deletes them right away, otherwise at the latest one minute after the code runs out (at most three minutes after it was created); they may end up, encrypted, in a database backup taken during those minutes (deleted after 7 days). The website takes over the app’s WebUntis session; from then on the same applies as after a sign-in with password, and the sign-in history lists it as “with the POKYH app (QR code)”. Purpose: signing in on a computer without typing the password there. Legal basis: providing the service (Art. 6(1)(b) GDPR)."
+                  "desc": "If you choose “Sign in with the POKYH app” on the sign-in page, the POKYH backend creates a code that is valid for two minutes and only once, and the website shows it as a QR code. Only check values (hashes) of the code are stored, and about the computer that wants to sign in: the kind of device, the operating system and browser (from the user agent), the IP address and the country Cloudflare derives from it (and, where sent, region and city). The app shows you these details when you scan, so you can see which computer is asking. The POKYH app reads the QR code with your phone’s camera once you allow it; the camera image is processed only on the device and is neither stored nor sent. If you confirm in the app, it hands your username, your school, its WebUntis session and, where it has saved it, your WebUntis password to the POKYH backend. The backend keeps these encrypted (AES-256-GCM) until the website has used them to sign in and deletes them right away, otherwise at the latest one minute after the code runs out (at most three minutes after it was created); they may end up, encrypted, in a database backup taken during those minutes (deleted after 7 days). The website takes over the app’s WebUntis session; from then on the same applies as after a sign-in with password, and the sign-in history lists it as “with the POKYH app (QR code)”. Purpose: signing in on a computer without typing the password there. Legal basis: providing the service (Art. 6(1)(b) GDPR)."
                 },
                 {
                   "label": "Signing in with the device lock (Face ID, fingerprint, PIN)",
@@ -1287,6 +1399,10 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "If you set up or turn off two-factor sign-in for your WebUntis account in POKYH, change your e-mail address, the language in WebUntis or the forwarding of messages by e-mail, or delete messages, the POKYH backend only passes this on to your school’s WebUntis server; POKYH stores none of it. The secret key for your authenticator app is shown to you once, without POKYH storing or logging it; the 6-digit code from your app at sign-in is only passed on to WebUntis. Legal basis: providing the service you asked for (Art. 6(1)(b) GDPR)."
                 },
                 {
+                  "label": "Messages, absences and profile picture from WebUntis",
+                  "desc": "Messages you read, write or delete in POKYH and absences you report or excuse are only passed on by the POKYH backend to your school’s WebUntis server; POKYH does not store them, and the server logs contain only the address called, no contents. When you excuse a past absence, POKYH sends a WebUntis message in your name to your class teachers. If you choose a reason such as illness or write something about your health, that is health data (Art. 9 GDPR): POKYH transmits it only when you expressly send it. Please only write what the school needs to know. The backend loads your WebUntis profile picture from WebUntis when needed and passes it only to you, without storing it. Legal basis: providing the service you asked for (Art. 6(1)(b) GDPR); for health data, your explicit consent by sending it (Art. 9(2)(a) GDPR)."
+                },
+                {
                   "label": "User cookie (pokyh_user)",
                   "desc": "Contains non-sensitive display information (username, class, school) for rendering in the app. No password, no token."
                 },
@@ -1295,12 +1411,16 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "To help you find your school, the POKYH server sends your search term (name, town or postcode of a school) to the public WebUntis school search (Untis GmbH). Untis only receives the search term and the address of the POKYH server, not your IP address. Results are kept in the server’s memory for up to 10 minutes and are not linked to anyone. Your browser stores the chosen school (login name, name, address and server as listed by WebUntis) until the end of the school year (31 August, at least 30 days) as pokyh_school, so you do not have to search for it every time; you can change it whenever you sign in. After you sign in, the POKYH backend assigns your account to this school (the school’s login name, name and server), so that classes, reminders, comments and the menu stay separate per school; when someone from a school signs in for the first time, the school is created. Legal basis: Art. 6(1)(b) GDPR."
                 },
                 {
-                  "label": "POKYH backend (to-dos & reminders)",
-                  "desc": "To-dos and class reminders are stored on POKYH’s own backend: title, details, timestamp, username. You can delete them yourself at any time. No external cloud services are used for these features."
+                  "label": "To-dos, class reminders and comments",
+                  "desc": "The POKYH backend stores to-dos with title, details, due date, timestamps and your user ID; only you see them. Reminders belong to your class: their title, text and time, the name and username of whoever created them and the comments on them (with username) are visible to all members of your class. You can delete your own to-dos, reminders and comments at any time; if you delete your account, the class’s reminders stay without your name. No external cloud services are used for this. Legal basis: providing the service (Art. 6(1)(b) GDPR)."
                 },
                 {
                   "label": "Canteen ratings & comments",
-                  "desc": "When you rate or comment on a dish, the POKYH backend stores the star rating or comment text, your username, internal user ID, and a timestamp. Comments are visible with your username to other signed-in users; ratings appear as an average and count and, if you also commented on the dish, as your stars beside your comment. You can delete your own comments at any time."
+                  "desc": "When you rate or comment on a dish, the POKYH backend stores the star rating or comment text, your username, internal user ID, and a timestamp. Comments are visible with your username to other signed-in users; ratings appear as an average and count and, if you also commented on the dish, as your stars beside your comment. You can delete your own comments at any time. Legal basis: providing the service (Art. 6(1)(b) GDPR)."
+                },
+                {
+                  "label": "Recap",
+                  "desc": "From time to time POKYH shows a recap of a period, such as the school year; administrators decide for which school, class or accounts. The figures from WebUntis (lessons, grades, absences, exams, homework) are calculated by your device with your own WebUntis session and do not leave the device. The figures from POKYH (active days, sign-ins, to-dos, reminders, comments, ratings and, only with consent to the personal usage statistics, time spent and most opened screens) are read by the backend from data that is stored anyway, for past school years from the school-year archive. Your place in your school by active days is shown only to you and only roughly (“top n %”), and only when enough people from your school are counted. The only new thing stored is that you watched a recap to the end. Sharing it or saving it as a picture only happens when you do it. Legal basis: providing the service (Art. 6(1)(b) GDPR); for the comparison with others, legitimate interest (Art. 6(1)(f) GDPR), to which you can object at any time (Art. 21 GDPR)."
                 },
                 {
                   "label": "Notifications (bell)",
@@ -1312,19 +1432,28 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 },
                 {
                   "label": "Push notifications (website, optional)",
-                  "desc": "Only if you allow notifications in your browser: the POKYH backend stores your browser’s push address (endpoint) with your user ID. So that it can tell you about new WebUntis messages, it also stores your current WebUntis session (session identifier and access token, not your password) and uses it to ask your school’s WebUntis server about every 5 minutes how many messages are unread. Message contents are not stored. This stops as soon as WebUntis ends the session. Notifications are delivered through your browser vendor’s push service (e.g. Google, Mozilla or Apple). You can withdraw at any time in your browser settings; the push address is then deleted."
+                  "desc": "Only if you allow notifications in your browser: the POKYH backend stores your browser’s push address (endpoint) and its keys with your user ID. So that it can tell you about new WebUntis messages, it also stores your current WebUntis session (session identifier and access token, not your password) and uses it to ask your school’s WebUntis server about every 5 minutes how many messages are unread; message contents are not stored, and this stops as soon as WebUntis ends the session. It also reminds you of due to-dos and of your class’s reminders. A notification contains the number of new messages, or the title of the to-do, or the title and text of the reminder. It is delivered through your browser vendor’s push service (e.g. Google, Mozilla or Apple), end-to-end encrypted, so that service cannot read the content. You can withdraw at any time in your browser settings; the push address is then deleted. Legal basis: providing the service you asked for (Art. 6(1)(b) GDPR)."
                 },
                 {
-                  "label": "Photos from other sites (cafeteria)",
-                  "desc": "The dish photos in the cafeteria menu are hosted on third-party recipe sites and shown from there; POKYH does not copy them. Your browser loads them directly from those sites, which, as with any page request, receive your IP address and technical details of your browser (e.g. the browser type), without a referrer, so without the address of the POKYH page. What those sites do with it, for example whether they set cookies, is up to them; many browsers block third-party cookies. Legal basis: legitimate interest (Art. 6(1)(f) GDPR) in showing the menu clearly. You can object at any time (Art. 21 GDPR): with “Hide photos” on the cafeteria page your browser no longer loads photos from other sites; it stores the choice as pokyh_external_media."
+                  "label": "Push notifications (iOS app, optional)",
+                  "desc": "If you allow the iOS app to send notifications, it registers its Apple Push Notification Service (APNs) device token with the POKYH backend. Stored are the token, your user ID, which kinds you turned on (messages, to-dos, reminders), the signed-in device it belongs to and, for new messages, your current WebUntis session (not your password), with which the backend asks about every 5 minutes for unread messages, as for the website. Notifications are delivered through Apple; they contain the number of new messages, or the title of the to-do, or the title and text of the reminder, which Apple processes to deliver them. If you turn notifications off or the device is signed out, the entry is deleted. The Android app gets no push messages from the server (see “Mobile apps”). Legal basis: providing the service you asked for (Art. 6(1)(b) GDPR)."
+                },
+                {
+                  "label": "Dish photos (canteen)",
+                  "desc": "The photos in the canteen menu are on the POKYH server and are loaded from there; nobody but POKYH receives any data. Some photos may still be on other sites: your browser loads those directly from there, and these sites receive, as with any page visit, your IP address and technical details of your browser (e.g. browser type), without a referrer, so without the address of the POKYH page. What these sites do with it, such as setting cookies, is up to them; many browsers block third-party cookies. Legal basis: legitimate interest (Art. 6(1)(f) GDPR) in showing the menu clearly. You can object at any time (Art. 21 GDPR): with “Hide photos” on the canteen page your browser no longer loads photos from other sites; it stores the choice as pokyh_external_media. Photos from the POKYH server are still shown."
                 },
                 {
                   "label": "Google Analytics 4 (GA4)",
-                  "desc": "This website may use Google Analytics 4 (Google LLC), but only after your explicit consent in the cookie banner; before that, no connection to Google is made. GA4 collects pseudonymised usage data (page views, device category, approximate country of origin) and sets the cookies _ga and _ga_* for this. According to Google, GA4 does not store IP addresses; Google signals and advertising features are switched off. Legal basis: your consent (Art. 6(1)(a) GDPR, Art. 122 Italian Privacy Code). You can withdraw it at any time in the cookie settings; the cookies are then deleted. You can additionally opt out of data collection at tools.google.com/dlpage/gaoptout."
+                  "desc": "This website uses Google Analytics 4 (Google LLC), but only after your explicit consent in the cookie banner; before that, no connection to Google is made. GA4 collects pseudonymised usage data (page views, device category, approximate country of origin) and sets the cookies _ga and _ga_* for this. According to Google, GA4 does not store IP addresses; Google signals and advertising features are switched off. Legal basis: your consent (Art. 6(1)(a) GDPR, Art. 122 Italian Privacy Code). You can withdraw it at any time in the cookie settings; the cookies are then deleted. You can additionally opt out of data collection at tools.google.com/dlpage/gaoptout.",
+                  "when": "analytics"
                 },
                 {
-                  "label": "Cloudflare Tunnel (Cloudflare, Inc.)",
-                  "desc": "Cloudflare Tunnel is used for the public reachability of the self-hosted server. Cloudflare processes network metadata (IP addresses, request headers) to forward traffic. No content is stored permanently. Legal basis: legitimate interest (Art. 6(1)(f) GDPR) for secure server operation. Cloudflare also passes on to us the country derived from the IP address (where applicable region and city), which we use for the visitor statistics of the website and the apps; no location lookup with other providers takes place."
+                  "label": "Cloudflare (Cloudflare, Inc.)",
+                  "desc": "The website is hosted on Cloudflare (Cloudflare Workers) and served from there, and every connection to the POKYH backend (api.pokyh.com) runs through Cloudflare. As a processor (Art. 28 GDPR), Cloudflare processes IP addresses, request headers and technical connection data to deliver the pages, encrypt the connection and fend off attacks; your browser’s encrypted connection ends at Cloudflare. If a connection fails, your browser may send Cloudflare a short technical error report (Network Error Logging, only on errors). Cloudflare also passes us the country derived from the IP address (and region and city, if provided), which we use for the visitor statistics of the website and the apps; no other provider is asked for a location. Legal basis: legitimate interest in a secure, reachable service (Art. 6(1)(f) GDPR)."
+                },
+                {
+                  "label": "Protecting the backend (FastProtect)",
+                  "desc": "Between Cloudflare and the POKYH backend, traffic runs through FastProtect, a reverse proxy and DDoS protection we run ourselves, with servers in the EU. FastProtect forwards the requests and fends off attacks and bots; for this it processes IP addresses and request data. Normal requests are neither stored nor logged. Only of the addresses that refused traffic comes from (such as attacks or bots), the most conspicuous stay in the attack statistics with the number of refused requests, for at most 400 days. Legal basis: legitimate interest in protecting the service from attacks (Art. 6(1)(f) GDPR)."
                 },
                 {
                   "label": "Server logging (request logs)",
@@ -1347,8 +1476,8 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "For your account we store which version of this notice was shown to you and when (at sign-in or after a change, on the website or in the app), and whether and when you gave or withdrew consent to the personal usage statistics, as proof (Art. 5(2), Art. 7(1) GDPR). Being shown the notice is not consent. This data is deleted with your account. Your cookie-banner choice is also stored on your device (see Cookies)."
                 },
                 {
-                  "label": "Mobile app (iOS & Android)",
-                  "desc": "The native POKYH apps store credentials only encrypted on the device (iOS Keychain, or with a key from the Android Keystore) so the sign-in can be renewed; they are not stored on POKYH servers, except briefly when signing in on a computer with the QR code (see “Signing in with the POKYH app (QR code)”). iCloud sync is disabled. Apart from the usage statistics and the app visitor statistics described above, the app collects no analytics data; no third-party analytics SDKs are included. After the first sign-in and after a change to this notice the app shows a note about it once; that it was shown is stored as on the website (see “Notice & consents”). For offline use the app keeps the most recently loaded data (e.g. timetable, grades, absences, canteen) in the app’s private storage on the device. Reminders are delivered as local device notifications (no remote push). Update checks use the public GitHub API; for technical reasons GitHub receives the IP address, but no account or school data."
+                  "label": "Mobile apps (iOS and Android)",
+                  "desc": "The POKYH apps store credentials only encrypted on the device (iOS Keychain, or with a key from the Android Keystore) so the sign-in can be renewed; they are not stored on POKYH servers, except briefly when signing in on a computer with the QR code (see “Signing in with the POKYH app (QR code)”). iCloud sync is disabled. For offline use, widgets and the Apple Watch the apps keep the most recently loaded data (e.g. timetable, grades, absences, canteen) in the device’s private storage; it does not leave the device. Face ID, fingerprint or PIN are checked only by the device. The apps use the camera only when you scan a QR code to sign in; the image is processed only on the device. The iOS app saves a recap to your photos only when you ask it to. Apart from the usage statistics and the app visitor statistics described above, the apps collect no analytics data; no third-party analytics or advertising SDKs are included. After the first sign-in and after a change to this notice the apps show a note about it once; that it was shown is stored as on the website (see “Notice & consents”). Notifications: the iOS app gets push notifications through Apple (see “Push notifications (iOS app)”). The Android app gets no push messages from the server: it checks WebUntis for new messages itself in the background, with the credentials stored on the device, and shows local notifications. Updates: the Android app checks through the public GitHub API whether there is a new version and downloads it from GitHub when needed; GitHub technically receives the IP address, but no account or school data."
                 },
                 {
                   "label": "Error reports (apps and administration)",
@@ -1356,7 +1485,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 },
                 {
                   "label": "Local storage (localStorage)",
-                  "desc": "Your browser’s storage is used for settings (appearance, language, chosen school and cafeteria, photos yes/no, the progress in the hidden classroom of the sign-in page) and as a cache of recently loaded school data (timetable, grades, absences, messages) for faster display. This data does not leave your device; each entry is listed in the cookie policy."
+                  "desc": "Your browser’s storage is used for settings (appearance, language, chosen school and canteen, photos on/off, the progress in the hidden classroom of the sign-in page), as a cache of recently loaded school data (timetable, grades, absences, messages, the weeks of a recap) and for the order in which new grades were first seen (only identifiers and times). This data does not leave your device; the individual entries are listed in the cookie policy."
                 },
                 {
                   "label": "Support via Buy Me a Coffee (voluntary)",
@@ -1371,10 +1500,15 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "title": "Purposes and legal bases",
           "blocks": [
             {
-              "p": "Processing takes place to provide the service (Art. 6(1)(b) GDPR). Necessary security measures (e.g. network forwarding, access logs), the visitor statistics of the website and the apps with IP address and the anonymous usage statistics are based on our legitimate interest in secure operation and in improving the service (Art. 6(1)(f) GDPR). The personal usage statistics and Google Analytics happen only with your consent (Art. 6(1)(a) GDPR), which you give in the cookie banner (“Accept all” or “Settings”) or in your profile and can withdraw there at any time; withdrawal does not affect the lawfulness of processing before it. Neither option is preselected, and POKYH is fully usable without them."
+              "p": "Processing takes place to provide the service (Art. 6(1)(b) GDPR). Necessary security measures (e.g. delivery through Cloudflare, protection by FastProtect, access logs), the visitor statistics of the website and the apps with IP address, the anonymous usage statistics and the comparison in the recap are based on our legitimate interest in secure operation and in improving the service (Art. 6(1)(f) GDPR); you can object at any time (Art. 21 GDPR). The personal usage statistics happen only with your consent (Art. 6(1)(a) GDPR), which you give in the cookie banner (“Accept all” or “Settings”) or in your profile and can withdraw there at any time; withdrawal does not affect the lawfulness of processing before it. It is not preselected, and POKYH is fully usable without it.",
+              "when": "noAnalytics"
             },
             {
-              "p": "The school search and assigning your account to your school serve to provide the service (Art. 6(1)(b) GDPR). Photos from other sites are loaded on the basis of legitimate interest (Art. 6(1)(f) GDPR); you can object at any time by hiding them (Art. 21 GDPR)."
+              "p": "Processing takes place to provide the service (Art. 6(1)(b) GDPR). Necessary security measures (e.g. delivery through Cloudflare, protection by FastProtect, access logs), the visitor statistics of the website and the apps with IP address, the anonymous usage statistics and the comparison in the recap are based on our legitimate interest in secure operation and in improving the service (Art. 6(1)(f) GDPR); you can object at any time (Art. 21 GDPR). The personal usage statistics and Google Analytics happen only with your consent (Art. 6(1)(a) GDPR), which you give in the cookie banner (“Accept all” or “Settings”) or in your profile and can withdraw there at any time; withdrawal does not affect the lawfulness of processing before it. Neither option is preselected, and POKYH is fully usable without them.",
+              "when": "analytics"
+            },
+            {
+              "p": "The school search and assigning your account to your school serve to provide the service (Art. 6(1)(b) GDPR). Photos that are still on other sites are loaded on the basis of legitimate interest (Art. 6(1)(f) GDPR); you can object at any time by hiding them (Art. 21 GDPR). Health data that you yourself send to the school with an absence is transmitted by POKYH on the basis of your explicit consent (Art. 9(2)(a) GDPR)."
             }
           ]
         },
@@ -1396,32 +1530,43 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 },
                 {
                   "name": "POKYH backend",
-                  "purpose": "Own server for accounts, schools, to-dos, reminders, cafeteria, comments, notifications and statistics",
+                  "purpose": "Own server for accounts, schools, to-dos, reminders, canteen, comments, notifications, recaps and statistics",
                   "url": null
                 },
                 {
-                  "name": "Google Analytics 4 (Google LLC)",
-                  "purpose": "Anonymised usage statistics to improve the service, only with consent",
-                  "url": "https://policies.google.com/privacy"
+                  "name": "FastProtect (own service)",
+                  "purpose": "Reverse proxy and DDoS protection in front of the POKYH backend, run by us, servers in the EU",
+                  "url": null
                 },
                 {
                   "name": "Cloudflare, Inc.",
-                  "purpose": "Network routing via Cloudflare Tunnel for the self-hosted server",
+                  "purpose": "Delivery of the website (Cloudflare Workers), connections to the POKYH backend and protection against attacks; processor",
                   "url": "https://www.cloudflare.com/privacypolicy/"
                 },
                 {
+                  "name": "Apple (Apple Push Notification Service)",
+                  "purpose": "Delivery of the iOS app’s push notifications, only if you allow them",
+                  "url": "https://www.apple.com/legal/privacy/"
+                },
+                {
                   "name": "Browser vendors’ push services",
-                  "purpose": "Delivery of web push notifications: only if you allow them",
+                  "purpose": "Delivery of web push notifications (end-to-end encrypted), only if you allow them",
                   "url": "https://developer.mozilla.org/docs/Web/API/Push_API"
                 },
                 {
                   "name": "GitHub API (GitHub, Inc.)",
-                  "purpose": "Update checks for the mobile apps; GitHub technically receives the IP address, no account or school data",
+                  "purpose": "Update check and download of the Android app; GitHub technically receives the IP address, no account or school data",
                   "url": "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement"
                 },
                 {
-                  "name": "Recipe sites (dish photos)",
-                  "purpose": "Photos in the cafeteria menu loaded directly from the sites that publish them (can be switched off with “Hide photos”)",
+                  "name": "Google Analytics 4 (Google LLC)",
+                  "purpose": "Anonymised usage statistics to improve the service, only with consent",
+                  "url": "https://policies.google.com/privacy",
+                  "when": "analytics"
+                },
+                {
+                  "name": "Recipe sites (some dish photos)",
+                  "purpose": "Some photos in the canteen menu that are still on other sites and are loaded directly from there (can be turned off with “Hide photos”)",
                   "url": null
                 },
                 {
@@ -1430,6 +1575,9 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "url": null
                 }
               ]
+            },
+            {
+              "p": "Within POKYH, only administrators see data, as far as their task requires (for example support, moderation and fighting abuse). They act on behalf of and on the instructions of the controller (Art. 29 GDPR, Art. 2-quaterdecies Codice privacy), must keep the data confidential and get only the rights they need, also limited to one school. Data is not sold or passed on for advertising; authorities receive it only when the law requires it."
             }
           ]
         },
@@ -1438,7 +1586,14 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "title": "Transfers to third countries",
           "blocks": [
             {
-              "p": "According to its own statements, Untis GmbH processes WebUntis data exclusively in the EU. Cloudflare, Inc., GitHub, Inc. (only for the apps’ update checks), Google LLC (only with your consent to statistics) and the browser vendors’ push services (for example Google, Apple or Mozilla; only if you allow notifications) may process data in the USA; transfers rely on the adequacy decision for the EU-US Data Privacy Framework (Art. 45 GDPR), under which these providers are certified, and on standard contractual clauses (Art. 46 GDPR). Recipe sites that the cafeteria photos come from may be based outside the EU, including in countries without an adequacy decision. Your browser loads the photos directly from there unless you switch them off with “Hide photos”; these sites thereby receive your IP address. If you do not want that, hide the photos."
+              "p": "The POKYH backend runs on own hardware, FastProtect on servers in the EU; all backups stay on own servers. Untis GmbH states that it processes the data from WebUntis exclusively in the EU. Cloudflare, Inc., Apple (only for the iOS app’s push notifications), GitHub, Inc. (only for updates of the Android app) and the browser vendors’ push services (for example Google, Apple or Mozilla; only if you allow notifications) may process data in the USA; the transfer is based on the adequacy decision for the EU-US Data Privacy Framework (Art. 45 GDPR), under which these providers are certified, and on standard contractual clauses (Art. 46 GDPR)."
+            },
+            {
+              "p": "Google LLC processes Google Analytics data only with your consent to the statistics, also in the USA; the EU-US Data Privacy Framework (Art. 45 GDPR) applies to this as well.",
+              "when": "analytics"
+            },
+            {
+              "p": "Recipe sites from which some photos of the canteen menu are still loaded may be based outside the EU, including in countries without an adequacy decision. Your browser loads these photos directly from there as long as you do not turn them off with “Hide photos”; these sites then receive your IP address. If you do not want that, hide the photos."
             }
           ]
         },
@@ -1447,10 +1602,14 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "title": "Retention",
           "blocks": [
             {
-              "p": "Sign-in cookies are deleted on logout and otherwise expire automatically (session 4 hours, API token 8 hours, refresh token 30 days). To-dos, reminders, canteen ratings, and comments remain on the POKYH backend until you delete them yourself. Server logs are deleted after 30 days, database backups after 7 days. Signed-in devices are deleted 60 days after they were last used or after they are signed out, sign-in history entries after 90 days. A code for signing in with the POKYH app is deleted at the latest one minute after it runs out (after two minutes), the sign-in the app handed over as soon as the website has used it. Your account's day-by-day overview (active days, device type, sign-ins) is kept until the end of the current school year; the usage statistics name your account only with consent and for at most as long. At the change of school year (1 August), each account's figures for the year (active days, sign-ins and, with consent, time spent) are moved, together with the accounts, classes, to-dos and reminders of the past school year, into a school-year archive that only administrators can see; the year's entries are then deleted. Page views are deleted after 30 days. After that (and for anonymous visits once the server logs are deleted) no entry can be traced back to a person any more, and it remains only as an anonymous statistic. For website and app visits, IP address, place, account key, visit ID and (with consent) your account are removed after 30 days; an anonymous count by country, device type, page or app version, day and hour remains. Completed to-dos are automatically hidden after 24 hours. Google Analytics data is deleted, where you have consented, after 14 months. Reports of content are kept until the case is closed, then at most 6 months. The administration log is deleted after 365 days, the apps’ error reports after 30 days. Which of the bell’s notifications you have seen or cleared is deleted by the POKYH backend after 30 days. The progress in the hidden classroom stays only in your browser until you delete it there."
+              "p": "Sign-in cookies are deleted on logout and otherwise expire automatically (session 4 hours, API token 8 hours, refresh token 30 days). To-dos and reminders stay on the POKYH backend until you delete them or the school year changes (see below); completed to-dos are hidden automatically after 24 hours. Canteen ratings and comments stay until you delete them yourself. Server logs are deleted after 30 days. Database backups are deleted after 7 days, the logs for restoring a specific moment (binlogs) after 14 days, and backups of the whole server taken before maintenance after 30 days at the latest. Signed-in devices are deleted 60 days after they were last used or after they are signed out, sign-in history entries after 90 days. A code for signing in with the POKYH app is deleted at the latest one minute after it runs out (after two minutes), the sign-in the app handed over as soon as the website has used it. Your account’s day-by-day overview (active days, device type, sign-ins) is kept until the end of the current school year; the usage statistics name your account only with consent and for at most as long. At the change of school year (1 August), each account’s figures for the year (active days, sign-ins and, with consent, time spent) are moved, together with the accounts, classes, to-dos and reminders of the past school year, into a school-year archive that only administrators can see; the year’s entries are then deleted. A school year’s archive is deleted at the next change of school year, so after one year. Page views are deleted after 30 days; after that (and for anonymous visits, as soon as the server logs are deleted) no entry can be linked to a person any more, and it remains only as anonymous statistics. For website and app visits, the IP address, location, account key, visit ID and (with consent) your account are removed after 30 days; what remains is an anonymous count by country, device type, page or app version, day and hour. Reports of content are kept until the case is closed, then for at most 6 months. The administration log is deleted after 365 days, the apps’ error reports after 30 days. Which bell notifications you have seen or cleared is deleted by the POKYH backend after 30 days. That you watched a recap is deleted with the recap or with your account. The progress in the hidden classroom stays only in your browser until you delete it there."
             },
             {
-              "p": "The chosen school stays in your browser until 31 August of the current school year, for at least 30 days. The WebUntis session stored for push notifications is only valid until WebUntis ends it and is deleted together with the push address. The assignment of your account to your school is deleted with your account. Cached school search results expire after 10 minutes."
+              "p": "Google Analytics data is deleted after 14 months, if you consented.",
+              "when": "analytics"
+            },
+            {
+              "p": "The chosen school stays in your browser until 31 August of the current school year, for at least 30 days. The WebUntis session stored for push notifications (website and iOS app) is only valid until WebUntis ends it and is deleted together with the push address or the device token, that is when you turn notifications off or the device is signed out. The assignment of your account to your school is deleted with your account. Cached school search results expire after 10 minutes."
             }
           ]
         },
@@ -1482,7 +1641,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
               ]
             },
             {
-              "p": "You can also exercise access and data portability yourself: Settings → Privacy → “Download my data” gives you everything POKYH keeps about your account at once, as a machine-readable file (JSON)."
+              "p": "You can also exercise access and data portability yourself: Settings → Privacy → “Download my data” gives you everything POKYH keeps about your account at once, as a machine-readable file (JSON). You can delete your account yourself in the iOS and Android apps; otherwise an e-mail to the address below is enough. We answer requests within one month (Art. 12(3) GDPR)."
             },
             {
               "contact": "privacy"
@@ -1506,7 +1665,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "title": "Data security",
           "blocks": [
             {
-              "p": "All connections use HTTPS/TLS (provided via Cloudflare Tunnel). WebUntis session tokens are encrypted server-side with AES-GCM and stored only in httpOnly cookies (no JavaScript access). Passwords are never stored on POKYH servers. Input is validated server-side. The server runs on private hardware and is reachable only through the encrypted Cloudflare Tunnel."
+              "p": "All connections are encrypted with HTTPS/TLS. Cloudflare delivers the website; the POKYH backend runs on own hardware and can be reached from outside only through Cloudflare and FastProtect, with no open port on the server. WebUntis sessions are encrypted server-side with AES-GCM and stored only in httpOnly cookies (no JavaScript access). WebUntis passwords are not stored on POKYH servers (for the short exception when signing in with the QR code, see above). Input is validated server-side and requests are rate-limited. The administration area always requires an authenticator app in addition to the password."
             }
           ]
         },
@@ -1587,9 +1746,20 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Cache of recently loaded school data for faster display (localStorage, never leaves the device, deleted when you sign out)"
                 },
                 {
+                  "name": "pokyh_recapweeks_*",
+                  "kind": "necessary",
+                  "desc": "Cached timetable weeks for a recap (localStorage, does not leave the device, older weeks up to 30 days)"
+                },
+                {
+                  "name": "pokyh_grade_seen",
+                  "kind": "necessary",
+                  "desc": "When this browser first saw a grade, only identifier and time (localStorage, does not leave the device)"
+                },
+                {
                   "name": "_ga, _ga_*",
                   "kind": "analytics",
-                  "desc": "Google Analytics 4: anonymised usage statistics (only with consent), 1-2 year lifetime"
+                  "desc": "Google Analytics 4: anonymised usage statistics (only with consent), 1-2 year lifetime",
+                  "when": "analytics"
                 }
               ]
             },
@@ -1633,6 +1803,9 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "blocks": [
             {
               "p": "POKYH ist kostenlos und ohne Werbung. Es zeigt Daten aus WebUntis deiner Schule und ergänzt eigene Funktionen. Welche Daten zur Verfügung stehen, hängt davon ab, was deine Schule in WebUntis freigegeben hat. Weil POKYH ein freiwilliges, unentgeltliches Projekt ist, besteht kein Anspruch auf eine bestimmte Verfügbarkeit oder auf bestimmte Funktionen; Funktionen können sich ändern oder eingestellt werden. Über wesentliche Änderungen informieren wir in der App. Spielerische Extras, etwa die Sternchen und Gegenstände im versteckten Klassenzimmer der Anmeldeseite, haben keinen Geldwert: Sie können nicht gekauft, verkauft oder getauscht werden und liegen nur in deinem Browser, sodass sie mit den Browserdaten verloren gehen können. Eine freiwillige Unterstützung (zum Beispiel über Buy Me a Coffee) ist ein Geschenk ohne Gegenleistung und ändert nichts an den Funktionen."
+            },
+            {
+              "p": "Zum Schuljahreswechsel am 1. August beginnt POKYH von vorn: Konten, Klassen, To-dos und Erinnerungen des abgelaufenen Schuljahres werden archiviert und sind in POKYH nicht mehr zu sehen; du meldest dich danach einfach wieder an. Wie lange das Archiv bleibt, steht in der Datenschutzerklärung."
             }
           ]
         },
@@ -1645,7 +1818,8 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 "Du meldest dich mit deinem eigenen WebUntis-Konto an. Nutze nur dein eigenes Konto, als Elternteil nur deinen Elternzugang.",
                 "Halte deine Zugangsdaten geheim. Dein Passwort geht nur an den WebUntis-Server deiner Schule und wird auf POKYH-Servern nicht gespeichert (außer höchstens drei Minuten verschlüsselt, wenn du die Website mit der POKYH-App anmeldest).",
                 "Deine Schule kann eigene Regeln für die Nutzung von WebUntis und von Apps anderer Anbieter haben. Bitte halte sie ein; im Zweifel frag deine Schule.",
-                "Ein POKYH-Konto ohne Schulkonto ist möglich; dann fehlen die Daten aus WebUntis."
+                "Ein POKYH-Konto ohne Schulkonto ist möglich; dann fehlen die Daten aus WebUntis.",
+                "Dein Konto kannst du in der iOS- und der Android-App selbst löschen oder per E-Mail an die Kontaktadresse löschen lassen."
               ]
             }
           ]
@@ -1772,6 +1946,9 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "blocks": [
             {
               "p": "POKYH è gratuita e senza pubblicità. Mostra i dati di WebUntis della tua scuola e aggiunge funzioni proprie. Quali dati sono disponibili dipende da ciò che la tua scuola ha attivato in WebUntis. Poiché POKYH è un progetto volontario e gratuito, non c’è diritto a una determinata disponibilità o a determinate funzioni; le funzioni possono cambiare o essere sospese. Delle modifiche importanti informiamo nell’app. Gli extra giocosi, come le stelline e gli oggetti nell’aula nascosta della pagina di accesso, non hanno valore monetario: non possono essere acquistati, venduti o scambiati e restano solo nel tuo browser, per cui possono andare persi insieme ai dati del browser. Un sostegno volontario (ad esempio tramite Buy Me a Coffee) è un dono senza controprestazione e non cambia nulla nelle funzioni."
+            },
+            {
+              "p": "Al cambio di anno scolastico, il 1° agosto, POKYH riparte da capo: account, classi, cose da fare e promemoria dell’anno concluso vengono archiviati e non sono più visibili in POKYH; dopo basta accedere di nuovo. Per quanto tempo resta l’archivio è indicato nell’informativa sulla privacy."
             }
           ]
         },
@@ -1784,7 +1961,8 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 "Accedi con il tuo account WebUntis. Usa solo il tuo account; come genitore solo il tuo accesso per genitori.",
                 "Tieni segrete le tue credenziali. La password va solo al server WebUntis della tua scuola e non viene salvata sui server di POKYH (salvo, cifrata e per al massimo tre minuti, se accedi al sito con l’app POKYH).",
                 "La tua scuola può avere regole proprie sull’uso di WebUntis e di app di altri fornitori. Rispettale; nel dubbio chiedi alla scuola.",
-                "È possibile un account POKYH senza account scolastico; in quel caso mancano i dati di WebUntis."
+                "È possibile un account POKYH senza account scolastico; in quel caso mancano i dati di WebUntis.",
+                "Puoi eliminare il tuo account da solo nell’app iOS e nell’app Android oppure farlo eliminare con un’e-mail all’indirizzo di contatto."
               ]
             }
           ]
@@ -1911,6 +2089,9 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "blocks": [
             {
               "p": "POKYH is free and without ads. It shows data from your school’s WebUntis and adds its own features. Which data is available depends on what your school has enabled in WebUntis. As POKYH is a voluntary, free project, there is no entitlement to any particular availability or feature; features may change or be discontinued. We announce important changes in the app. Playful extras, such as the gold stars and items in the hidden classroom of the sign-in page, have no monetary value: they cannot be bought, sold or exchanged and live only in your browser, so they can be lost with the browser data. Voluntary support (for example via Buy Me a Coffee) is a gift with nothing in return and does not change any features."
+            },
+            {
+              "p": "At the change of school year on 1 August, POKYH starts afresh: accounts, classes, to-dos and reminders of the past school year are archived and no longer visible in POKYH; afterwards you simply sign in again. How long the archive is kept is stated in the privacy notice."
             }
           ]
         },
@@ -1923,7 +2104,8 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 "You sign in with your own WebUntis account. Only use your own account; as a parent only your parent access.",
                 "Keep your credentials secret. Your password only goes to your school’s WebUntis server and is not stored on POKYH servers (except, encrypted and for at most three minutes, when you sign the website in with the POKYH app).",
                 "Your school may have its own rules for using WebUntis and apps of other providers. Please follow them; if in doubt, ask your school.",
-                "A POKYH account without a school account is possible; WebUntis data is then missing."
+                "A POKYH account without a school account is possible; WebUntis data is then missing.",
+                "You can delete your account yourself in the iOS and Android apps, or have it deleted by e-mail to the contact address."
               ]
             }
           ]
@@ -2092,12 +2274,22 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 },
                 {
                   "name": "passkey_declined",
-                  "kind": "necessary",
+                  "kind": "setting",
                   "desc": "Merkt sich, dass du das Speichern der Anmeldung im Browser abgelehnt hast. Läuft nach 1 Jahr ab."
                 }
               ]
             }
           ]
+        },
+        {
+          "id": "statistik",
+          "title": "Statistik- und Werbe-Cookies",
+          "blocks": [
+            {
+              "p": "Gibt es nicht. POKYH setzt keine Statistik-, Werbe- oder Tracking-Cookies, auch nicht von Drittanbietern. Die persönliche Nutzungsstatistik, der du im Cookie-Banner zustimmen kannst, nutzt keine Cookies; gespeichert wird nur deine Auswahl (pokyh_cookie_consent_v2)."
+            }
+          ],
+          "when": "noAnalytics"
         },
         {
           "id": "statistik",
@@ -2115,7 +2307,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 {
                   "name": "_ga",
                   "kind": "analytics",
-                  "desc": "Google Analytics 4: eindeutiger Zähler für Websitebesuche. Läuft nach 2 Jahren ab. IP-Adresse wird vor Übermittlung anonymisiert."
+                  "desc": "Google Analytics 4: eindeutiger Zähler für Websitebesuche. Läuft nach 2 Jahren ab. Nach Angaben von Google speichert GA4 keine IP-Adressen."
                 },
                 {
                   "name": "_ga_*",
@@ -2124,7 +2316,8 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 }
               ]
             }
-          ]
+          ],
+          "when": "analytics"
         },
         {
           "id": "speicher",
@@ -2186,6 +2379,16 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Zwischengespeicherte Berechnung der Fehlstunden."
                 },
                 {
+                  "name": "pokyh_recapweeks_*",
+                  "kind": "necessary",
+                  "desc": "Zwischengespeicherte Stundenplan-Wochen für einen Rückblick, je Schülerin bzw. Schüler: ältere Wochen bis zu 30 Tage, die letzten Tage einen Tag, die laufende Woche 30 Minuten. Verlässt das Gerät nicht."
+                },
+                {
+                  "name": "pokyh_grade_seen",
+                  "kind": "necessary",
+                  "desc": "Wann dieser Browser eine Note zum ersten Mal gesehen hat (nur Kennung und Zeit, höchstens 3000 Einträge), für „Kürzlich hinzugefügt“ bei den Noten. Kein Ablaufdatum."
+                },
+                {
                   "name": "pokyh_grade_drafts_v1",
                   "kind": "setting",
                   "desc": "Von dir eingegebene Noten-Entwürfe für die Durchschnittsberechnung."
@@ -2224,6 +2427,16 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "name": "pokyh_privacy_gate_open",
                   "kind": "necessary",
                   "desc": "Hält den Datenschutzhinweis nach der Anmeldung offen, bis du ihn bestätigst, auch bei einem Neuladen (sessionStorage, bis der Tab geschlossen wird)."
+                },
+                {
+                  "name": "pokyh_signed_out_elsewhere",
+                  "kind": "necessary",
+                  "desc": "Merkt sich für diesen Tab, dass dieser Browser von einem anderen Gerät aus abgemeldet wurde, damit die Anmeldeseite es einmal sagt (sessionStorage, bis der Tab geschlossen wird)."
+                },
+                {
+                  "name": "NEL (Cloudflare)",
+                  "kind": "necessary",
+                  "desc": "Kein Cookie: Cloudflare weist deinen Browser an, sich bis zu 7 Tage zu merken, dass er Verbindungsfehler zu dieser Website an Cloudflare melden soll (Network Error Logging, nur bei Fehlern, keine Inhalte)."
                 }
               ]
             }
@@ -2234,7 +2447,12 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "title": "Auswahl ändern",
           "blocks": [
             {
-              "p": "Du kannst deine Auswahl jederzeit mit derselben Leichtigkeit ändern: Öffne die Cookie-Einstellungen und schalte die persönliche Nutzungsstatistik oder Google Analytics aus, oder wähle „Nur notwendige“. Die persönliche Nutzungsstatistik kannst du auch im Profil ausschalten."
+              "p": "Du kannst deine Auswahl jederzeit mit derselben Leichtigkeit ändern: Öffne die Cookie-Einstellungen und schalte die persönliche Nutzungsstatistik aus, oder wähle „Nur notwendige“. Die persönliche Nutzungsstatistik kannst du auch im Profil ausschalten.",
+              "when": "noAnalytics"
+            },
+            {
+              "p": "Du kannst deine Auswahl jederzeit mit derselben Leichtigkeit ändern: Öffne die Cookie-Einstellungen und schalte die persönliche Nutzungsstatistik oder Google Analytics aus, oder wähle „Nur notwendige“. Die persönliche Nutzungsstatistik kannst du auch im Profil ausschalten.",
+              "when": "analytics"
             },
             {
               "cookieButton": "Cookie-Einstellungen öffnen"
@@ -2243,7 +2461,8 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
               "optout": {
                 "prefix": "Alternativ kannst du Google Analytics dauerhaft deaktivieren:",
                 "label": "Google Analytics Opt-out"
-              }
+              },
+              "when": "analytics"
             }
           ]
         },
@@ -2252,7 +2471,15 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "title": "Rechtsgrundlage",
           "blocks": [
             {
-              "p": "Notwendige Cookies werden auf Basis von Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung) gesetzt. Die persönliche Nutzungsstatistik und Analytics-Cookies beruhen ausschließlich auf deiner Einwilligung (Art. 6 Abs. 1 lit. a DSGVO). Du kannst sie jederzeit widerrufen, ohne dass die Rechtmäßigkeit der bis zum Widerruf erfolgten Verarbeitung berührt wird."
+              "p": "Notwendige Cookies und Speicher sowie Einträge, die eine von dir gewählte Einstellung merken, brauchen keine Einwilligung, weil sie für den von dir gewünschten Dienst unbedingt erforderlich sind (Art. 122 Abs. 1 Codice in materia di protezione dei dati personali; Leitlinien des Garante zu Cookies und anderen Tracking-Instrumenten vom 10. Juni 2021). Rechtsgrundlage der damit verbundenen Verarbeitung ist Art. 6 Abs. 1 lit. b DSGVO."
+            },
+            {
+              "p": "Die persönliche Nutzungsstatistik beruht ausschließlich auf deiner Einwilligung (Art. 6 Abs. 1 lit. a DSGVO). Du kannst sie jederzeit widerrufen, ohne dass die Rechtmäßigkeit der bis zum Widerruf erfolgten Verarbeitung berührt wird.",
+              "when": "noAnalytics"
+            },
+            {
+              "p": "Die persönliche Nutzungsstatistik und die Analytics-Cookies beruhen ausschließlich auf deiner Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, Art. 122 Abs. 1 Codice privacy). Du kannst sie jederzeit widerrufen, ohne dass die Rechtmäßigkeit der bis zum Widerruf erfolgten Verarbeitung berührt wird.",
+              "when": "analytics"
             }
           ]
         },
@@ -2329,12 +2556,22 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 },
                 {
                   "name": "passkey_declined",
-                  "kind": "necessary",
+                  "kind": "setting",
                   "desc": "Ricorda che hai rifiutato di salvare l’accesso nel browser. Scade dopo 1 anno."
                 }
               ]
             }
           ]
+        },
+        {
+          "id": "statistik",
+          "title": "Cookie statistici e pubblicitari",
+          "blocks": [
+            {
+              "p": "Non ce ne sono. POKYH non imposta cookie statistici, pubblicitari o di tracciamento, nemmeno di terze parti. Le statistiche di utilizzo personali, a cui puoi acconsentire nel banner dei cookie, non usano cookie; viene salvata solo la tua scelta (pokyh_cookie_consent_v2)."
+            }
+          ],
+          "when": "noAnalytics"
         },
         {
           "id": "statistik",
@@ -2352,7 +2589,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 {
                   "name": "_ga",
                   "kind": "analytics",
-                  "desc": "Google Analytics 4: contatore univoco delle visite al sito. Scade dopo 2 anni. L’indirizzo IP viene anonimizzato prima della trasmissione."
+                  "desc": "Google Analytics 4: contatore univoco delle visite al sito. Scade dopo 2 anni. Secondo Google, GA4 non memorizza indirizzi IP."
                 },
                 {
                   "name": "_ga_*",
@@ -2361,7 +2598,8 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 }
               ]
             }
-          ]
+          ],
+          "when": "analytics"
         },
         {
           "id": "speicher",
@@ -2423,6 +2661,16 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Calcolo delle ore di assenza memorizzato temporaneamente."
                 },
                 {
+                  "name": "pokyh_recapweeks_*",
+                  "kind": "necessary",
+                  "desc": "Settimane dell’orario in memoria temporanea per un riepilogo, per ogni studentessa o studente: settimane passate fino a 30 giorni, quelle degli ultimi giorni un giorno, la settimana in corso 30 minuti. Non lascia il dispositivo."
+                },
+                {
+                  "name": "pokyh_grade_seen",
+                  "kind": "necessary",
+                  "desc": "Quando questo browser ha visto un voto per la prima volta (solo identificativo e orario, al massimo 3000 voci), per «Aggiunti di recente» nei voti. Nessuna scadenza."
+                },
+                {
                   "name": "pokyh_grade_drafts_v1",
                   "kind": "setting",
                   "desc": "Bozze di voti inserite da te per il calcolo della media."
@@ -2461,6 +2709,16 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "name": "pokyh_privacy_gate_open",
                   "kind": "necessary",
                   "desc": "Mantiene aperto l’avviso sulla privacy dopo l’accesso finché non lo confermi, anche dopo un ricaricamento (sessionStorage, finché la scheda resta aperta)."
+                },
+                {
+                  "name": "pokyh_signed_out_elsewhere",
+                  "kind": "necessary",
+                  "desc": "Ricorda per questa scheda che questo browser è stato disconnesso da un altro dispositivo, così la pagina di accesso lo dice una volta (sessionStorage, finché la scheda non viene chiusa)."
+                },
+                {
+                  "name": "NEL (Cloudflare)",
+                  "kind": "necessary",
+                  "desc": "Non è un cookie: Cloudflare indica al tuo browser di ricordare per al massimo 7 giorni di segnalare a Cloudflare gli errori di connessione a questo sito (Network Error Logging, solo in caso di errori, nessun contenuto)."
                 }
               ]
             }
@@ -2471,7 +2729,12 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "title": "Modificare la scelta",
           "blocks": [
             {
-              "p": "Puoi modificare la tua scelta in qualsiasi momento con la stessa facilità: apri le impostazioni dei cookie e disattiva le statistiche di utilizzo personali o Google Analytics, oppure scegli «Solo necessari». Le statistiche personali si possono disattivare anche nel profilo."
+              "p": "Puoi modificare la tua scelta in qualsiasi momento con la stessa facilità: apri le impostazioni dei cookie e disattiva le statistiche di utilizzo personali, oppure scegli «Solo necessari». Le statistiche personali si possono disattivare anche nel profilo.",
+              "when": "noAnalytics"
+            },
+            {
+              "p": "Puoi modificare la tua scelta in qualsiasi momento con la stessa facilità: apri le impostazioni dei cookie e disattiva le statistiche di utilizzo personali o Google Analytics, oppure scegli «Solo necessari». Le statistiche personali si possono disattivare anche nel profilo.",
+              "when": "analytics"
             },
             {
               "cookieButton": "Apri impostazioni cookie"
@@ -2480,7 +2743,8 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
               "optout": {
                 "prefix": "In alternativa puoi disattivare Google Analytics in modo permanente:",
                 "label": "Opt-out di Google Analytics"
-              }
+              },
+              "when": "analytics"
             }
           ]
         },
@@ -2489,7 +2753,15 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "title": "Base giuridica",
           "blocks": [
             {
-              "p": "I cookie necessari vengono impostati sulla base dell’art. 6, par. 1, lett. b GDPR (esecuzione del contratto). Le statistiche di utilizzo personali e i cookie di analisi si basano esclusivamente sul tuo consenso (art. 6, par. 1, lett. a GDPR). Puoi revocare il consenso in qualsiasi momento, senza che ciò pregiudichi la liceità del trattamento effettuato prima della revoca."
+              "p": "I cookie e la memoria necessari, nonché le voci che ricordano un’impostazione da te scelta, non richiedono consenso perché sono strettamente necessari al servizio da te richiesto (art. 122, comma 1, Codice in materia di protezione dei dati personali; Linee guida del Garante sui cookie e altri strumenti di tracciamento del 10 giugno 2021). La base giuridica del relativo trattamento è l’art. 6, par. 1, lett. b GDPR."
+            },
+            {
+              "p": "Le statistiche di utilizzo personali si basano esclusivamente sul tuo consenso (art. 6, par. 1, lett. a GDPR). Puoi revocarlo in qualsiasi momento, senza che ciò pregiudichi la liceità del trattamento effettuato prima della revoca.",
+              "when": "noAnalytics"
+            },
+            {
+              "p": "Le statistiche di utilizzo personali e i cookie di analisi si basano esclusivamente sul tuo consenso (art. 6, par. 1, lett. a GDPR, art. 122, comma 1, Codice privacy). Puoi revocarlo in qualsiasi momento, senza che ciò pregiudichi la liceità del trattamento effettuato prima della revoca.",
+              "when": "analytics"
             }
           ]
         },
@@ -2566,12 +2838,22 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 },
                 {
                   "name": "passkey_declined",
-                  "kind": "necessary",
+                  "kind": "setting",
                   "desc": "Remembers that you declined saving the sign-in in the browser. Expires after 1 year."
                 }
               ]
             }
           ]
+        },
+        {
+          "id": "statistik",
+          "title": "Statistics and advertising cookies",
+          "blocks": [
+            {
+              "p": "There are none. POKYH sets no statistics, advertising or tracking cookies, including from third parties. The personal usage statistics, which you can agree to in the cookie banner, use no cookies; only your choice is stored (pokyh_cookie_consent_v2)."
+            }
+          ],
+          "when": "noAnalytics"
         },
         {
           "id": "statistik",
@@ -2589,7 +2871,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 {
                   "name": "_ga",
                   "kind": "analytics",
-                  "desc": "Google Analytics 4: unique counter for site visits. Expires after 2 years. The IP address is anonymised before transmission."
+                  "desc": "Google Analytics 4: unique counter for site visits. Expires after 2 years. According to Google, GA4 does not store IP addresses."
                 },
                 {
                   "name": "_ga_*",
@@ -2598,7 +2880,8 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 }
               ]
             }
-          ]
+          ],
+          "when": "analytics"
         },
         {
           "id": "speicher",
@@ -2660,6 +2943,16 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Cached calculation of absence hours."
                 },
                 {
+                  "name": "pokyh_recapweeks_*",
+                  "kind": "necessary",
+                  "desc": "Cached timetable weeks for a recap, per student: older weeks up to 30 days, recent ones a day, the running week 30 minutes. Does not leave the device."
+                },
+                {
+                  "name": "pokyh_grade_seen",
+                  "kind": "necessary",
+                  "desc": "When this browser first saw a grade (only identifier and time, at most 3000 entries), for “Recently added” on the grades. No expiry."
+                },
+                {
                   "name": "pokyh_grade_drafts_v1",
                   "kind": "setting",
                   "desc": "Grade drafts you entered for the average calculation."
@@ -2698,6 +2991,16 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "name": "pokyh_privacy_gate_open",
                   "kind": "necessary",
                   "desc": "Keeps the privacy notice open after signing in until you confirm it, also across a reload (sessionStorage, until the tab is closed)."
+                },
+                {
+                  "name": "pokyh_signed_out_elsewhere",
+                  "kind": "necessary",
+                  "desc": "Remembers for this tab that this browser was signed out from another device, so the sign-in page says so once (sessionStorage, until the tab is closed)."
+                },
+                {
+                  "name": "NEL (Cloudflare)",
+                  "kind": "necessary",
+                  "desc": "Not a cookie: Cloudflare tells your browser to remember for up to 7 days that it should report connection errors to this website to Cloudflare (Network Error Logging, only on errors, no contents)."
                 }
               ]
             }
@@ -2708,7 +3011,12 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "title": "Change your choice",
           "blocks": [
             {
-              "p": "You can change your choice at any time just as easily: open the cookie settings and turn off the personal usage statistics or Google Analytics, or choose “Necessary only”. The personal statistics can also be turned off in your profile."
+              "p": "You can change your choice at any time just as easily: open the cookie settings and turn off the personal usage statistics, or choose “Necessary only”. The personal statistics can also be turned off in your profile.",
+              "when": "noAnalytics"
+            },
+            {
+              "p": "You can change your choice at any time just as easily: open the cookie settings and turn off the personal usage statistics or Google Analytics, or choose “Necessary only”. The personal statistics can also be turned off in your profile.",
+              "when": "analytics"
             },
             {
               "cookieButton": "Open cookie settings"
@@ -2717,7 +3025,8 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
               "optout": {
                 "prefix": "Alternatively, you can permanently disable Google Analytics:",
                 "label": "Google Analytics opt-out"
-              }
+              },
+              "when": "analytics"
             }
           ]
         },
@@ -2726,7 +3035,15 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "title": "Legal basis",
           "blocks": [
             {
-              "p": "Necessary cookies are set on the basis of Art. 6(1)(b) GDPR (performance of a contract). The personal usage statistics and analytics cookies are based solely on your consent (Art. 6(1)(a) GDPR). You can withdraw consent at any time, without affecting the lawfulness of processing carried out before the withdrawal."
+              "p": "Necessary cookies and storage, and entries that remember a setting you chose, need no consent because they are strictly necessary for the service you asked for (Art. 122(1) Codice in materia di protezione dei dati personali; the Garante’s guidelines on cookies and other tracking tools of 10 June 2021). The legal basis of the related processing is Art. 6(1)(b) GDPR."
+            },
+            {
+              "p": "The personal usage statistics are based solely on your consent (Art. 6(1)(a) GDPR). You can withdraw it at any time, without affecting the lawfulness of processing carried out before the withdrawal.",
+              "when": "noAnalytics"
+            },
+            {
+              "p": "The personal usage statistics and the analytics cookies are based solely on your consent (Art. 6(1)(a) GDPR, Art. 122(1) Codice privacy). You can withdraw it at any time, without affecting the lawfulness of processing carried out before the withdrawal.",
+              "when": "analytics"
             }
           ]
         },
@@ -2739,290 +3056,6 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
             },
             {
               "contact": "privacy"
-            }
-          ]
-        }
-      ]
-    }
-  },
-  "learn": {
-    "de": {
-      "title": "Datenschutzhinweise · Pokyh Learn",
-      "lead": "Transparente Informationen zur WebUntis-Anmeldung und Nutzung von Pokyh Learn. Stand: 12. September 2026.",
-      "sections": [
-        {
-          "id": "verantwortlicher",
-          "title": "Verantwortlicher und Schulfreigabe",
-          "blocks": [
-            {
-              "p": "Der Verantwortliche und seine öffentlichen Kontaktdaten stehen im POKYH-Impressum. Vor einer Aktivierung muss der Verantwortliche die Freigabe der zuständigen Schule bzw. Stelle für die WebUntis-Integration dokumentieren und (soweit erforderlich) das Verhältnis nach Art. 28 DSGVO regeln. Eine Bestätigung durch Nutzende ersetzt diese Freigabe nicht."
-            },
-            {
-              "identity": "controller"
-            }
-          ]
-        },
-        {
-          "id": "daten",
-          "title": "Daten und Zweck",
-          "blocks": [
-            {
-              "p": "Zur Zugangsprüfung werden der WebUntis-Benutzername und die minimalen Rückgabedaten zur Zuordnung zu einem bestehenden POKYH-Konto verarbeitet. Für den Lerndienst verarbeitet POKYH Präferenzen, selbst erstellte Inhalte, Berechtigungen, Fortschritt, Quizversuche und strikt notwendige technische Sicherheitsdaten. Das WebUntis-Passwort wird nur über eine geschützte Verbindung für die serverseitige Prüfung übermittelt; es wird nicht gespeichert, nicht geloggt und nicht im Browser-Persistenzspeicher abgelegt."
-            }
-          ]
-        },
-        {
-          "id": "rechtsgrundlage",
-          "title": "Rechtsgrundlage und Transparenz",
-          "blocks": [
-            {
-              "p": "Der Verantwortliche muss vor der Erhebung den konkreten Zweck, die Rechtsgrundlage, Empfänger, einen gegebenenfalls vorhandenen Datenschutzbeauftragten, Drittlandtransfers und die Speicherdauer in seinem Verzeichnis und dieser Information benennen. Die Login-Bestätigung dokumentiert die Kenntnisnahme; sie macht eine Einwilligung nicht automatisch zur Rechtsgrundlage."
-            }
-          ]
-        },
-        {
-          "id": "empfaenger",
-          "title": "Empfänger und Dienste",
-          "blocks": [
-            {
-              "p": "WebUntis wird ausschließlich für die Kontoprüfung angesprochen. Das POKYH-Backend und autorisierte technische Dienstleister verarbeiten Daten nur zur Bereitstellung und Absicherung des Dienstes. Ein optionales Wörterbuch erhält (falls vom Verantwortlichen aktiviert und von einem Editor ausdrücklich angefragt) nur das abgefragte Wort und die Sprachrichtung; keine WebUntis-Passwörter, Tokens, Profile oder Lernhistorien."
-            }
-          ]
-        },
-        {
-          "id": "aufbewahrung",
-          "title": "Aufbewahrung und Datenminimierung",
-          "blocks": [
-            {
-              "p": "Lerndaten bleiben von den Schuldaten getrennt und werden nur für die vom Verantwortlichen festgelegte und veröffentlichte Dauer gespeichert. Ein persönlicher Export enthält ausschließlich eigene Inhalte und Lernstände; Rollen, Teams, Zugangsdaten und fremde Daten bleiben ausgeschlossen. Der Verantwortliche muss ein überprüfbares Verfahren für Löschung, Archivierung und Betroffenenanfragen festlegen."
-            }
-          ]
-        },
-        {
-          "id": "rechte",
-          "title": "Rechte und Beschwerde in Italien",
-          "blocks": [
-            {
-              "p": "Du kannst Auskunft, Berichtigung, Löschung, Einschränkung, Datenübertragbarkeit oder Widerspruch nach Art. 15-21 DSGVO beim Verantwortlichen verlangen. Außerdem kannst du dich beim italienischen Garante per la protezione dei dati personali beschweren. Gibt es einen Datenschutzbeauftragten, müssen seine Kontaktdaten vom Verantwortlichen veröffentlicht werden."
-            }
-          ]
-        },
-        {
-          "id": "aktivierung",
-          "title": "Aktivierungssperre",
-          "blocks": [
-            {
-              "p": "Der Learn-Zugang in Produktion ist so ausgelegt, dass er deaktiviert bleibt, bis der Betreiber eine Version dieser Information und einen nicht geheimen Verweis auf die WebUntis-Freigabe konfiguriert. Vor Freischaltung sind zusätzlich die Rechtsprüfung durch Verantwortliche/Schule sowie die Prüfung der tatsächlich umgesetzten technischen und organisatorischen Maßnahmen erforderlich."
-            }
-          ]
-        },
-        {
-          "id": "quellen",
-          "title": "Offizielle Referenzen",
-          "blocks": [
-            {
-              "links": [
-                {
-                  "href": "https://eur-lex.europa.eu/eli/reg/2016/679/oj",
-                  "label": "Regolamento (UE) 2016/679"
-                },
-                {
-                  "href": "https://www.garanteprivacy.it/temi/trasparenza-ai-sensi-del-gdpr",
-                  "label": "Garante per la protezione dei dati personali"
-                },
-                {
-                  "href": "https://www.untis.at/datenschutz-wu-integrationen",
-                  "label": "Untis · WebUntis"
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "it": {
-      "title": "Informativa privacy · Pokyh Learn",
-      "lead": "Informazioni trasparenti sull’accesso con WebUntis e sull’uso di Pokyh Learn. Versione: 12 settembre 2026.",
-      "sections": [
-        {
-          "id": "verantwortlicher",
-          "title": "Titolare e autorizzazione della scuola",
-          "blocks": [
-            {
-              "p": "Il titolare e i contatti pubblici sono indicati nell’Impressum POKYH. Prima dell’attivazione, il titolare deve ottenere e documentare l’autorizzazione della scuola o dell’ente competente per l’integrazione WebUntis e, se applicabile, il rapporto previsto dall’art. 28 GDPR. L’accettazione da parte dell’utente non sostituisce tale autorizzazione."
-            },
-            {
-              "identity": "controller"
-            }
-          ]
-        },
-        {
-          "id": "daten",
-          "title": "Dati e finalità",
-          "blocks": [
-            {
-              "p": "Per verificare l’accesso vengono trattati il nome utente WebUntis e i dati minimi restituiti per associare un account POKYH esistente. Per il servizio di apprendimento vengono trattati preferenze, contenuti creati dall’utente, autorizzazioni, progressi, tentativi di quiz e dati tecnici strettamente necessari alla sicurezza. La password WebUntis è inviata solo tramite una connessione protetta per la verifica lato server: non viene salvata, registrata nei log né inserita nello spazio di archiviazione del browser."
-            }
-          ]
-        },
-        {
-          "id": "rechtsgrundlage",
-          "title": "Base giuridica e trasparenza",
-          "blocks": [
-            {
-              "p": "Il titolare deve indicare, prima della raccolta, la finalità concreta, la base giuridica, i destinatari, l’eventuale DPO, i trasferimenti e il periodo di conservazione nel proprio registro e nella presente informativa. La casella mostrata al login documenta la presa visione dell’informativa; non trasforma automaticamente il consenso nella base giuridica del trattamento."
-            }
-          ]
-        },
-        {
-          "id": "empfaenger",
-          "title": "Destinatari e fornitori",
-          "blocks": [
-            {
-              "p": "WebUntis è contattato esclusivamente per la verifica dell’account. Il backend POKYH e i fornitori tecnici autorizzati trattano i dati solo per fornire e proteggere il servizio. Un dizionario esterno, se attivato dal titolare, riceve esclusivamente la parola richiesta e la coppia linguistica quando un editor lo chiede espressamente; non riceve password WebUntis, token, profili o cronologie di apprendimento."
-            }
-          ]
-        },
-        {
-          "id": "aufbewahrung",
-          "title": "Conservazione e minimizzazione",
-          "blocks": [
-            {
-              "p": "I dati di apprendimento restano separati dai dati della scuola e sono conservati soltanto per il tempo definito e pubblicato dal titolare. Un export personale è limitato ai contenuti e progressi propri; ruoli, team, credenziali e dati altrui sono esclusi. Il titolare deve definire una procedura verificabile per cancellazione, archiviazione e risposta alle richieste."
-            }
-          ]
-        },
-        {
-          "id": "rechte",
-          "title": "Diritti e reclamo in Italia",
-          "blocks": [
-            {
-              "p": "Puoi chiedere accesso, rettifica, cancellazione, limitazione, portabilità o opposizione nei casi previsti dagli artt. 15-21 GDPR rivolgendoti al titolare. Hai inoltre diritto di proporre reclamo al Garante per la protezione dei dati personali. Se è stato designato un DPO, i suoi contatti devono essere resi disponibili dal titolare."
-            }
-          ]
-        },
-        {
-          "id": "aktivierung",
-          "title": "Blocco di attivazione",
-          "blocks": [
-            {
-              "p": "L’accesso Learn in produzione è progettato per restare disabilitato finché l’operatore non configura una versione di questa informativa e un riferimento non segreto all’autorizzazione WebUntis. Prima del rilascio sono necessari anche una revisione giuridica del titolare/scuola e la verifica delle misure tecniche e organizzative effettivamente adottate."
-            }
-          ]
-        },
-        {
-          "id": "quellen",
-          "title": "Fonti ufficiali di riferimento",
-          "blocks": [
-            {
-              "links": [
-                {
-                  "href": "https://eur-lex.europa.eu/eli/reg/2016/679/oj",
-                  "label": "Regolamento (UE) 2016/679"
-                },
-                {
-                  "href": "https://www.garanteprivacy.it/temi/trasparenza-ai-sensi-del-gdpr",
-                  "label": "Garante per la protezione dei dati personali"
-                },
-                {
-                  "href": "https://www.untis.at/datenschutz-wu-integrationen",
-                  "label": "Untis · WebUntis"
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "en": {
-      "title": "Privacy notice · Pokyh Learn",
-      "lead": "Transparent information about WebUntis sign-in and Pokyh Learn. Version: 12 September 2026.",
-      "sections": [
-        {
-          "id": "verantwortlicher",
-          "title": "Controller and school authorisation",
-          "blocks": [
-            {
-              "p": "The controller and public contact details are listed in the POKYH imprint. Before activation, the controller must document authorisation from the responsible school or body for the WebUntis integration and, where applicable, put the Article 28 GDPR processor relationship in place. A user acknowledgement does not replace that authorisation."
-            },
-            {
-              "identity": "controller"
-            }
-          ]
-        },
-        {
-          "id": "daten",
-          "title": "Data and purpose",
-          "blocks": [
-            {
-              "p": "To verify access, the service processes the WebUntis username and the minimum returned data needed to associate an existing POKYH account. For learning, it processes preferences, user-created content, permissions, progress, quiz attempts, and strictly necessary technical security data. The WebUntis password is transmitted only over a protected connection for server-side verification; it is not stored, logged, or put in browser persistent storage."
-            }
-          ]
-        },
-        {
-          "id": "rechtsgrundlage",
-          "title": "Legal basis and transparency",
-          "blocks": [
-            {
-              "p": "Before collection, the controller must state the concrete purpose, legal basis, recipients, any data protection officer, international transfers, and retention period in its records and this notice. The login acknowledgement records that the notice was read; it does not automatically turn consent into the legal basis."
-            }
-          ]
-        },
-        {
-          "id": "empfaenger",
-          "title": "Recipients and providers",
-          "blocks": [
-            {
-              "p": "WebUntis is contacted only to verify the account. The POKYH backend and authorised technical providers process data solely to provide and protect the service. If enabled by the controller and explicitly requested by an editor, an optional dictionary receives only the requested word and language pair-not WebUntis passwords, tokens, profiles, or learning history."
-            }
-          ]
-        },
-        {
-          "id": "aufbewahrung",
-          "title": "Retention and minimisation",
-          "blocks": [
-            {
-              "p": "Learning data remains separate from school data and is retained only for the period defined and published by the controller. A personal export is limited to the user’s own content and progress; roles, teams, credentials, and other people’s data are excluded. The controller must maintain a verifiable deletion, archive, and data-subject request process."
-            }
-          ]
-        },
-        {
-          "id": "rechte",
-          "title": "Rights and complaint in Italy",
-          "blocks": [
-            {
-              "p": "You may request access, rectification, erasure, restriction, portability, or objection under Articles 15-21 GDPR from the controller. You may also lodge a complaint with the Italian Garante per la protezione dei dati personali. If a data protection officer is appointed, the controller must publish their contact details."
-            }
-          ]
-        },
-        {
-          "id": "aktivierung",
-          "title": "Activation gate",
-          "blocks": [
-            {
-              "p": "Production Learn access is designed to remain disabled until the operator configures a version of this notice and a non-secret reference to the WebUntis authorisation. A legal review by the controller/school and verification of the actual technical and organisational measures are still required before launch."
-            }
-          ]
-        },
-        {
-          "id": "quellen",
-          "title": "Official references",
-          "blocks": [
-            {
-              "links": [
-                {
-                  "href": "https://eur-lex.europa.eu/eli/reg/2016/679/oj",
-                  "label": "Regolamento (UE) 2016/679"
-                },
-                {
-                  "href": "https://www.garanteprivacy.it/temi/trasparenza-ai-sensi-del-gdpr",
-                  "label": "Garante per la protezione dei dati personali"
-                },
-                {
-                  "href": "https://www.untis.at/datenschutz-wu-integrationen",
-                  "label": "Untis · WebUntis"
-                }
-              ]
             }
           ]
         }

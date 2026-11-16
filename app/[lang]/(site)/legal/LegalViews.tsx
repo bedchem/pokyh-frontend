@@ -14,22 +14,27 @@ import {
   LEGAL_UI,
   LEGAL_UPDATED,
   type Block,
+  type Condition,
   type CookieKind,
   type LegalDocView,
   type LegalLocale,
 } from './content';
 import CookieButton from './CookieButton';
 import { SITE_URL } from '@/lib/site-url';
+import { analyticsEnabled } from '@/lib/analytics-config';
 
-// Imprint, privacy notice, terms of use, cookies and the Pokyh Learn notice:
-// the overview (/legal/) and one page per text (/legal/<text>/), prerendered
-// per language. Older links with `?view=<text>` (the iOS and Android apps,
-// Pokyh Learn) are redirected (next.config.ts). The texts live in content.ts;
+// Imprint, privacy notice, terms of use and cookies: the overview (/legal/)
+// and one page per text (/legal/<text>/), prerendered per language. Older
+// links with `?view=<text>` (the iOS and Android apps) are redirected
+// (LegacyViewRedirect.tsx, deploy/nginx.conf). The texts live in content.ts;
 // the identity and contact details come from the deployment
 // (lib/legal-identity.ts). Legal seat: Italy.
 
-export const LEGAL_VIEWS: LegalDocView[] = ['impressum', 'datenschutz', 'nutzungsbedingungen', 'cookies', 'learn'];
+export const LEGAL_VIEWS: LegalDocView[] = ['impressum', 'datenschutz', 'nutzungsbedingungen', 'cookies'];
 export const isLegalView = (v: string | undefined): v is LegalDocView => !!v && (LEGAL_VIEWS as string[]).includes(v);
+
+/** Whether a section, block or row belongs to this build (content.ts `when`). */
+const shown = (x: { when?: Condition }) => !x.when || (x.when === 'analytics') === analyticsEnabled;
 
 // The category tones of the site, one per text.
 const TONE: Record<LegalDocView, string> = {
@@ -37,7 +42,6 @@ const TONE: Record<LegalDocView, string> = {
   datenschutz: 'bg-[var(--sage)] text-[var(--sage-ink)]',
   nutzungsbedingungen: 'bg-[var(--butter)] text-[var(--butter-ink)]',
   cookies: 'bg-[var(--blush)] text-[var(--blush-ink)]',
-  learn: 'bg-[var(--mint)] text-[var(--mint-ink)]',
 };
 
 
@@ -144,6 +148,7 @@ export function LegalDocumentView({ view, locale, identity }: { view: LegalDocVi
   const doc = LEGAL_DOCS[view][locale];
   const ui = LEGAL_UI[locale];
   const tiles = LEGAL_TILES[locale];
+  const sections = doc.sections.filter(shown).map((s) => ({ ...s, blocks: s.blocks.filter(shown) }));
   return (
     <>
       <Link href={`/${locale}/legal/`} className="group inline-flex items-center gap-2 text-[15px] font-semibold text-ink-2 hover:text-ink">
@@ -160,10 +165,10 @@ export function LegalDocumentView({ view, locale, identity }: { view: LegalDocVi
 
       <div className="mt-12 grid gap-10 lg:mt-16 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-16">
         <aside>
-          <LegalToc sections={doc.sections.map(({ id, title }) => ({ id, title }))} label={ui.contents} />
+          <LegalToc sections={sections.map(({ id, title }) => ({ id, title }))} label={ui.contents} />
         </aside>
         <article className="min-w-0">
-          {doc.sections.map((s, i) => (
+          {sections.map((s, i) => (
             <section key={s.id} id={s.id} aria-labelledby={`${s.id}-title`} className="scroll-mt-28 border-t border-line py-8 first:border-t-0 first:pt-0 md:py-10">
               <h2 id={`${s.id}-title`} className="flex items-baseline gap-4 text-[clamp(22px,2.4vw,30px)] font-bold leading-[1.15] tracking-[-0.025em] text-ink">
                 <span className="w-8 shrink-0 text-[0.7em] font-semibold tabular-nums text-ink-3">{i + 1}</span>
@@ -262,7 +267,7 @@ function BlockView({ block, locale, identity }: { block: Block; locale: LegalLoc
   if ('items' in block) {
     return (
       <dl className="flex flex-col">
-        {block.items.map((item) => (
+        {block.items.filter(shown).map((item) => (
           <div key={item.label} className="border-t border-line-soft py-4 first:border-t-0 first:pt-0">
             <dt className="text-[16px] font-bold text-ink">{item.label}</dt>
             <dd className="mt-1.5 max-w-[72ch] text-[15px] leading-[1.7] text-ink-2">{item.desc}</dd>
@@ -274,7 +279,7 @@ function BlockView({ block, locale, identity }: { block: Block; locale: LegalLoc
   if ('parties' in block) {
     return (
       <ul className="flex flex-col">
-        {block.parties.map((tp) => (
+        {block.parties.filter(shown).map((tp) => (
           <li key={tp.name} className="flex flex-col gap-1 border-t border-line-soft py-4 first:border-t-0 first:pt-0 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
             <span>
               <span className="block text-[16px] font-bold text-ink">{tp.name}</span>
@@ -289,7 +294,7 @@ function BlockView({ block, locale, identity }: { block: Block; locale: LegalLoc
   if ('cookies' in block) {
     return (
       <ul className="flex flex-col">
-        {block.cookies.map((row) => (
+        {block.cookies.filter(shown).map((row) => (
           <li key={row.name} className="border-t border-line-soft py-3.5 first:border-t-0 first:pt-0">
             <span className="flex flex-wrap items-center gap-2">
               <code className="rounded-[8px] bg-inset px-2 py-0.5 font-mono text-[13px] font-medium text-ink">{row.name}</code>

@@ -27,9 +27,7 @@ import AppIconApplier from '@/components/AppIconApplier';
 import ConsoleSecret from '@/components/ConsoleSecret';
 import { SITE_URL } from '@/lib/site-url';
 import { getLegalIdentity } from '@/lib/legal-identity';
-
-const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
-const analyticsEnabled = /^G-[A-Z0-9]+$/i.test(GA_ID ?? '');
+import { GA_ID, analyticsEnabled } from '@/lib/analytics-config';
 
 // Plus Jakarta Sans is the Android app's typeface; DM Mono sets tabular data
 // (times, periods, rooms) only. Neither is preloaded: a page whose text
