@@ -4,7 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type R
 import { CalendarBlank, CalendarCheck, CaretRight, Check, ListBullets, PaperPlaneTilt, Table } from '@phosphor-icons/react';
 import { DateTimeFields } from '@/components/ui/DateTimePicker';
 import ReasonList from './ReasonList';
-import TimetableLessonPicker, { dateToStr, lessonsForDate, type PickedRange } from './TimetableLessonPicker';
+import TimetableLessonPicker, { dateToStr, lessonIsOver, lessonsForDate, type PickedRange } from './TimetableLessonPicker';
 import Sheet from '@/components/ui/Sheet';
 import { Button } from '@/components/ui/Button';
 import { TextArea, FormStatus } from '@/components/ui/Field';
@@ -20,10 +20,12 @@ import { formatDate } from '@/lib/i18n/dateLocale';
 // to when, the reason and a text as labelled fields; the start, the end, the
 // lessons of a day and the reasons are steps inside the same sheet (back arrow,
 // their own button below); the send button stays pinned under the form, and a
-// confirmation ends it. Reasons, the default reason and the default range come
-// from WebUntis' own report dialog (absences/meta), so no school's hours are
-// built in; without them the range starts on today's first and last lesson
-// from the timetable, or empty.
+// check step shows everything entered once more before it goes to WebUntis,
+// and a confirmation ends it. Only what is still to come can be reported:
+// the range may not lie in the past. Reasons, the default reason and the
+// default range come from WebUntis' own report dialog (absences/meta), so no
+// school's hours are built in; without them the range runs over today's
+// lessons still to come from the timetable, or is empty.
 
 interface Props {
   personName?: string | null;
@@ -31,7 +33,12 @@ interface Props {
   onCreated: () => void;
 }
 
-type View = 'form' | 'start' | 'end' | 'reason' | 'lessons';
+type View = 'form' | 'start' | 'end' | 'reason' | 'lessons' | 'check';
+
+/** A date as "YYYY-MM-DDTHH:MM", the fields' format. */
+function toDt(d: Date): string {
+  return `${dateToStr(d)}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
 
 // "YYYY-MM-DDTHH:MM" → { ymd: "YYYYMMDD", hhmm: "HHMM" }
 function dtToParts(dt: string): { ymd: string; hhmm: string } | null {
@@ -87,6 +94,8 @@ export default function ReportAbsenceSheet({ personName, onClose, onCreated }: P
   const tc = useT(commonDict);
   const { tag } = useDateLocale();
   const formId = useId();
+  // When the sheet opened: the range can't end before then, nor start on an earlier day.
+  const [opened] = useState(() => toDt(new Date()));
   const [view, setView] = useState<View>('form');
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
@@ -114,13 +123,15 @@ export default function ReportAbsenceSheet({ personName, onClose, onCreated }: P
       const mins = n > 2359 || n % 100 > 59 ? n : Math.floor(n / 100) * 60 + (n % 100);
       return `${String(Math.floor(mins / 60)).padStart(2, '0')}${String(mins % 60).padStart(2, '0')}`;
     };
-    // Today's lessons: their first start and last end, when WebUntis gives no default range.
+    // Today's lessons still to come (not over, not called off): their first
+    // start and last end, when WebUntis gives no default range.
     const fromTimetable = () => {
-      const today = dateToStr(new Date());
+      const now = new Date();
+      const today = dateToStr(now);
       fetchTimetable(today)
         .then((res) => {
           if (!alive) return;
-          const lessons = lessonsForDate(res, today, '').filter((l) => !l.cancelled);
+          const lessons = lessonsForDate(res, today, '').filter((l) => !l.cancelled && !lessonIsOver(today, l, now));
           if (!lessons.length) return;
           const ymd = today.replace(/-/g, '');
           setStart((s) => s || partsToDt(ymd, lessons[0].startHHMM.replace(':', '')));
@@ -135,8 +146,10 @@ export default function ReportAbsenceSheet({ personName, onClose, onCreated }: P
         setReasons(list);
         const preset = list.find((r) => r.id === m.defaultReasonId);
         if (preset) setReason((r) => r ?? preset);
-        if (m.defaultDate && m.defaultStartTime != null && m.defaultEndTime != null && /^\d{8}$/.test(String(m.defaultDate))) {
-          const ymd = String(m.defaultDate);
+        const ymd = String(m.defaultDate ?? '');
+        // WebUntis' default range, unless it is already over (later in the day).
+        if (/^\d{8}$/.test(ymd) && m.defaultStartTime != null && m.defaultEndTime != null
+          && partsToDt(ymd, hhmm(m.defaultEndTime)) > toDt(new Date())) {
           setStart((s) => s || partsToDt(ymd, hhmm(m.defaultStartTime!)));
           setEnd((e) => e || partsToDt(ymd, hhmm(m.defaultEndTime!)));
         } else fromTimetable();
@@ -184,22 +197,44 @@ export default function ReportAbsenceSheet({ personName, onClose, onCreated }: P
     backToForm();
   }
 
-  async function submit(e?: FormEvent) {
-    e?.preventDefault();
-    if (submitting || done) return;
+  // The range and reason as they stand, or what is wrong with them.
+  function validate() {
     const sp = dtToParts(start);
     const ep = dtToParts(end);
-    const next = {
-      range: !sp || !ep ? t('errChooseRange') : `${ep.ymd}${ep.hhmm}` < `${sp.ymd}${sp.hhmm}` ? t('errEndAfterStart') : undefined,
+    const errs = {
+      range: !sp || !ep ? t('errChooseRange')
+        : `${ep.ymd}${ep.hhmm}` < `${sp.ymd}${sp.hhmm}` ? t('errEndAfterStart')
+        : end <= toDt(new Date()) ? t('errPast')
+        : undefined,
       reason: !reason ? t('errChooseReason') : undefined,
     };
-    setErrors(next);
-    setError('');
-    if (next.range || next.reason || !sp || !ep || !reason) return;
+    return { errs, ok: !errs.range && !errs.reason && sp && ep && reason ? { sp, ep, reason } : null };
+  }
 
+  // "Abwesenheit melden" shows everything once more before it is sent.
+  function review(e?: FormEvent) {
+    e?.preventDefault();
+    if (submitting || done) return;
+    const { errs, ok } = validate();
+    setErrors(errs);
+    setError('');
+    if (ok) setView('check');
+  }
+
+  async function send() {
+    if (submitting || done) return;
+    const { errs, ok } = validate();
+    if (!ok) {
+      // Time went by while checking: back to the fields that need a change.
+      setErrors(errs);
+      setView('form');
+      return;
+    }
+    const { sp, ep, reason: why } = ok;
+    setError('');
     setSubmitting(true);
     try {
-      await createAbsence({ startDate: sp.ymd, endDate: ep.ymd, startTime: sp.hhmm, endTime: ep.hhmm, reasonId: reason.id, text: text.trim() });
+      await createAbsence({ startDate: sp.ymd, endDate: ep.ymd, startTime: sp.hhmm, endTime: ep.hhmm, reasonId: why.id, text: text.trim() });
       setDone(true);
       setTimeout(() => { onCreated(); onClose(); }, 1200);
     } catch (err) {
@@ -218,19 +253,30 @@ export default function ReportAbsenceSheet({ personName, onClose, onCreated }: P
     return `${formatDate(d, tag, { weekday: 'short', day: 'numeric', month: 'short' })} · ${p.hhmm.slice(0, 2)}:${p.hhmm.slice(2)}`;
   };
   const sameDay = dtToParts(start)?.ymd === dtToParts(end)?.ymd;
+  const rangeText = sameDay ? `${show(start)} – ${end.slice(11)}` : `${show(start)} – ${show(end)}`;
+  // The end can't be set before the start, nor before now.
+  const endMin = start > opened ? start : opened;
 
-  const title = view === 'start' ? t('start') : view === 'end' ? t('end') : view === 'reason' ? t('reasonTitle') : view === 'lessons' ? t('fromTimetable') : t('report');
+  const title = view === 'start' ? t('start') : view === 'end' ? t('end') : view === 'reason' ? t('reasonTitle') : view === 'lessons' ? t('fromTimetable') : view === 'check' ? t('checkTitle') : t('report');
   // Every step has its own button (key): React must not turn the button just
   // clicked into the form's submit button while the click is still running,
   // or "Übernehmen" would also send the report.
   const footer = done ? undefined
     : view === 'form' ? (
-      <Button key="send" type="submit" form={formId} disabled={submitting} className="w-full">
-        {submitting
-          ? <span aria-hidden="true" className="size-[18px] animate-spin rounded-full border-2 border-current border-r-transparent" />
-          : <PaperPlaneTilt size={18} weight="bold" aria-hidden="true" />}
+      <Button key="review" type="submit" form={formId} className="w-full">
+        <PaperPlaneTilt size={18} weight="bold" aria-hidden="true" />
         {t('report')}
       </Button>
+    ) : view === 'check' ? (
+      <div key="check" className="flex gap-2.5">
+        <Button variant="quiet" onClick={backToForm} disabled={submitting} className="flex-1">{t('edit')}</Button>
+        <Button key="send" onClick={send} disabled={submitting} className="flex-[2]">
+          {submitting
+            ? <span aria-hidden="true" className="size-[18px] animate-spin rounded-full border-2 border-current border-r-transparent" />
+            : <PaperPlaneTilt size={18} weight="bold" aria-hidden="true" />}
+          {t('sendNow')}
+        </Button>
+      </div>
     ) : view === 'start' || view === 'end' ? (
       <Button key={`apply-${view}`} onClick={applyStep} disabled={!stepValue} className="w-full">{t('apply')}</Button>
     ) : view === 'lessons' ? (
@@ -242,8 +288,8 @@ export default function ReportAbsenceSheet({ personName, onClose, onCreated }: P
   return (
     <Sheet
       open
-      onClose={view === 'form' ? onClose : backToForm}
-      onBack={view === 'form' ? undefined : backToForm}
+      onClose={view === 'form' || submitting ? onClose : backToForm}
+      onBack={view === 'form' || submitting ? undefined : backToForm}
       backLabel={tc('back')}
       title={title}
       closeLabel={tc('close')}
@@ -255,14 +301,30 @@ export default function ReportAbsenceSheet({ personName, onClose, onCreated }: P
             <Check size={30} weight="bold" aria-hidden="true" />
           </span>
           <p className="mt-5 text-[19px] font-extrabold tracking-[-0.02em]">{t('reported')}</p>
-          <p className="mt-1 max-w-[36ch] text-[15px] text-ink-2 first-letter:uppercase">
-            {sameDay ? `${show(start)} – ${end.slice(11)}` : `${show(start)} – ${show(end)}`}
-          </p>
+          <p className="mt-1 max-w-[36ch] text-[15px] text-ink-2 first-letter:uppercase">{rangeText}</p>
+        </div>
+      ) : view === 'check' ? (
+        <div className="flex flex-col gap-4 pb-1">
+          <p className="text-[14.5px] leading-[1.5] text-ink-2">{t('checkLead')}</p>
+          <dl className="flex flex-col divide-y divide-line rounded-[14px] bg-inset">
+            {([
+              [t('forLabel'), personName || t('me')],
+              [t('spanLabel'), rangeText],
+              [t('reasonTitle'), reason?.name ?? ''],
+              ...(text.trim() ? [[t('text'), text.trim()]] : []),
+            ] as [string, string][]).map(([label, value]) => (
+              <div key={label} className="flex flex-col gap-0.5 px-4 py-3">
+                <dt className="text-[13px] font-semibold text-ink-2">{label}</dt>
+                <dd className="whitespace-pre-wrap break-words text-[15.5px] font-medium text-ink first-letter:uppercase">{value}</dd>
+              </div>
+            ))}
+          </dl>
+          {error && <FormStatus kind="error">{error}</FormStatus>}
         </div>
       ) : view === 'start' ? (
-        <DateTimeFields key="start" value={start} onValid={setStepValue} />
+        <DateTimeFields key="start" value={start} minDateTime={`${opened.slice(0, 10)}T00:00`} onValid={setStepValue} />
       ) : view === 'end' ? (
-        <DateTimeFields key="end" value={end} minDateTime={start || undefined} onValid={setStepValue} />
+        <DateTimeFields key="end" value={end} minDateTime={endMin} onValid={setStepValue} />
       ) : view === 'lessons' ? (
         <TimetableLessonPicker
           initialDate={dtToParts(start) ? new Date(start) : undefined}
@@ -276,7 +338,7 @@ export default function ReportAbsenceSheet({ personName, onClose, onCreated }: P
           onSelect={(r) => { setReason(r); setErrors((e) => ({ ...e, reason: undefined })); backToForm(); }}
         />
       ) : (
-        <form id={formId} onSubmit={submit} noValidate className="flex flex-col gap-5 pb-1">
+        <form id={formId} onSubmit={review} noValidate className="flex flex-col gap-5 pb-1">
           <div className="flex flex-col gap-1.5">
             <span className="text-[14px] font-semibold text-ink">{t('forLabel')}</span>
             <div className="flex min-h-14 items-center gap-3 rounded-[14px] bg-inset px-3 py-2">

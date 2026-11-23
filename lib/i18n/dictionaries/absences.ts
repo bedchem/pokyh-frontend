@@ -43,6 +43,11 @@ export type AbsencesKey =
   | 'textPlaceholder'
   | 'reasonsLoadFailed'
   | 'reported'
+  | 'errPast'
+  | 'checkTitle'
+  | 'checkLead'
+  | 'sendNow'
+  | 'edit'
   // ReasonPicker
   | 'reasonTitle'
   | 'searchReason'
@@ -51,6 +56,7 @@ export type AbsencesKey =
   | 'lesson'
   | 'noLessons'
   | 'cancelledSuffix'
+  | 'overSuffix'
   | 'takeLessons'
   | 'takeLesson'
   | 'chooseLessons'
@@ -104,15 +110,21 @@ export const absencesDict: Dictionary<AbsencesKey> = {
     textPlaceholder: 'Text hier eingeben',
     reasonsLoadFailed: 'Abwesenheitsgründe konnten gerade nicht geladen werden. Bitte versuche es später erneut.',
     reported: 'Abwesenheit gemeldet.',
+    errPast: 'Dieser Zeitraum ist schon vorbei. Melden kannst du nur, was noch kommt.',
+    checkTitle: 'Angaben prüfen',
+    checkLead: 'Stimmt alles? So wird die Abwesenheit in WebUntis gemeldet.',
+    sendNow: 'Jetzt melden',
+    edit: 'Ändern',
     reasonTitle: 'Abwesenheitsgrund',
     searchReason: 'Grund suchen…',
     noReasons: 'Keine Gründe gefunden.',
-    lesson: 'Stunde',
-    noLessons: 'Keine Stunden an diesem Tag.',
+    lesson: 'Unterricht',
+    noLessons: 'Kein Unterricht an diesem Tag.',
     cancelledSuffix: ' (entfällt)',
-    takeLessons: '{n} Stunden übernehmen',
-    takeLesson: '1 Stunde übernehmen',
-    chooseLessons: 'Stunden auswählen',
+    overSuffix: ' (vorbei)',
+    takeLessons: '{n} Unterrichtsblöcke übernehmen',
+    takeLesson: '1 Unterrichtsblock übernehmen',
+    chooseLessons: 'Unterrichtsblöcke auswählen',
     prevDay: 'Vorheriger Tag',
     nextDay: 'Nächster Tag',
     apply: 'Übernehmen',
@@ -162,15 +174,21 @@ export const absencesDict: Dictionary<AbsencesKey> = {
     textPlaceholder: 'Inserisci il testo qui',
     reasonsLoadFailed: 'Al momento non è stato possibile caricare i motivi di assenza. Riprova più tardi.',
     reported: 'Assenza segnalata.',
+    errPast: 'Questo periodo è già passato. Puoi segnalare solo ciò che deve ancora venire.',
+    checkTitle: 'Controlla i dati',
+    checkLead: 'È tutto giusto? Così l’assenza viene segnalata in WebUntis.',
+    sendNow: 'Segnala ora',
+    edit: 'Modifica',
     reasonTitle: 'Motivo dell’assenza',
     searchReason: 'Cerca motivo…',
     noReasons: 'Nessun motivo trovato.',
-    lesson: 'Ora',
+    lesson: 'Lezione',
     noLessons: 'Nessuna lezione in questo giorno.',
     cancelledSuffix: ' (annullata)',
-    takeLessons: 'Usa {n} ore',
-    takeLesson: 'Usa 1 ora',
-    chooseLessons: 'Seleziona le ore',
+    overSuffix: ' (passata)',
+    takeLessons: 'Usa {n} blocchi di lezione',
+    takeLesson: 'Usa 1 blocco di lezione',
+    chooseLessons: 'Seleziona i blocchi di lezione',
     prevDay: 'Giorno precedente',
     nextDay: 'Giorno successivo',
     apply: 'Applica',
@@ -220,15 +238,21 @@ export const absencesDict: Dictionary<AbsencesKey> = {
     textPlaceholder: 'Enter text here',
     reasonsLoadFailed: 'Absence reasons couldn’t be loaded right now. Please try again later.',
     reported: 'Absence reported.',
+    errPast: 'This period is already over. You can only report what is still to come.',
+    checkTitle: 'Check the details',
+    checkLead: 'All correct? This is how the absence is reported in WebUntis.',
+    sendNow: 'Report now',
+    edit: 'Edit',
     reasonTitle: 'Reason for absence',
     searchReason: 'Search reason…',
     noReasons: 'No reasons found.',
     lesson: 'Lesson',
     noLessons: 'No lessons on this day.',
     cancelledSuffix: ' (cancelled)',
-    takeLessons: 'Use {n} lessons',
-    takeLesson: 'Use 1 lesson',
-    chooseLessons: 'Select lessons',
+    overSuffix: ' (over)',
+    takeLessons: 'Use {n} lesson blocks',
+    takeLesson: 'Use 1 lesson block',
+    chooseLessons: 'Select lesson blocks',
     prevDay: 'Previous day',
     nextDay: 'Next day',
     apply: 'Apply',
@@ -283,8 +307,5 @@ export const absencesDict: Dictionary<AbsencesKey> = {
     lesson: "Ëura",
     noLessons: "Deguna lezion te chësc di.",
     cancelledSuffix: " (suspendù)",
-    takeLessons: "Tò sëura {n} ëures",
-    takeLesson: "Tò sëura 1 ëura",
-    chooseLessons: "Cerni la ëures",
   },
 };

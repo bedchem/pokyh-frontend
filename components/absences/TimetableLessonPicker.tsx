@@ -20,12 +20,16 @@ export interface Lesson {
   startHHMM: string; // "07:50"
   endHHMM: string;
   label: string;
+  /** Called off with nothing in its place (no substitution, no other lesson). */
   cancelled: boolean;
 }
 
-// The lessons of one day to pick from, as a step inside the absence sheet:
-// the day can be moved back and forth, the chosen lessons become the range
-// (first start to last end), which the sheet takes over with its button.
+// The lesson blocks of one day to pick from, as a step inside the absence
+// sheet: a block is one entry of the timetable, often more than one period
+// (a double lesson). The day can be moved forward from today; the chosen
+// blocks become the range (first start to last end), which the sheet takes
+// over with its button. Blocks that are over, or called off with nothing in
+// their place, can't be chosen: there is nothing left to report for them.
 
 
 export function dateToStr(d: Date): string {
@@ -60,14 +64,21 @@ export function lessonsForDate(json: unknown, dateStr: string, fallbackLabel: st
       const sub = pos2.map((p) => p.current ?? p.removed).find((x): x is Named => !!x);
       if (!sub) continue; // skip breaks / empty slots
       const label = sub.shortName ?? sub.longName ?? sub.displayName ?? sub.name ?? fallbackLabel;
-      if (!byStart.has(start)) {
-        byStart.set(start, { startHHMM: start, endHHMM: end, label, cancelled: ge.status === 'CANCELLED' });
-      }
+      const lesson = { startHHMM: start, endHHMM: end, label, cancelled: ge.status === 'CANCELLED' };
+      // A cancelled lesson and its substitution share the start: the one that
+      // takes place wins, so the slot counts as cancelled only when all are.
+      const seen = byStart.get(start);
+      if (!seen || (seen.cancelled && !lesson.cancelled)) byStart.set(start, lesson);
     }
     return Array.from(byStart.values()).sort((a, b) => a.startHHMM.localeCompare(b.startHHMM));
   } catch {
     return [];
   }
+}
+
+/** Whether a lesson on that day ("YYYY-MM-DD") has ended by `now`. */
+export function lessonIsOver(dateStr: string, lesson: Lesson, now: Date): boolean {
+  return `${dateStr}T${lesson.endHHMM}` <= `${dateToStr(now)}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 }
 
 /** The range from the first chosen lesson's start to the last one's end. */
@@ -85,12 +96,20 @@ export default function TimetableLessonPicker({ initialDate, onChange }: {
 }) {
   const t = useT(absencesDict);
   const { tag } = useDateLocale();
-  const [day, setDay] = useState(() => {
-    const d = initialDate ? new Date(initialDate) : new Date();
+  // When the picker opened: what ended before then can't be chosen.
+  const [now] = useState(() => new Date());
+  const today = useMemo(() => {
+    const d = new Date(now);
     d.setHours(0, 0, 0, 0);
     return d;
+  }, [now]);
+  const [day, setDay] = useState(() => {
+    const d = initialDate ? new Date(initialDate) : new Date(now);
+    d.setHours(0, 0, 0, 0);
+    return d < today ? new Date(today) : d;
   });
   const dateStr = useMemo(() => dateToStr(day), [day]);
+  const atToday = day.getTime() <= today.getTime();
   // The lessons of the day shown, and which of them are chosen.
   const [loaded, setLoaded] = useState<{ date: string; lessons: Lesson[] } | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -110,6 +129,8 @@ export default function TimetableLessonPicker({ initialDate, onChange }: {
   }, [lessons, selected, dateStr, onChange]);
 
   function toggle(i: number) {
+    const l = lessons?.[i];
+    if (!l || l.cancelled || lessonIsOver(dateStr, l, now)) return;
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(i)) next.delete(i);
@@ -127,12 +148,12 @@ export default function TimetableLessonPicker({ initialDate, onChange }: {
     });
   }
 
-  const navButton = 'grid size-10 shrink-0 place-items-center rounded-full text-ink-2 transition-colors hover:bg-inset hover:text-ink';
+  const navButton = 'grid size-10 shrink-0 place-items-center rounded-full text-ink-2 transition-colors hover:bg-inset hover:text-ink disabled:pointer-events-none disabled:opacity-35';
 
   return (
     <div className="flex flex-col gap-3 pb-2">
       <div className="flex items-center justify-between gap-2 rounded-[16px] bg-inset p-1">
-        <button type="button" onClick={() => shiftDay(-1)} className={navButton} aria-label={t('prevDay')}>
+        <button type="button" onClick={() => shiftDay(-1)} disabled={atToday} className={navButton} aria-label={t('prevDay')}>
           <CaretLeft size={18} weight="bold" />
         </button>
         <span className="min-w-0 truncate text-center text-[15px] font-bold first-letter:uppercase" aria-live="polite">
@@ -156,20 +177,23 @@ export default function TimetableLessonPicker({ initialDate, onChange }: {
           <ul className="flex flex-col gap-0.5" aria-label={t('chooseLessons')}>
             {lessons.map((l, i) => {
               const sel = selected.has(i);
+              const over = lessonIsOver(dateStr, l, now);
+              const locked = l.cancelled || over;
               return (
                 <li key={`${l.startHHMM}-${i}`}>
                   <button
                     type="button"
                     role="checkbox"
                     aria-checked={sel}
+                    disabled={locked}
                     onClick={() => toggle(i)}
-                    className={`flex w-full items-center gap-3.5 rounded-[16px] px-3 py-3 text-left transition-colors duration-200 ${sel ? 'bg-[color-mix(in_srgb,var(--accent)_11%,transparent)]' : 'hover:bg-inset'} ${l.cancelled ? 'opacity-55' : ''}`}
+                    className={`flex w-full items-center gap-3.5 rounded-[16px] px-3 py-3 text-left transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${sel ? 'bg-[color-mix(in_srgb,var(--accent)_11%,transparent)]' : 'enabled:hover:bg-inset'}`}
                   >
-                    <span aria-hidden="true" className={`grid size-6 shrink-0 place-items-center rounded-[8px] transition-colors duration-200 ${sel ? 'bg-accent text-on-accent' : 'shadow-[inset_0_0_0_2px_var(--line)]'}`}>
+                    <span aria-hidden="true" className={`grid size-6 shrink-0 place-items-center rounded-[8px] transition-colors duration-200 ${sel ? 'bg-accent text-on-accent' : locked ? 'bg-inset' : 'shadow-[inset_0_0_0_2px_var(--line)]'}`}>
                       {sel && <Check size={14} weight="bold" />}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className={`block truncate text-[15.5px] text-ink ${sel ? 'font-bold' : 'font-semibold'}`}>{l.label}{l.cancelled ? t('cancelledSuffix') : ''}</span>
+                      <span className={`block truncate text-[15.5px] text-ink ${sel ? 'font-bold' : 'font-semibold'} ${l.cancelled ? 'line-through decoration-[1.5px]' : ''}`}>{l.label}{l.cancelled ? t('cancelledSuffix') : over ? t('overSuffix') : ''}</span>
                       <span className="block text-[13px] text-ink-2 tnum">{l.startHHMM} – {l.endHHMM}</span>
                     </span>
                   </button>
