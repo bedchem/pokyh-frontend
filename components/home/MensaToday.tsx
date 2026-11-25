@@ -9,13 +9,11 @@ import { formatDate } from '@/lib/i18n/dateLocale';
 import { api } from '@/lib/api-client';
 import { fadeIn, lightUp, useGsap } from '@/lib/motion';
 import { useMensaDishes } from '@/components/landing/useMensaDishes';
-import ExternalMediaNotice from '@/components/ExternalMediaNotice';
-import { useExternalMedia } from '@/lib/external-media';
 
 // The next dish on the plan and nothing else: the day it is for (today,
-// tomorrow, Monday …), its name, the stars it got from students and one
-// photo. The photo opens from below as the section arrives and leans towards
-// the pointer.
+// tomorrow, Monday …), its name, the stars it got from students and its
+// photo: the plate bare on the page, whole (the photos have a transparent
+// ground).
 
 const STAR = 'M12 2.8l2.8 5.9 6.4.8-4.7 4.5 1.2 6.4L12 17.3l-5.7 3.1 1.2-6.4-4.7-4.5 6.4-.8z';
 
@@ -45,13 +43,11 @@ function Stars({ value }: { value: number }) {
 
 export default function MensaToday() {
   const t = useT(frontpageDict);
-  const external = useExternalMedia();
   const { locale } = useLocale();
   const { tag } = useDateLocale();
   const localize = useLocalizeHref();
   const root = useRef<HTMLElement>(null);
   const dishes = useMensaDishes(root);
-  const photo = useRef<HTMLDivElement>(null);
   const [rating, setRating] = useState<{ avg: number; count: number } | null>(null);
 
   const pick = useMemo(() => {
@@ -75,26 +71,6 @@ export default function MensaToday() {
       .catch(() => { if (alive) setRating({ avg: 0, count: 0 }); });
     return () => { alive = false; };
   }, [pick]);
-
-  // The photo leans a little towards the pointer.
-  useGsap(({ gsap, reduced, scope: el }) => {
-    if (reduced || !window.matchMedia('(pointer: fine)').matches) return;
-    const rx = gsap.quickTo(el, 'rotationX', { duration: 0.8, ease: 'power3' });
-    const ry = gsap.quickTo(el, 'rotationY', { duration: 0.8, ease: 'power3' });
-    gsap.set(el, { transformPerspective: 900 });
-    const move = (e: PointerEvent) => {
-      const r = el.getBoundingClientRect();
-      ry(((e.clientX - (r.left + r.width / 2)) / r.width) * 10);
-      rx(-((e.clientY - (r.top + r.height / 2)) / r.height) * 10);
-    };
-    const leave = () => { rx(0); ry(0); };
-    el.addEventListener('pointermove', move);
-    el.addEventListener('pointerleave', leave);
-    return () => {
-      el.removeEventListener('pointermove', move);
-      el.removeEventListener('pointerleave', leave);
-    };
-  }, photo, [pick]);
 
   // Rises over the carousel with an arched top that flattens; the carousel
   // sinks back underneath.
@@ -152,15 +128,6 @@ export default function MensaToday() {
       tl.add(lightUp(gsap, heading.words), 0);
       if (name) tl.add(lightUp(gsap, name.words), 0.35);
       tl.add(fadeIn(gsap, scope.querySelectorAll('[data-rise], [data-star]'), { stagger: 0.06 }), 0.6);
-      const frame = scope.querySelector('[data-frame]');
-      if (frame) {
-        gsap.fromTo(frame.querySelector('img'), { scale: 1.4, yPercent: -6 }, {
-          scale: 1,
-          yPercent: 6,
-          ease: 'none',
-          scrollTrigger: { trigger: scope, start: 'top bottom', end: 'bottom top', scrub: 0.6 },
-        });
-      }
       return () => {
         heading.revert();
         name?.revert();
@@ -216,25 +183,17 @@ export default function MensaToday() {
           )}
         </div>
 
-        {pick?.dish.imageUrl && (external || pick.dish.ownImage ? (
-          <div ref={photo} className="justify-self-center will-change-transform md:justify-self-end">
-            <div data-frame className="aspect-[4/5] w-[min(78vw,420px)] overflow-hidden rounded-[clamp(22px,2.4vw,36px)] md:w-[clamp(280px,32vw,560px)]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={pick.dish.imageUrl}
-                alt={name}
-                loading="lazy"
-                decoding="async"
-                referrerPolicy="no-referrer"
-                className="h-full w-full object-cover"
-                onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }}
-              />
-            </div>
-            <ExternalMediaNotice className="mt-3 w-[min(78vw,420px)] md:w-[clamp(280px,32vw,560px)]" />
-          </div>
-        ) : (
-          <ExternalMediaNotice className="max-w-[420px] justify-self-center md:justify-self-end" />
-        ))}
+        {pick?.dish.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={pick.dish.imageUrl}
+            alt={name}
+            loading="lazy"
+            decoding="async"
+            className="aspect-square w-[min(84vw,460px)] justify-self-center object-contain md:w-[clamp(300px,36vw,620px)] md:justify-self-end"
+            onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }}
+          />
+        )}
       </div>
     </section>
   );

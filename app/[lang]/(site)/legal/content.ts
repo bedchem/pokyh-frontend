@@ -3,7 +3,7 @@
 // (LegalViews.tsx) numbers the sections, builds the table of contents and
 // fills in the identity and contact details from the deployment's
 // configuration (lib/legal-identity.ts). Legal seat: Italy. Version:
-// 18 November 2026.
+// 25 November 2026.
 //
 // A section, block or row with `when` is shown only in builds where Google
 // Analytics is on ('analytics') or off ('noAnalytics'), so the texts always
@@ -45,9 +45,9 @@ export interface LegalDocument {
 }
 
 export const LEGAL_UPDATED: Record<LegalLocale, string> = {
-  "de": "18. November 2026",
-  "it": "18 novembre 2026",
-  "en": "18 November 2026"
+  "de": "25. November 2026",
+  "it": "25 novembre 2026",
+  "en": "25 November 2026"
 };
 
 export const LEGAL_UI = {
@@ -536,7 +536,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 },
                 {
                   "label": "Fotos der Gerichte (Mensa)",
-                  "desc": "Die Fotos im Mensa-Speiseplan liegen auf dem POKYH-Server und werden von dort geladen; dabei erhält niemand außer POKYH Daten. Einzelne Fotos können noch auf fremden Seiten liegen: Die lädt dein Browser direkt von dort, und diese Seiten erhalten dabei wie bei jedem Seitenaufruf deine IP-Adresse und technische Angaben deines Browsers (z. B. Browsertyp), ohne Referrer, also ohne die Adresse der POKYH-Seite. Was diese Seiten damit tun, etwa ob sie Cookies setzen, liegt bei ihnen; viele Browser blockieren Cookies fremder Seiten. Rechtsgrundlage: berechtigtes Interesse (Art. 6 Abs. 1 lit. f DSGVO), den Speiseplan anschaulich zu zeigen. Du kannst jederzeit widersprechen (Art. 21 DSGVO): Mit „Fotos ausblenden“ auf der Mensa-Seite lädt dein Browser keine Fotos fremder Seiten mehr; die Wahl speichert er unter pokyh_external_media. Fotos vom POKYH-Server werden weiter angezeigt."
+                  "desc": "Die Fotos im Mensa-Speiseplan sind eigene Aufnahmen von POKYH. Sie liegen auf dem POKYH-Server und werden nur von dort geladen; dabei erhält niemand außer POKYH Daten."
                 },
                 {
                   "label": "Google Analytics 4 (GA4)",
@@ -665,11 +665,6 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "when": "analytics"
                 },
                 {
-                  "name": "Rezeptseiten (einzelne Fotos der Gerichte)",
-                  "purpose": "Einzelne Fotos im Mensa-Speiseplan, die noch auf anderen Seiten liegen und direkt von dort geladen werden (abschaltbar mit „Fotos ausblenden“)",
-                  "url": null
-                },
-                {
                   "name": "Buy Me a Coffee",
                   "purpose": "Freiwillige Unterstützung: nur wenn du den Link öffnest und dort unterstützt; für die Zahlung eigenständig verantwortlich",
                   "url": null
@@ -691,9 +686,6 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
             {
               "p": "Google LLC verarbeitet Daten von Google Analytics nur mit deiner Einwilligung in die Statistik, auch in den USA; auch dafür gilt das EU-US Data Privacy Framework (Art. 45 DSGVO).",
               "when": "analytics"
-            },
-            {
-              "p": "Rezeptseiten, von denen einzelne Fotos des Mensa-Speiseplans noch geladen werden, können ihren Sitz außerhalb der EU haben, auch in Ländern ohne Angemessenheitsbeschluss. Dein Browser lädt diese Fotos direkt von dort, solange du sie nicht mit „Fotos ausblenden“ abschaltest; dabei erhalten diese Seiten deine IP-Adresse. Möchtest du das nicht, blende die Fotos aus."
             }
           ]
         },
@@ -814,11 +806,6 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "name": "pokyh_school",
                   "kind": "setting",
                   "desc": "Die beim Anmelden gewählte Schule (localStorage, bis zum 31. August, mindestens 30 Tage)"
-                },
-                {
-                  "name": "pokyh_external_media",
-                  "kind": "setting",
-                  "desc": "Merkt sich, wenn du Fotos von anderen Seiten ausgeblendet hast (localStorage, bis du sie wieder einblendest)"
                 },
                 {
                   "name": "pokyh_theme",
@@ -992,7 +979,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 },
                 {
                   "label": "Foto dei piatti (mensa)",
-                  "desc": "Le foto del menù della mensa si trovano sul server di POKYH e vengono caricate da lì; nessuno oltre a POKYH riceve dati. Alcune foto possono trovarsi ancora su siti di terzi: il tuo browser le carica direttamente da lì e questi siti ricevono, come per ogni visita di una pagina, il tuo indirizzo IP e dati tecnici del browser (ad es. il tipo di browser), senza referrer, cioè senza l’indirizzo della pagina di POKYH. Cosa ne fanno questi siti, ad esempio se impostano cookie, dipende da loro; molti browser bloccano i cookie di siti terzi. Base giuridica: legittimo interesse (art. 6, par. 1, lett. f GDPR) a mostrare il menù in modo chiaro. Puoi opporti in qualsiasi momento (art. 21 GDPR): con «Nascondi le foto» nella pagina della mensa il browser non carica più foto da siti terzi; la scelta viene salvata in pokyh_external_media. Le foto dal server di POKYH restano visibili."
+                  "desc": "Le foto del menù della mensa sono scattate da POKYH. Si trovano sul server di POKYH e vengono caricate solo da lì; nessuno oltre a POKYH riceve dati."
                 },
                 {
                   "label": "Google Analytics 4 (GA4)",
@@ -1121,11 +1108,6 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "when": "analytics"
                 },
                 {
-                  "name": "Siti di ricette (alcune foto dei piatti)",
-                  "purpose": "Alcune foto del menù della mensa che si trovano ancora su altri siti e vengono caricate direttamente da lì (disattivabili con «Nascondi le foto»)",
-                  "url": null
-                },
-                {
                   "name": "Buy Me a Coffee",
                   "purpose": "Sostegno volontario: solo se apri il link e sostieni lì; titolare autonomo del pagamento",
                   "url": null
@@ -1147,9 +1129,6 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
             {
               "p": "Google LLC tratta i dati di Google Analytics solo con il tuo consenso alle statistiche, anche negli Stati Uniti; anche per questo vale l’EU-US Data Privacy Framework (art. 45 GDPR).",
               "when": "analytics"
-            },
-            {
-              "p": "I siti di ricette da cui vengono ancora caricate alcune foto del menù della mensa possono avere sede fuori dall’UE, anche in paesi senza decisione di adeguatezza. Il tuo browser carica queste foto direttamente da lì finché non le disattivi con «Nascondi le foto»; questi siti ricevono così il tuo indirizzo IP. Se non lo desideri, nascondi le foto."
             }
           ]
         },
@@ -1270,11 +1249,6 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "name": "pokyh_school",
                   "kind": "setting",
                   "desc": "La scuola scelta all’accesso (localStorage, fino al 31 agosto, almeno 30 giorni)"
-                },
-                {
-                  "name": "pokyh_external_media",
-                  "kind": "setting",
-                  "desc": "Ricorda se hai nascosto le foto da altri siti (localStorage, finché non le mostri di nuovo)"
                 },
                 {
                   "name": "pokyh_theme",
@@ -1448,7 +1422,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 },
                 {
                   "label": "Dish photos (canteen)",
-                  "desc": "The photos in the canteen menu are on the POKYH server and are loaded from there; nobody but POKYH receives any data. Some photos may still be on other sites: your browser loads those directly from there, and these sites receive, as with any page visit, your IP address and technical details of your browser (e.g. browser type), without a referrer, so without the address of the POKYH page. What these sites do with it, such as setting cookies, is up to them; many browsers block third-party cookies. Legal basis: legitimate interest (Art. 6(1)(f) GDPR) in showing the menu clearly. You can object at any time (Art. 21 GDPR): with “Hide photos” on the canteen page your browser no longer loads photos from other sites; it stores the choice as pokyh_external_media. Photos from the POKYH server are still shown."
+                  "desc": "The photos in the canteen menu are POKYH’s own. They are on the POKYH server and are loaded only from there; nobody but POKYH receives any data."
                 },
                 {
                   "label": "Google Analytics 4 (GA4)",
@@ -1577,11 +1551,6 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "when": "analytics"
                 },
                 {
-                  "name": "Recipe sites (some dish photos)",
-                  "purpose": "Some photos in the canteen menu that are still on other sites and are loaded directly from there (can be turned off with “Hide photos”)",
-                  "url": null
-                },
-                {
                   "name": "Buy Me a Coffee",
                   "purpose": "Voluntary support: only if you open the link and support there; independently responsible for the payment",
                   "url": null
@@ -1603,9 +1572,6 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
             {
               "p": "Google LLC processes Google Analytics data only with your consent to the statistics, also in the USA; the EU-US Data Privacy Framework (Art. 45 GDPR) applies to this as well.",
               "when": "analytics"
-            },
-            {
-              "p": "Recipe sites from which some photos of the canteen menu are still loaded may be based outside the EU, including in countries without an adequacy decision. Your browser loads these photos directly from there as long as you do not turn them off with “Hide photos”; these sites then receive your IP address. If you do not want that, hide the photos."
             }
           ]
         },
@@ -1726,11 +1692,6 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "name": "pokyh_school",
                   "kind": "setting",
                   "desc": "The school chosen at sign-in (localStorage, until 31 August, at least 30 days)"
-                },
-                {
-                  "name": "pokyh_external_media",
-                  "kind": "setting",
-                  "desc": "Remembers that you hid photos from other sites (localStorage, until you show them again)"
                 },
                 {
                   "name": "pokyh_theme",
@@ -2366,11 +2327,6 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Die beim Anmelden gewählte Schule (Anmeldename, Name, Adresse und Server laut WebUntis). Läuft am 31. August ab, frühestens nach 30 Tagen."
                 },
                 {
-                  "name": "pokyh_external_media",
-                  "kind": "setting",
-                  "desc": "Merkt sich, wenn du die Fotos der Gerichte von anderen Seiten ausgeblendet hast. Bleibt, bis du sie auf der Mensa-Seite wieder einblendest."
-                },
-                {
                   "name": "pokyh_locale",
                   "kind": "setting",
                   "desc": "Gewählte Sprache (Cookie, 1 Jahr)."
@@ -2648,11 +2604,6 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "La scuola scelta all’accesso (nome di accesso, nome, indirizzo e server secondo WebUntis). Scade il 31 agosto, non prima di 30 giorni."
                 },
                 {
-                  "name": "pokyh_external_media",
-                  "kind": "setting",
-                  "desc": "Ricorda se hai nascosto le foto dei piatti da altri siti. Resta finché non le mostri di nuovo nella pagina della mensa."
-                },
-                {
                   "name": "pokyh_locale",
                   "kind": "setting",
                   "desc": "Lingua scelta (cookie, 1 anno)."
@@ -2928,11 +2879,6 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "name": "pokyh_school",
                   "kind": "setting",
                   "desc": "The school chosen at sign-in (login name, name, address and server as listed by WebUntis). Expires on 31 August, not before 30 days."
-                },
-                {
-                  "name": "pokyh_external_media",
-                  "kind": "setting",
-                  "desc": "Remembers that you hid the dish photos from other sites. Stays until you show them again on the cafeteria page."
                 },
                 {
                   "name": "pokyh_locale",

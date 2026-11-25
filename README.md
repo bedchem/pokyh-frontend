@@ -433,8 +433,8 @@ current one.
 - Security headers come from the web server: HSTS, frame, referrer and permissions policies, and a
   Content-Security-Policy that forbids plugins, injected `<base>` elements, foreign form targets
   and framing by other sites.
-- Analytics and third-party media load only after consent; dish photos are loaded without a
-  referrer and can be hidden.
+- Analytics load only after consent. Dish photos are POKYH's own and come from the POKYH API,
+  so no other site is asked for them.
 
 Please report security issues privately to the contact named on the legal pages rather than in a
 public issue.

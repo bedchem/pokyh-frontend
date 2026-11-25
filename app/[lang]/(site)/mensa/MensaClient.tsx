@@ -3,7 +3,6 @@
 import { startTransition, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import PageIntro from '@/components/site/PageIntro';
-import ExternalMediaNotice from '@/components/ExternalMediaNotice';
 import PixelPlate from '@/components/mensa/PixelPlate';
 import PixelState from '@/components/app/PixelState';
 import { mensaAvailableIn } from '@/components/app/hooks';
@@ -18,7 +17,6 @@ import { CHOICE_PARAM, breakOn, breaksBetween, breaksFrom, canteenOf, daysFromTo
 import { holidayKey } from '@/lib/holidays';
 import { holidaysDict } from '@/lib/i18n/dictionaries/holidays';
 import { formatDate } from '@/lib/i18n/dateLocale';
-import { useExternalMedia } from '@/lib/external-media';
 
 // The Mensa plan, on the public site for everyone and inside the app
 // (/canteen) for accounts: the next dish served as pixel art between fork and
@@ -68,7 +66,6 @@ export default function MensaClient({ inApp = false, initialDays, initialCanteen
   const { locale } = useLocale();
   const { tag } = useDateLocale();
   const localize = useLocalizeHref();
-  const external = useExternalMedia();
   const { stableUid } = useApp();
   const menu = useMenu({ inApp, initialRaw: initialDays ? PRERENDERED : undefined, initialCanteens, listed: canteensListed });
   const prerendered = menu.raw === PRERENDERED;
@@ -219,7 +216,7 @@ export default function MensaClient({ inApp = false, initialDays, initialCanteen
               <Link href={href(served.id)} aria-label={localized(served.name, locale)} className="rise mx-auto block w-full max-w-[640px]">
                 <PixelPlate
                   key={served.id}
-                  photo={external || served.ownImage ? served.imageUrl : null}
+                  photo={served.imageUrl}
                   style={foodStyleOf(served)}
                   seed={served.id}
                 />
@@ -251,10 +248,6 @@ export default function MensaClient({ inApp = false, initialDays, initialCanteen
                 )}
               </div>
             </div>
-
-            {days.some((d) => d.dishes.some((dish) => dish.imageUrl && !dish.ownImage)) && (
-              <ExternalMediaNotice className="mt-12 max-w-[640px]" />
-            )}
 
             {/* The whole plan, by week */}
             <h2 className="mt-24 text-[clamp(30px,3.6vw,48px)] font-extrabold leading-[1.04] tracking-[-0.045em] text-ink md:mt-32">{t('allDays')}</h2>

@@ -6,21 +6,18 @@ import { ArrowLeft, Star } from '@phosphor-icons/react';
 import CommentSection from '@/components/ui/CommentSection';
 import GuestCommentsLock from '@/components/ui/GuestCommentsLock';
 import PixelState from '@/components/app/PixelState';
-import ExternalMediaNotice from '@/components/ExternalMediaNotice';
 import { api, type ApiComment, type DishRatingsData } from '@/lib/api-client';
 import { CHOICE_PARAM, daysFromToday, dishesFrom, localized, upcomingDays, type MenuDay, type MenuDish } from '@/lib/mensa';
-import { useExternalMedia } from '@/lib/external-media';
 import { formatDate } from '@/lib/i18n/dateLocale';
 import { mensaDict } from '@/lib/i18n/dictionaries/mensa';
 import { useApp } from '@/providers/AppProvider';
 import { useSession } from '@/providers/SessionProvider';
 import { useDateLocale, useLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
-import PixelPlate from './PixelPlate';
 import { useMenu } from './useMenu';
-import { Food, LoginRequired, STAR, Stars, Tag, average, comma, foodStyleOf, loginHref, prioritizedTags } from './parts';
+import { Food, LoginRequired, STAR, Stars, Tag, average, comma, loginHref, prioritizedTags } from './parts';
 
 // One dish on its own page (the Mensa plan links here instead of opening a
-// sheet): the photo large, what it is, how the school rated it and the own
+// sheet): the photo large and whole, what it is, how the school rated it and the own
 // rating, nutrition, allergens and the comments. Guests read everything but
 // the comments; rating and commenting need an account of the canteen's
 // school (useMenu: another school's canteen is seen as a guest sees it).
@@ -52,7 +49,6 @@ export default function DishView({ id, inApp = false }: { id: string; inApp?: bo
   const { locale } = useLocale();
   const { tag } = useDateLocale();
   const localize = useLocalizeHref();
-  const external = useExternalMedia();
   const { stableUid } = useApp();
   const { user, isLoading: sessionLoading } = useSession();
   const isGuest = !sessionLoading && !user;
@@ -160,7 +156,7 @@ export default function DishView({ id, inApp = false }: { id: string; inApp?: bo
 
       {found === undefined && !error ? (
         <div aria-hidden="true" className="grid gap-10 md:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] md:gap-14">
-          <div className="skeleton aspect-[4/3] w-full rounded-[32px]" />
+          <div className="skeleton aspect-square w-full rounded-full" />
           <div className="flex flex-col gap-4 pt-2">
             <div className="skeleton h-5 w-40 rounded-full" />
             <div className="skeleton h-12 w-4/5 rounded-2xl" />
@@ -180,14 +176,7 @@ export default function DishView({ id, inApp = false }: { id: string; inApp?: bo
         <article className="rise grid gap-10 md:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] md:gap-14">
           <div className={`md:sticky md:self-start ${inApp ? 'md:top-4' : 'md:top-24'}`}>
             {back}
-            {dish.imageUrl && (external || dish.ownImage) ? (
-              <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[28px] bg-inset md:rounded-[36px]">
-                <Food dish={dish} alt={name} eager />
-              </div>
-            ) : (
-              <PixelPlate style={foodStyleOf(dish)} seed={dish.id} />
-            )}
-            {dish.imageUrl && !dish.ownImage && <ExternalMediaNotice className="mt-4" />}
+            <Food dish={dish} alt={name} eager />
           </div>
 
           <div className="min-w-0">

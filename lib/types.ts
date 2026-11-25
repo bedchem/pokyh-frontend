@@ -203,7 +203,7 @@ export interface Dish {
   category: string;
   date: string; // ISO date
   imageUrl?: string;
-  /** Uploaded to POKYH itself: no other site is asked for it (lib/external-media.ts). */
+  /** Kept on POKYH's own server (every dish photo is, since 2026-11-11). */
   ownImage?: boolean;
   price?: number;
   allergens?: string[];

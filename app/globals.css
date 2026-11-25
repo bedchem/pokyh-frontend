@@ -745,10 +745,11 @@ html.lenis body {
 .pxp-wisp { fill: var(--pxp-steam); }
 .pxp-spark, .pxp-glint-run, .pxp-spark-hover { fill: var(--pxp-spark); }
 .pxp-meal { image-rendering: pixelated; }
-/* The photo is shown as it is; the drawn meal under it leaves once it's in. */
+/* The photo fills the plate's well, cut to its pixel edge; the drawn meal
+   under it leaves once it's in. */
 .pxp-photo { opacity: 0; transition: opacity 0.3s steps(3, end); }
-.pxp-food[data-photo] .pxp-photo { opacity: 1; }
-.pxp-food[data-photo] .pxp-meal { visibility: hidden; transition: visibility 0s 0.3s; }
+.pxp[data-photo] .pxp-photo { opacity: 1; }
+.pxp[data-photo] .pxp-meal { visibility: hidden; transition: visibility 0s 0.3s; }
 
 /* The plate is laid from its middle outwards, ring by ring in pixel steps,
    the food a moment later; filled backwards only, so once laid nothing

@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 
 // A dish served as pixel art: a glazed plate, lit from the top left, with its
-// shadow dithered onto the table. The dish photo lies sharp in the well, cut
-// to the plate's pixel edge; without a photo a small pixel meal in the dish's
-// style stands in. Two sizes: 'table' for the next dish (between fork and
+// shadow dithered onto the table. The dish photo fills the well, cut to the
+// plate's pixel edge (see "The photo" below); without a photo a small pixel
+// meal in the dish's style stands in. Two sizes: 'table' for the next dish (between fork and
 // knife, steam rising in steps, rim and blade glinting now and then) and
 // 'plate' for the plan's rows (the plate alone, a glint on hover). Both build
 // themselves from the middle outwards when they arrive (CSS in globals.css, .pxp-*). Drawn
@@ -185,16 +185,38 @@ function inFood(g: Geometry, x: number, y: number) {
   return dist(x, y, g.cx - box.x, g.cy - box.y) <= g.rFood;
 }
 
-/** The food's outline in whole pixels as a CSS polygon, so the photo keeps the plate's edge. */
-function foodClip(g: Geometry): string {
-  const { n } = foodBox(g);
+// ── The photo ─────────────────────────────────────────────────────────────
+// The dish photos are POKYH's own: a white plate from above on a transparent
+// ground, the plate filling about 96 % of the square. Put into the pixel
+// plate as they are, they were a small plate inside the plate. So the photo
+// fills the whole well instead, up to the step down from the rim, zoomed so
+// that its own white rim falls outside: the food lies on the pixel plate.
+
+/** The share of the photo's width that the well shows: inside the photo's own rim (its plate ends at 0.48). */
+const PHOTO_WELL = 0.4;
+
+/** Radius of the well the photo fills: inside the step down from the rim. */
+const wellRadius = (g: Geometry) => g.rRim - 1;
+
+/** The well's square on the scene, in whole pixels, centred on the plate. */
+function wellBox(g: Geometry) {
+  const r = wellRadius(g);
+  const x = Math.floor(g.cx - r);
+  const y = Math.floor(g.cy - r);
+  return { x, y, n: Math.ceil(g.cx + r) - x };
+}
+
+/** The well's outline in whole pixels as a CSS polygon, so the photo keeps the plate's pixel edge. */
+function wellClip(g: Geometry): string {
+  const { x: bx, y: by, n } = wellBox(g);
+  const r = wellRadius(g);
   const right: string[] = [];
   const left: string[] = [];
   const p = (x: number, y: number) => `${+((x / n) * 100).toFixed(3)}% ${+((y / n) * 100).toFixed(3)}%`;
   for (let y = 0; y < n; y++) {
     let x0 = -1;
     let x1 = -1;
-    for (let x = 0; x < n; x++) if (inFood(g, x, y)) { if (x0 < 0) x0 = x; x1 = x; }
+    for (let x = 0; x < n; x++) if (dist(x + bx, y + by, g.cx, g.cy) <= r) { if (x0 < 0) x0 = x; x1 = x; }
     if (x0 < 0) continue;
     right.push(p(x1 + 1, y), p(x1 + 1, y + 1));
     left.unshift(p(x0, y + 1), p(x0, y));
@@ -222,7 +244,7 @@ function d(layer: Layer): string {
 
 function sceneFor(size: PlateSize): Built {
   const g = GEOMETRY[size];
-  return (built[size] ??= { scene: buildScene(g, size === 'table'), clip: foodClip(g) });
+  return (built[size] ??= { scene: buildScene(g, size === 'table'), clip: wellClip(g) });
 }
 
 // ── Food ──────────────────────────────────────────────────────────────────
@@ -393,7 +415,7 @@ export default function PixelPlate({
   empty = false,
   className = '',
 }: {
-  /** The dish photo, when there is one and the visitor allows outside pictures. */
+  /** The dish photo, when there is one. */
   photo?: string | null;
   style: FoodStyle;
   /** Keeps the drawn meal the same for the same dish. */
@@ -409,6 +431,9 @@ export default function PixelPlate({
   const [failed, setFailed] = useState<string | null>(null);
   const g = GEOMETRY[size];
   const box = foodBox(g);
+  const well = wellBox(g);
+  // The photo's width on the scene: the well shows PHOTO_WELL of it on each side of the middle.
+  const shot = wellRadius(g) / PHOTO_WELL;
   const { scene: sc, clip } = sceneFor(size);
   const table = size === 'table';
 
@@ -418,7 +443,11 @@ export default function PixelPlate({
   }, [size, style, seed, empty]);
 
   return (
-    <span className={`pxp relative block ${table ? 'w-full' : ''} ${className}`} style={{ aspectRatio: `${g.w} / ${g.h}` }}>
+    <span
+      className={`pxp relative block ${table ? 'w-full' : ''} ${className}`}
+      style={{ aspectRatio: `${g.w} / ${g.h}` }}
+      data-photo={photo && loaded === photo ? 'true' : undefined}
+    >
       <svg viewBox={`0 0 ${g.w} ${g.h}`} className="pxp-art absolute inset-0 h-full w-full" shapeRendering="crispEdges" aria-hidden="true">
         <path d={d(sc.shadowSoft)} className="pxp-shadow-soft" />
         <path d={d(sc.shadow)} className="pxp-shadow" />
@@ -454,26 +483,35 @@ export default function PixelPlate({
       </svg>
       {!empty && <span
         className="pxp-food absolute"
-        data-photo={photo && loaded === photo ? 'true' : undefined}
         style={{ left: `${(box.x / g.w) * 100}%`, top: `${(box.y / g.h) * 100}%`, width: `${(box.n / g.w) * 100}%`, height: `${(box.n / g.h) * 100}%` }}
         aria-hidden="true"
       >
         <canvas ref={canvas} width={box.n} height={box.n} className="pxp-meal absolute inset-0 h-full w-full" />
-        {photo && failed !== photo && (
-          // eslint-disable-next-line @next/next/no-img-element
+      </span>}
+      {!empty && photo && failed !== photo && (
+        <span
+          className="pxp-food absolute"
+          style={{ left: `${(well.x / g.w) * 100}%`, top: `${(well.y / g.h) * 100}%`, width: `${(well.n / g.w) * 100}%`, height: `${(well.n / g.h) * 100}%`, clipPath: clip }}
+          aria-hidden="true"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={photo}
             alt=""
             loading={table ? 'eager' : 'lazy'}
             decoding="async"
-            referrerPolicy="no-referrer"
             onLoad={() => setLoaded(photo)}
             onError={() => setFailed(photo)}
-            className="pxp-photo absolute inset-0 h-full w-full object-cover"
-            style={{ clipPath: clip }}
+            className="pxp-photo absolute max-w-none"
+            style={{
+              left: `${((g.cx - well.x - shot / 2) / well.n) * 100}%`,
+              top: `${((g.cy - well.y - shot / 2) / well.n) * 100}%`,
+              width: `${(shot / well.n) * 100}%`,
+              height: `${(shot / well.n) * 100}%`,
+            }}
           />
-        )}
-      </span>}
+        </span>
+      )}
       {table && (
         <svg viewBox={`0 0 ${g.w} ${g.h}`} className="pxp-steam pointer-events-none absolute inset-0 h-full w-full" shapeRendering="crispEdges" aria-hidden="true">
           <path d="M50 13h1v1h-1zM51 11h1v1h-1zM51 9h1v1h-1zM50 7h1v1h-1z" className="pxp-wisp" />

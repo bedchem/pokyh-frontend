@@ -1,13 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { ForkKnife, Lock, Star } from '@phosphor-icons/react';
+import { useState } from 'react';
+import { Lock, Star } from '@phosphor-icons/react';
 import { TONE, type SiteTone } from '@/components/site/PageIntro';
 import type { Dish } from '@/lib/types';
 import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { mensaDict } from '@/lib/i18n/dictionaries/mensa';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
-import { useExternalMedia } from '@/lib/external-media';
 import PixelPlate, { type FoodStyle } from './PixelPlate';
 
 // Pieces the Mensa plan and the dish pages share: the dish on a small plate,
@@ -56,38 +56,31 @@ export function average(ratings: Record<string, number> | undefined): number {
 
 export const comma = (n: number) => n.toFixed(1).replace('.', ',');
 
-/** The dish photo, unless the visitor hid outside pictures (lib/external-media.ts); one uploaded to POKYH is not one. */
+/**
+ * The dish photo as it is: POKYH's own photos are a plate from above on a
+ * transparent ground, so it stands bare, whole and square, never cropped.
+ * Without a photo, or when it cannot be loaded, the pixel plate serves it.
+ */
 export function Food({ dish, alt, eager = false }: { dish: Dish; alt: string; eager?: boolean }) {
-  const external = useExternalMedia();
-  return dish.imageUrl && (external || dish.ownImage) ? (
+  const [failed, setFailed] = useState<string | null>(null);
+  if (!dish.imageUrl || failed === dish.imageUrl) return <PixelPlate style={foodStyleOf(dish)} seed={dish.id} />;
+  const src = dish.imageUrl;
+  return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={dish.imageUrl}
+      src={src}
       alt={alt}
       loading={eager ? 'eager' : 'lazy'}
       decoding="async"
-      referrerPolicy="no-referrer"
-      className="absolute inset-0 h-full w-full object-cover"
+      onError={() => setFailed(src)}
+      className="block aspect-square w-full object-contain"
     />
-  ) : (
-    <span className={`absolute inset-0 grid place-items-center ${TONE[dishTone(dish)]}`}>
-      <ForkKnife size="34%" weight="duotone" aria-hidden="true" />
-    </span>
   );
 }
 
 /** A dish on the small pixel plate (without cutlery), for rows and chips. */
 export function Plate({ dish, className = '' }: { dish: Dish; className?: string }) {
-  const external = useExternalMedia();
-  return (
-    <PixelPlate
-      size="plate"
-      photo={external || dish.ownImage ? dish.imageUrl : null}
-      style={foodStyleOf(dish)}
-      seed={dish.id}
-      className={className}
-    />
-  );
+  return <PixelPlate size="plate" photo={dish.imageUrl} style={foodStyleOf(dish)} seed={dish.id} className={className} />;
 }
 
 export function Stars({ value, size = 16 }: { value: number; size?: number }) {

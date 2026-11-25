@@ -9,7 +9,6 @@ import { cellTone, fmtTime, toMins, toneVars, type MergedSlot } from '@/lib/time
 import type { MessagePreview, TimetableEntry } from '@/lib/types';
 import { Bone, Line, RowsSkeleton } from '@/components/app/Skeleton';
 import { initialsOf } from '@/components/app/hooks';
-import { useExternalMedia } from '@/lib/external-media';
 import PixelState from '@/components/app/PixelState';
 import { TONE_CLASS, type AppDestination } from '@/components/app/nav';
 import { fmtDateShort, formatMark, gradeClass } from '@/lib/grades';
@@ -293,8 +292,6 @@ function RatingText({ rating, noRating }: { rating: DashDish['rating']; noRating
 /** Today's (or the next) dishes: the first one large with its photo, the others as rows. */
 export function MensaCard({ dishes, loading, noRating }: { dishes: DashDish[]; loading: boolean; noRating: string }) {
   const localize = useLocalizeHref();
-  // Dish photos come from recipe sites: shown unless the visitor hid them (lib/external-media.ts).
-  const photos = useExternalMedia();
   const [lead, ...rest] = dishes;
   const card = `${tileBase} flex flex-col gap-1 bg-surface p-2`;
   if (loading) {
@@ -311,14 +308,15 @@ export function MensaCard({ dishes, loading, noRating }: { dishes: DashDish[]; l
   return (
     <div className={`${card} rise`}>
       <Link href={localize(`/canteen/dish/${encodeURIComponent(lead.id)}`)} className={`group flex items-center gap-4 rounded-[20px] p-2 ${hoverRow}`}>
-        <span className="relative block aspect-[4/3] w-32 shrink-0 overflow-hidden rounded-[16px] bg-butter text-butter-ink sm:w-44 xl:w-52">
-          {lead.imageUrl && photos ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={lead.imageUrl} alt="" loading="lazy" referrerPolicy="no-referrer" className="size-full object-cover transition-transform duration-700 ease-[var(--ease-out)] group-hover:scale-[1.05]" />
-          ) : (
+        {/* The photo is a plate on a transparent ground: shown whole */}
+        {lead.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={lead.imageUrl} alt="" loading="lazy" className="aspect-square w-24 shrink-0 object-contain sm:w-32 xl:w-36" />
+        ) : (
+          <span className="relative block aspect-[4/3] w-32 shrink-0 overflow-hidden rounded-[16px] bg-butter text-butter-ink sm:w-44 xl:w-52">
             <ForkKnife size={30} className="absolute inset-0 m-auto opacity-60" aria-hidden="true" />
-          )}
-        </span>
+          </span>
+        )}
         <span className="min-w-0 flex-1">
           <span className="line-clamp-2 text-[16.5px] font-bold leading-snug tracking-[-0.015em]">{lead.name}</span>
           <span className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-2">
@@ -329,12 +327,14 @@ export function MensaCard({ dishes, loading, noRating }: { dishes: DashDish[]; l
       </Link>
       {rest.map((d) => (
         <Link key={d.id} href={localize(`/canteen/dish/${encodeURIComponent(d.id)}`)} className={`flex items-center gap-3 rounded-[18px] px-3 py-2 ${hoverRow}`}>
-          <span className="relative size-11 shrink-0 overflow-hidden rounded-[12px] bg-butter text-butter-ink">
-            {d.imageUrl && photos
-              // eslint-disable-next-line @next/next/no-img-element
-              ? <img src={d.imageUrl} alt="" loading="lazy" referrerPolicy="no-referrer" className="size-full object-cover" />
-              : <ForkKnife size={18} className="absolute inset-0 m-auto opacity-60" aria-hidden="true" />}
-          </span>
+          {d.imageUrl
+            // eslint-disable-next-line @next/next/no-img-element
+            ? <img src={d.imageUrl} alt="" loading="lazy" className="size-11 shrink-0 object-contain" />
+            : (
+              <span className="relative size-11 shrink-0 overflow-hidden rounded-[12px] bg-butter text-butter-ink">
+                <ForkKnife size={18} className="absolute inset-0 m-auto opacity-60" aria-hidden="true" />
+              </span>
+            )}
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[15px] font-semibold">{d.name}</span>
             <span className="flex items-center gap-x-1.5 text-[12.5px] text-ink-2"><RatingText rating={d.rating} noRating={noRating} /></span>
