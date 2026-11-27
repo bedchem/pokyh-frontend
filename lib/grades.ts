@@ -1,7 +1,10 @@
 import type { GradeEntry, SubjectGrades } from './types';
 import { formatDate } from './i18n/dateLocale';
+import { clampToScale, gradeScale, isCritical, isExcellent, passes, scaleCertain, setGradeScaleFrom } from './grade-scale';
 
 export function parseGrades(json: unknown): SubjectGrades[] {
+  // The school's grading scale rides along with the grades (lib/grade-scale.ts).
+  setGradeScaleFrom(json);
   try {
     const root = json as Record<string, unknown>;
     const raw = (root?.subjects ?? []) as Array<Record<string, unknown>>;
@@ -29,8 +32,8 @@ export function parseGrades(json: unknown): SubjectGrades[] {
           teacherName: (s.teacherName as string) ?? '',
           grades: entries,
           average,
-          positiveCount: vals.filter((v) => v >= 6).length,
-          negativeCount: vals.filter((v) => v < 6).length,
+          positiveCount: vals.filter((v) => passes(v)).length,
+          negativeCount: vals.filter((v) => !passes(v)).length,
         } as SubjectGrades;
       })
       .filter((s) => s.subjectName)
@@ -98,8 +101,9 @@ export function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
+/** The mark kept within the school's scale (1 to 10 in Italy, 1 to 6 in Germany, …). */
 export function clampGrade(value: number): number {
-  return round2(Math.max(1, Math.min(10, value)));
+  return round2(clampToScale(value));
 }
 
 export function averageOf(values: number[]): number {
@@ -112,15 +116,19 @@ export function parseGradeInput(raw: string): number | null {
   if (!normalized) return null;
   const parsed = Number.parseFloat(normalized);
   if (!Number.isFinite(parsed)) return null;
-  if (parsed < 1 || parsed > 10) return null;
+  const scale = gradeScale();
+  if (parsed < scale.min || parsed > scale.max) return null;
   return round2(parsed);
 }
 
-export type GradeClass = 'v-excellent' | 'v-positive' | 'v-negative' | 'v-critical';
+/** A mark's tone; 'v-neutral' when the school's scale is not known for sure (no pass/fail colours then). */
+export type GradeClass = 'v-excellent' | 'v-positive' | 'v-negative' | 'v-critical' | 'v-neutral';
 
+/** The mark on the school's scale: excellent, passed, failed, or a critical fail. */
 export function gradeClass(value: number): GradeClass {
-  if (value >= 9) return 'v-excellent';
-  if (value >= 6) return 'v-positive';
-  if (value > 4) return 'v-negative';
-  return 'v-critical';
+  if (!scaleCertain()) return 'v-neutral';
+  if (isExcellent(value)) return 'v-excellent';
+  if (passes(value)) return 'v-positive';
+  if (isCritical(value)) return 'v-critical';
+  return 'v-negative';
 }

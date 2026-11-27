@@ -28,7 +28,9 @@ import {
   averageOf,
   gradeClass,
 } from '@/lib/grades';
+import { goodness, gradeScale, passes, scaleCertain } from '@/lib/grade-scale';
 
+/** The donut's colours by the Italian mark; other scales take the colour of the mark as good (lib/grade-scale.ts goodness). */
 const DONUT_GRADE_COLORS: Record<number, string> = {
   10: '#30D158',
   9: '#00C7BE',
@@ -164,16 +166,22 @@ export default function GradesPage() {
 
     const values = allGrades.map((g) => g.markDisplayValue).filter((v) => v > 0);
     const overallAvg = values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
-    const bestGrade = values.length ? Math.max(...values) : 0;
+    // The school's scale (lib/grade-scale.ts): in Germany or Austria 1 is the best mark.
+    const scale = gradeScale();
+    const certain = scaleCertain(scale);
+    const bestGrade = values.length ? (scale.higherIsBetter ? Math.max(...values) : Math.min(...values)) : 0;
     const latestGradeDate = allGrades.length ? allGrades[allGrades.length - 1].date : 0;
 
-    const pos = values.filter((v) => v >= 6).length;
-    const neg = values.filter((v) => v < 6).length;
+    const pos = values.filter((v) => passes(v, scale)).length;
+    const neg = values.length - pos;
     const passRate = values.length ? (pos / values.length) * 100 : 0;
 
-    const distribution = Array.from({ length: 10 }, () => 0);
+    // One bucket per whole mark of the scale (1 to 10, 1 to 6, 0 to 15 points).
+    const lowest = Math.round(scale.min);
+    const buckets = Math.round(scale.max) - lowest + 1;
+    const distribution = Array.from({ length: buckets }, () => 0);
     values.forEach((v) => {
-      const idx = Math.max(1, Math.min(10, Math.round(v))) - 1;
+      const idx = Math.max(0, Math.min(buckets - 1, Math.round(v) - lowest));
       distribution[idx] += 1;
     });
 
@@ -230,11 +238,13 @@ export default function GradesPage() {
     const minA = validAvgs.length ? Math.min(...validAvgs) : 1;
     const maxA = validAvgs.length ? Math.max(...validAvgs) : 10;
     const rangePad = Math.max(0.4, (maxA - minA) * 0.3);
-    const dataMin = Math.max(1, minA - rangePad);
-    const dataMax = Math.min(10, maxA + rangePad);
+    const dataMin = Math.max(scale.min, minA - rangePad);
+    const dataMax = Math.min(scale.max, maxA + rangePad);
+    // Better is up, on every scale (where 1 is best, a falling average climbs).
     const toSparkY = (v: number): number => {
       if (dataMax === dataMin) return 30;
-      return 54 - ((v - dataMin) / (dataMax - dataMin)) * 48;
+      const t = (v - dataMin) / (dataMax - dataMin);
+      return 54 - (scale.higherIsBetter ? t : 1 - t) * 48;
     };
 
     const sparkXs = cumulativeAvgs.map((_, i) =>
@@ -283,8 +293,10 @@ export default function GradesPage() {
     if (values.length > 0) {
       const CX = 55, CY = 55, R = 29, SW = 16, GAP = 0.035;
       const gradeEntries: [number, number][] = [];
-      for (let i = 9; i >= 0; i--) {
-        if (distribution[i] > 0) gradeEntries.push([i + 1, distribution[i]]);
+      // Best mark first, whichever end of the scale it is at.
+      const order = distribution.map((_, i) => i).sort((a, b) => (scale.higherIsBetter ? b - a : a - b));
+      for (const i of order) {
+        if (distribution[i] > 0) gradeEntries.push([i + lowest, distribution[i]]);
       }
       let startAngle = -Math.PI / 2;
       for (const [grade, count] of gradeEntries) {
@@ -301,7 +313,7 @@ export default function GradesPage() {
         donutSegs.push({
           grade,
           count,
-          color: DONUT_GRADE_COLORS[grade] ?? '#636366',
+          color: certain ? DONUT_GRADE_COLORS[Math.round(1 + goodness(grade, scale) * 9)] ?? '#636366' : '#8D8D93',
           path: `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${R} ${R} 0 ${sweep > Math.PI ? 1 : 0} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`,
           sweep,
           tickStart: [CX + outerEdge * Math.cos(midAngle), CY + outerEdge * Math.sin(midAngle)],
@@ -323,7 +335,10 @@ export default function GradesPage() {
       passRate,
       distribution,
       distMax,
-      mode: modeIdx + 1,
+      mode: modeIdx + lowest,
+      // A better average than last month: up in Italy, down where 1 is best.
+      improving: scale.higherIsBetter ? delta >= 0 : delta <= 0,
+      certain,
       median,
       sigma,
       delta,
@@ -469,7 +484,7 @@ export default function GradesPage() {
                     <div className="card-title">{t('avgTitle')}</div>
                     <div className="card-sub">{t('avgSub')}</div>
                   </div>
-                  <span className={`pill ${dashboard.delta >= 0 ? 'up' : 'down'}`}>
+                  <span className={`pill ${!dashboard.certain ? '' : dashboard.improving ? 'up' : 'down'}`}>
                     {dashboard.delta >= 0 ? '↗' : '↘'} {fmtNum(Math.abs(dashboard.delta), 2)}
                   </span>
                 </div>
@@ -526,18 +541,19 @@ export default function GradesPage() {
                   </div>
                   <span className="pill">{Math.round(dashboard.passRate)} %</span>
                 </div>
+                {/* Passed over failed: only where the school's scale is known for sure. */}
                 <div className="ratio">
-                  <span className="pos">{dashboard.pos}</span>
+                  <span className="pos">{dashboard.certain ? dashboard.pos : '-'}</span>
                   <span className="sep">/</span>
-                  <span className="neg">{dashboard.neg}</span>
+                  <span className="neg">{dashboard.certain ? dashboard.neg : '-'}</span>
                 </div>
                 <div className="ratio-bar" aria-hidden="true">
                   <div className="p" style={{ width: `${dashboard.passRate}%` }} />
                   <div className="n" style={{ width: `${100 - dashboard.passRate}%` }} />
                 </div>
                 <div className="kpi-foot">
-                  <span><span className="mono good">{dashboard.pos}</span> {t('above6')}</span>
-                  <span><span className="mono bad">{dashboard.neg}</span> {t('below6')}</span>
+                  <span><span className="mono good">{dashboard.certain ? dashboard.pos : '-'}</span> {t('above6')}</span>
+                  <span><span className="mono bad">{dashboard.certain ? dashboard.neg : '-'}</span> {t('below6')}</span>
                 </div>
               </div>
 

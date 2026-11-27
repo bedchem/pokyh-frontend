@@ -16,6 +16,8 @@ import Spinner from '@/components/ui/Spinner';
 import LanguageButton, { RoundFlag } from '@/components/site/LanguageButton';
 import { ACTIVE_LOCALES, LOCALE_LABELS, LOCALE_NAMES } from '@/lib/i18n/locale';
 import { installIntentPreload } from '@/lib/preload';
+import { fetchSubjects } from '@/lib/api';
+import { setYearSubjects } from '@/lib/timetable-logic';
 import Avatar from './Avatar';
 import Bell from './Bell';
 import SearchPalette from './SearchPalette';
@@ -45,6 +47,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
   // chosen (lib/preload.ts), only while signed in with WebUntis.
   useEffect(() => (untis ? installIntentPreload() : undefined), [untis]);
   useKeepUntisSession();
+
+  // The year's subjects, once per sign-in: every subject keeps one colour all
+  // year (lib/timetable-logic.ts). Until they are in, the device's last copy.
+  useEffect(() => {
+    if (!untis) return;
+    fetchSubjects().then(setYearSubjects).catch(() => { /* coloured by name meanwhile */ });
+  }, [untis]);
 
   // Transitions only after the stored sidebar state is applied, so a folded
   // sidebar doesn't animate shut on every page load.

@@ -12,6 +12,8 @@ import { initialsOf } from '@/components/app/hooks';
 import PixelState from '@/components/app/PixelState';
 import { TONE_CLASS, type AppDestination } from '@/components/app/nav';
 import { fmtDateShort, formatMark, gradeClass } from '@/lib/grades';
+import { passes, passesWell, scaleCertain } from '@/lib/grade-scale';
+import { dishImageSrc } from '@/lib/dish-image';
 
 // The dashboard's building blocks (home/page.tsx): list cards under plain
 // section headings, the exam as the one coloured block, the Mensa with its
@@ -159,16 +161,18 @@ export interface RecentGrade {
   enteredAt?: number | null;
 }
 
-/** Pass, borderline, fail, as category tones (thresholds of lib/colors.ts). */
+/** Pass, borderline, fail, as category tones, on the school's scale (lib/grade-scale.ts); plain when it is not known for sure. */
 export function gradeTone(v: number): string {
-  if (v >= 6.4) return 'bg-sage text-sage-ink';
-  if (v >= 6) return 'bg-butter text-butter-ink';
+  if (!scaleCertain()) return 'bg-inset text-ink';
+  if (passesWell(v)) return 'bg-sage text-sage-ink';
+  if (passes(v)) return 'bg-butter text-butter-ink';
   return 'bg-blush text-blush-ink';
 }
 
 export function gradeInk(v: number): string {
-  if (v >= 6.4) return 'text-success-ink';
-  if (v >= 6) return 'text-warning-ink';
+  if (!scaleCertain()) return 'text-ink';
+  if (passesWell(v)) return 'text-success-ink';
+  if (passes(v)) return 'text-warning-ink';
   return 'text-danger-ink';
 }
 
@@ -183,6 +187,7 @@ const MARK_TONE: Record<ReturnType<typeof gradeClass>, string> = {
   'v-positive': 'bg-sage text-sage-ink',
   'v-negative': 'bg-butter text-butter-ink',
   'v-critical': 'bg-blush text-blush-ink',
+  'v-neutral': 'bg-inset text-ink',
 };
 
 /**
@@ -311,7 +316,7 @@ export function MensaCard({ dishes, loading, noRating }: { dishes: DashDish[]; l
         {/* The photo is a plate on a transparent ground: shown whole */}
         {lead.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={lead.imageUrl} alt="" loading="lazy" className="aspect-square w-24 shrink-0 object-contain sm:w-32 xl:w-36" />
+          <img src={dishImageSrc(lead.imageUrl, 384) ?? lead.imageUrl} alt="" loading="lazy" className="aspect-square w-24 shrink-0 object-contain sm:w-32 xl:w-36" />
         ) : (
           <span className="relative block aspect-[4/3] w-32 shrink-0 overflow-hidden rounded-[16px] bg-butter text-butter-ink sm:w-44 xl:w-52">
             <ForkKnife size={30} className="absolute inset-0 m-auto opacity-60" aria-hidden="true" />
@@ -329,7 +334,7 @@ export function MensaCard({ dishes, loading, noRating }: { dishes: DashDish[]; l
         <Link key={d.id} href={localize(`/canteen/dish/${encodeURIComponent(d.id)}`)} className={`flex items-center gap-3 rounded-[18px] px-3 py-2 ${hoverRow}`}>
           {d.imageUrl
             // eslint-disable-next-line @next/next/no-img-element
-            ? <img src={d.imageUrl} alt="" loading="lazy" className="size-11 shrink-0 object-contain" />
+            ? <img src={dishImageSrc(d.imageUrl, 96) ?? d.imageUrl} alt="" loading="lazy" className="size-11 shrink-0 object-contain" />
             : (
               <span className="relative size-11 shrink-0 overflow-hidden rounded-[12px] bg-butter text-butter-ink">
                 <ForkKnife size={18} className="absolute inset-0 m-auto opacity-60" aria-hidden="true" />

@@ -23,6 +23,7 @@ import type {
   SentExcuse,
 } from './types';
 import { messageIsRead } from './untis-parse';
+import { setGradeScaleFrom } from './grade-scale';
 
 const DEBUG = process.env.NEXT_PUBLIC_DEBUG_API === 'true';
 
@@ -313,7 +314,9 @@ export function getTimetableStale(date?: string): unknown | undefined {
 
 /** Stored grades: without a year the current ones (as the dashboard loads them), with a year that year's. */
 export function getGradesStale(year?: number): unknown | undefined {
-  return pcGetStale(year ? `/api/webuntis/grades?year=${year}` : '/api/webuntis/grades');
+  const stale = pcGetStale(year ? `/api/webuntis/grades?year=${year}` : '/api/webuntis/grades');
+  setGradeScaleFrom(stale);
+  return stale;
 }
 
 export function getMessagesStale(folder: MessageFolder = 'inbox'): unknown | undefined {
@@ -389,7 +392,27 @@ export function fetchTimetableForCalc(date: string): Promise<unknown> {
 
 export function fetchGrades(year?: number) {
   const url = year ? `/api/webuntis/grades?year=${year}` : '/api/webuntis/grades';
-  return apiFetchCached(url);
+  // The school's grading scale rides along (lib/grade-scale.ts).
+  return apiFetchCached(url).then((json) => { setGradeScaleFrom(json); return json; });
+}
+
+/**
+ * The student's subjects of the school year (GET /webuntis/subjects, from
+ * WebUntis' list of graded lessons): the one list subjects are coloured from,
+ * so a subject keeps its colour all year (lib/timetable-logic.ts, setYearSubjects).
+ */
+export async function fetchSubjects(): Promise<string[]> {
+  // Quietly: colours are a nicety, so a failure (an API without the route yet,
+  // a lapsed session) leaves them by name and never signs anyone out, as an
+  // answer of 401 through apiFetch would.
+  try {
+    const res = await untisGet('/api/webuntis/subjects');
+    if (!res.ok) return [];
+    const json = (await res.json()) as { subjects?: unknown };
+    return Array.isArray(json?.subjects) ? json.subjects.filter((s): s is string => typeof s === 'string') : [];
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -778,7 +801,7 @@ export function fetchAbsenceMeta(): Promise<AbsenceMeta> {
   return apiFetchCached('/api/webuntis/absences/meta') as Promise<AbsenceMeta>;
 }
 
-/** Removes absences the account reported itself (WebUntis decides what may go). */
+/** Removes upcoming absences that are not excused yet (an absence reported by mistake); the API refuses any other. */
 export async function deleteAbsences(absenceIds: number[]): Promise<void> {
   await apiFetch('/api/webuntis/absences/delete', {
     method: 'POST',

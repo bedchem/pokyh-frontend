@@ -60,6 +60,8 @@ export type TimetableKey =
   | 'homework'
   | 'absent'
   | 'period'
+  | 'when'
+  | 'noTexts'
   | 'reason'
   | 'teacher'
   | 'room'
@@ -136,6 +138,8 @@ export const timetableDict: Dictionary<TimetableKey> = {
     homework: 'Hausaufgaben',
     absent: 'Abwesend',
     period: 'Zeitraum',
+    when: 'Zeit',
+    noTexts: 'Keine Notizen oder Hausaufgaben zu dieser Stunde.',
     reason: 'Grund',
     teacher: 'Lehrkraft',
     room: 'Raum',
@@ -210,6 +214,8 @@ export const timetableDict: Dictionary<TimetableKey> = {
     homework: 'Compiti',
     absent: 'Assente',
     period: 'Periodo',
+    when: 'Orario',
+    noTexts: 'Nessuna nota o compito per questa lezione.',
     reason: 'Motivo',
     teacher: 'Docente',
     room: 'Aula',
@@ -284,6 +290,8 @@ export const timetableDict: Dictionary<TimetableKey> = {
     homework: 'Homework',
     absent: 'Absent',
     period: 'Period',
+    when: 'Time',
+    noTexts: 'No notes or homework for this lesson.',
     reason: 'Reason',
     teacher: 'Teacher',
     room: 'Room',
@@ -353,6 +361,8 @@ export const timetableDict: Dictionary<TimetableKey> = {
     homework: "Lëures da cësa",
     absent: "Assënt",
     period: "Tëmp",
+    when: "Ora",
+    noTexts: "Nia nota y nia lauri da fé a cësa por chësta ora.",
     reason: "Rejon",
     teacher: "Nseniant",
     room: "Aula",

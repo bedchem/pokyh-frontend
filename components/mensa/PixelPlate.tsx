@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { PLATE_PX, TABLE_PX, dishImageSrc } from '@/lib/dish-image';
 
 // A dish served as pixel art: a glazed plate, lit from the top left, with its
 // shadow dithered onto the table. The dish photo fills the well, cut to the
@@ -496,7 +497,7 @@ export default function PixelPlate({
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={photo}
+            src={dishImageSrc(photo, table ? TABLE_PX : PLATE_PX) ?? photo}
             alt=""
             loading={table ? 'eager' : 'lazy'}
             decoding="async"

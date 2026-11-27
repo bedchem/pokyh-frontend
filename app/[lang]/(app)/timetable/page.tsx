@@ -190,7 +190,6 @@ function TimetableContent() {
       // Another timetable chosen meanwhile: this week belongs to the one before.
       if (sourceRef.current !== source) return;
       setPage(offset, { status: 'data', entries, savedAt: Date.now(), stale: false });
-      if (entries.length && !source) import('@/lib/api-client').then(({ api }) => api.subjectImages.reportSubjects(entries)).catch(() => {});
     } catch (e: unknown) {
       if (e instanceof Error && e.message === 'session_expired') { leaveForLogin(); return; }
       if (sourceRef.current !== source) return;

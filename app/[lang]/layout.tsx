@@ -18,7 +18,7 @@ import CookieBanner, { CookieAskScript } from '@/components/CookieBanner';
 import SkipLink from '@/components/SkipLink';
 import AnalyticsLoader from '@/components/AnalyticsLoader';
 import PWAInit from '@/components/PWAInit';
-import SubjectImagePreloader from '@/components/SubjectImagePreloader';
+import SubjectImageCacheCleanup from '@/components/SubjectImageCacheCleanup';
 import ThemeScript from '@/components/ThemeScript';
 import SessionScript from '@/components/SessionScript';
 import DevConsoleQuiet from '@/components/DevConsoleQuiet';
@@ -233,7 +233,7 @@ export default async function RootLayout({
                 <ActivityLoggerProvider>
                   {children}
                   <GlobalOverlays />
-                  <SubjectImagePreloader />
+                  <SubjectImageCacheCleanup />
                 </ActivityLoggerProvider>
               </AppProvider>
             </SessionProvider>

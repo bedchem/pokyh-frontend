@@ -2,7 +2,6 @@
 
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import {
-  ArrowElbowDownRight,
   ArrowsLeftRight,
   Backpack,
   BookOpenText,
@@ -23,7 +22,6 @@ import { timetableDict, type TimetableKey } from '@/lib/i18n/dictionaries/timeta
 import { commonDict } from '@/lib/i18n/dictionaries/common';
 import { formatDate } from '@/lib/i18n/dateLocale';
 import { BRAND, fmtTime, toMins, statusTone, subjectTone, toneVars, type MergedSlot, type Tone } from '@/lib/timetable-logic';
-import { resolveSubjectImageSrc, subjectImageKey } from '@/lib/subject-image-preload';
 import Sheet from '@/components/ui/Sheet';
 import { Line, LoadingLabel } from '@/components/app/Skeleton';
 import { loadLessonDetail, peekLessonDetail, type LessonDetail } from './lessonDetail';
@@ -37,12 +35,12 @@ const sameText = (a: string, b: string) => a.replace(/\s+/g, ' ').trim().toLower
 
 type TagKind = 'cancelled' | 'exam' | 'substitution' | 'event';
 
-/** The status chips: on the card colour, so they read on any subject's banner, each in its status colour. */
+/** The status chips, each in its status colour. */
 const TAG_CLASS: Record<TagKind, string> = {
-  cancelled: 'text-danger-ink',
-  exam: 'text-warning-ink',
-  substitution: 'text-periwinkle-ink',
-  event: 'text-sage-ink',
+  cancelled: 'bg-blush text-danger-ink',
+  exam: 'bg-butter text-butter-ink',
+  substitution: 'bg-periwinkle text-periwinkle-ink',
+  event: 'bg-sage text-sage-ink',
 };
 
 function tagsFor(slot: MergedSlot): TagKind[] {
@@ -69,8 +67,9 @@ const dateOf = (n: number) => new Date(Math.floor(n / 10000), (Math.floor(n / 10
 
 /**
  * The lesson popup, in the app's sheet: the subject as the title, a banner
- * in the subject's colour with its photo (or short name), day, time and
- * status, then everything else about the lesson. What only the lesson's
+ * in the subject's colour with the day, time and status, then
+ * everything else about the lesson (the Android app's popup is built the
+ * same way). What only the lesson's
  * detail knows (classes, group, lesson texts, homework) comes from WebUntis
  * separately; the part below the banner waits for it, so the popup fills in
  * once instead of row by row. The grid asks for the detail as soon as a
@@ -98,30 +97,12 @@ export default function LessonDetailSheet({
     : lessonAbsence(absences, d.date, toMins(d.startTime), toMins(d.endTime), todayNum, minute);
   const tone = detailTone(slot);
   const headerName = d.subjectLong || d.subjectName || d.note || t('lesson');
-  const short = d.subjectName || headerName.trim().slice(0, 3);
   const tags = tagsFor(slot);
   const day = formatDate(dateOf(d.date), dateTag, { weekday: 'long', day: 'numeric', month: 'long' });
 
-  const imageSubject = subjectImageKey(d.subjectLong, d.subjectName);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [imageShown, setImageShown] = useState(false);
   // Cancelled lessons have no detail worth waiting for.
   const [detail, setDetail] = useState<LessonDetail | null | undefined>(() => (d.isCancelled ? null : peekLessonDetail(d)));
   const [waited, setWaited] = useState(false);
-
-  useEffect(() => {
-    let alive = true;
-    if (!imageSubject) return;
-    import('@/lib/api-client').then(({ api }) =>
-      api.subjectImages.getCache().then(async cache => {
-        if (!cache.has(imageSubject)) return;
-        // Usually already downloaded in the background by SubjectImagePreloader.
-        const src = await resolveSubjectImageSrc(api.subjectImages.imageUrl(imageSubject));
-        if (alive && src) setImageUrl(src);
-      }),
-    ).catch(() => {});
-    return () => { alive = false; };
-  }, [imageSubject]);
 
   useEffect(() => {
     if (d.isCancelled || detail !== undefined) return;
@@ -153,82 +134,83 @@ export default function LessonDetailSheet({
     : '';
   const homeworks = detail?.homeworks ?? [];
 
+  // Laid out as a list of properties (Apple Calendar's info panel, Linear,
+  // Notion): the name in the subject's colour, its status right under it,
+  // then muted names in one column and the values lined up in the next, and
+  // the lesson's texts across the full width below.
   return (
-    <Sheet open onClose={onClose} title={headerName} closeLabel={tc('close')}>
-      <div className={`${s.toned} flex flex-col gap-4 pb-2`} style={toneVars(tone) as CSSProperties}>
-        {/* The lesson at a glance, in its own colour, like its block in the grid. */}
-        <div className="flex items-center gap-4 rounded-[20px] bg-[var(--tone-fill)] p-3 pr-4 text-[var(--tone-ink)]">
-          <span
-            aria-hidden="true"
-            className="relative grid size-[68px] shrink-0 place-items-center overflow-hidden rounded-[16px] bg-[color-mix(in_srgb,var(--tone-ink)_9%,transparent)] text-[17px] font-extrabold tracking-[-0.02em]"
-          >
-            <span className="max-w-full truncate px-1.5">{short}</span>
-            {imageUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={imageUrl}
-                alt=""
-                onLoad={() => setImageShown(true)}
-                onError={() => setImageUrl(null)}
-                className={`absolute inset-0 size-full object-cover transition-opacity duration-300 ${imageShown ? 'opacity-100' : 'opacity-0'}`}
-              />
-            )}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-[14px] font-semibold opacity-80 first-letter:uppercase">{day}</p>
-            <p className="mt-0.5 flex items-center gap-1.5 text-[20px] font-extrabold leading-tight tracking-[-0.02em] tabular-nums">
-              {fmtTime(d.startTime)} – {fmtTime(d.endTime)}
-            </p>
-            {tags.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {tags.map(k => (
-                  <span key={k} className={`rounded-full bg-surface px-2.5 py-1 text-[12.5px] font-bold leading-none ${TAG_CLASS[k]}`}>{t(k)}</span>
-                ))}
-              </div>
-            )}
-          </div>
+    <Sheet
+      open
+      onClose={onClose}
+      title={headerName}
+      closeLabel={tc('close')}
+      titleClassName={`${s.toned} !text-[26px] text-[var(--tone-ink)]`}
+      titleStyle={toneVars(tone) as CSSProperties}
+      underTitle={tags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {tags.map(k => (
+            <span key={k} className={`rounded-full px-2.5 py-1 text-[12.5px] font-bold leading-none ${TAG_CLASS[k]}`}>{t(k)}</span>
+          ))}
         </div>
+      )}
+    >
+      <div className={`${s.toned} pb-2`} style={toneVars(tone) as CSSProperties}>
+        {/* Close under the name or its status chip. */}
+        <dl className="-mt-1 flex flex-col gap-4 text-[15px] leading-snug">
+          <Prop icon={<Clock />} label={t('when')}>
+            <span className="first-letter:uppercase">{day}</span>
+            <span className="block font-semibold tabular-nums">{fmtTime(d.startTime)} – {fmtTime(d.endTime)}</span>
+          </Prop>
+          {ready && (
+            <>
+              <Facts d={d} classes={detail?.classes ?? []} group={detail?.group ?? ''} />
+              {absence && <AbsenceProp mark={absence.mark} covering={absence.covering} />}
+            </>
+          )}
+        </dl>
 
         {!ready ? (
           <DetailSkeleton rows={2 + (d.isExam ? 1 : 0)} label={t('detailsLoading')} />
         ) : (
-          <div className="flex flex-col gap-4 fade-in" style={{ animationDuration: '0.24s' }}>
-            <FactsList d={d} classes={detail?.classes ?? []} group={detail?.group ?? ''} />
-            {absence && <AbsenceBlock mark={absence.mark} covering={absence.covering} />}
-            {slot.replacement && <InsteadBlock other={slot.replacement} />}
-            {examText && <TextBlock icon={<Exam size={17} weight="bold" />} title={t('examContent')}>{examText}</TextBlock>}
-            {notes.map((n, i) => (
-              <TextBlock key={`${n.label}-${i}`} icon={n.label === 'teachingContent' ? <BookOpenText size={17} weight="bold" /> : <FileText size={17} weight="bold" />} title={t(n.label)}>
-                {n.text}
-              </TextBlock>
-            ))}
-            {homeworks.length > 0 && (
-              <TextBlock icon={<Backpack size={17} weight="bold" />} title={t('homework')}>
-                {homeworks.map((hw, i) => (
-                  <span key={hw.id ?? i} className="block border-line-soft [&+&]:mt-2.5 [&+&]:border-t [&+&]:pt-2.5">{hw.text}</span>
-                ))}
-              </TextBlock>
-            )}
-          </div>
+          // Always there, so a lesson with little to say still has the same shape.
+          (
+            <div className="mt-5 flex flex-col gap-4 border-t border-line pt-4 fade-in" style={{ animationDuration: '0.24s' }}>
+              {!slot.replacement && !examText && notes.length === 0 && homeworks.length === 0 && (
+                <p className="flex items-center gap-2 text-[15px] text-ink-3">
+                  <LabelIcon><FileText /></LabelIcon>
+                  {t('noTexts')}
+                </p>
+              )}
+              {slot.replacement && <InsteadSection other={slot.replacement} />}
+              {examText && <TextSection icon={<Exam />} title={t('examContent')}>{examText}</TextSection>}
+              {notes.map((n, i) => (
+                <TextSection key={`${n.label}-${i}`} icon={n.label === 'teachingContent' ? <BookOpenText /> : <FileText />} title={t(n.label)}>{n.text}</TextSection>
+              ))}
+              {homeworks.length > 0 && (
+                <TextSection icon={<Backpack />} title={t('homework')}>
+                  {homeworks.map((hw, i) => (
+                    <span key={hw.id ?? i} className="block [&+&]:mt-2">{hw.text}</span>
+                  ))}
+                </TextSection>
+              )}
+            </div>
+          )
         )}
       </div>
     </Sheet>
   );
 }
 
-/** Stands in for the part below the banner while the detail is on its way; invisible for a quick answer. */
+/** Stands in for the rest of the list while the detail is on its way; invisible for a quick answer. */
 function DetailSkeleton({ rows, label }: { rows: number; label: string }) {
   return (
-    <div className="fade-in" style={{ animationDelay: '140ms' }}>
+    <div className="mt-3 fade-in" style={{ animationDelay: '140ms' }}>
       <LoadingLabel>{label}</LoadingLabel>
-      <div className="flex flex-col rounded-[18px] bg-inset">
+      <div className="flex flex-col gap-3.5">
         {Array.from({ length: rows }, (_, i) => (
-          <div key={i} className="flex items-center gap-3 px-3.5 py-3">
-            <span aria-hidden="true" className="size-9 shrink-0 rounded-full bg-[var(--tone-fill)] opacity-60" />
-            <div className="flex min-w-0 flex-1 flex-col gap-2">
-              <Line w={64} h={10} />
-              <Line w={i % 2 ? '38%' : '56%'} h={13} />
-            </div>
+          <div key={i} className="flex items-center gap-6">
+            <Line w={64} h={12} />
+            <Line w={i % 2 ? '30%' : '45%'} h={14} />
           </div>
         ))}
       </div>
@@ -236,56 +218,58 @@ function DetailSkeleton({ rows, label }: { rows: number; label: string }) {
   );
 }
 
-function FactsList({ d, classes, group }: { d: TimetableEntry; classes: string[]; group: string }) {
+/** A label's glyph: the same size and weight everywhere, in the label's muted colour. */
+function LabelIcon({ children }: { children: ReactNode }) {
+  return (
+    <span aria-hidden="true" className="grid size-[18px] shrink-0 place-items-center [&>svg]:size-[18px]">
+      {children}
+    </span>
+  );
+}
+
+/** One property: its glyph and name, muted, then the value under them (as the texts below). */
+function Prop({ icon, label, children }: { icon: ReactNode; label: string; children: ReactNode }) {
+  return (
+    <div>
+      <dt className="flex items-center gap-2 text-ink-3">
+        <LabelIcon>{icon}</LabelIcon>
+        {label}
+      </dt>
+      <dd className="mt-1 min-w-0 pl-[26px] font-medium text-ink [overflow-wrap:anywhere]">{children}</dd>
+    </div>
+  );
+}
+
+function Facts({ d, classes, group }: { d: TimetableEntry; classes: string[]; group: string }) {
   const t = useT(timetableDict);
   const teacher = d.teacherLongName || d.teacherName;
   const origTeacher = d.originalTeacherLong || d.originalTeacher || '';
   const room = d.roomName;
   const origRoom = d.originalRoom || '';
-  const hasTeacher = !!teacher || !!origTeacher;
-  const hasRoom = !!room || !!origRoom;
-  if (!hasTeacher && !hasRoom && classes.length === 0 && !group) return null;
-
   return (
-    <ul className="flex flex-col rounded-[18px] bg-inset">
-      {hasTeacher && (
-        <FactRow icon={<ChalkboardTeacher size={18} weight="bold" />} label={t('teacher')}>
+    <>
+      {(teacher || origTeacher) && (
+        <Prop icon={<ChalkboardTeacher />} label={t('teacher')}>
           {origTeacher && origTeacher !== teacher ? <Change from={origTeacher} to={teacher} /> : teacher || origTeacher}
-        </FactRow>
+        </Prop>
       )}
-      {hasRoom && (
-        <FactRow icon={<MapPin size={18} weight="bold" />} label={t('room')}>
+      {(room || origRoom) && (
+        <Prop icon={<MapPin />} label={t('room')}>
           {origRoom && origRoom !== room ? <Change from={origRoom} to={room} /> : room || origRoom}
-        </FactRow>
+        </Prop>
       )}
-      {classes.length > 0 && <FactRow icon={<UsersThree size={18} weight="bold" />} label={t('classes')}>{classes.join(', ')}</FactRow>}
-      {group && <FactRow icon={<UsersThree size={18} weight="bold" />} label={t('group')}>{group}</FactRow>}
-    </ul>
+      {classes.length > 0 && <Prop icon={<UsersThree />} label={t('classes')}>{classes.join(', ')}</Prop>}
+      {group && <Prop icon={<UsersThree />} label={t('group')}>{group}</Prop>}
+    </>
   );
 }
 
-/** One line of the list: the glyph on the lesson's colour, the name, the value. */
-function FactRow({ icon, label, children }: { icon: ReactNode; label: string; children: ReactNode }) {
-  return (
-    <li className="flex items-center gap-3 border-line-soft px-3.5 py-3 [&+&]:border-t">
-      <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-[var(--tone-fill)] text-[var(--tone-ink)]">{icon}</span>
-      <div className="min-w-0">
-        <p className="text-[13px] font-medium text-ink-2">{label}</p>
-        <div className="text-[15.5px] font-semibold text-ink [overflow-wrap:anywhere]">{children}</div>
-      </div>
-    </li>
-  );
-}
-
-/** Old and new on their own lines: side by side, two full teacher names ran out of width. */
+/** The new value, and the one it replaces struck through under it. */
 function Change({ from, to }: { from: string; to: string }) {
   return (
     <>
-      <span className="block font-medium text-ink-3 line-through">{from}</span>
-      <span className="flex items-center gap-1.5 text-orange-ink">
-        <ArrowElbowDownRight size={14} weight="bold" aria-hidden="true" className="shrink-0 text-ink-3" />
-        {to || '–'}
-      </span>
+      <span className="block">{to || '–'}</span>
+      <span className="block text-[13.5px] font-normal text-ink-3 line-through">{from}</span>
     </>
   );
 }
@@ -295,7 +279,7 @@ function Change({ from, to }: { from: string; to: string }) {
  * An unexcused absence whose excuse went to the class teachers (Abwesenheiten → "Entschuldigen")
  * says so, as the absences page does, until the school marks it excused.
  */
-function AbsenceBlock({ mark, covering }: { mark: AbsenceMark; covering: AbsenceEntry[] }) {
+function AbsenceProp({ mark, covering }: { mark: AbsenceMark; covering: AbsenceEntry[] }) {
   const t = useT(timetableDict);
   const { tag } = useDateLocale();
   const [excuses, setExcuses] = useState<SentExcuse[]>(() => (mark === 'absent' ? getExcusesStale()?.excuses ?? [] : []));
@@ -311,59 +295,43 @@ function AbsenceBlock({ mark, covering }: { mark: AbsenceMark; covering: Absence
   const sentDate = sent && !Number.isNaN(Date.parse(sent.sentAt)) ? formatDate(new Date(sent.sentAt), tag, { day: 'numeric', month: 'short' }) : '';
   const markLabel = { preExcused: t('markPreExcused'), excused: t('markExcused'), absent: t('markAbsent') } as const;
   const reasons = [...new Set(covering.map((a) => a.reasonName).filter(Boolean))] as string[];
-  const tile = sent ? 'bg-butter text-butter-ink' : mark === 'absent' ? 'bg-blush text-blush-ink' : 'bg-sage text-sage-ink';
+  const ink = sent ? 'text-butter-ink' : mark === 'absent' ? 'text-danger-ink' : 'text-sage-ink';
   return (
-    <div className="flex items-start gap-3 rounded-[18px] bg-inset px-3.5 py-3">
-      <span aria-hidden="true" className={`grid size-9 shrink-0 place-items-center rounded-full ${tile}`}>
-        {sent ? <PaperPlaneTilt size={18} weight="bold" /> : <UserMinus size={18} weight="bold" />}
+    <Prop icon={sent ? <PaperPlaneTilt /> : <UserMinus />} label={t('absent')}>
+      <span className={`block font-semibold ${ink}`}>{sent ? t('markSent') : markLabel[mark]}</span>
+      <span className="block text-[13.5px] font-normal text-ink-2">
+        {covering.map((a) => absenceRangeText(a, t('wholeDay'))).join(', ')}
+        {reasons.length > 0 && ` · ${reasons.join(', ')}`}
       </span>
-      <div className="min-w-0">
-        <p className="text-[13px] font-medium text-ink-2">{t('absent')}</p>
-        <p className={`text-[15.5px] font-semibold ${mark === 'absent' && !sent ? 'text-danger' : 'text-ink'}`}>{sent ? t('markSent') : markLabel[mark]}</p>
-        {sent && sent.recipients.length > 0 && (
-          <p className="mt-0.5 text-[14px] text-ink-2">{sentDate ? t('sentTo', { names: sent.recipients.join(', '), date: sentDate }) : sent.recipients.join(', ')}</p>
-        )}
-        <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-[14px] text-ink-2">
-          <Clock size={14} weight="bold" aria-hidden="true" className="shrink-0" />
-          <span className="visually-hidden">{t('period')}: </span>
-          {covering.map((a) => absenceRangeText(a, t('wholeDay'))).join(', ')}
-        </p>
-        {reasons.length > 0 && <p className="mt-0.5 text-[14px] text-ink-2">{t('reason')}: {reasons.join(', ')}</p>}
-      </div>
-    </div>
+      {sent && sent.recipients.length > 0 && (
+        <span className="block text-[13.5px] font-normal text-ink-2">{sentDate ? t('sentTo', { names: sent.recipients.join(', '), date: sentDate }) : sent.recipients.join(', ')}</span>
+      )}
+    </Prop>
   );
 }
 
-/** "Stattdessen" from the cancelled original, "Statt" from the replacement. */
-function InsteadBlock({ other }: { other: TimetableEntry }) {
+/** "Stattdessen" from the cancelled original, "Statt" from the replacement: a section like the notes. */
+function InsteadSection({ other }: { other: TimetableEntry }) {
   const t = useT(timetableDict);
   const cancelled = other.isCancelled;
   const meta = [other.teacherName, other.roomName].filter(Boolean).join(' · ');
   return (
-    <div className="flex items-start gap-3 rounded-[18px] bg-inset px-3.5 py-3">
-      <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-surface text-ink-2">
-        <ArrowsLeftRight size={18} weight="bold" />
-      </span>
-      <div className="min-w-0">
-        <p className="text-[13px] font-medium text-ink-2">{cancelled ? t('insteadOf') : t('instead')}</p>
-        <p className={`text-[15.5px] font-semibold ${cancelled ? 'text-ink-3 line-through' : 'text-ink'}`}>
-          {other.subjectLong || other.subjectName || other.note || '–'}
-        </p>
-        {meta && <p className="text-[14px] text-ink-2">{meta}</p>}
-      </div>
-    </div>
+    <TextSection icon={<ArrowsLeftRight />} title={cancelled ? t('insteadOf') : t('instead')}>
+      <span className={cancelled ? 'text-ink-3 line-through' : ''}>{other.subjectLong || other.subjectName || other.note || '–'}</span>
+      {meta && <span className="text-ink-2"> · {meta}</span>}
+    </TextSection>
   );
 }
 
-/** A text of the lesson (note, lesson content, homework): its name with a small glyph, then the text. */
-function TextBlock({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
+/** A text of the lesson (instead, exam, note, lesson content, homework): its glyph and name, then the text. */
+function TextSection({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
   return (
-    <section className="rounded-[18px] bg-inset px-4 py-3.5">
-      <h3 className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-2">
-        <span aria-hidden="true" className="text-[var(--tone-ink)]">{icon}</span>
+    <section>
+      <h3 className="flex items-center gap-2 text-[15px] text-ink-3">
+        <LabelIcon>{icon}</LabelIcon>
         {title}
       </h3>
-      <div className="mt-1.5 whitespace-pre-wrap text-[15.5px] leading-[1.5] text-ink [overflow-wrap:anywhere]">{children}</div>
+      <div className="mt-1 whitespace-pre-wrap pl-[26px] text-[15px] leading-[1.55] text-ink [overflow-wrap:anywhere]">{children}</div>
     </section>
   );
 }

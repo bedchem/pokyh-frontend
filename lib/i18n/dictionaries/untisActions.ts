@@ -23,6 +23,10 @@ export type UntisActionKey =
   | 'resetDone'
   | 'resetOfficial'
   | 'exAction'
+  | 'delAction'
+  | 'delConfirm'
+  | 'delCancel'
+  | 'delFailed'
   | 'exTitle'
   | 'exLead'
   | 'exReason'
@@ -82,6 +86,10 @@ export const untisActionsDict: Dictionary<UntisActionKey> = {
     resetDone: 'WebUntis hat dir eine E-Mail mit dem Link zum Zurücksetzen geschickt.',
     resetOfficial: 'Stattdessen in WebUntis öffnen',
     exAction: 'Entschuldigen',
+    delAction: 'Löschen',
+    delConfirm: 'Wirklich löschen?',
+    delCancel: 'Abbrechen',
+    delFailed: 'Die Abwesenheit konnte nicht gelöscht werden.',
     exTitle: 'Abwesenheit entschuldigen',
     exLead: 'Deine Klassenlehrkraft bekommt in WebUntis eine Nachricht mit Grund und Notiz und trägt die Abwesenheit dann als entschuldigt ein.',
     exReason: 'Grund',
@@ -140,6 +148,10 @@ export const untisActionsDict: Dictionary<UntisActionKey> = {
     resetDone: 'WebUntis ti ha inviato un’e-mail con il link per reimpostare la password.',
     resetOfficial: 'Apri invece in WebUntis',
     exAction: 'Giustifica',
+    delAction: 'Elimina',
+    delConfirm: 'Eliminare davvero?',
+    delCancel: 'Annulla',
+    delFailed: 'Non è stato possibile eliminare l’assenza.',
     exTitle: 'Giustifica l’assenza',
     exLead: 'Chi coordina la tua classe riceve un messaggio in WebUntis con motivo e nota e segna poi l’assenza come giustificata.',
     exReason: 'Motivo',
@@ -198,6 +210,10 @@ export const untisActionsDict: Dictionary<UntisActionKey> = {
     resetDone: 'WebUntis has sent you an e-mail with the reset link.',
     resetOfficial: 'Open in WebUntis instead',
     exAction: 'Excuse',
+    delAction: 'Delete',
+    delConfirm: 'Really delete?',
+    delCancel: 'Cancel',
+    delFailed: 'The absence could not be deleted.',
     exTitle: 'Excuse the absence',
     exLead: 'Your class teacher gets a message in WebUntis with the reason and note, and then marks the absence as excused.',
     exReason: 'Reason',

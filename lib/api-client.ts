@@ -629,61 +629,6 @@ export const api = {
     },
   },
 
-  subjectImages: {
-    _cache: null as Set<string> | null,
-    _promise: null as Promise<Set<string>> | null,
-    _reported: false,
-
-    async getCache(): Promise<Set<string>> {
-      if (this._cache) return this._cache;
-      if (this._promise) return this._promise;
-      this._promise = apiFetch('/subject-images')
-        .then(r => r.ok ? r.json() : [])
-        .then((rows: Array<{ subject: string }>) => {
-          this._cache = new Set(rows.map(r => r.subject));
-          return this._cache!;
-        })
-        .catch(() => new Set<string>())
-        .finally(() => { this._promise = null; });
-      return this._promise;
-    },
-
-    invalidateCache(): void {
-      this._cache = null;
-      this._promise = null;
-    },
-
-    // The backend only accepts the API key as a header here, so this URL can't be used as
-    // an <img src> directly: fetch it via fetchImage() and display a blob URL instead.
-    imageUrl(subject: string): string {
-      const key = subject.toLowerCase().trim();
-      return `${API_BASE}/subject-images/${encodeURIComponent(key)}`;
-    },
-
-    fetchImage(url: string): Promise<Response> {
-      // no-cache: always revalidate (cheap 304 via ETag) so replaced images show up right away.
-      return fetch(url, { mode: 'cors', credentials: 'omit', cache: 'no-cache', headers: { 'X-API-Key': API_KEY } });
-    },
-
-    async reportSubjects(entries: Array<{ subjectName: string; subjectLong: string }>): Promise<void> {
-      if (this._reported) return;
-      this._reported = true;
-      const map = new Map<string, { key: string; longName: string; shortName: string }>();
-      for (const e of entries) {
-        if (!e.subjectName && !e.subjectLong) continue;
-        const key = (e.subjectLong || e.subjectName).toLowerCase().trim();
-        if (!map.has(key)) {
-          map.set(key, { key, longName: e.subjectLong || e.subjectName, shortName: e.subjectName });
-        }
-      }
-      if (map.size === 0) return;
-      await apiFetch('/subject-images/report', {
-        method: 'POST',
-        body: JSON.stringify({ subjects: [...map.values()] }),
-      }).catch(() => {});
-    },
-  },
-
   dishRatings: {
     // With `school`: what a guest sees of that school's ratings.
     async get(dishId: string, school?: string | null): Promise<DishRatingsData> {

@@ -17,6 +17,7 @@ import { CHOICE_PARAM, breakOn, breaksBetween, breaksFrom, canteenOf, daysFromTo
 import { holidayKey } from '@/lib/holidays';
 import { holidaysDict } from '@/lib/i18n/dictionaries/holidays';
 import { formatDate } from '@/lib/i18n/dateLocale';
+import { PLATE_PX, TABLE_PX, preloadDishImages } from '@/lib/dish-image';
 
 // The Mensa plan, on the public site for everyone and inside the app
 // (/canteen) for accounts: the next dish served as pixel art between fork and
@@ -157,6 +158,14 @@ export default function MensaClient({ inApp = false, initialDays, initialCanteen
   const several = (menu.canteens?.length ?? 0) > 1;
   const next = days?.[0] ?? null;
   const served = next ? leadDish(next) : null;
+
+  // The photos load as soon as the menu is in, not one by one as the plates
+  // scroll into view: every plate's small copy, the next dish's large one.
+  useEffect(() => {
+    if (!days) return;
+    preloadDishImages(days.flatMap((d) => d.dishes.map((dish) => dish.imageUrl)), PLATE_PX);
+    if (served?.imageUrl) preloadDishImages([served.imageUrl], TABLE_PX);
+  }, [days, served]);
   // A dish keeps the canteen it belongs to.
   const href = (id: string) => localize(inApp ? dishHref(id, true) : `${dishHref(id, false)}${menu.chosen ? `?${CHOICE_PARAM}=${encodeURIComponent(menu.chosen)}` : ''}`);
 

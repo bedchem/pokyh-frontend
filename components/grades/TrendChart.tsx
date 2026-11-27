@@ -2,6 +2,7 @@
 
 import { useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { fmtNum } from '@/lib/grades';
+import { gradeScale, passes, scaleCertain } from '@/lib/grade-scale';
 
 // The grade trend of one subject, read at a glance. A legend says what the
 // lines are: the grades in the order they were given (straight lines between
@@ -59,20 +60,26 @@ export default function TrendChart({
     return () => ro.disconnect();
   }, []);
 
+  // The school's scale (lib/grade-scale.ts): the axis runs from its best mark
+  // down to the critical fails (or the worst mark given), better always up.
+  const scale = gradeScale();
+  const certain = scaleCertain(scale);
   const values = points.map((p) => p.value);
-  const yMin = Math.min(4, Math.floor(Math.min(...values, 10)));
-  const yMax = 10;
+  const yMin = scale.higherIsBetter ? Math.max(scale.min, Math.min(Math.floor(scale.critical), Math.floor(Math.min(...values, scale.max)))) : scale.min;
+  const yMax = scale.higherIsBetter ? scale.max : Math.min(scale.max, Math.max(Math.ceil(scale.critical), Math.ceil(Math.max(...values, scale.min))));
   const innerW = w - PAD.left - PAD.right;
   const innerH = H - PAD.top - PAD.bottom;
-  const y = (v: number) => PAD.top + (1 - (v - yMin) / (yMax - yMin)) * innerH;
+  const y = (v: number) => {
+    const t = (v - yMin) / (yMax - yMin || 1);
+    return PAD.top + (scale.higherIsBetter ? 1 - t : t) * innerH;
+  };
   const x = (i: number) => PAD.left + (points.length === 1 ? innerW / 2 : (i / (points.length - 1)) * innerW);
 
   const geo = useMemo(() => {
     const pts = points.map((p, i) => ({ x: x(i), y: y(p.value), p }));
-    let sum = 0;
     const avg = points.map((p, i) => {
-      sum += p.value;
-      return { x: x(i), y: y(sum / (i + 1)), v: sum / (i + 1) };
+      const v = points.slice(0, i + 1).reduce((acc, q) => acc + q.value, 0) / (i + 1);
+      return { x: x(i), y: y(v), v };
     });
     const lastReal = points.reduce((last, p, i) => (!p.isCustom ? i : last), -1);
     const real = lastReal >= 0 ? pts.slice(0, lastReal + 1) : [];
@@ -88,7 +95,8 @@ export default function TrendChart({
   // Restart the drawing animation whenever the grades change.
   const drawKey = points.map((p) => `${p.value}${p.isCustom ? 'c' : ''}`).join('|') + `@${Math.round(w / 40)}`;
   const grid = Array.from({ length: yMax - yMin + 1 }, (_, i) => yMax - i);
-  const passY = y(6);
+  const passY = y(scale.pass);
+  const isPass = (g: number) => certain && g === scale.pass;
   const last = geo.pts[geo.pts.length - 1];
   const lastAvg = geo.avg[geo.avg.length - 1];
   const hp = hover !== null ? geo.pts[hover] : null;
@@ -185,17 +193,17 @@ export default function TrendChart({
           </defs>
 
           {/* Below the pass mark */}
-          <rect x={PAD.left} y={passY} width={innerW} height={PAD.top + innerH - passY} fill="var(--danger)" opacity="0.045" />
+          {certain && <rect x={PAD.left} y={passY} width={innerW} height={PAD.top + innerH - passY} fill="var(--danger)" opacity="0.045" />}
 
           {grid.map((g) => (
             <g key={g}>
-              {g !== 6 && <line x1={PAD.left} x2={PAD.left + innerW} y1={y(g)} y2={y(g)} stroke="var(--line)" strokeWidth="1" />}
+              {!isPass(g) && <line x1={PAD.left} x2={PAD.left + innerW} y1={y(g)} y2={y(g)} stroke="var(--line)" strokeWidth="1" />}
               <text
                 x={PAD.left - 10}
                 y={y(g)}
                 textAnchor="end"
                 dominantBaseline="central"
-                className={`tnum text-[11.5px] ${g === 6 ? 'fill-[var(--danger-ink)] font-bold' : 'fill-[var(--ink-3)] font-semibold'}`}
+                className={`tnum text-[11.5px] ${isPass(g) ? 'fill-[var(--danger-ink)] font-bold' : 'fill-[var(--ink-3)] font-semibold'}`}
               >
                 {g}
               </text>
@@ -225,7 +233,7 @@ export default function TrendChart({
             {hp && <line x1={hp.x} x2={hp.x} y1={PAD.top - 8} y2={PAD.top + innerH} stroke="var(--ink)" strokeOpacity="0.16" strokeWidth="1" />}
 
             {geo.pts.map(({ x: px, y: py, p }, i) => {
-              const pass = p.value >= 6;
+              const pass = !certain || passes(p.value, scale);
               const active = hover === i;
               return (
                 <g key={i} className="trend-pop" style={{ animationDelay: `${0.2 + (i / Math.max(1, points.length)) * 0.6}s`, transformOrigin: `${px}px ${py}px` }}>
@@ -275,7 +283,7 @@ export default function TrendChart({
           >
             <p className="truncate text-[12px] font-semibold text-ink-3">{hp.p.isCustom ? ownLabel : dateText(hp.p.date)} · {hp.p.label}</p>
             <div className="mt-1.5 flex items-end justify-between gap-3">
-              <span className={`text-[24px] font-extrabold leading-none tracking-[-0.04em] ${hp.p.value >= 6 ? 'text-ink' : 'text-danger-ink'}`}>{fmtNum(hp.p.value)}</span>
+              <span className={`text-[24px] font-extrabold leading-none tracking-[-0.04em] ${!certain || passes(hp.p.value, scale) ? 'text-ink' : 'text-danger-ink'}`}>{fmtNum(hp.p.value)}</span>
               <span className="text-right text-[11.5px] leading-tight text-ink-2">
                 {averageLabel}
                 <span className="block text-[14px] font-bold text-ink tnum">Ø {fmtNum(ha.v)}</span>

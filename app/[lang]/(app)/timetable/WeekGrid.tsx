@@ -21,7 +21,7 @@ import {
   dayKind,
   fieldParts,
   hhmm,
-  subjectHueMap,
+  hueMapFor,
   toMins,
   toneVars,
   type GridCell,
@@ -176,7 +176,7 @@ export default function WeekGrid({
   );
   const allEntries = useMemo(() => dayEntries.flat(), [dayEntries]);
   // This week's colours, from its own subjects (the weeks beside it are drawn at the same time).
-  const hues = useMemo(() => subjectHueMap(allEntries.map(e => e.subjectName)), [allEntries]);
+  const hues = useMemo(() => hueMapFor(allEntries.map(e => e.subjectName)), [allEntries]);
 
   const minMins = allEntries.length ? Math.min(...allEntries.map(e => toMins(e.startTime))) : TIMETABLE_PERIODS[0].startMinute;
   const maxMins = allEntries.length ? Math.max(...allEntries.map(e => toMins(e.endTime))) : TIMETABLE_PERIODS[TIMETABLE_PERIODS.length - 1].endMinute;

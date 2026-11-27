@@ -23,6 +23,7 @@ import {
   averageOf,
   parseGradeInput,
 } from '@/lib/grades';
+import { gradeScale, passes, passesWell, scaleCertain } from '@/lib/grade-scale';
 import { useDateLocale, useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { gradesDict } from '@/lib/i18n/dictionaries/grades';
 import { shellDict } from '@/lib/i18n/dictionaries/shell';
@@ -169,8 +170,11 @@ function SubjectDetailView({ idParam }: { idParam: string }) {
   }, [teacherRows, draft]);
 
   const liveAvg = averageOf(liveValues);
-  const positive = liveValues.filter((v) => v >= 6).length;
-  const negative = liveValues.filter((v) => v < 6).length;
+  // On the school's scale (lib/grade-scale.ts): 4 passes in Germany, 6 in Italy.
+  const scale = gradeScale();
+  const certain = scaleCertain(scale);
+  const positive = liveValues.filter((v) => passes(v, scale)).length;
+  const negative = liveValues.length - positive;
   const passRate = liveValues.length ? (positive / liveValues.length) * 100 : 0;
 
   const teacherAvg = useMemo(() => {
@@ -206,7 +210,9 @@ function SubjectDetailView({ idParam }: { idParam: string }) {
     const last = chronological[chronological.length - 1].value;
     const diff = last - first;
     if (Math.abs(diff) < 0.3) return 'flat' as const;
-    return diff > 0 ? 'up' : 'down';
+    // "Rising" means getting better: a falling number where 1 is best.
+    const better = gradeScale().higherIsBetter ? diff > 0 : diff < 0;
+    return better ? 'up' : 'down';
   }, [chronological]);
 
   const GRADE_STEP = 0.5;
@@ -353,13 +359,13 @@ function SubjectDetailView({ idParam }: { idParam: string }) {
   }
 
   const teacherDelta = liveAvg && teacherAvg ? liveAvg - teacherAvg : 0;
-  const avgTone = !liveAvg ? 'bg-surface text-ink' : liveAvg >= 6.4 ? 'bg-sage text-sage-ink' : liveAvg >= 6 ? 'bg-butter text-butter-ink' : 'bg-blush text-blush-ink';
+  const avgTone = !liveAvg || !certain ? 'bg-surface text-ink' : passesWell(liveAvg, scale) ? 'bg-sage text-sage-ink' : passes(liveAvg, scale) ? 'bg-butter text-butter-ink' : 'bg-blush text-blush-ink';
   const directionChip = trendDirection === 'up'
     ? { Icon: TrendUp, text: t('rising'), cls: 'bg-sage text-sage-ink' }
     : trendDirection === 'down'
       ? { Icon: TrendDown, text: t('falling'), cls: 'bg-blush text-blush-ink' }
       : { Icon: Minus, text: t('stable'), cls: 'bg-inset text-ink-2' };
-  const gradeChip = (v: number) => (v >= 6.4 ? 'bg-sage text-sage-ink' : v >= 6 ? 'bg-butter text-butter-ink' : 'bg-blush text-blush-ink');
+  const gradeChip = (v: number) => (!certain ? 'bg-inset text-ink' : passesWell(v, scale) ? 'bg-sage text-sage-ink' : passes(v, scale) ? 'bg-butter text-butter-ink' : 'bg-blush text-blush-ink');
 
   return (
     <AuthGuard>
@@ -478,7 +484,7 @@ function SubjectDetailView({ idParam }: { idParam: string }) {
                   averageLabel={t('average')}
                   ownLabel={t('ownGrade')}
                   gradesLabel={t('trendGrades')}
-                  passLabel={t('trendPass')}
+                  passLabel={t(scale.higherIsBetter ? 'trendPass' : 'trendPassDown', { mark: formatMark(scale.pass) })}
                 />
               )}
             </div>

@@ -9,6 +9,7 @@ import { useLocalizeHref, useT } from '@/providers/LocaleProvider';
 import { mensaDict } from '@/lib/i18n/dictionaries/mensa';
 import { commonDict } from '@/lib/i18n/dictionaries/common';
 import PixelPlate, { type FoodStyle } from './PixelPlate';
+import { dishImageSrc, dishImageSrcSet } from '@/lib/dish-image';
 
 // Pieces the Mensa plan and the dish pages share: the dish on a small plate,
 // stars, diet tags and the sign-in question for guests.
@@ -68,7 +69,9 @@ export function Food({ dish, alt, eager = false }: { dish: Dish; alt: string; ea
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={src}
+      src={dishImageSrc(src, 768) ?? src}
+      srcSet={dishImageSrcSet(src)}
+      sizes="(min-width: 768px) 46vw, 92vw"
       alt={alt}
       loading={eager ? 'eager' : 'lazy'}
       decoding="async"

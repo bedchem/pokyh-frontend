@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarBlank, CaretDown, CheckCircle, FilePdf, PaperPlaneTilt, Plus, XCircle } from '@phosphor-icons/react';
+import { CalendarBlank, CaretDown, CheckCircle, FilePdf, PaperPlaneTilt, Plus, Trash, XCircle } from '@phosphor-icons/react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import AuthGuard from '@/components/AuthGuard';
@@ -15,7 +15,7 @@ import ErrorView from '@/components/ui/ErrorView';
 // Abwesenheit-melden deaktiviert (kein funktionierender WebUntis-Schreib-Endpunkt):
 import ReportAbsenceSheet from '@/components/absences/ReportAbsenceSheet';
 import ExcuseSheet from '@/components/absences/ExcuseSheet';
-import { fetchAbsences, fetchAbsenceTimes, fetchExcuses, fetchTimetableForCalc, getAbsencesStale, getAbsenceTimesStale, getExcusesStale, excuseLetterUrl, type AbsenceTimes, type ExcuseResult } from '@/lib/api';
+import { deleteAbsences, fetchAbsences, fetchAbsenceTimes, fetchExcuses, fetchTimetableForCalc, getAbsencesStale, getAbsenceTimesStale, getExcusesStale, excuseLetterUrl, type AbsenceTimes, type ExcuseResult } from '@/lib/api';
 import { useUntisPermissions } from '@/components/app/hooks';
 import { untisActionsDict } from '@/lib/i18n/dictionaries/untisActions';
 import { useSession, leaveForLogin } from '@/providers/SessionProvider';
@@ -129,6 +129,8 @@ export default function AbsencesPage() {
   const [excuses, setExcuses] = useState<SentExcuse[]>(() => getExcusesStale()?.excuses ?? []);
   const [sentNow, setSentNow] = useState<SentExcuse[]>([]);
   const [letterOpen, setLetterOpen] = useState(false);
+  // "Löschen" on an upcoming absence: asked once more on the row, then sent.
+  const [deleting, setDeleting] = useState<{ id: number; busy: boolean; error?: string } | null>(null);
   const ta = useT(untisActionsDict);
   // The missed lessons as the school counts them (WebUntis "Fehlzeiten"):
   // the minutes of each absence. Where they are there, they are what the
@@ -204,6 +206,27 @@ export default function AbsencesPage() {
     // Saved in WebUntis instead (no message allowed): the absence itself changed.
     if (r.via === 'webuntis') void load();
     else loadExcuses();
+  };
+
+  // Only an absence that has not begun and is not excused yet (one reported by
+  // mistake) can be deleted; the API checks the same with WebUntis.
+  const nowNum = (() => {
+    const n = new Date();
+    return (n.getFullYear() * 10000 + (n.getMonth() + 1) * 100 + n.getDate()) * 10000 + n.getHours() * 100 + n.getMinutes();
+  })();
+  const canDelete = (a: AbsenceEntry) => canReport && !a.isExcused && a.startDate * 10000 + (a.startTime || 0) > nowNum;
+
+  const removeAbsence = async (id: number) => {
+    setDeleting({ id, busy: true });
+    try {
+      await deleteAbsences([id]);
+      setDeleting(null);
+      setAbsences((prev) => prev.filter((a) => a.id !== id));
+      void load();
+    } catch (e) {
+      if (e instanceof Error && e.message === 'session_expired') { leaveForLogin(); return; }
+      setDeleting({ id, busy: false, error: e instanceof Error && e.message ? e.message : ta('delFailed') });
+    }
   };
 
   // What "Gesendet" has wins: it knows the message to open.
@@ -483,6 +506,9 @@ export default function AbsencesPage() {
                                         {entry.note}
                                       </p>
                                     )}
+                                    {deleting?.id === entry.id && deleting.error && (
+                                      <p role="alert" className="mt-1.5 text-[13.5px] font-semibold leading-snug text-danger">{deleting.error}</p>
+                                    )}
                                     {sent && (sentNames || sentDate) && (
                                       <p className="mt-1.5 text-[13.5px] leading-snug text-ink-2">
                                         {sentNames ? (sentDate ? ta('exSentTo', { names: sentNames, date: sentDate }) : ta('exDoneTo', { names: sentNames })) : sentDate}
@@ -514,6 +540,37 @@ export default function AbsencesPage() {
                                       </span>
                                     )}
                                     {/* Like WebUntis: only who may report absences (guardians, students of age) excuses them. */}
+                                    {canDelete(entry) && (deleting?.id === entry.id ? (
+                                      <>
+                                        <button
+                                          type="button"
+                                          disabled={deleting.busy}
+                                          onClick={() => void removeAbsence(entry.id)}
+                                          className="inline-flex h-8 items-center gap-1.5 rounded-full bg-danger px-3 text-[13px] font-bold text-white transition-[filter] hover:brightness-95 disabled:opacity-60"
+                                        >
+                                          <Trash size={14} weight="bold" aria-hidden="true" />
+                                          {ta('delConfirm')}
+                                        </button>
+                                        {!deleting.busy && (
+                                          <button
+                                            type="button"
+                                            onClick={() => setDeleting(null)}
+                                            className="inline-flex h-8 items-center rounded-full bg-inset px-3 text-[13px] font-semibold text-ink transition-colors hover:bg-[color-mix(in_srgb,var(--inset)_86%,var(--ink))]"
+                                          >
+                                            {ta('delCancel')}
+                                          </button>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => setDeleting({ id: entry.id, busy: false })}
+                                        className="inline-flex h-8 items-center gap-1.5 rounded-full bg-blush px-3 text-[13px] font-semibold text-blush-ink transition-[filter] hover:brightness-95 dark:hover:brightness-125"
+                                      >
+                                        <Trash size={14} weight="bold" aria-hidden="true" />
+                                        {ta('delAction')}
+                                      </button>
+                                    ))}
                                     {!entry.isExcused && !sent && canReport && (
                                       <button
                                         type="button"

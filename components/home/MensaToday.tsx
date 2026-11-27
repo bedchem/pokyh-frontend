@@ -9,6 +9,7 @@ import { formatDate } from '@/lib/i18n/dateLocale';
 import { api } from '@/lib/api-client';
 import { fadeIn, lightUp, useGsap } from '@/lib/motion';
 import { useMensaDishes } from '@/components/landing/useMensaDishes';
+import { dishImageSrc, dishImageSrcSet } from '@/lib/dish-image';
 
 // The next dish on the plan and nothing else: the day it is for (today,
 // tomorrow, Monday …), its name, the stars it got from students and its
@@ -186,7 +187,9 @@ export default function MensaToday() {
         {pick?.dish.imageUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={pick.dish.imageUrl}
+            src={dishImageSrc(pick.dish.imageUrl, 768) ?? pick.dish.imageUrl}
+            srcSet={dishImageSrcSet(pick.dish.imageUrl)}
+            sizes="(min-width: 768px) 36vw, 84vw"
             alt={name}
             loading="lazy"
             decoding="async"

@@ -169,6 +169,15 @@ interface ApiGridEntry {
 }
 interface ApiDay { date: string; gridEntries: ApiGridEntry[] }
 
+/**
+ * Each name once, in order. A teacher who is in the lesson anyway and also
+ * stands in for the absent one comes twice in WebUntis' list (once as the
+ * lesson's own, once as the substitute): "Kasseroler Katrin, Kasseroler Katrin".
+ */
+function once(names: string[]): string[] {
+  return [...new Set(names.filter(Boolean))];
+}
+
 function nonBlank(s: string | null | undefined): string | undefined {
   return s && s.trim() ? s : undefined;
 }
@@ -194,22 +203,21 @@ export function parseTimetable(json: unknown): TimetableEntry[] {
 
         // WebUntis flags a changed field on the *current* value ("status":"ADDED") and leaves
         // "removed" null; only an outright swap fills `removed` in. Both have to be read.
-        const added = (positions: ApiPositionItem[]) => positions
+        const added = (positions: ApiPositionItem[]) => once(positions
           .filter(p => p.current?.status && p.current.status !== 'REGULAR')
-          .map(p => p.current!.displayName ?? '')
-          .filter(Boolean);
+          .map(p => p.current!.displayName ?? ''));
 
         const addedTeachers = added(pos1);
         const addedSubjects = added(pos2);
         const addedRooms = added(pos3);
-        const activeTeachers = pos1.map(p => p.current?.displayName ?? '').filter(Boolean);
-        const activeTeachersLong = pos1.map(p => p.current?.longName || p.current?.displayName || '').filter(Boolean);
-        const removedTeachers = pos1.map(p => p.removed?.displayName ?? '').filter(Boolean);
-        const removedTeachersLong = pos1.map(p => p.removed?.longName || p.removed?.displayName || '').filter(Boolean);
+        const activeTeachers = once(pos1.map(p => p.current?.displayName ?? ''));
+        const activeTeachersLong = once(pos1.map(p => p.current?.longName || p.current?.displayName || ''));
+        const removedTeachers = once(pos1.map(p => p.removed?.displayName ?? ''));
+        const removedTeachersLong = once(pos1.map(p => p.removed?.longName || p.removed?.displayName || ''));
         const activeSub = pos2.find(p => p.current)?.current ?? null;
         const removedSub = pos2.find(p => p.removed)?.removed ?? null;
-        const activeRooms = pos3.map(p => p.current?.displayName ?? '').filter(Boolean);
-        const removedRooms = pos3.map(p => p.removed?.displayName ?? '').filter(Boolean);
+        const activeRooms = once(pos3.map(p => p.current?.displayName ?? ''));
+        const removedRooms = once(pos3.map(p => p.removed?.displayName ?? ''));
 
         const text = (kind: string) => nonBlank(ge.texts?.find(t => t.type === kind)?.text);
         const lessonInfo = text('LESSON_INFO') ?? nonBlank(ge.lessonInfo);
@@ -559,8 +567,59 @@ export interface Tone {
  */
 const SUBJECT_HUES = [10, 30, 50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290, 310, 330, 350];
 
-/** The colours of the week last handed to [registerSubjects]. */
+/** The colours of the week last handed to [registerSubjects] (the year's, once known). */
 let subjectHues: ReadonlyMap<string, number> = new Map();
+
+// ── The year's colours ─────────────────────────────────────────────────────
+// Coloured week by week, a subject changed colour whenever the week's set of
+// subjects changed (another subject took its hue first). So the colours come
+// from one list instead: the student's subjects of the school year as WebUntis
+// lists them (GET /webuntis/subjects), handed out once with the same routine
+// and kept on the device for the next start. A subject not on it (a one-off
+// event) takes its own preferred hue.
+
+const YEAR_SUBJECTS_KEY = 'pokyh_year_subjects';
+
+function storedYearSubjects(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(YEAR_SUBJECTS_KEY) ?? '[]');
+    return Array.isArray(parsed) ? parsed.filter((s): s is string => typeof s === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+let yearHues: ReadonlyMap<string, number> | null = null;
+let yearLoaded = false;
+
+/** The year's colours, from the device's copy until [setYearSubjects] has the current list. */
+function yearHueMap(): ReadonlyMap<string, number> | null {
+  if (!yearLoaded) {
+    yearLoaded = true;
+    const stored = storedYearSubjects();
+    if (stored.length) {
+      yearHues = subjectHueMap(stored);
+      subjectHues = yearHues;
+    }
+  }
+  return yearHues;
+}
+
+/** The student's subjects of the school year: from now on every subject is coloured from this list. */
+export function setYearSubjects(names: string[]): void {
+  const list = [...new Set(names.filter(Boolean))].sort();
+  yearLoaded = true;
+  if (!list.length) return;
+  yearHues = subjectHueMap(list);
+  subjectHues = yearHues;
+  try { localStorage.setItem(YEAR_SUBJECTS_KEY, JSON.stringify(list)); } catch { /* storage blocked */ }
+}
+
+/** The colours for a week's cells: the year's when known, else the week's own (as before). */
+export function hueMapFor(names: Iterable<string>): ReadonlyMap<string, number> {
+  return yearHueMap() ?? subjectHueMap(names);
+}
 
 const hueDistance = (a: number, b: number) => {
   const d = Math.abs(a - b) % 360;
@@ -589,7 +648,7 @@ function preferredHue(name: string): number {
  * had met their subjects in a different order.
  */
 export function registerSubjects(names: Iterable<string>): void {
-  subjectHues = subjectHueMap(names);
+  subjectHues = hueMapFor(names);
 }
 
 /**
@@ -628,7 +687,8 @@ export function subjectHueMap(names: Iterable<string>): ReadonlyMap<string, numb
 
 /** A subject's hue: the one its week gave it, else the one its name asks for. */
 function subjectHue(name: string, hues: ReadonlyMap<string, number>): number {
-  return hues.get(name) ?? preferredHue(name);
+  // Pages that register no week (Noten, the Klassenbuch) colour from the year's list too.
+  return hues.get(name) ?? yearHueMap()?.get(name) ?? preferredHue(name);
 }
 
 /**

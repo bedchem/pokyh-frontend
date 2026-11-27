@@ -3,7 +3,7 @@
 // (LegalViews.tsx) numbers the sections, builds the table of contents and
 // fills in the identity and contact details from the deployment's
 // configuration (lib/legal-identity.ts). Legal seat: Italy. Version:
-// 25 November 2026.
+// 27 November 2026.
 //
 // A section, block or row with `when` is shown only in builds where Google
 // Analytics is on ('analytics') or off ('noAnalytics'), so the texts always
@@ -45,9 +45,9 @@ export interface LegalDocument {
 }
 
 export const LEGAL_UPDATED: Record<LegalLocale, string> = {
-  "de": "25. November 2026",
-  "it": "25 novembre 2026",
-  "en": "25 November 2026"
+  "de": "27. November 2026",
+  "it": "27 novembre 2026",
+  "en": "27 November 2026"
 };
 
 export const LEGAL_UI = {
@@ -256,7 +256,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "title": "Urheberrecht",
           "blocks": [
             {
-              "p": "Der Quellcode von POKYH ist Open Source: Web-App, Backend und iOS-App sind auf GitHub veröffentlicht (github.com/bedchem) und stehen unter der MIT-Lizenz. Verwendete Bibliotheken und Schriften unterliegen ihren eigenen Lizenzen. Die Fotos der Gerichte im Mensa-Speiseplan liegen auf dem POKYH-Server; die Rechte daran liegen bei ihren Urheberinnen und Urhebern. Einzelne Fotos werden noch direkt von den Seiten geladen, auf denen sie veröffentlicht sind. Wer Rechte an einem Foto hat und nicht möchte, dass es hier erscheint, schreibt uns über die Kontaktadresse oben; wir entfernen es umgehend."
+              "p": "Der Quellcode von POKYH ist Open Source: Web-App, Backend und iOS-App sind auf GitHub veröffentlicht (github.com/bedchem) und stehen unter der MIT-Lizenz. Verwendete Bibliotheken und Schriften unterliegen ihren eigenen Lizenzen. Die MIT-Lizenz gilt nicht für die Fotos der Gerichte im Mensa-Speiseplan: Sie sind eigene Aufnahmen von POKYH und urheberrechtlich geschützt; alle Rechte vorbehalten. Sie dürfen nur in POKYH angesehen werden. Ohne vorherige schriftliche Erlaubnis dürfen sie nicht kopiert, gespeichert, verändert oder weitergegeben werden und weder auf anderen Websites noch in anderen Apps oder Diensten, in sozialen Netzwerken oder sonst öffentlich verwendet werden, auch nicht zum Training von KI-Modellen. Anfragen dazu gehen an die Kontaktadresse oben."
             }
           ]
         }
@@ -337,7 +337,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "title": "Diritto d’autore",
           "blocks": [
             {
-              "p": "Il codice sorgente di POKYH è open source: web app, backend e app iOS sono pubblicati su GitHub (github.com/bedchem) con licenza MIT. Le librerie e i caratteri utilizzati sono soggetti alle proprie licenze. Le foto dei piatti del menù della mensa si trovano sul server di POKYH; i diritti appartengono ai rispettivi autori. Alcune foto vengono ancora caricate direttamente dai siti su cui sono pubblicate. Chi detiene diritti su una foto e non vuole che compaia qui ci scrive all’indirizzo di contatto indicato sopra; la rimuoviamo subito."
+              "p": "Il codice sorgente di POKYH è open source: web app, backend e app iOS sono pubblicati su GitHub (github.com/bedchem) con licenza MIT. Le librerie e i caratteri utilizzati sono soggetti alle proprie licenze. La licenza MIT non si applica alle foto dei piatti del menù della mensa: sono scattate da POKYH e protette dal diritto d’autore; tutti i diritti riservati. Possono essere visualizzate solo in POKYH. Senza previa autorizzazione scritta non possono essere copiate, salvate, modificate o cedute, né usate su altri siti web, in altre app o servizi, sui social network o comunque in pubblico, nemmeno per l’addestramento di modelli di IA. Le richieste vanno inviate all’indirizzo di contatto indicato sopra."
             }
           ]
         }
@@ -418,7 +418,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
           "title": "Copyright",
           "blocks": [
             {
-              "p": "POKYH’s source code is open source: the web app, the backend and the iOS app are published on GitHub (github.com/bedchem) under the MIT licence. Libraries and fonts used are subject to their own licences. The dish photos in the canteen menu are on the POKYH server; the rights to them belong to their authors. Some photos are still loaded directly from the sites where they are published. Anyone who holds rights to a photo and does not want it to appear here can write to us at the contact address above; we remove it right away."
+              "p": "POKYH’s source code is open source: the web app, the backend and the iOS app are published on GitHub (github.com/bedchem) under the MIT licence. Libraries and fonts used are subject to their own licences. The MIT licence does not cover the dish photos in the canteen menu: they are POKYH’s own and protected by copyright; all rights reserved. They may only be viewed in POKYH. Without prior written permission they may not be copied, saved, altered or passed on, nor used on any other website, in other apps or services, on social media or anywhere else in public, including to train AI models. Requests go to the contact address above."
             }
           ]
         }
@@ -539,6 +539,10 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Die Fotos im Mensa-Speiseplan sind eigene Aufnahmen von POKYH. Sie liegen auf dem POKYH-Server und werden nur von dort geladen; dabei erhält niemand außer POKYH Daten."
                 },
                 {
+                  "label": "Keine Bilder zu den Fächern",
+                  "desc": "Zu den Fächern zeigt POKYH keine Bilder mehr, auch keine von anderen Websites; die Stunde erscheint in der Farbe und mit dem Kürzel ihres Fachs. Ältere App-Versionen fragen den POKYH-Server noch nach solchen Bildern: Er antwortet ohne Bild und speichert dabei nichts, auch nicht die Fächer, nach denen gefragt wurde. Bilder, die eine ältere Version noch auf dem Gerät gespeichert hat, bleiben nur dort."
+                },
+                {
                   "label": "Google Analytics 4 (GA4)",
                   "desc": "Diese Website verwendet Google Analytics 4 (Google LLC), aber ausschließlich nach deiner ausdrücklichen Einwilligung im Cookie-Banner; vorher wird keine Verbindung zu Google aufgebaut. GA4 erhebt pseudonymisierte Nutzungsdaten (Seitenaufrufe, Gerätekategorie, ungefähres Herkunftsland) und setzt dafür die Cookies _ga und _ga_*. Nach Angaben von Google speichert GA4 keine IP-Adressen; Google-Signale und Werbefunktionen sind abgeschaltet. Rechtsgrundlage: deine Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, Art. 122 Codice privacy). Du kannst sie jederzeit in den Cookie-Einstellungen widerrufen; die Cookies werden dann gelöscht. Zusätzlich kannst du der Datenerhebung unter tools.google.com/dlpage/gaoptout widersprechen.",
                   "when": "analytics"
@@ -585,7 +589,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 },
                 {
                   "label": "Lokaler Speicher (localStorage)",
-                  "desc": "Für Einstellungen (Darstellung, Sprache, gewählte Schule und Mensa, Fotos ja/nein, der Fortschritt im versteckten Klassenzimmer der Anmeldeseite), als Zwischenspeicher zuletzt geladener Schuldaten (Stundenplan, Noten, Abwesenheiten, Nachrichten, die Wochen eines Rückblicks) und für die Reihenfolge, in der neue Noten zuerst gesehen wurden (nur Kennungen und Zeiten), wird der Speicher deines Browsers genutzt. Diese Daten verlassen dein Gerät nicht; die einzelnen Einträge stehen in der Cookie-Richtlinie."
+                  "desc": "Für Einstellungen (Darstellung, Sprache, gewählte Schule und Mensa, der Fortschritt im versteckten Klassenzimmer der Anmeldeseite), als Zwischenspeicher zuletzt geladener Schuldaten (Stundenplan, Noten, Abwesenheiten, Nachrichten, die Wochen eines Rückblicks) und für die Reihenfolge, in der neue Noten zuerst gesehen wurden (nur Kennungen und Zeiten), wird der Speicher deines Browsers genutzt. Diese Daten verlassen dein Gerät nicht; die einzelnen Einträge stehen in der Cookie-Richtlinie."
                 },
                 {
                   "label": "Unterstützung über Buy Me a Coffee (freiwillig)",
@@ -608,7 +612,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
               "when": "analytics"
             },
             {
-              "p": "Die Schulsuche und die Zuordnung deines Kontos zu deiner Schule dienen der Erbringung des Dienstes (Art. 6 Abs. 1 lit. b DSGVO). Fotos, die noch auf anderen Seiten liegen, werden aufgrund berechtigten Interesses geladen (Art. 6 Abs. 1 lit. f DSGVO); du kannst jederzeit widersprechen, indem du sie ausblendest (Art. 21 DSGVO). Gesundheitsdaten, die du selbst mit einer Abwesenheit an die Schule schickst, übermittelt POKYH aufgrund deiner ausdrücklichen Einwilligung (Art. 9 Abs. 2 lit. a DSGVO)."
+              "p": "Die Schulsuche und die Zuordnung deines Kontos zu deiner Schule dienen der Erbringung des Dienstes (Art. 6 Abs. 1 lit. b DSGVO). Gesundheitsdaten, die du selbst mit einer Abwesenheit an die Schule schickst, übermittelt POKYH aufgrund deiner ausdrücklichen Einwilligung (Art. 9 Abs. 2 lit. a DSGVO)."
             }
           ]
         },
@@ -982,6 +986,10 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "Le foto del menù della mensa sono scattate da POKYH. Si trovano sul server di POKYH e vengono caricate solo da lì; nessuno oltre a POKYH riceve dati."
                 },
                 {
+                  "label": "Nessuna immagine per le materie",
+                  "desc": "POKYH non mostra più immagini per le materie, nemmeno provenienti da altri siti; la lezione appare nel colore e con la sigla della sua materia. Le versioni meno recenti dell’app chiedono ancora tali immagini al server di POKYH: risponde senza immagine e non salva nulla, nemmeno le materie richieste. Le immagini che una versione meno recente ha ancora salvate sul dispositivo restano solo lì."
+                },
+                {
                   "label": "Google Analytics 4 (GA4)",
                   "desc": "Questo sito utilizza Google Analytics 4 (Google LLC), ma solo previo tuo consenso esplicito espresso nel banner dei cookie; prima non viene stabilita alcuna connessione con Google. GA4 raccoglie dati d’uso pseudonimizzati (visualizzazioni di pagina, categoria del dispositivo, paese di origine approssimativo) e a tal fine imposta i cookie _ga e _ga_*. Secondo Google, GA4 non memorizza indirizzi IP; i segnali Google e le funzioni pubblicitarie sono disattivati. Base giuridica: il tuo consenso (art. 6, par. 1, lett. a GDPR, art. 122 Codice privacy). Puoi revocarlo in qualsiasi momento nelle impostazioni dei cookie; i cookie vengono allora cancellati. Puoi inoltre opporti alla raccolta dati su tools.google.com/dlpage/gaoptout.",
                   "when": "analytics"
@@ -1028,7 +1036,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 },
                 {
                   "label": "Memoria locale (localStorage)",
-                  "desc": "La memoria del browser viene usata per le impostazioni (aspetto, lingua, scuola e mensa scelte, foto sì/no, i progressi nell’aula nascosta della pagina di accesso), come memoria temporanea degli ultimi dati scolastici caricati (orario, voti, assenze, messaggi, le settimane di un riepilogo) e per l’ordine in cui i nuovi voti sono stati visti la prima volta (solo identificativi e orari). Questi dati non lasciano il tuo dispositivo; le singole voci sono elencate nella cookie policy."
+                  "desc": "La memoria del browser viene usata per le impostazioni (aspetto, lingua, scuola e mensa scelte, i progressi nell’aula nascosta della pagina di accesso), come memoria temporanea degli ultimi dati scolastici caricati (orario, voti, assenze, messaggi, le settimane di un riepilogo) e per l’ordine in cui i nuovi voti sono stati visti la prima volta (solo identificativi e orari). Questi dati non lasciano il tuo dispositivo; le singole voci sono elencate nella cookie policy."
                 },
                 {
                   "label": "Sostegno tramite Buy Me a Coffee (volontario)",
@@ -1051,7 +1059,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
               "when": "analytics"
             },
             {
-              "p": "La ricerca della scuola e l’associazione del tuo account alla scuola servono alla fornitura del servizio (art. 6, par. 1, lett. b GDPR). Le foto che si trovano ancora su altri siti vengono caricate sulla base del legittimo interesse (art. 6, par. 1, lett. f GDPR); puoi opporti in qualsiasi momento nascondendole (art. 21 GDPR). I dati relativi alla salute che invii tu stesso alla scuola con un’assenza vengono trasmessi da POKYH sulla base del tuo consenso esplicito (art. 9, par. 2, lett. a GDPR)."
+              "p": "La ricerca della scuola e l’associazione del tuo account alla scuola servono alla fornitura del servizio (art. 6, par. 1, lett. b GDPR). I dati relativi alla salute che invii tu stesso alla scuola con un’assenza vengono trasmessi da POKYH sulla base del tuo consenso esplicito (art. 9, par. 2, lett. a GDPR)."
             }
           ]
         },
@@ -1425,6 +1433,10 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                   "desc": "The photos in the canteen menu are POKYH’s own. They are on the POKYH server and are loaded only from there; nobody but POKYH receives any data."
                 },
                 {
+                  "label": "No pictures for subjects",
+                  "desc": "POKYH no longer shows pictures for subjects, including none from other websites; a lesson appears in its subject’s colour and with its short name. Older app versions still ask the POKYH server for such pictures: it answers without a picture and stores nothing, not even the subjects asked about. Pictures an older version still has saved on the device stay only there."
+                },
+                {
                   "label": "Google Analytics 4 (GA4)",
                   "desc": "This website uses Google Analytics 4 (Google LLC), but only after your explicit consent in the cookie banner; before that, no connection to Google is made. GA4 collects pseudonymised usage data (page views, device category, approximate country of origin) and sets the cookies _ga and _ga_* for this. According to Google, GA4 does not store IP addresses; Google signals and advertising features are switched off. Legal basis: your consent (Art. 6(1)(a) GDPR, Art. 122 Italian Privacy Code). You can withdraw it at any time in the cookie settings; the cookies are then deleted. You can additionally opt out of data collection at tools.google.com/dlpage/gaoptout.",
                   "when": "analytics"
@@ -1471,7 +1483,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 },
                 {
                   "label": "Local storage (localStorage)",
-                  "desc": "Your browser’s storage is used for settings (appearance, language, chosen school and canteen, photos on/off, the progress in the hidden classroom of the sign-in page), as a cache of recently loaded school data (timetable, grades, absences, messages, the weeks of a recap) and for the order in which new grades were first seen (only identifiers and times). This data does not leave your device; the individual entries are listed in the cookie policy."
+                  "desc": "Your browser’s storage is used for settings (appearance, language, chosen school and canteen, the progress in the hidden classroom of the sign-in page), as a cache of recently loaded school data (timetable, grades, absences, messages, the weeks of a recap) and for the order in which new grades were first seen (only identifiers and times). This data does not leave your device; the individual entries are listed in the cookie policy."
                 },
                 {
                   "label": "Support via Buy Me a Coffee (voluntary)",
@@ -1494,7 +1506,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
               "when": "analytics"
             },
             {
-              "p": "The school search and assigning your account to your school serve to provide the service (Art. 6(1)(b) GDPR). Photos that are still on other sites are loaded on the basis of legitimate interest (Art. 6(1)(f) GDPR); you can object at any time by hiding them (Art. 21 GDPR). Health data that you yourself send to the school with an absence is transmitted by POKYH on the basis of your explicit consent (Art. 9(2)(a) GDPR)."
+              "p": "The school search and assigning your account to your school serve to provide the service (Art. 6(1)(b) GDPR). Health data that you yourself send to the school with an absence is transmitted by POKYH on the basis of your explicit consent (Art. 9(2)(a) GDPR)."
             }
           ]
         },
@@ -1818,6 +1830,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 "auf Daten anderer Personen zuzugreifen oder es zu versuchen;",
                 "POKYH, WebUntis oder die Schule mit automatisierten Massenabfragen zu belasten, Sicherheitsmaßnahmen zu umgehen oder Schwachstellen auszunutzen (Sicherheitslücken bitte vertraulich an die Kontaktadresse melden);",
                 "in Kommentaren, Bewertungen oder Erinnerungen rechtswidrige, beleidigende, diskriminierende oder fremde persönliche Inhalte zu veröffentlichen;",
+                "die Fotos der Gerichte aus dem Mensa-Speiseplan zu kopieren, zu speichern oder auf anderen Websites, in anderen Apps oder Diensten, in sozialen Netzwerken oder sonst öffentlich zu verwenden (siehe Urheberrecht im Impressum);",
                 "POKYH für Werbung oder kommerzielle Zwecke zu nutzen."
               ]
             },
@@ -1961,6 +1974,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 "accedere o tentare di accedere ai dati di altre persone;",
                 "sovraccaricare POKYH, WebUntis o la scuola con richieste automatizzate di massa, aggirare misure di sicurezza o sfruttare vulnerabilità (segnala le vulnerabilità in modo riservato all’indirizzo di contatto);",
                 "pubblicare in commenti, valutazioni o promemoria contenuti illeciti, offensivi, discriminatori o dati personali altrui;",
+                "copiare o salvare le foto dei piatti del menù della mensa o usarle su altri siti web, in altre app o servizi, sui social network o comunque in pubblico (vedi Diritto d’autore nelle note legali);",
                 "usare POKYH per pubblicità o scopi commerciali."
               ]
             },
@@ -2104,6 +2118,7 @@ export const LEGAL_DOCS: Record<LegalDocView, Record<LegalLocale, LegalDocument>
                 "access or try to access other people’s data;",
                 "burden POKYH, WebUntis or the school with automated mass requests, bypass security measures or exploit vulnerabilities (please report vulnerabilities confidentially to the contact address);",
                 "publish unlawful, insulting or discriminatory content or other people’s personal data in comments, ratings or reminders;",
+                "copy or save the dish photos from the canteen menu, or use them on any other website, in other apps or services, on social media or anywhere else in public (see Copyright in the imprint);",
                 "use POKYH for advertising or commercial purposes."
               ]
             },
